@@ -1078,7 +1078,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
               <div className="upm-rail-section-head">
                 <div><span className="upm-rail-kicker">Trust layer</span><strong>Verified signals</strong></div>
-                <button type="button" onClick={() => setShowDashboard(true)}>See more <ChevronRight size={13} /></button>
+                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:open-community"))}>See more <ChevronRight size={13} /></button>
               </div>
               <button type="button" className="upm-rail-card upm-rail-button" onClick={() => setShowDashboard(true)}>
                 <div className="upm-rail-card-icon upm-rail-card-icon--purple"><ShieldCheck size={16} /></div>
@@ -1096,7 +1096,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               </div>
               <div className="upm-rail-list">
                 {engagementLeaders.length ? engagementLeaders.slice(0, 3).map((person) => (
-                  <button type="button" className="upm-rail-list-item" key={person.id || person.name || person.community_id} onClick={() => window.dispatchEvent(new CustomEvent("xeevia:open-community", { detail: { communityId: person.id } }))}>
+                  <button type="button" className="upm-rail-list-item" key={person.id || person.name || person.community_id} onClick={() => window.dispatchEvent(new CustomEvent("xeevia:open-community", { detail: { communityId: person.id || person.community_id } }))}>
                     <span className="upm-rail-list-icon"><CommunityRailIcon community={person} /></span>
                     <span className="upm-rail-list-copy">
                       <strong>{person.name || person.full_name || "High-engagement supporter"}</strong>
@@ -1115,7 +1115,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               </div>
               <div className="upm-rail-list">
                 {featuredMoments.length ? featuredMoments.slice(0, 3).map((item, idx) => (
-                  <button type="button" className="upm-rail-list-item" key={item.id || `${item.kind}-${idx}`} onClick={() => handleTabChange(item.kind === "reel" ? "reels" : item.kind === "story" ? "stories" : "posts")}>
+                  <button type="button" className="upm-rail-list-item" key={item.id || `${item.kind}-${idx}`} onClick={() => handleOpenContent(item, item.kind === "reel" ? "reel" : item.kind === "story" ? "story" : "post")}>
                     <span className="upm-rail-list-thumb">{item.kind === "reel" ? <Film size={12} /> : item.kind === "story" ? <BookOpen size={12} /> : <Image size={12} />}</span>
                     <span className="upm-rail-list-copy">
                       <strong>{item.content?.slice(0, 22) || item.caption || item.title || "Published moment"}{((item.content || item.caption || item.title || "").length > 22) ? "…" : ""}</strong>
@@ -1266,17 +1266,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; color:#e5e5e5; text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
         .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
-        .upm-card-lower { margin-top:16px; padding:0 0 16px; background:transparent; }
-        .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
-        .upm-stat { flex:1; padding:12px 8px; text-align:center; display:flex; flex-direction:column; gap:3px; border-radius:13px; }
+        .upm-card-lower { margin-top:8px; padding:0 0 8px; background:transparent; }
+        .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:3px; border-radius:16px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
+        .upm-stat { flex:1; padding:8px 8px; text-align:center; display:flex; flex-direction:column; gap:2px; border-radius:11px; }
         .upm-stat:hover { background:rgba(255,255,255,.035); }
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
         .upm-sl { font-size:10px; color:#737373; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
         .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
-        .upm-follow-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:14px 20px 4px; }
+        .upm-follow-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:9px 20px 2px; }
         .upm-fbtn {
-          width:100%; padding:13px 20px; border-radius:14px;
-          font-size:14px; font-weight:800; letter-spacing:0.02em;
+          width:100%; padding:9px 12px; border-radius:12px;
+          font-size:12px; font-weight:800; letter-spacing:0.02em;
           cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
           transition:all .25s ease; font-family:inherit;
         }
@@ -1291,13 +1291,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
         .upm-gift-btn { background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.24); color:#fcd34d; box-shadow:inset 0 1px rgba(255,255,255,.05); }
         .upm-gift-btn:hover { background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.48); color:#fde68a; box-shadow:0 0 18px rgba(251,191,36,.14); }
-        .upm-verification-entry { margin:10px 16px 0; width:calc(100% - 32px); border-radius:16px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:11px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; color:#fff; text-align:left; }
+        .upm-verification-entry { margin:7px 16px 0; width:calc(100% - 32px); border-radius:14px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:8px 10px; display:flex; align-items:center; gap:8px; cursor:pointer; color:#fff; text-align:left; }
         .upm-verification-entry:hover { border-color:rgba(168,85,247,.58); background:radial-gradient(circle at top left,rgba(168,85,247,.24),transparent 34%),rgba(15,23,42,.9); }
-        .upm-verification-icon { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }
+        .upm-verification-icon { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }
         .upm-verification-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
         .upm-verification-copy strong { font-size:12px; }
         .upm-verification-copy small { color:#c4b5fd; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .upm-verification-open { display:inline-flex; align-items:center; gap:4px; padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:11px; font-weight:700; flex-shrink:0; }
+        .upm-verification-open { display:inline-flex; align-items:center; gap:4px; padding:6px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:10px; font-weight:700; flex-shrink:0; }
         .upm-tabs { display:flex; padding:14px 16px 0; gap:6px; }
         .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:10px 10px 0 0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
