@@ -51,6 +51,7 @@ import mediaUrlService             from "./services/shared/mediaUrlService";
 import { pushService }             from "./services/notifications/pushService";
 import notificationService         from "./services/notifications/notificationService";
 import communityUnreadService      from "./services/community/communityUnreadService";
+import { getVisibleUnreadNotifications } from "./services/unread/unreadModel";
 import MessageNotificationService  from "./services/messages/MessageNotificationService";
 import callService                 from "./services/messages/callService";
 import { useNavigation }           from "./hooks/useNavigation";
@@ -554,8 +555,11 @@ const MainApp = memo(() => {
   useEffect(() => {
     if (!user?.id) return undefined;
     const syncUnread = () => {
-      const notifications = notificationService._cache || [];
-      const count = (predicate) => notifications.filter((item) => !item.is_read && predicate(item)).length;
+      const notifications = getVisibleUnreadNotifications(
+        notificationService._cache || [],
+        notificationService._badgeClearedAt || null,
+      );
+      const count = (predicate) => notifications.filter((item) => predicate(item)).length;
       const isWallet = (item) => item.metadata?.category === "wallet" || item.metadata?.category === "paywave" || item.metadata?.pw_type;
       const isCommunity = (item) => item.metadata?.community_id || item.metadata?.channel_id || String(item.type || "").startsWith("community_");
       const isStory = (item) => item.type === "new_story" || item.metadata?.content_type === "story";
@@ -577,6 +581,11 @@ const MainApp = memo(() => {
     syncUnread();
     return () => { stopNotifications(); stopCommunity(); };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || activeTab !== "home" || !activeHomeTab) return;
+    notificationService.markTabRead(activeHomeTab, user.id).catch(() => {});
+  }, [user?.id, activeTab, activeHomeTab]);
 
   // ── UNIFIED PUSH + CALL EVENT HANDLER ────────────────────────────────────
   useEffect(() => {
@@ -1116,6 +1125,7 @@ const MainApp = memo(() => {
           xrcService={xrcService}
           setActiveHomeTab={setActiveHomeTab}
           onOpenAdsCentre={() => setShowAdsCentre(true)}
+          unreadCounts={unreadSnapshot}
         />
       </Suspense>
     );

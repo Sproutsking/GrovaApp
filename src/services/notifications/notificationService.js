@@ -217,6 +217,43 @@ class NotificationService {
     }
   }
 
+  async markTabRead(tabName, userId) {
+    const uid = userId || this._userId;
+    if (!uid || !tabName || !this._cache) return;
+
+    const scopeIds = this._cache
+      .filter((item) => !item.is_read && (
+        item.metadata?.home_tab === tabName ||
+        item.metadata?.home_section === tabName ||
+        (tabName === "feed" && !item.metadata?.home_tab && !item.metadata?.home_section &&
+          !item.metadata?.category && !item.metadata?.community_id && !item.metadata?.channel_id && !item.metadata?.pw_type)
+      ))
+      .map((item) => item.id);
+
+    if (!scopeIds.length) return;
+
+    const prev = this._cache;
+    this._cache = this._cache.map((item) =>
+      scopeIds.includes(item.id) ? { ...item, is_read: true } : item
+    );
+    this._badgeCount = Math.max(0, this._badgeCount - scopeIds.length);
+    this._notifySubscribers();
+
+    try {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .in("id", scopeIds)
+        .eq("recipient_user_id", uid)
+        .eq("is_read", false);
+      this._debouncedRecomputeBadge();
+    } catch (error) {
+      console.error("markTabRead:", error);
+      this._cache = prev;
+      this._notifySubscribers();
+    }
+  }
+
   // =========================================================================
   // INTERNAL — FETCH
   // =========================================================================
