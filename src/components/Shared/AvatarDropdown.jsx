@@ -540,7 +540,7 @@ const AvatarDropdown = ({
         .ad-avatar-btn:hover  { transform:scale(1.05); box-shadow:0 0 18px rgba(132,204,22,0.22); border-color:rgba(163,230,53,.55); }
         .ad-avatar-btn:active { transform:scale(0.95); }
         .ad-avatar-btn.open   { border-color:rgba(163,230,53,.62); box-shadow:0 0 18px rgba(132,204,22,0.25); }
-        .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:var(--surface); border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
+        .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:#000; border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
         .ad-chevron.open { transform:rotate(180deg); }
 
         .ad-panel {
