@@ -1189,7 +1189,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         }
         .upm-sheet::-webkit-scrollbar { display:none; }
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
-        .upm-boost-profile.xvb-root, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:auto; min-height:0; }
+        .upm-boost-profile.xvb-root, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:auto !important; min-height:0; }
+        .upm-boost-profile { align-self:flex-start; }
         .upm-boost-profile .card-content { display:flex; flex-direction:column; }
         .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }
         .upm-main::-webkit-scrollbar-track, .upm-profile-rail::-webkit-scrollbar-track { background:transparent; }

@@ -727,7 +727,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
       data-design={theme.id.replace(`${tier}-`, "")}
       style={{
         width: "100%",
-        height: embedded ? "100%" : undefined,
+        height: embedded ? (style.height ?? "100%") : undefined,
         position: "relative",
         overflow: "hidden",
         borderRadius: cardRadius,
