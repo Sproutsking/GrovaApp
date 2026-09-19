@@ -692,6 +692,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           </div>
         ) : (
           <>
+            <main className="upm-main" aria-label="Profile content">
             {/* ── Boost background header ── */}
             <BoostProfileCard
               tier={hasBoosted ? tier : null}
@@ -955,6 +956,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 )}
               </div>
             )}
+            </main>
 
             <aside className="upm-profile-rail" aria-label="Profile highlights">
               <div className="upm-rail-heading">
@@ -1025,21 +1027,23 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
         .upm-sheet {
           position:relative; width:100%; max-width:none; height:100%; max-height:none;
-          overflow-y:auto; overflow-x:hidden; border-radius:0; background:#0a0a0a;
+          min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 326px;
+          overflow:hidden; border-radius:0; background:#0a0a0a;
           border:1px solid rgba(255,255,255,0.08); border-right:0;
           box-shadow:0 24px 80px rgba(0,0,0,.9);
           animation:upmSU .25s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none;
         }
         .upm-sheet::-webkit-scrollbar { display:none; }
-
-        .upm-sheet > *:not(.upm-profile-rail):not(style) { width:calc(100% - 326px); }
-        .upm-profile-rail { position:absolute; top:0; right:0; bottom:0; width:326px; box-sizing:border-box; padding:28px 22px; overflow-y:auto; background:linear-gradient(180deg,rgba(15,21,16,.98),rgba(7,10,8,.98)); border-left:1px solid rgba(132,204,22,.14); z-index:3; }
+        .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
+        .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }
+        .upm-main::-webkit-scrollbar-track, .upm-profile-rail::-webkit-scrollbar-track { background:transparent; }
+        .upm-main::-webkit-scrollbar-thumb, .upm-profile-rail::-webkit-scrollbar-thumb { background:rgba(132,204,22,.28); border-radius:999px; }
+        .upm-profile-rail { position:relative; top:auto; right:auto; bottom:auto; width:auto; min-width:0; min-height:0; box-sizing:border-box; padding:28px 22px; overflow-y:auto; overscroll-behavior:contain; background:linear-gradient(180deg,rgba(15,21,16,.98),rgba(7,10,8,.98)); border-left:1px solid rgba(132,204,22,.14); box-shadow:inset 12px 0 30px rgba(0,0,0,.12); z-index:3; }
+        .upm-profile-rail::before { content:""; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,#84cc16 32%,#60a5fa 68%,transparent); opacity:.55; pointer-events:none; }
         .upm-rail-heading, .upm-rail-section-head, .upm-rail-footer, .upm-rail-community, .upm-rail-card { display:flex; align-items:center; }
-        .upm-rail-heading { justify-content:space-between; margin-bottom:22px; color:#84cc16; }
+        .upm-rail-heading { justify-content:space-between; margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,.07); color:#84cc16; }
         .upm-rail-heading h3 { color:#fff; font-size:17px; line-height:1.2; margin:4px 0 0; }
         .upm-rail-kicker { display:block; color:#84cc16; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-        .upm-rail-card { width:100%; gap:11px; padding:13px; margin-bottom:18px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:rgba(255,255,255,.045); color:#fff; text-align:left; }
-        .upm-rail-button { cursor:pointer; font:inherit; }
         .upm-rail-card:hover, .upm-rail-community:hover { border-color:rgba(132,204,22,.34); background:rgba(132,204,22,.08); }
         .upm-rail-card-icon { width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center; border-radius:10px; color:#fbbf24; background:rgba(251,191,36,.14); }
         .upm-rail-card-icon--purple { color:#c4b5fd; background:rgba(168,85,247,.15); }
@@ -1071,17 +1075,18 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             max-height:100dvh;
             height:100dvh;
             min-height:0;
+            display:block;
             overscroll-behavior:contain;
             border:none; box-shadow:none;
             animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
           }
-          .upm-sheet > *:not(.upm-profile-rail):not(style) { width:100%; }
+          .upm-main { width:100%; height:100%; }
           .upm-profile-rail { display:none; }
           .upm-hdr, .upm-card-lower, .upm-tabs, .upm-cnt { box-sizing:border-box; }
         }
 
         .upm-close {
-          position:fixed; top:calc(var(--upm-top, 0px) + 16px); right:26px; z-index:10001;
+          position:absolute; top:16px; left:16px; z-index:10001;
           width:32px; height:32px; border-radius:50%;
           background:rgba(0,0,0,.65); backdrop-filter:blur(12px);
           border:1.5px solid rgba(255,255,255,.28); color:#fff;
@@ -1090,7 +1095,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         }
         .upm-close:hover { background:rgba(239,68,68,.35); border-color:rgba(239,68,68,.55); color:#ef4444; }
         @media (max-width: 480px) {
-          .upm-close { top:16px; right:16px; position:absolute; touch-action:manipulation; }
+          .upm-close { top:16px; left:16px; position:absolute; touch-action:manipulation; }
         }
         .upm-load { padding:60px 24px; display:flex; flex-direction:column; align-items:center; gap:16px; color:#525252; font-size:13px; }
         .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
