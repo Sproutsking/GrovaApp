@@ -176,7 +176,7 @@ const isDirectMediaUrl = (value) =>
 
 const CommunityRailIcon = ({ community }) => {
   const [failed, setFailed] = useState(false);
-  const iconValue = community?.icon || community?.icon_url || community?.image_url || community?.avatar_url;
+  const iconValue = community?.avatar_id || community?.icon || community?.icon_url || community?.image_url || community?.avatar_url || community?.logo_url;
   const icon = isDirectMediaUrl(iconValue)
     ? iconValue
     : mediaUrlService.getImageUrl(iconValue, {
@@ -464,7 +464,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     if (!targetId) return undefined;
     supabase
       .from("community_members")
-      .select("community:communities(id, name, icon, member_count), joined_at")
+      .select("community:communities(id, name, icon, avatar_id, member_count), joined_at")
       .eq("user_id", targetId)
       .order("joined_at", { ascending: false })
       .limit(5)
@@ -755,8 +755,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               tier={hasBoosted ? tier : null}
               themeId={themeId}
               backgroundColorId={backgroundColorId}
+              embedded
               className="upm-boost-profile"
-              style={{ borderRadius: "20px 20px 0 0", position: "relative", minHeight: 0, maxHeight: "none", height: "auto" }}
+              style={{ borderRadius: 24, position: "relative", minHeight: 0, maxHeight: "none", height: "auto", width: "100%" }}
             >
               <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
                 <X size={16} />
@@ -769,7 +770,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     userId={targetId}
                     tier={hasBoosted ? tier : null}
                     themeId={hasBoosted ? themeId : null}
-                    size={84}
+                    size={110}
                     src={
                       profile?.avatarUrl &&
                       (profile.avatarUrl.startsWith("http") || profile.avatarUrl.startsWith("blob:"))
@@ -779,7 +780,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     letter={(profile?.fullName || "U").charAt(0).toUpperCase()}
                     showBadge={false}
                     badgeSize="md"
-                    borderRadius="circle"
+                    borderRadius="rounded"
                   />
                 </div>
 
@@ -1189,7 +1190,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sheet::-webkit-scrollbar { display:none; }
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
         .upm-boost-profile.xvb-root, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:auto; min-height:0; }
-        .upm-boost-profile .card-content { display:block; }
+        .upm-boost-profile .card-content { display:flex; flex-direction:column; }
         .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }
         .upm-main::-webkit-scrollbar-track, .upm-profile-rail::-webkit-scrollbar-track { background:transparent; }
         .upm-main::-webkit-scrollbar-thumb, .upm-profile-rail::-webkit-scrollbar-thumb { background:rgba(132,204,22,.28); border-radius:999px; }
@@ -1256,7 +1257,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
-        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:20px 20px 0 0; overflow:hidden; }
+        .upm-hdr { padding:40px 24px 12px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:24px 24px 0 0; overflow:hidden; }
         .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .upm-name-verified { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#84cc16; color:#071007; font-size:12px; font-weight:900; line-height:1; }
         .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
