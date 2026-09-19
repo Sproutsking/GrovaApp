@@ -16,10 +16,10 @@
 // ============================================================================
 
 const FIREBASE_CONFIG = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyCf4bVpTLj14f16fLPP1dgFAhFrO_cvWZQ",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "xeevia-app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "871294046900",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:871294046900:web:6e237c3dc4814f842cbde1",
 };
 
 const VAPID_KEY = process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY || "";
@@ -126,11 +126,11 @@ async function _readFcmTokenFromSdk() {
     if (!messaging) return null;
 
     // For web: use getToken() with VAPID key
-    if (typeof messaging.getToken === "function" && VAPID_KEY) {
+    if (typeof messaging.getToken === "function") {
       try {
         const serviceWorkerRegistration = await navigator.serviceWorker.ready;
         const token = await messaging.getToken({
-          vapidKey: VAPID_KEY,
+          ...(VAPID_KEY ? { vapidKey: VAPID_KEY } : {}),
           serviceWorkerRegistration,
         });
         if (token) return token;
@@ -292,7 +292,9 @@ export async function unsubscribe(userId = null) {
   try {
     const messaging = getMessaging();
     if (messaging && typeof messaging.deleteToken === "function") {
-      const token = await messaging.getToken?.({ vapidKey: VAPID_KEY }).catch(() => null);
+      const token = await messaging.getToken?.(
+        VAPID_KEY ? { vapidKey: VAPID_KEY } : undefined,
+      ).catch(() => null);
       if (token && typeof messaging.deleteToken === "function") {
         await messaging.deleteToken(token);
       }

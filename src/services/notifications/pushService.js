@@ -19,11 +19,10 @@ import {
 // ── Firebase config check ───────────────────────────────────────────────────
 function isFirebaseConfigured() {
   return Boolean(
-    process.env.REACT_APP_FIREBASE_API_KEY &&
-    process.env.REACT_APP_FIREBASE_PROJECT_ID &&
-    process.env.REACT_APP_FIREBASE_SENDER_ID &&
-    process.env.REACT_APP_FIREBASE_APP_ID &&
-    process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY
+    (process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyCf4bVpTLj14f16fLPP1dgFAhFrO_cvWZQ") &&
+    (process.env.REACT_APP_FIREBASE_PROJECT_ID || "xeevia-app") &&
+    (process.env.REACT_APP_FIREBASE_SENDER_ID || "871294046900") &&
+    (process.env.REACT_APP_FIREBASE_APP_ID || "1:871294046900:web:6e237c3dc4814f842cbde1")
   );
 }
 

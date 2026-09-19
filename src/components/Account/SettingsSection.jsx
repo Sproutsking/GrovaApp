@@ -14,6 +14,7 @@ import StatusModal from "../Modals/StatusModal";
 import ConfirmModal from "../Modals/ConfirmModal";
 import PhoneVerificationModal from "../Modals/PhoneVerificationModal";
 import EmailVerificationModal from "../Modals/EmailVerificationModal";
+import { pushService } from "../../services/notifications/pushService";
 
 // Tier display config
 const TIER_CONFIG = {
@@ -88,6 +89,7 @@ const S = `
   border-radius: 12px;
   cursor: pointer; transition: all .25s;
   border: 1.5px solid var(--surface-border);
+  padding: 0; appearance: none; font: inherit;
 }
 .sset-sw.on {
   background: linear-gradient(135deg, var(--accent), #65a30d);
@@ -223,6 +225,8 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
     profileVisits: false, comments: false, likes: false,
     shares: false, newFollowers: false, storyUnlocks: false,
   });
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
 
   // Privacy
   const [privacy, setPrivacy] = useState({
@@ -249,7 +253,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
     try {
       setLoading(true);
 
-      const [profileRes, boostRes] = await Promise.allSettled([
+      const [profileRes, boostRes, pushRes] = await Promise.allSettled([
         supabase.from("profiles")
           .select("email,phone,phone_verified,is_private,show_email,show_phone,preferences")
           .eq("id", userId)
@@ -259,6 +263,11 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           .eq("user_id", userId)
           .eq("status", "active")
           .maybeSingle(),
+        supabase.from("push_subscriptions")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .limit(1),
       ]);
 
       if (profileRes.status === "fulfilled" && profileRes.value?.data) {
@@ -299,6 +308,13 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
         setIsSystemGrant(false);
       }
 
+      setPushEnabled(
+        pushRes.status === "fulfilled" &&
+        Array.isArray(pushRes.value?.data) &&
+        pushRes.value.data.length > 0 &&
+        pushService.getPermission() === "granted",
+      );
+
       setHasChanges(false);
     } catch (err) {
       console.error("SettingsSection.loadData:", err);
@@ -338,6 +354,36 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
   };
 
   const toggleNotif   = key => { setNotifs(p => ({ ...p, [key]: !p[key] }));  setHasChanges(true); };
+  const togglePush = async () => {
+    if (!userId || pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await pushService.unsubscribe(userId);
+        setPushEnabled(false);
+        showSt("success", "Push notifications turned off on this device.");
+      } else {
+        const enabled = await pushService.enablePushNotifications(userId);
+        if (!enabled) {
+          const permission = pushService.getPermission();
+          showSt(
+            "error",
+            permission === "denied"
+              ? "Notifications are blocked. Allow them in your browser settings, then try again."
+              : "Push notifications could not be enabled. Please try again.",
+          );
+          return;
+        }
+        setPushEnabled(true);
+        showSt("success", "Push notifications are now enabled on this device.");
+      }
+    } catch (err) {
+      console.error("SettingsSection.togglePush:", err);
+      showSt("error", "Push notification settings could not be changed. Please try again.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
   const togglePrivacy = key => { setPrivacy(p => ({ ...p, [key]: !p[key] })); setHasChanges(true); };
   const toggleAppTheme = () => {
     const nextTheme = themeMode === "light" ? "dark" : "light";
@@ -400,6 +446,25 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
 
           {openSection === "notifications" && (
             <>
+              <div className="sset-toggle">
+                <div className="sset-tinfo">
+                  <div className="sset-tlabel">Push Notifications</div>
+                  <div className="sset-tdesc">
+                    Messages, calls and activity alerts on this device
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={`sset-sw ${pushEnabled ? "on" : ""}`}
+                  onClick={togglePush}
+                  disabled={pushBusy}
+                  aria-label={pushEnabled ? "Disable push notifications" : "Enable push notifications"}
+                  aria-pressed={pushEnabled}
+                  style={{ opacity: pushBusy ? 0.55 : 1 }}
+                >
+                  <span className="sset-sw-knob" />
+                </button>
+              </div>
               {[
                 { key:"profileVisits", label:"Profile Visits",  desc:"When someone views your profile" },
                 { key:"comments",      label:"Comments",         desc:"When someone comments on your content" },
