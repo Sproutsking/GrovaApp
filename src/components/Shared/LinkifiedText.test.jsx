@@ -7,7 +7,7 @@ describe("LinkifiedText", () => {
   it("renders HTTP links as safe clickable anchors and preserves punctuation", () => {
     render(<LinkifiedText>Shared post: https://app.xeevia.com/share/post/abc-123.</LinkifiedText>);
 
-    const link = screen.getByRole("link", { name: "Open link" });
+    const link = screen.getAllByRole("link", { name: "Open link" })[0];
       expect(link.getAttribute("href")).toBe("https://app.xeevia.com/share/post/abc-123");
     expect(link.getAttribute("target")).toBe("_self");
     expect(link.getAttribute("rel")).toBe("noopener");
@@ -63,7 +63,7 @@ describe("LinkifiedText", () => {
 
   it("activates URLs in published-content text", () => {
     render(<ParsedText text="Read more at https://preeb.cloud/about." />);
-    const link = screen.getByRole("link", { name: "Open link" });
+    const link = screen.getAllByRole("link", { name: "Open link" })[0];
     expect(link.getAttribute("href")).toBe("https://preeb.cloud/about");
     expect(link.style.color).toBe("rgb(163, 230, 53)");
   });
@@ -81,5 +81,16 @@ describe("LinkifiedText", () => {
     expect(links[0].textContent).toContain("https://preeb.cloud/about");
     expect(links[1].textContent).toContain("preeb.cloud link");
     expect(screen.getByText("Then keep reading.")).toBeTruthy();
+  });
+
+  it("shows previews by default for external links", () => {
+    render(<LinkifiedText>Visit https://preeb.cloud/about</LinkifiedText>);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(screen.getAllByRole("link")[0].textContent).toContain("https://preeb.cloud/about");
+  });
+
+  it("does not duplicate internal Xeevia navigation links", () => {
+    render(<LinkifiedText>Open https://app.xeevia.com/post/abc-123</LinkifiedText>);
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });

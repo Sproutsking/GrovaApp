@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import ReactDOM from "react-dom";
 import { Send, Plus, X, Eye, Palette } from "lucide-react";
 import MediaPopup from "../../Messages/MediaPopup";
+import { validateMessageAttachments } from "../../../services/messages/attachmentPolicy";
 
 const ANNOUNCEMENT_BORDER_STYLES = [
   { id: "solid", label: "Solid" },
@@ -29,6 +30,7 @@ const CommunityMessageInput = ({
   onMentionSelect = null,
   channelType = "text",
   canManageAnnouncement = true,
+  canAttachFiles = true,
 }) => {
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -63,13 +65,13 @@ const CommunityMessageInput = ({
     const hasContent = trimmed || selectedEmojis.length > 0 || selectedGif || selectedMeme || selectedFiles.length > 0;
     const isAnnouncementLocked = channelType === "announcement" && !canManageAnnouncement && !replyTo;
 
-    if (!hasContent || disabled || isAnnouncementLocked) return;
+    if (!hasContent || disabled || isAnnouncementLocked || (selectedFiles.length > 0 && !canAttachFiles)) return;
 
     onSend(channelType === "announcement" && canManageAnnouncement ? {
       title: announcementTitle.trim(),
       borderStyle: announcementBorderStyle,
       borderColor: announcementBorderColor,
-    } : undefined);
+    } : undefined, selectedFiles);
     
     // Clear all media
     setSelectedEmojis([]);
@@ -79,7 +81,7 @@ const CommunityMessageInput = ({
     if (channelType === "announcement") setAnnouncementTitle("");
     
     if (inputRef.current) inputRef.current.focus();
-  }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, canManageAnnouncement, replyTo, onSend]);
+  }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, canManageAnnouncement, canAttachFiles, replyTo, onSend]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -154,13 +156,11 @@ const CommunityMessageInput = ({
   };
 
   const handleFileSelect = (file) => {
-    if (selectedFiles.length >= 10) return;
-    setSelectedFiles(prev => [...prev, {
-      id: Date.now() + Math.random(),
-      file,
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + "KB"
-    }]);
+    if (!canAttachFiles) return;
+    try {
+      validateMessageAttachments([...selectedFiles.map((item) => item.file), file], 10);
+      setSelectedFiles(prev => [...prev, { id: Date.now() + Math.random(), file, name: file.name, size: (file.size / 1024).toFixed(1) + "KB" }]);
+    } catch (error) { alert(error.message); }
   };
 
   const removeEmoji = (id) => {
@@ -297,7 +297,8 @@ const CommunityMessageInput = ({
         <button
           ref={plusBtnRef}
           className={`comm-plus-btn ${showMediaPopup ? "active" : ""}`}
-          onClick={handlePlusClick}
+            onClick={handlePlusClick}
+            disabled={!canAttachFiles || disabled}
           disabled={disabled || isAnnouncementLocked}
         >
           <Plus size={20} />

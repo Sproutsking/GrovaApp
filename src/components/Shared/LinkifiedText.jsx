@@ -51,7 +51,7 @@ const getSharedTarget = (url) => {
   }
 };
 
-const isInternalXeeviaUrl = (url) => {
+export const isInternalXeeviaUrl = (url) => {
   try {
     const host = new URL(url, window.location.origin).hostname.toLowerCase();
     return host === window.location.hostname.toLowerCase() || host.endsWith(".xeevia.com") || host === "xeevia.com";
@@ -126,12 +126,20 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
   );
 };
 
-const LinkifiedText = ({ children, className, onNavigate, displayMode = "string" }) => {
+const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed", previewOnly = false }) => {
   if (typeof children !== "string") return children;
 
   const parts = children.split(URL_PATTERN);
+  if (previewOnly) {
+    const url = children.replace(TRAILING_PUNCTUATION, "");
+    if (!/^https?:\/\//i.test(url) || isInternalXeeviaUrl(url)) return null;
+    return <LinkSegment url={url} trailing="" onNavigate={onNavigate} displayMode="embed" />;
+  }
   const previewUrls = displayMode === "embed"
-    ? parts.filter((part) => /^https?:\/\//i.test(part)).map((part) => part.replace(TRAILING_PUNCTUATION, ""))
+    ? parts
+      .filter((part) => /^https?:\/\//i.test(part))
+      .map((part) => part.replace(TRAILING_PUNCTUATION, ""))
+      .filter((url) => !isInternalXeeviaUrl(url))
     : [];
   return (
     <span className={className}>
@@ -141,7 +149,7 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "string"
         const trailingMatch = part.match(TRAILING_PUNCTUATION);
         const trailing = trailingMatch?.[0] || "";
         const url = trailing ? part.slice(0, -trailing.length) : part;
-        return <LinkSegment key={index} url={url} trailing={trailing} onNavigate={onNavigate} displayMode={displayMode} />;
+        return <LinkSegment key={index} url={url} trailing={trailing} onNavigate={onNavigate} displayMode="string" />;
       })}
       {previewUrls.map((url) => (
         <span key={`preview-${url}`} style={{ display: "block", width: "100%", marginTop: 10 }}>

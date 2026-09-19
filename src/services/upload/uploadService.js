@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { supabase } from '../config/supabase';
+import { getMessageAttachmentType } from '../messages/attachmentPolicy';
 
 class UploadService {
   
@@ -303,6 +304,37 @@ class UploadService {
       console.error('❌ Video upload failed:', error);
       throw new Error(error.message || 'Failed to upload video');
     }
+  }
+
+  async uploadMessageAttachment(file, folder = 'grova/messages') {
+    const user = await this.checkAuth();
+    this.checkRateLimit();
+    const type = getMessageAttachmentType(file);
+    const safeName = this.sanitizeFilename(file.name || "attachment");
+    const resourceType = type === "image" ? "image" : type === "video" ? "video" : "raw";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", this.uploadPreset);
+    formData.append("folder", `${folder}/${user.id}`);
+    formData.append("public_id", `${Date.now()}_${safeName.split(".")[0]}`);
+    formData.append("resource_type", resourceType);
+    formData.append("context", `user_id=${user.id}|uploaded_at=${new Date().toISOString()}`);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${this.cloudName}/${resourceType}/upload`, { method: "POST", body: formData });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error?.message || "Attachment upload failed");
+    await this.logUpload(user.id, result.public_id, type, result.bytes);
+    return {
+      id: result.public_id,
+      url: result.secure_url,
+      name: file.name,
+      type,
+      mimeType: file.type || null,
+      bytes: result.bytes || file.size,
+      width: result.width || null,
+      height: result.height || null,
+      duration: result.duration || null,
+    };
   }
 
   // ==================== MULTIPLE IMAGES UPLOAD ====================

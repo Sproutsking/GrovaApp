@@ -14,6 +14,8 @@ import EditChannelModal from "../modals/EditChannelModal";
 import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
 import BackgroundDropdown from "../components/BackgroundDropdown";
 import CommunityMessageInput from "../components/CommunityMessageInput";
+import uploadService from "../../../services/upload/uploadService";
+import { validateMessageAttachments } from "../../../services/messages/attachmentPolicy";
 import ChannelButton from "../utils/channelStyles";
 import CategoryGroup from "../utils/CategoryGroup";
 import channelService from "../../../services/community/channelService";
@@ -507,9 +509,9 @@ const ChatTab = ({
     };
   }, [messages, postNavigationTarget, selectedChannel?.id]);
 
-  const handleSendMessage = async (announcement = undefined) => {
+  const handleSendMessage = async (announcement = undefined, selectedFiles = []) => {
     const content = messageInput.trim();
-    if (!content || sending || !selectedChannel?.id) return;
+    if ((!content && !selectedFiles?.length) || sending || !selectedChannel?.id) return;
     if (selectedChannel?.is_locked) {
       alert("This channel is locked. You can only read messages here.");
       return;
@@ -563,6 +565,8 @@ const ChatTab = ({
           borderStyle: replyTo.borderStyle || replyTo.announcement?.borderStyle || "solid",
         }))}]]\n${content}`
         : announcementContent;
+      validateMessageAttachments(selectedFiles.map((item) => item.file || item), 10);
+      const attachments = await Promise.all(selectedFiles.map((item) => uploadService.uploadMessageAttachment(item.file || item, `grova/communities/${community.id}/${replyChannel.id}`)));
       await communityMessageService.sendMessage(
         replyChannel.id, userId, messageContent,
         {
@@ -583,6 +587,9 @@ const ChatTab = ({
             },
           },
           reply_to_id: isCrossChannelPostReply ? null : (replyTo?.id || null),
+          attachments,
+          communityId: community.id,
+          channel: replyChannel,
         }
       );
       setReplyTo(null);
@@ -646,6 +653,11 @@ const ChatTab = ({
     Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages")
       ? channelPermissions.sendMessages !== false
       : userPermissions.sendMessages !== false
+  );
+  const canAttachFiles = isOwner || hasAdminOverride || userPermissions.manageChannels === true || (
+    Object.prototype.hasOwnProperty.call(channelPermissions, "attachFiles")
+      ? channelPermissions.attachFiles !== false
+      : userPermissions.attachFiles === true
   );
   const canAddReactions = isOwner || (
     Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions")
@@ -1005,6 +1017,7 @@ const ChatTab = ({
             channels={channels}
             channelType={selectedChannel?.type}
             canManageAnnouncement={canManageChannels}
+            canAttachFiles={canAttachFiles}
           />
         </div>
       </div>

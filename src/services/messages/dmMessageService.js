@@ -14,6 +14,8 @@
 import { supabase } from "../config/supabase";
 import conversationState from "./ConversationStateManager";
 import pushService from "../notifications/pushService";
+import uploadService from "../upload/uploadService";
+import { validateMessageAttachments } from "./attachmentPolicy";
 
 class DMMessageService {
   constructor() {
@@ -211,8 +213,11 @@ class DMMessageService {
     if (error) throw error;
   }
 
-  async sendMessage(conversationId, content, senderId, replyToId = null) {
-    if (!content?.trim() || !conversationId || !senderId) return null;
+  async sendMessage(conversationId, content, senderId, replyToId = null, files = []) {
+    if ((!content?.trim() && !files.length) || !conversationId || !senderId) return null;
+    const selected = validateMessageAttachments(files, 10);
+    const attachments = await Promise.all(selected.map(({ file }) => uploadService.uploadMessageAttachment(file)));
+    const primary = attachments[0] || null;
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -223,7 +228,10 @@ class DMMessageService {
       _optimistic: true,
       conversation_id: conversationId,
       sender_id: senderId,
-      content: content.trim(),
+      content: content?.trim() || "Attachment",
+      media_url: primary?.url || null,
+      media_type: primary?.type || null,
+      attachments,
       reply_to_id: replyToId || null,
       created_at: new Date().toISOString(),
       read: false,
@@ -242,7 +250,10 @@ class DMMessageService {
       tempId,
       conversation_id: conversationId,
       sender_id: senderId,
-      content: content.trim(),
+      content: content?.trim() || "Attachment",
+      media_url: primary?.url || null,
+      media_type: primary?.type || null,
+      attachments,
       reply_to_id: replyToId || null,
       created_at: optimisticMessage.created_at,
     });
@@ -252,7 +263,10 @@ class DMMessageService {
       const insertData = {
         conversation_id: conversationId,
         sender_id: senderId,
-        content: content.trim(),
+        content: content?.trim() || "Attachment",
+        media_url: primary?.url || null,
+        media_type: primary?.type || null,
+        attachments,
         delivered: false,
         read: false,
       };
@@ -294,7 +308,7 @@ class DMMessageService {
       });
 
       // Trigger push AFTER successful DB insert — never on optimistic
-      this._triggerDmPush(conversationId, senderId, content.trim());
+      this._triggerDmPush(conversationId, senderId, content?.trim() || "Attachment");
 
       return data;
     } catch (error) {

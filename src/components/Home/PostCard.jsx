@@ -660,7 +660,7 @@ const PostCard = ({
   const multi    = items.length > 1;
   const hasMedia = items.length > 0;
   const catStyle = getCatStyle(post.category);
-  const linkDisplayMode = post.text_card_metadata?.link_display_mode === "embed" ? "embed" : "string";
+  const linkDisplayMode = post.text_card_metadata?.link_display_mode === "string" ? "string" : "embed";
 
   // Prefetch sibling images in carousel on mount
   useEffect(() => {

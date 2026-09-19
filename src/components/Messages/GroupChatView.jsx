@@ -614,8 +614,8 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   };
 
   // Send — optimistic first, then confirmed
-  const send=async(text=input.trim())=>{
-    if (!text||sending||!group?.id) return;
+  const send=async(text=input.trim(), files=[])=>{
+    if ((!text && !files.length)||sending||!group?.id) return;
     const replyRef=replyTo;
     setInput(""); setReplyTo(null); setSending(true);
     // Create optimistic with BOTH user_id and sender_id set to uid
@@ -633,7 +633,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
 
     try {
       const norm={id:uid,full_name:currentUser?.fullName||currentUser?.full_name||"You",avatar_id:currentUser?.avatarId||currentUser?.avatar_id};
-      const msg=await groupDMService.sendMessage(group.id,text,norm,replyRef?.id||null);
+      const msg=await groupDMService.sendMessage(group.id,text,norm,replyRef?.id||null,files.map((item) => item.file || item));
       if (msg) {
         setMessages(prev=>{
           // Replace optimistic with confirmed
@@ -803,7 +803,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
       <CommunityMessageInput
         value={input}
         onChange={(value) => { setInput(value); handleTyping(); }}
-        onSend={() => send()}
+        onSend={(_, files) => send(input.trim(), files || [])}
         disabled={sending}
         placeholder="Message the group…"
         replyTo={replyTo}

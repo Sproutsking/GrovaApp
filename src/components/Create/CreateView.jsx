@@ -78,7 +78,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [postMedia,    setPostMedia]    = useState([]);
   const [postCategory, setPostCategory] = useState("General");
   const [useTextCard,  setUseTextCard]  = useState(false);
-  const [linkDisplayMode, setLinkDisplayMode] = useState("string");
+  const [linkDisplayMode, setLinkDisplayMode] = useState("embed");
 
   const [reelCaption,  setReelCaption]  = useState("");
   const [reelMedia,    setReelMedia]    = useState(null);
@@ -334,7 +334,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     if (activeTab === "post") {
       setPostContent(""); setPostCaption(""); setPostMedia([]);
       setPostCategory("General"); setUseTextCard(false);
-      setLinkDisplayMode("string");
+      setLinkDisplayMode("embed");
       setTextAlign("center"); setCardFontSize(null);
     } else if (activeTab === "reel") {
       setReelCaption(""); setReelMedia(null); setReelCategory("Entertainment");

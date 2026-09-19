@@ -513,10 +513,10 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     clearTimeout(tyTO.current); tyTO.current=setTimeout(()=>dmMessageService.sendTyping(convId,false),2500);
   };
 
-  const handleSend=async(text,replyToId=null)=>{
-    if(!text?.trim())return;
+  const handleSend=async(text,replyToId=null,files=[])=>{
+    if(!text?.trim() && !files.length)return;
     clearTimeout(tyTO.current); dmMessageService.sendTyping(convId,false); setReplyTo(null);
-    try{const sent=await dmMessageService.sendMessage(convId,text,currentUser.id,replyToId);if(sent?.id)patchStatus([sent.id],"sent");setTimeout(scrollToBottom,10);}
+    try{const sent=await dmMessageService.sendMessage(convId,text,currentUser.id,replyToId,files);if(sent?.id)patchStatus([sent.id],"sent");setTimeout(scrollToBottom,10);}
     catch(e){console.error("send:",e);}
   };
 
@@ -680,8 +680,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
       <CommunityMessageInput
         value={messageInput}
         onChange={(value) => { setMessageInput(value); handleTypingLocal(); }}
-        onSend={() => {
-          handleSend(messageInput, replyTo?.id || null);
+        onSend={(_, files) => {
+          handleSend(messageInput, replyTo?.id || null, files || []);
           setMessageInput("");
         }}
         placeholder="Message…"

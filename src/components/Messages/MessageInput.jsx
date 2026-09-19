@@ -2,11 +2,14 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Send, Plus } from "lucide-react";
 import MediaPopup from "./MediaPopup";
+import { validateMessageAttachments } from "../../services/messages/attachmentPolicy";
 
 const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) => {
   const [text, setText] = useState("");
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [attachmentError, setAttachmentError] = useState("");
 
   const inputRef = useRef(null);
   const plusBtnRef = useRef(null);
@@ -17,11 +20,14 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+    if ((!trimmed && selectedFiles.length === 0) || disabled) return;
+    const files = [...selectedFiles];
     setText("");
-    onSend(trimmed);
+    setSelectedFiles([]);
+    setAttachmentError("");
+    onSend(trimmed, null, files);
     if (inputRef.current) inputRef.current.focus();
-  }, [text, disabled, onSend]);
+  }, [text, selectedFiles, disabled, onSend]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -72,7 +78,13 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
   };
 
   const handleFileSelect = (file) => {
-    console.log("File selected:", file);
+    try {
+      validateMessageAttachments([...selectedFiles, file], 10);
+      setSelectedFiles((files) => [...files, file]);
+      setAttachmentError("");
+    } catch (error) {
+      setAttachmentError(error.message);
+    }
     setShowMediaPopup(false);
   };
 
@@ -88,6 +100,9 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
           triggerRect={triggerRect}
         />
       )}
+
+      {attachmentError && <div role="alert" style={{ color: "#fb7185", fontSize: 12, padding: "0 12px 8px" }}>{attachmentError}</div>}
+      {selectedFiles.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 12px 8px" }}>{selectedFiles.map((file, index) => <span key={`${file.name}-${index}`} style={{ color: "#bef264", fontSize: 11 }}>{file.name}</span>)}</div>}
 
       <div className="msg-input-bar">
         <button
@@ -111,9 +126,9 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
         />
 
         <button
-          className={`msg-send-btn ${text.trim() ? "active" : ""}`}
+          className={`msg-send-btn ${text.trim() || selectedFiles.length ? "active" : ""}`}
           onClick={handleSend}
-          disabled={!text.trim() || disabled}
+          disabled={(!text.trim() && !selectedFiles.length) || disabled}
           aria-label="Send message"
         >
           <Send size={18} />

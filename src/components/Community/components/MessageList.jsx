@@ -45,6 +45,24 @@ const parsePostReplyMetadata = (token) => {
   }
 };
 
+const MessageAttachments = ({ message }) => {
+  const items = Array.isArray(message?.attachments) && message.attachments.length
+    ? message.attachments
+    : message?.media_url ? [{ url: message.media_url, type: message.media_type || "file", name: "Attachment" }] : [];
+  if (!items.length) return null;
+  return (
+    <div style={{ display: "grid", gap: 8, marginTop: 8, maxWidth: "100%" }}>
+      {items.map((item, index) => {
+        const url = item?.url;
+        if (!url) return null;
+        if (item.type === "image") return <img key={`${url}-${index}`} src={url} alt={item.name || "Attachment"} style={{ display: "block", maxWidth: "100%", maxHeight: 360, borderRadius: 10, objectFit: "contain" }} loading="lazy" />;
+        if (item.type === "video") return <video key={`${url}-${index}`} src={url} controls preload="metadata" style={{ display: "block", width: "100%", maxHeight: 360, borderRadius: 10 }} />;
+        return <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", maxWidth: "100%", color: "#bef264", overflowWrap: "anywhere" }}>{item.name || "Download attachment"}</a>;
+      })}
+    </div>
+  );
+};
+
 const MessageList = ({
   messages,
   pendingMessages,
@@ -270,6 +288,7 @@ const MessageList = ({
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
+                  <MessageAttachments message={msg} />
                   <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
                     <span className="msg-time">{formatTime(msg.created_at)}</span>
                     {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>

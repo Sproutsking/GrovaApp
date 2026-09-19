@@ -3,12 +3,12 @@
 // ============================================================================
 
 import React from 'react';
-import LinkifiedText from './LinkifiedText';
+import LinkifiedText, { isInternalXeeviaUrl } from './LinkifiedText';
 
 /**
  * ParsedText Component - Renders text with clickable hashtags and mentions
  */
-const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'string', className = '' }) => {
+const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'embed', className = '' }) => {
   if (!text) return null;
 
   const parseText = (text) => {
@@ -65,7 +65,7 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
 
   const parts = parseText(text);
   const previewUrls = displayMode === "embed"
-    ? parts.filter((part) => part.type === "url").map((part) => part.content)
+    ? parts.filter((part) => part.type === "url" && !isInternalXeeviaUrl(part.content)).map((part) => part.content)
     : [];
 
   return (
@@ -104,7 +104,7 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
         }
       })}
       {previewUrls.map((url) => (
-        <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed">{url}</LinkifiedText>
+        <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed" previewOnly>{url}</LinkifiedText>
       ))}
     </span>
   );

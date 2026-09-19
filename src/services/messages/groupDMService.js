@@ -16,6 +16,8 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import uploadService from "../upload/uploadService";
+import { validateMessageAttachments } from "./attachmentPolicy";
 
 // Table preference: group_messages (text channel_id) > community_messages
 const MSG_TABLE = "group_messages";
@@ -463,8 +465,10 @@ class GroupDMService {
   // ==========================================================================
   // [MSG-2] SEND MESSAGE
   // ==========================================================================
-  async sendMessage(groupId, content, currentUser, replyToId = null) {
-    if (!content?.trim() || !this._userId || !groupId) return null;
+  async sendMessage(groupId, content, currentUser, replyToId = null, files = []) {
+    if ((!content?.trim() && !files.length) || !this._userId || !groupId) return null;
+    const selected = validateMessageAttachments(files, 10);
+    const attachments = await Promise.all(selected.map(({ file }) => uploadService.uploadMessageAttachment(file, `grova/groups/${groupId}`)));
 
     const tempId     = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const optimistic = {
@@ -475,7 +479,8 @@ class GroupDMService {
       channel_id:  groupId,
       user_id:     this._userId,
       sender_id:   this._userId,
-      content:     content.trim(),
+      content:     content?.trim() || "Attachment",
+      attachments,
       reply_to_id: replyToId || null,
       created_at:  new Date().toISOString(),
       user:        currentUser,
@@ -501,14 +506,15 @@ class GroupDMService {
         const insertData = {
           group_id: groupId,
           user_id:  this._userId,
-          content:  content.trim(),
+          content:  content?.trim() || "Attachment",
+          attachments,
         };
         if (replyToId) insertData.reply_to_id = replyToId;
 
         const res = await supabase
           .from("group_messages")
           .insert(insertData)
-          .select("id, group_id, user_id, content, reply_to_id, created_at, reactions")
+          .select("id, group_id, user_id, content, reply_to_id, created_at, reactions, attachments")
           .single();
         data  = res.data;
         error = res.error;

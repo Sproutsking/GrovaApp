@@ -1,6 +1,7 @@
 // services/community/communityMessageService.js - FIXED AVATAR ISSUE + DELETE
 import { supabase } from "../config/supabase";
 import communityState from "./CommunityStateManager";
+import roleService from "./roleService";
 
 class CommunityMessageService {
   constructor() {
@@ -68,6 +69,15 @@ class CommunityMessageService {
       console.error("❌ No user data provided to sendMessage");
       throw new Error("User data is required");
     }
+    if (options.attachments?.length) {
+      const canAttach = options.communityId && options.channel && (
+        await roleService.getChannelPermission(options.communityId, userId, options.channel, "attachFiles")
+        || await roleService.getChannelPermission(options.communityId, userId, options.channel, "manageChannels")
+      );
+      if (!canAttach) {
+        throw new Error("You do not have permission to upload files in this channel");
+      }
+    }
 
     try {
       const userObject = {
@@ -94,6 +104,7 @@ class CommunityMessageService {
         reactions: {},
         edited: false,
         _optimistic: true
+        ,attachments: options.attachments || []
       };
 
       communityState.addMessage(channelId, optimisticMessage);
@@ -106,7 +117,7 @@ class CommunityMessageService {
         payload: optimisticMessage
       });
 
-      return await this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id);
+      return await this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id, options.attachments || []);
     } catch (error) {
       console.error("❌ Error sending message:", error);
       this.pendingMessages.delete(tempId);
@@ -115,13 +126,14 @@ class CommunityMessageService {
     }
   }
 
-  async saveToDatabase(channelId, userId, content, tempId, userObject, replyToId = null) {
+  async saveToDatabase(channelId, userId, content, tempId, userObject, replyToId = null, attachments = []) {
     try {
       const { data, error } = await supabase.rpc("send_community_message", {
         p_channel_id: channelId,
         p_user_id: userId,
         p_content: content,
         p_reply_to_id: replyToId || null,
+        p_attachments: attachments,
       });
 
       if (error) {
