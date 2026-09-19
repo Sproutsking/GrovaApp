@@ -409,28 +409,30 @@ img, video {
   overflow-y: auto;
 }
 
-@media (min-width: 1680px) {
+/* Keep the desktop product canvas readable on large monitors. The app itself
+   stays centered instead of stretching across an iMac-sized viewport. */
+@media (min-width: 1440px) {
   .desktop-header {
-    left: calc((100vw - 1680px) / 2);
-    right: calc((100vw - 1680px) / 2);
+    left: calc((100vw - 1440px) / 2);
+    right: calc((100vw - 1440px) / 2);
   }
 
   .desktop-layout {
-    left: calc((100vw - 1680px) / 2);
-    right: calc((100vw - 1680px) / 2);
+    left: calc((100vw - 1440px) / 2);
+    right: calc((100vw - 1440px) / 2);
   }
 
   .main-content-desktop {
-    left: calc((100vw - 1680px) / 2 + 300px + 4vw);
-    right: calc((100vw - 1680px) / 2 + 340px + 4vw);
+    left: calc((100vw - 1440px) / 2 + 300px + 28px);
+    right: calc((100vw - 1440px) / 2 + 340px + 28px);
   }
 
   .trending-sidebar {
-    right: calc((100vw - 1680px) / 2 + 4vw);
+    right: calc((100vw - 1440px) / 2 + 28px);
   }
 
   .sidebar {
-    left: calc((100vw - 1680px) / 2);
+    left: calc((100vw - 1440px) / 2);
   }
 }
 
