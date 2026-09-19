@@ -7,7 +7,7 @@
   border: 1px solid var(--accent-border);
   border-radius: 14px;
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: none;
   margin-bottom: 10px;
   box-shadow: 0 6px 22px var(--shadow);
   position: relative;
@@ -26,9 +26,9 @@
 }
 
 .story-card-premium:hover {
-  border-color: var(--accent-border-strong);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 48px var(--accent-glow-strong);
+  border-color: var(--accent-border);
+  transform: none;
+  box-shadow: 0 6px 22px var(--shadow);
 }
 
 .story-card-premium:hover::before {

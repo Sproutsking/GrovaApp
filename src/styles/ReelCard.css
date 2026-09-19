@@ -9,10 +9,7 @@
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  transition:
-    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+  transition: none;
   box-shadow: 0 0 0 0 rgba(132, 204, 22, 0),
     0 8px 32px var(--shadow);
 }
@@ -186,10 +183,10 @@
   flex-shrink: 0;
 }
 .xv-icon-btn:hover {
-  background: rgba(132, 204, 22, 0.15);
-  border-color: rgba(132, 204, 22, 0.4);
-  color: var(--accent-strong);
-  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  transform: none;
 }
 .xv-icon-btn:active {
   transform: scale(0.95);

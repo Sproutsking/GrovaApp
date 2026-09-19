@@ -163,6 +163,47 @@ const CommunityMessageInput = ({
     } catch (error) { alert(error.message); }
   };
 
+  const appendPastedFiles = useCallback((incomingFiles) => {
+    if (!incomingFiles || !incomingFiles.length) return;
+    if (!canAttachFiles) {
+      alert("You do not have permission to attach media in this channel.");
+      return;
+    }
+
+    const files = incomingFiles.filter(Boolean);
+    if (!files.length) return;
+
+    try {
+      validateMessageAttachments([...selectedFiles.map((item) => item.file), ...files], 10);
+      setSelectedFiles((prev) => [
+        ...prev,
+        ...files.map((file) => ({
+          id: Date.now() + Math.random(),
+          file,
+          name: file.name,
+          size: `${(file.size / 1024).toFixed(1)}KB`,
+        })),
+      ]);
+    } catch (error) {
+      alert(error.message);
+    }
+  }, [canAttachFiles, selectedFiles]);
+
+  const handlePaste = useCallback((event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const pastedFiles = items
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+
+    const directFiles = Array.from(event.clipboardData?.files || []).filter(Boolean);
+    const files = [...pastedFiles, ...directFiles].filter((file, index, list) => file && list.findIndex((entry) => entry && entry.name === file.name && entry.size === file.size) === index);
+
+    if (!files.length) return;
+    event.preventDefault();
+    appendPastedFiles(files);
+  }, [appendPastedFiles]);
+
   const removeEmoji = (id) => {
     setSelectedEmojis(prev => prev.filter(e => e.id !== id));
   };
@@ -310,6 +351,7 @@ const CommunityMessageInput = ({
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={isAnnouncementLocked ? "Locked for members — reply to continue" : placeholder}
           rows={1}
           disabled={disabled || isAnnouncementLocked}

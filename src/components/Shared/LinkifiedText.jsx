@@ -105,10 +105,10 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
 
   if (displayMode === "embed" && !internal) {
     return (
-      <span className="xeevia-link-wrap" style={{ display: "inline" }}>
-        <a className="xeevia-link-card" href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick} style={{ display: "inline-flex", alignItems: "center", gap: 9, width: "min(100%, 320px)", minWidth: 0, boxSizing: "border-box", padding: "8px 10px", border: `1px solid ${platform.color}66`, borderLeft: `3px solid ${platform.color}`, borderRadius: 9, background: "rgba(0,0,0,.28)", color: "#f4f7ee", textDecoration: "none", overflow: "hidden" }}>
+      <span className="xeevia-link-wrap" style={{ display: "inline-block", maxWidth: "100%", minWidth: 0 }}>
+        <a className="xeevia-link-card" href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick} style={{ display: "inline-flex", alignItems: "center", gap: 9, width: "min(100%, 320px)", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", padding: "8px 10px", border: `1px solid ${platform.color}66`, borderLeft: `3px solid ${platform.color}`, borderRadius: 9, background: "rgba(0,0,0,.28)", color: "#f4f7ee", textDecoration: "none", overflow: "hidden" }}>
           <img className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: "rgba(255,255,255,.08)" }} src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(url).hostname)}&sz=64`} alt="" loading="lazy" />
-          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: 2 }}><strong style={{ color: platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{platform.label} link</strong><small style={{ color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new URL(url).hostname}</small></span>
+          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{platform.label} link</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new URL(url).hostname}</small></span>
           <span className="xeevia-link-open" style={{ marginLeft: "auto", color: platform.color, flex: "0 0 auto" }} aria-hidden="true">↗</span>
         </a>
         {trailing}
@@ -171,7 +171,7 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
   const senderLabel = senderDisplayName || (isMine ? "You" : (shared.senderName || "Someone"));
 
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 7, maxWidth: "100%" }}>
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 7, maxWidth: "100%", minWidth: 0 }}>
       {showSender && (
         <strong style={{ fontSize: 13, color: "#f4f7ee", fontWeight: 700 }}>
           {senderLabel} shared {shared.contentLabel}

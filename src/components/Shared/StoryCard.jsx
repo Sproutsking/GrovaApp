@@ -156,11 +156,11 @@ const StoryCard = ({
           border: 1px solid rgba(132,204,22,0.16);
           box-shadow: 0 8px 26px rgba(0,0,0,0.2);
           margin-bottom: 14px;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          transition: none;
         }
         .story-card:hover {
-          border-color: rgba(132,204,22,0.34);
-          box-shadow: 0 14px 34px rgba(0,0,0,0.28);
+          border-color: rgba(132,204,22,0.16);
+          box-shadow: 0 8px 26px rgba(0,0,0,0.2);
         }
         .story-header {
           display: flex;

@@ -88,6 +88,28 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
     setShowMediaPopup(false);
   };
 
+  const handlePaste = useCallback((event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const pastedFiles = items
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+
+    const directFiles = Array.from(event.clipboardData?.files || []).filter(Boolean);
+    const files = [...pastedFiles, ...directFiles].filter((file, index, list) => file && list.findIndex((entry) => entry && entry.name === file.name && entry.size === file.size) === index);
+
+    if (!files.length) return;
+    event.preventDefault();
+
+    try {
+      validateMessageAttachments([...selectedFiles, ...files], 10);
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setAttachmentError("");
+    } catch (error) {
+      setAttachmentError(error.message);
+    }
+  }, [selectedFiles]);
+
   return (
     <div className="msg-input-wrapper">
       {showMediaPopup && triggerRect && (
@@ -120,6 +142,7 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder="Type a message..."
           rows={1}
           disabled={disabled}
