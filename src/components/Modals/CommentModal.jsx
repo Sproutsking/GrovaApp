@@ -401,13 +401,13 @@ const CommentModal = ({
           background: rgba(0, 0, 0, 0.18);
           backdrop-filter: blur(2px);
           -webkit-backdrop-filter: blur(2px);
-          z-index: 9998;
+          z-index: 100100;
         }
 
         /* ── MODAL PANEL ── */
         .comment-modal {
           position: fixed;
-          z-index: 9999;
+          z-index: 100101;
           background: #0a0a0a;
           border: 1px solid rgba(132, 204, 22, 0.3);
           border-radius: 20px;

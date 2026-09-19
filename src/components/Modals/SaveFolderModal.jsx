@@ -387,7 +387,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
 
       <style>{`
         .sfm-overlay {
-          position: fixed; inset: 0; z-index: 99992;
+          position: fixed; inset: 0; z-index: 100120;
           background: transparent;
           backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
           display: flex; align-items: flex-end; justify-content: center;

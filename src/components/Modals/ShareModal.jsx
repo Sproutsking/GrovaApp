@@ -593,7 +593,7 @@ const ShareModal = ({
         .sm-overlay {
           position: fixed;
           inset: 0;
-          z-index: 9990;
+          z-index: 100110;
           background: transparent;
           backdrop-filter: blur(3px);
           -webkit-backdrop-filter: blur(3px);
@@ -606,7 +606,7 @@ const ShareModal = ({
           bottom: 0;
           left: 0;
           right: 0;
-          z-index: 9991;
+          z-index: 100111;
           background: var(--panel);
           border-top: 1px solid var(--surface-border);
           border-radius: 20px 20px 0 0;
