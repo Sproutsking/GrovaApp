@@ -586,6 +586,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   }, []);
 
   const handleFollow = useCallback(async (e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!myId || isOwn || followLoading) return;
     const next = !isFollowing;
@@ -609,6 +610,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   }, [myId, targetId, isOwn, isFollowing, followLoading]);
 
   const handleMessage = useCallback((e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!myId || isOwn || !targetId) return;
     window.dispatchEvent(new CustomEvent("community:open-dm", {
@@ -618,6 +620,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   }, [myId, isOwn, targetId, onClose]);
 
   const handleGift = useCallback((e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!targetId || isOwn) return;
     window.dispatchEvent(new CustomEvent("xeevia:open-gift-card", {
@@ -790,14 +793,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 </div>
 
                 {showFollowBtn && (
-                  <div className="upm-follow-wrap">
-                    <button className={`upm-fbtn${isFollowing ? " upm-fbtn--following" : ""}`} onClick={handleFollow} disabled={followLoading} style={followBtnStyle}>
+                  <div className="upm-follow-wrap" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className={`upm-fbtn${isFollowing ? " upm-fbtn--following" : ""}`} onClick={handleFollow} disabled={followLoading} style={followBtnStyle} aria-label={isFollowing ? "Unfollow user" : "Follow user"}>
                       {followLoading ? <Loader size={16} className="upm-spin-icon" /> : isFollowing ? <><UserCheck size={16} /><span>Following</span></> : <><UserPlus size={16} /><span>Follow</span></>}
                     </button>
-                    <button className="upm-fbtn upm-message-btn" onClick={handleMessage} type="button">
+                    <button className="upm-fbtn upm-message-btn" onClick={handleMessage} type="button" aria-label="Message user">
                       <MessageSquare size={16} /><span>Message</span>
                     </button>
-                    <button className="upm-fbtn upm-gift-btn" onClick={handleGift} type="button">
+                    <button className="upm-fbtn upm-gift-btn" onClick={handleGift} type="button" aria-label="Send user a gift">
                       <Gift size={16} /><span>Gift</span>
                     </button>
                   </div>
@@ -1213,12 +1216,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
         .upm-sl { font-size:10px; color:#737373; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
         .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
-        .upm-follow-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:9px 20px 2px; }
+        .upm-follow-wrap { position:relative; z-index:5; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:9px 20px 2px; pointer-events:auto; }
         .upm-fbtn {
           width:100%; padding:9px 12px; border-radius:12px;
           font-size:12px; font-weight:800; letter-spacing:0.02em;
           cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
-          transition:all .25s ease; font-family:inherit;
+          position:relative; z-index:6; transition:all .25s ease; font-family:inherit; pointer-events:auto; touch-action:manipulation;
         }
         .upm-fbtn--following:hover {
           background:rgba(239,68,68,0.12) !important;

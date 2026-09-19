@@ -83,10 +83,11 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
   const burstIdRef = useRef(0);
 
   const handleClick = useCallback((emoji, e) => {
-    // Burst animation
+    e.preventDefault();
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: `${Date.now()}-${burstIdRef.current++}` });
-    setTimeout(() => setBurst(null), 800);
+    window.setTimeout(() => setBurst(null), 800);
 
     onToggle?.(emoji);
   }, [onToggle]);
