@@ -782,7 +782,7 @@ const PostCard = ({
             profile={profile}
             currentUser={currentUser}
             size="small"
-            onClick={onProfileClick || onAuthorClick}
+            onClick={() => (onProfileClick || onAuthorClick)?.(profile)}
           />
           {post.created_at && <span className="gvp-ts">{relTime(post.created_at)}</span>}
           <div className="gvp-hsp" />

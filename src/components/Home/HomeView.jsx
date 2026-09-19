@@ -744,7 +744,22 @@ const HomeView = ({
   }, [posts, reels, stories]);
 
   // ── Modal handlers ────────────────────────────────────────────────────────
-  const handleAuthorClick = useCallback(c => dispatchModal({ type:"OPEN_PROFILE", payload:{ id:c.userId, author:c.author, username:c.username, avatar:c.avatar, verified:c.verified } }), []);
+  const handleAuthorClick = useCallback((candidate) => {
+    const userId = candidate?.userId || candidate?.user_id || candidate?.id || candidate?.profiles?.id;
+    if (!userId) return;
+    dispatchModal({
+      type: "OPEN_PROFILE",
+      payload: {
+        id: userId,
+        user_id: userId,
+        userId,
+        author: candidate.author || candidate.name || candidate.full_name || candidate.profiles?.full_name,
+        username: candidate.username || candidate.profiles?.username,
+        avatar: candidate.avatar || candidate.avatar_url || candidate.profiles?.avatar_id,
+        verified: candidate.verified || candidate.profiles?.verified,
+      },
+    });
+  }, []);
   const handleActionMenu  = useCallback((e, c, own) => { e.stopPropagation(); dispatchModal({ type:"OPEN_ACTION", payload:{ content:c, isOwn:own, pos:{ x:e.clientX, y:e.clientY } } }); }, []);
   const handleComment     = useCallback(c => dispatchModal({ type:"OPEN_COMMENT", payload:c }), []);
   const handleUnlock      = useCallback(s => { if (!resolvedUser) { alert("Please sign in"); return; } dispatchModal({ type:"OPEN_PIN", payload:s }); }, [resolvedUser]);
@@ -1056,7 +1071,12 @@ const HomeView = ({
         />
       )}
       {modals.profile && (
-        <UserProfileModal user={modals.profile} currentUser={resolvedUser} onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })} />
+        <UserProfileModal
+          user={modals.profile}
+          currentUser={resolvedUser}
+          presentation="section"
+          onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })}
+        />
       )}
       {modals.actionMenu && (
         <ActionMenu

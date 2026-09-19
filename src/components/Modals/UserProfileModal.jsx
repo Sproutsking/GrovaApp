@@ -235,7 +235,7 @@ const FullProfileContent = ({ item, type, profile, currentUser }) => {
 // UserProfileModal
 // ══════════════════════════════════════════════════════════════════════════════
 
-const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboard = false, verificationRecord = null }) => {
+const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboard = false, verificationRecord = null, presentation = "modal" }) => {
   const [profile,        setProfile]        = useState(null);
   const [loading,        setLoading]        = useState(true);
   const [isFollowing,    setIsFollowing]    = useState(false);
@@ -670,7 +670,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   // ── Render ────────────────────────────────────────────────────────────────
   return showDashboard ? dashboardPage : ReactDOM.createPortal(
     <div
-      className="upm-bd"
+      className={`upm-bd${presentation === "section" ? " upm-section-surface" : ""}`}
       style={{ "--upm-left": `${desktopBounds.left}px`, "--upm-top": `${desktopBounds.top}px` }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -1111,6 +1111,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           display:flex; align-items:center; justify-content:center;
           padding:0; animation:upmFI .2s ease;
         }
+        .upm-section-surface { background:#0a0a0a; align-items:stretch; justify-content:stretch; }
+        .upm-section-surface .upm-sheet { border-radius:0; border:0; box-shadow:none; animation:none; }
 
         .upm-sheet {
           position:relative; width:100%; max-width:none; height:100%; max-height:none;
@@ -1124,7 +1126,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
         .upm-boost-profile.xvb-root, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:fit-content !important; min-height:0 !important; max-height:none !important; }
         .upm-boost-profile { align-self:flex-start; display:block; flex:none; width:calc(100% - 16px) !important; margin:8px 8px 0; min-height:0 !important; max-height:none !important; }
-        .upm-boost-profile .card-content { display:flex; flex-direction:column; padding-bottom:12px; }
+        .upm-boost-profile .card-content { display:flex; flex-direction:column; padding-bottom:14px; }
         .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }
         .upm-main::-webkit-scrollbar-track, .upm-profile-rail::-webkit-scrollbar-track { background:transparent; }
         .upm-main::-webkit-scrollbar-thumb, .upm-profile-rail::-webkit-scrollbar-thumb { background:rgba(132,204,22,.28); border-radius:999px; }
@@ -1170,7 +1172,11 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             border:none; border-radius:18px 18px 0 0; box-shadow:none;
             animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
           }
+          .upm-section-surface { align-items:stretch; }
+          .upm-section-surface { bottom:64px; }
+          .upm-section-surface .upm-sheet { height:calc(100dvh - 64px); max-height:calc(100dvh - 64px); border-radius:0; }
           .upm-main { width:100%; height:100%; }
+          .upm-boost-profile .card-content { padding-bottom:120px; }
           .upm-profile-rail { display:none; }
           .upm-hdr, .upm-card-lower, .upm-tabs, .upm-cnt { box-sizing:border-box; }
         }

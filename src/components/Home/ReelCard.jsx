@@ -663,7 +663,7 @@ const ReelCard = ({
                 <ReelProfilePreview
                   profile={profile}
                   music={reel.music}
-                  onProfileClick={onProfileClick || onAuthorClick}
+                  onProfileClick={() => (onProfileClick || onAuthorClick)?.(profile)}
                   onMusicClick={onMusicClick}
                   size="medium"
                 />
