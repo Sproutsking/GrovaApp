@@ -938,10 +938,10 @@ const CSS = `
 .gcv-rq-me{flex-direction:row-reverse;}
 .gcv-rq-bar{width:3px;flex-shrink:0;background:#84cc16;}
 .gcv-rq-me .gcv-rq-bar{background:rgba(255,255,255,.3);}
-.gcv-rq-body{padding:5px 10px;flex:1;min-width:0;background:rgba(0,0,0,.25);}
+.gcv-rq-body{padding:5px 10px;flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;background:rgba(0,0,0,.25);}
 .gcv-rq-who{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#84cc16;margin-bottom:2px;}
 .gcv-rq-me .gcv-rq-who{color:rgba(255,255,255,.5);}
-.gcv-rq-pre{font-size:11px;color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gcv-rq-pre{display:block;min-width:0;max-width:100%;font-size:11px;color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* Bubbles */
 .gcv-bubble{padding:0 1px 4px;word-break:break-word;position:relative;box-shadow:0 4px 16px rgba(0,0,0,.12);margin:0;border-radius:14px!important;}

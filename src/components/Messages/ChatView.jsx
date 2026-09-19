@@ -750,7 +750,7 @@ export const CV_CSS = `
 .cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
-.cv-bubble{max-width:70%;min-width:0;padding:0 5px 4px;border-radius:14px!important;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:visible;}
+.cv-bubble{max-width:70%;min-width:0;padding:0 5px 4px;border-radius:14px!important;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden;}
 .cv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
 .cv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
 .cv-message-menu-btn{position:absolute;top:8px;width:24px;height:24px;border-radius:8px;border:1px solid rgba(156,255,0,.22);background:rgba(10,12,10,.72);color:#dfffc8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:4;box-shadow:0 8px 18px rgba(0,0,0,.28);transition:transform .15s ease, background .15s ease, border-color .15s ease;}
@@ -808,7 +808,7 @@ export const CV_CSS = `
 .reply-tier-silver .cv-rq-bar{background:linear-gradient(180deg,#e2e8f0,#94a3b8);}
 .reply-tier-gold .cv-rq-bar{background:linear-gradient(180deg,#fef3c7,#fbbf24);}
 .reply-tier-diamond .cv-rq-bar{background:linear-gradient(180deg,#e0f2fe,#7dd3fc 42%,#a78bfa);}
-.cv-rq-text{font-size:12px;color:rgba(255,255,255,.65);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+.cv-rq-text{display:block;font-size:12px;color:rgba(255,255,255,.65);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;max-width:100%;}
 .cv-highlight .cv-bubble{animation:cvHL .8s ease-out;}
 @keyframes cvHL{0%,100%{filter:brightness(1)}40%{filter:brightness(1.5)}}
 .cv-ctx-overlay{position:fixed;inset:0;z-index:99980;background:transparent;}

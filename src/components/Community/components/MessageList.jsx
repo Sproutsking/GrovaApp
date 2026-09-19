@@ -419,7 +419,7 @@ const MessageList = ({
         .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
         .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote span{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .msg-reply-quote strong{color:var(--text);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote strong{display:block;min-width:0;max-width:100%;color:var(--text);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -553,8 +553,8 @@ const MessageList = ({
         .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 18px; border-bottom-right-radius: 0; }
         .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 18px; }
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
-        .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: 100%; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: hidden; }
+        .mra-wrapper .msg-bubble { width: 100%; max-width: 100%; min-width: 0; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
         .mra-ann { align-items: flex-start; width: 100%; max-width: min(760px, calc(100vw - 92px)); }

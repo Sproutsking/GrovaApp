@@ -45,7 +45,14 @@ const CommunityMessageInput = ({
   
   const inputRef = useRef(null);
   const plusBtnRef = useRef(null);
+  const selectedFilesRef = useRef(selectedFiles);
   const [mentionQuery, setMentionQuery] = useState(null);
+
+  selectedFilesRef.current = selectedFiles;
+
+  useEffect(() => () => {
+    selectedFilesRef.current.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
+  }, []);
 
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
@@ -72,6 +79,8 @@ const CommunityMessageInput = ({
       borderStyle: announcementBorderStyle,
       borderColor: announcementBorderColor,
     } : undefined, selectedFiles);
+
+    selectedFiles.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
     
     // Clear all media
     setSelectedEmojis([]);
@@ -159,7 +168,7 @@ const CommunityMessageInput = ({
     if (!canAttachFiles) return;
     try {
       validateMessageAttachments([...selectedFiles.map((item) => item.file), file], 10);
-      setSelectedFiles(prev => [...prev, { id: Date.now() + Math.random(), file, name: file.name, size: (file.size / 1024).toFixed(1) + "KB" }]);
+      setSelectedFiles(prev => [...prev, { id: Date.now() + Math.random(), file, name: file.name || "Attachment", size: (file.size / 1024).toFixed(1) + "KB", previewUrl: file.type?.startsWith("image/") || file.type?.startsWith("video/") ? URL.createObjectURL(file) : null }]);
     } catch (error) { alert(error.message); }
   };
 
@@ -180,8 +189,9 @@ const CommunityMessageInput = ({
         ...files.map((file) => ({
           id: Date.now() + Math.random(),
           file,
-          name: file.name,
+          name: file.name || "Pasted attachment",
           size: `${(file.size / 1024).toFixed(1)}KB`,
+          previewUrl: file.type?.startsWith("image/") || file.type?.startsWith("video/") ? URL.createObjectURL(file) : null,
         })),
       ]);
     } catch (error) {
@@ -212,7 +222,11 @@ const CommunityMessageInput = ({
   const removeMeme = () => setSelectedMeme(null);
   
   const removeFile = (id) => {
-    setSelectedFiles(prev => prev.filter(f => f.id !== id));
+    setSelectedFiles(prev => {
+      const removed = prev.find((file) => file.id === id);
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   const formatTypingText = () => {
@@ -306,11 +320,8 @@ const CommunityMessageInput = ({
           
           {selectedFiles.map(file => (
             <div key={file.id} className="comm-preview-card">
-              <div className="comm-preview-icon">📎</div>
-              <div className="comm-preview-info">
-                <div className="comm-preview-title">{file.name}</div>
-                <div className="comm-preview-size">{file.size}</div>
-              </div>
+              {file.previewUrl && file.file.type?.startsWith("image/") ? <img className="comm-preview-thumb" src={file.previewUrl} alt="" /> : file.previewUrl && file.file.type?.startsWith("video/") ? <video className="comm-preview-thumb" src={file.previewUrl} muted /> : <div className="comm-preview-icon">📎</div>}
+              <div className="comm-preview-info"><div className="comm-preview-title">{file.name}</div><div className="comm-preview-size">{file.size}</div></div>
               <button className="comm-preview-remove" onClick={() => removeFile(file.id)}>
                 <X size={12} />
               </button>
@@ -498,6 +509,7 @@ const CommunityMessageInput = ({
           max-width: 180px;
           animation: slideIn 0.2s ease-out;
         }
+        .comm-preview-thumb { width: 44px; height: 44px; flex: 0 0 44px; display: block; object-fit: cover; padding: 1px; box-sizing: border-box; border-radius: 7px; background: #070907; border: 1px solid rgba(156,255,0,.24); }
 
         .comm-preview-card.emoji {
           padding: 4px 8px;
