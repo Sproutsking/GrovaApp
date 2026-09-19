@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import LinkifiedText, { SharedContentMessage, parseSharedContent } from "./LinkifiedText";
+import LinkifiedText, { SharedContentMessage, getExternalUrls, parseSharedContent } from "./LinkifiedText";
 import ParsedText from "./ParsedText";
 
 describe("LinkifiedText", () => {
@@ -92,5 +92,9 @@ describe("LinkifiedText", () => {
   it("does not duplicate internal Xeevia navigation links", () => {
     render(<LinkifiedText>Open https://app.xeevia.com/post/abc-123</LinkifiedText>);
     expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("extracts only external URLs for message-level preview placement", () => {
+    expect(getExternalUrls("https://app.xeevia.com/post/1 https://preeb.cloud/about")).toEqual(["https://preeb.cloud/about"]);
   });
 });

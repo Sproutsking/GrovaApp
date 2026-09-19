@@ -446,13 +446,23 @@ const HomeView = ({
     if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
 
     try {
-      const [user, postsData, reelsData, storiesData, newsData] = await Promise.all([
-        authService.getCurrentUser().catch(() => null),
-        postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE).catch(() => []),
-        reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }).catch(() => []),
-        storyService.getStories({ limit: 20 }).catch(() => []),
-        newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }).catch(() => []),
+      const [userResult, postsResult, reelsResult, storiesResult, newsResult] = await Promise.allSettled([
+        authService.getCurrentUser(),
+        postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE),
+        reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }),
+        storyService.getStories({ limit: 20 }),
+        newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }),
       ]);
+
+      const user = userResult.status === "fulfilled" ? userResult.value : null;
+      const sourceResults = [postsResult, reelsResult, storiesResult, newsResult];
+      if (sourceResults.every((result) => result.status === "rejected")) {
+        throw new Error("We could not connect to Xeevia. Check your connection and try again.");
+      }
+      const postsData = postsResult.status === "fulfilled" ? postsResult.value : [];
+      const reelsData = reelsResult.status === "fulfilled" ? reelsResult.value : [];
+      const storiesData = storiesResult.status === "fulfilled" ? storiesResult.value : [];
+      const newsData = newsResult.status === "fulfilled" ? newsResult.value : [];
 
       if (!mountedRef.current) return;
 

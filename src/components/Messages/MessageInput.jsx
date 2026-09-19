@@ -164,6 +164,9 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
           position: relative;
           width: 100%;
         }
+        @media (max-width: 768px) {
+          .msg-input-wrapper { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+        }
 
         .msg-input-bar {
           display: flex;

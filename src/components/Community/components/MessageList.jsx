@@ -2,7 +2,7 @@
 import React from "react";
 import { MoreVertical, Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
-import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
+import LinkifiedText, { SharedContentMessage, getExternalUrls, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
@@ -163,7 +163,7 @@ const MessageList = ({
         const mentionKey = `${key}-${mentionIndex}`;
         if (mentionPart.startsWith("#")) return <button key={mentionKey} className="msg-mention channel" onClick={() => onChannelMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
         if (mentionPart.startsWith("@")) return <button key={mentionKey} className="msg-mention user" onClick={() => onRoleMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
-        return <React.Fragment key={mentionKey}><LinkifiedText onNavigate={onNavigate}>{mentionPart}</LinkifiedText></React.Fragment>;
+        return <React.Fragment key={mentionKey}><LinkifiedText displayMode="string" onNavigate={onNavigate}>{mentionPart}</LinkifiedText></React.Fragment>;
       });
     });
   };
@@ -309,6 +309,11 @@ const MessageList = ({
                     <span>Reply</span>
                   </button>
                 )}
+                {getExternalUrls(messageBody).map((url) => (
+                  <div className="msg-external-preview" key={`message-preview-${url}`}>
+                    <LinkifiedText previewOnly onNavigate={onNavigate}>{url}</LinkifiedText>
+                  </div>
+                ))}
                 </>}
               </MessageReactionArea>
             </div>
@@ -378,6 +383,9 @@ const MessageList = ({
         .msg-item .msg-bubble { min-width: 0; padding-bottom: 6px; }
         .msg-item.me .msg-bubble { padding-left: 6px; padding-right: 6px; }
         .msg-item.them .msg-bubble { padding-left: 6px; padding-right: 6px; }
+        .msg-external-preview{display:block;width:100%;margin:8px 0 0;padding:0 4px;box-sizing:border-box;}
+        .msg-external-preview .xeevia-link-card{width:100%;max-width:420px;}
+        @media(max-width:768px){.msg-external-preview{width:90%;margin-left:5%;}.msg-external-preview .xeevia-link-card{width:100%;}}
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
         .msg-card-menu-btn {
           position: relative;

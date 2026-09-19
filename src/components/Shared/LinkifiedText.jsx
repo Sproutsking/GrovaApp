@@ -105,8 +105,8 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
 
   if (displayMode === "embed" && !internal) {
     return (
-      <span className="xeevia-link-wrap" style={{ display: "inline-block", maxWidth: "100%", minWidth: 0 }}>
-        <a className="xeevia-link-card" href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick} style={{ display: "inline-flex", alignItems: "center", gap: 9, width: "min(100%, 320px)", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", padding: "8px 10px", border: `1px solid ${platform.color}66`, borderLeft: `3px solid ${platform.color}`, borderRadius: 9, background: "rgba(0,0,0,.28)", color: "#f4f7ee", textDecoration: "none", overflow: "hidden" }}>
+      <span className="xeevia-link-wrap xeevia-link-preview-wrap">
+        <a className="xeevia-link-card" href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick}>
           <img className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: "rgba(255,255,255,.08)" }} src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(url).hostname)}&sz=64`} alt="" loading="lazy" />
           <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{platform.label} link</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new URL(url).hostname}</small></span>
           <span className="xeevia-link-open" style={{ marginLeft: "auto", color: platform.color, flex: "0 0 auto" }} aria-hidden="true">↗</span>
@@ -142,7 +142,7 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
       .filter((url) => !isInternalXeeviaUrl(url))
     : [];
   return (
-    <span className={className}>
+    <span className={`xeevia-linkified-text${className ? ` ${className}` : ""}`}>
       {parts.map((part, index) => {
         if (!/^https?:\/\//i.test(part)) return <React.Fragment key={index}>{part}</React.Fragment>;
 
@@ -152,13 +152,16 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
         return <LinkSegment key={index} url={url} trailing={trailing} onNavigate={onNavigate} displayMode="string" />;
       })}
       {previewUrls.map((url) => (
-        <span key={`preview-${url}`} style={{ display: "block", width: "100%", marginTop: 10 }}>
+        <span key={`preview-${url}`} className="xeevia-link-preview-line">
           <LinkSegment url={url} trailing="" onNavigate={onNavigate} displayMode="embed" />
         </span>
       ))}
+      <style>{`.xeevia-link-preview-line{display:block;width:100%;margin-top:10px;clear:both}.xeevia-link-preview-wrap{display:block;width:100%;max-width:100%;min-width:0}.xeevia-link-card{display:flex;align-items:center;gap:9px;width:min(100%,420px);max-width:100%;min-width:0;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(163,230,53,.4);border-left:3px solid #a3e635;border-radius:9px;background:rgba(0,0,0,.28);color:#f4f7ee;text-decoration:none;overflow:hidden}.xeevia-link-icon{width:28px;height:28px;flex:0 0 28px;border-radius:7px;background:rgba(255,255,255,.08)}.xeevia-link-open{margin-left:auto;flex:0 0 auto}.xeevia-link-preview-wrap + .xeevia-link-preview-wrap{margin-top:8px}@media(max-width:768px){.xeevia-link-card{width:90%;margin-left:0}.xeevia-link-preview-line{margin-top:12px}}`}</style>
     </span>
   );
 };
+
+export const getExternalUrls = (text = "") => String(text).match(URL_PATTERN)?.map((url) => url.replace(TRAILING_PUNCTUATION, "")).filter((url) => !isInternalXeeviaUrl(url)) || [];
 
 export const SharedContentMessage = ({ children, onNavigate, isMine = false, showSender = true, senderDisplayName }) => {
   const shared = parseSharedContent(children);

@@ -300,6 +300,10 @@ const CommentModal = ({
           >
             Recent
           </button>
+          <select className="comment-sort-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Sort comments">
+            <option value="recent">Recent</option>
+            <option value="popular">Popular</option>
+          </select>
           <button
             className={`sort-btn${sortBy === "popular" ? " active" : ""}`}
             onClick={() => setSortBy("popular")}
@@ -527,6 +531,7 @@ const CommentModal = ({
           padding: 10px 20px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
           flex-shrink: 0;
+          box-sizing: border-box;
         }
         .sort-btn {
           padding: 5px 16px;
@@ -544,6 +549,7 @@ const CommentModal = ({
           border-color: #84cc16;
           color: #84cc16;
         }
+        .comment-sort-select{display:none}
 
         /* ── COMMENTS LIST ── */
         .comments-list {
@@ -803,6 +809,15 @@ const CommentModal = ({
           color: #3f3f46;
           margin-top: 6px;
           padding-left: 2px;
+        }
+        @media(max-width:768px){
+          .comment-modal-fullscreen{height:100dvh;max-height:100dvh;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+          .comment-modal-header{padding:10px 14px;min-height:48px}
+          .comment-sort-bar{padding:8px 14px;justify-content:flex-end}
+          .comment-sort-bar .sort-btn{display:none}
+          .comment-sort-select{display:block;padding:7px 28px 7px 10px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#111;color:#d7e5d3;font:600 12px inherit}
+          .comments-list{padding:12px 14px}
+          .comment-input-area{padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px))}
         }
       `}</style>
     </>
