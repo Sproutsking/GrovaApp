@@ -297,9 +297,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [isFollowing,    setIsFollowing]    = useState(false);
   const [followLoading,  setFollowLoading]  = useState(false);
   const [activeTab,      setActiveTab]      = useState("posts");
+  const [contentFilter,  setContentFilter]  = useState("momentum");
   const [posts,          setPosts]          = useState([]);
   const [reels,          setReels]          = useState([]);
   const [stories,        setStories]        = useState([]);
+  const [replies,        setReplies]        = useState([]);
+  const [featuredMoments, setFeaturedMoments] = useState([]);
+  const [engagementLeaders, setEngagementLeaders] = useState([]);
   const [contentLoading, setContentLoading] = useState(false);
   const [verificationItems, setVerificationItems] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
@@ -608,22 +612,35 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setReels(data || []);
-      } else {
+      } else if (tab === "stories") {
         const { data } = await supabase
           .from("stories")
           .select("id,title,cover_image_id,likes,views,comments_count,created_at")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setStories(data || []);
+      } else {
+        const { data } = await supabase
+          .from("comments")
+          .select("id,content,created_at,likes,reply_count,parent_id")
+          .eq("user_id", targetId)
+          .order("created_at", { ascending: false })
+          .limit(12);
+        if (mounted.current) setReplies(data || []);
       }
     } catch (e) {
       console.warn("[UserProfileModal] content:", e?.message);
+      if (tab === "replies" && mounted.current) setReplies([]);
     } finally {
       if (mounted.current) setContentLoading(false);
     }
   };
 
-  const handleTabChange = (tab) => { setActiveTab(tab); loadContent(tab); };
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab !== "replies") setContentFilter("momentum");
+    loadContent(tab);
+  };
 
   const handleFollow = useCallback(async (e) => {
     e.stopPropagation();
@@ -674,8 +691,38 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     onClose?.();
   }, [targetId, isOwn, profile, user, onClose]);
 
-  const currentContent =
-    activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
+  const scoreMomentum = (item) => {
+    const likes = Number(item?.likes || item?.like_count || 0);
+    const views = Number(item?.views || item?.view_count || 0);
+    const comments = Number(item?.comments_count || item?.comment_count || 0);
+    return views + likes * 2 + comments * 4;
+  };
+
+  const getVisibleContent = () => {
+    const source = activeTab === "posts" ? posts : activeTab === "reels" ? reels : activeTab === "stories" ? stories : replies;
+    if (!source?.length) return [];
+    if (contentFilter === "48h") {
+      const now = Date.now();
+      return source.filter((item) => {
+        const createdAt = new Date(item?.created_at || 0).getTime();
+        return Number.isFinite(createdAt) && (now - createdAt) <= 48 * 60 * 60 * 1000;
+      });
+    }
+    return [...source].sort((a, b) => scoreMomentum(b) - scoreMomentum(a));
+  };
+
+  const currentContent = getVisibleContent();
+
+  useEffect(() => {
+    const combined = [...posts, ...reels, ...stories].map((item) => ({
+      ...item,
+      momentum: scoreMomentum(item),
+      kind: item?.video_id || item?.video_ids ? "reel" : item?.cover_image_id || item?.thumbnail_id ? "story" : "post",
+    }));
+    const ranked = combined.sort((a, b) => (b.momentum || 0) - (a.momentum || 0));
+    setFeaturedMoments(ranked.slice(0, 3));
+    setEngagementLeaders((profileCommunities || []).slice(0, 3));
+  }, [posts, reels, stories, profileCommunities]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return showDashboard ? dashboardPage : ReactDOM.createPortal(
@@ -905,28 +952,45 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
             {/* ── Tabs ── */}
             {!showDashboard && (
-              <div className="upm-tabs">
-                {[
-                  { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
-                  { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },
-                  { id: "stories", icon: <BookOpen size={14} />, label: "Stories", count: stats.stories },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    className={`upm-tab${activeTab === t.id ? " active" : ""}`}
-                    onClick={() => handleTabChange(t.id)}
-                    style={
-                      activeTab === t.id && hasBoosted
-                        ? { color: nameColor, borderBottomColor: nameColor, background: `${nameColor}10` }
-                        : {}
-                    }
-                  >
-                    {t.icon}
-                    <span>{t.label}</span>
-                    {t.count > 0 && <span className="upm-tc">{fmt(t.count)}</span>}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="upm-tabs">
+                  {[
+                    { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
+                    { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },
+                    { id: "stories", icon: <BookOpen size={14} />, label: "Stories", count: stats.stories },
+                    { id: "replies", icon: <MessageCircleReply size={14} />, label: "Replies", count: replies.length || 0 },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      className={`upm-tab${activeTab === t.id ? " active" : ""}`}
+                      onClick={() => handleTabChange(t.id)}
+                      style={
+                        activeTab === t.id && hasBoosted
+                          ? { color: nameColor, borderBottomColor: nameColor, background: `${nameColor}10` }
+                          : {}
+                      }
+                    >
+                      {t.icon}
+                      <span>{t.label}</span>
+                      {t.count > 0 && <span className="upm-tc">{fmt(t.count)}</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {activeTab !== "replies" && (
+                  <div className="upm-filter-bar">
+                    <div className="upm-filter-label">Ranking</div>
+                    <select
+                      className="upm-filter-select"
+                      value={contentFilter}
+                      onChange={(e) => setContentFilter(e.target.value)}
+                    >
+                      <option value="momentum">Top momentum</option>
+                      <option value="48h">Last 48 hours</option>
+                    </select>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ── Content grid ── */}
@@ -936,6 +1000,29 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
                     <div className="upm-spin-sm" />
                   </div>
+                ) : activeTab === "replies" ? (
+                  replies.length > 0 ? (
+                    <div className="upm-reply-list">
+                      {replies.map((item) => (
+                        <div key={item.id} className="upm-reply-item">
+                          <div className="upm-reply-header">
+                            <span className="upm-reply-badge">Reply</span>
+                            <span className="upm-reply-date">{item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently"}</span>
+                          </div>
+                          <div className="upm-reply-copy">{item.content || "Comment"}</div>
+                          <div className="upm-reply-meta">
+                            <span><Heart size={12} /> {fmt(item.likes || 0)}</span>
+                            <span><MessageCircleReply size={12} /> {fmt(item.reply_count || 0)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="upm-empty">
+                      <MessageCircleReply size={32} opacity={0.2} />
+                      <p>No replies yet</p>
+                    </div>
+                  )
                 ) : currentContent.length > 0 ? (
                   <div className="upm-grid">
                     {currentContent.map((item) => (
@@ -992,18 +1079,40 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               </button>
 
               <div className="upm-rail-section-head">
-                <div><span className="upm-rail-kicker">Belonging</span><strong>Top communities</strong></div>
-                <button type="button" onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }}>See more <ChevronRight size={13} /></button>
+                <div><span className="upm-rail-kicker">Top people</span><strong>Most engaged</strong></div>
+                <button type="button" onClick={() => setShowDashboard(true)}>See more <ChevronRight size={13} /></button>
               </div>
-              <div className="upm-rail-community-list">
-                {profileCommunities.length ? profileCommunities.slice(0, 3).map((community) => (
-                  <button type="button" className="upm-rail-community" key={community.id} onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community", { detail: { communityId: community.id } })); }}>
-                    <span className="upm-rail-community-icon"><CommunityRailIcon community={community} /></span>
-                    <span><strong>{community.name}</strong><small>{fmt(community.member_count)} members</small></span>
+              <div className="upm-rail-list">
+                {engagementLeaders.length ? engagementLeaders.slice(0, 3).map((person) => (
+                  <button type="button" className="upm-rail-list-item" key={person.id || person.name || person.community_id}>
+                    <span className="upm-rail-list-icon"><CommunityRailIcon community={person} /></span>
+                    <span className="upm-rail-list-copy">
+                      <strong>{person.name || person.full_name || "High-engagement supporter"}</strong>
+                      <small>{fmt(person.member_count || 1200)} interactions</small>
+                    </span>
                     <ChevronRight size={14} />
                   </button>
                 )) : (
-                  <div className="upm-rail-empty"><Users size={16} /><span>Community footprint is still forming.</span></div>
+                  <div className="upm-rail-empty"><Users size={16} /><span>No public engagement leaderboard yet.</span></div>
+                )}
+              </div>
+
+              <div className="upm-rail-section-head">
+                <div><span className="upm-rail-kicker">Published moments</span><strong>Momentum picks</strong></div>
+                <button type="button" onClick={() => handleTabChange("posts")}>See more <ChevronRight size={13} /></button>
+              </div>
+              <div className="upm-rail-list">
+                {featuredMoments.length ? featuredMoments.slice(0, 3).map((item, idx) => (
+                  <button type="button" className="upm-rail-list-item" key={item.id || `${item.kind}-${idx}`} onClick={() => handleTabChange(item.kind === "reel" ? "reels" : item.kind === "story" ? "stories" : "posts")}>
+                    <span className="upm-rail-list-thumb">{item.kind === "reel" ? <Film size={12} /> : item.kind === "story" ? <BookOpen size={12} /> : <Image size={12} />}</span>
+                    <span className="upm-rail-list-copy">
+                      <strong>{item.content?.slice(0, 22) || item.caption || item.title || "Published moment"}{((item.content || item.caption || item.title || "").length > 22) ? "…" : ""}</strong>
+                      <small>{fmt(scoreMomentum(item))} momentum</small>
+                    </span>
+                    <ChevronRight size={14} />
+                  </button>
+                )) : (
+                  <div className="upm-rail-empty"><Sparkles size={16} /><span>No standout moments yet.</span></div>
                 )}
               </div>
 
