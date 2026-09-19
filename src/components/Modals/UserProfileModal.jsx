@@ -698,7 +698,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               tier={hasBoosted ? tier : null}
               themeId={themeId}
               backgroundColorId={backgroundColorId}
-              embedded
               style={{ borderRadius: "20px 20px 0 0", position: "relative", minHeight: 0, maxHeight: "none" }}
             >
               <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
