@@ -118,7 +118,7 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
 
   return (
     <span className="xeevia-link-wrap">
-      <a className="app-link" href={url} aria-label={internalType ? `View ${internalType.toLowerCase()}` : "Open link"} target={internal ? "_self" : "_blank"} rel={internal ? "noopener" : "noopener noreferrer"} onClick={handleClick} style={{ color: internal ? "#a3e635" : platform.color, textDecoration: "underline", textDecorationColor: `${platform.color}8c`, textUnderlineOffset: 3, overflowWrap: "anywhere" }}>
+      <a className="app-link" href={url} aria-label={internalType ? `View ${internalType.toLowerCase()}` : "Open link"} target={internal ? "_self" : "_blank"} rel={internal ? "noopener" : "noopener noreferrer"} onClick={handleClick} style={{ color: internal ? "#a3e635" : platform.color, textDecoration: "none", overflowWrap: "anywhere" }}>
         {internalType ? `View ${internalType.toLowerCase()}` : url}
       </a>
       {trailing}
