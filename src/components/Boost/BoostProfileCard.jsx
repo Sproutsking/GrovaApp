@@ -711,7 +711,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     isolation: "isolate",
     background: "transparent",
     width: "100%",
-    height: embedded ? "100%" : "auto",
+    height: embedded ? (style.height ?? "auto") : "auto",
     minHeight: embedded ? 0 : undefined,
     maxWidth: embedded ? "100%" : undefined,
     aspectRatio: embedded ? undefined : "auto",
@@ -727,7 +727,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
       data-design={theme.id.replace(`${tier}-`, "")}
       style={{
         width: "100%",
-        height: embedded ? (style.height ?? "100%") : undefined,
+        height: embedded ? (style.height ?? "auto") : undefined,
         position: "relative",
         overflow: "hidden",
         borderRadius: cardRadius,
@@ -751,7 +751,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
         <div className="card-scrim" aria-hidden="true" />
         <div className="card-frame" aria-hidden="true" />
         <div ref={avatarFxRef} className="avatar-fx" aria-hidden="true" />
-        <div className="card-content" style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>{children}</div>
+        <div className="card-content" style={{ position: "relative", zIndex: 1, width: "100%", height: embedded ? "auto" : "100%", display: "flex", flexDirection: "column" }}>{children}</div>
       </div>
     </div>
   );
