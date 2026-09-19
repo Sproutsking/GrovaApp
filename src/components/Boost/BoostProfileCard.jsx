@@ -705,14 +705,19 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     : bgLayers;
 
   const cardRadius = style.borderRadius ?? 24;
+  const embeddedHeight = embedded ? (style.height ?? "auto") : "auto";
+  const embeddedMinHeight = embedded ? (style.minHeight ?? 0) : undefined;
+  const embeddedMaxHeight = embedded ? (style.maxHeight ?? "none") : undefined;
+
   const cardStyle = {
     position: "relative",
     overflow: "hidden",
     isolation: "isolate",
     background: "transparent",
     width: "100%",
-    height: embedded ? (style.height ?? "auto") : "auto",
-    minHeight: embedded ? 0 : undefined,
+    height: embeddedHeight,
+    minHeight: embeddedMinHeight,
+    maxHeight: embeddedMaxHeight,
     maxWidth: embedded ? "100%" : undefined,
     aspectRatio: embedded ? undefined : "auto",
     borderRadius: cardRadius,
@@ -728,6 +733,8 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
       style={{
         width: "100%",
         height: embedded ? (style.height ?? "auto") : undefined,
+        minHeight: embedded ? (style.minHeight ?? 0) : undefined,
+        maxHeight: embedded ? (style.maxHeight ?? "none") : undefined,
         position: "relative",
         overflow: "hidden",
         borderRadius: cardRadius,
@@ -751,7 +758,21 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
         <div className="card-scrim" aria-hidden="true" />
         <div className="card-frame" aria-hidden="true" />
         <div ref={avatarFxRef} className="avatar-fx" aria-hidden="true" />
-        <div className="card-content" style={{ position: "relative", zIndex: 1, width: "100%", height: embedded ? "auto" : "100%", display: "flex", flexDirection: "column" }}>{children}</div>
+        <div
+          className="card-content"
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+            height: embedded ? (style.height ? "100%" : "auto") : "100%",
+            minHeight: embedded ? (style.minHeight ?? 0) : undefined,
+            maxHeight: embedded ? (style.maxHeight ?? "none") : undefined,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
