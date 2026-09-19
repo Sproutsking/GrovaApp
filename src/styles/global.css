@@ -313,7 +313,6 @@ img, video {
   overscroll-behavior-y: auto;
   overscroll-behavior-x: none;
   touch-action: pan-y;
-  contain: layout paint;
   scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 80px;
@@ -383,7 +382,6 @@ img, video {
   overscroll-behavior-y: auto;
   overscroll-behavior-x: none;
   touch-action: pan-y;
-  contain: layout paint;
   scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 8px;
