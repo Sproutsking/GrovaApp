@@ -1127,7 +1127,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         }
         .upm-sheet::-webkit-scrollbar { display:none; }
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
-        .upm-boost-profile.xvb-root, .upm-boost-profile.xvb-root.xvb-embed, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:auto !important; min-height:0 !important; max-height:none !important; }
+        .upm-boost-profile.xvb-root, .upm-boost-profile.xvb-root.xvb-embed, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:max-content !important; min-height:0 !important; max-height:none !important; }
         .upm-boost-profile { align-self:flex-start; display:block !important; flex:none !important; width:calc(100% - 16px) !important; margin:8px 8px 0; min-height:0 !important; max-height:none !important; }
         .upm-boost-profile .card-content { display:flex; flex-direction:column; padding:14px; box-sizing:border-box; }
         .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }

@@ -411,7 +411,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
   const boxBg       = hasBoosted && tierColor ? `${tierColor}07` : "rgba(255,255,255,0.02)";
 
   return `
-    .mh-header { position: sticky; top: 0; z-index: 100; background: var(--bg-strong); border-bottom: 1px solid var(--border); margin: 0; padding: 0; }
+    .mh-header { position: sticky; top: 0; z-index: 100; background: var(--bg-strong); border-bottom: 1px solid var(--border); margin: 0; padding-top: env(safe-area-inset-top, 0px); }
     .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; gap: 8px; margin: 0; min-height: 44px; }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
     .mh-greeting-box { display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 22px; padding: 2px 8px; background: ${boxBg}; border: 1px solid color-mix(in srgb, ${boxBorder} 60%, var(--surface-border)); border-radius: 7px; overflow: hidden; transition: background 0.12s, border-color 0.12s; }

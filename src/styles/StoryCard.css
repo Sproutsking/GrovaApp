@@ -387,56 +387,56 @@
   }
 
   .story-hero {
-    height: 248px;
+    height: 190px;
   }
 
   .story-category-floating {
-    top: 16px;
-    left: 16px;
-    padding: 6px 14px;
-    font-size: 11px;
+    top: 10px;
+    left: 10px;
+    padding: 5px 9px;
+    font-size: 10px;
   }
 
   .story-lock-floating {
-    top: 16px;
-    right: 16px;
-    padding: 8px 14px;
-    font-size: 12px;
+    top: 10px;
+    right: 10px;
+    padding: 6px 9px;
+    font-size: 10px;
   }
 
   .story-time-badge {
-    bottom: 16px;
-    right: 16px;
-    padding: 6px 12px;
-    font-size: 11px;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px 9px;
+    font-size: 10px;
   }
 
   .story-content-section {
-    padding: 14px 14px 10px;
+    padding: 10px 10px 7px;
   }
 
   .story-author-header {
-    padding-bottom: 10px;
-    margin-bottom: 12px;
+    padding-bottom: 7px;
+    margin-bottom: 8px;
   }
 
   .story-action-btn {
-    padding: 7px 14px;
-    font-size: 12px;
+    padding: 5px 9px;
+    font-size: 11px;
   }
 
   .story-title-premium {
-    font-size: 19px;
-    margin-bottom: 12px;
+    font-size: 17px;
+    margin-bottom: 7px;
   }
 
   .story-preview-text {
-    font-size: 14px;
-    margin-bottom: 10px;
+    font-size: 13px;
+    margin-bottom: 6px;
   }
 
   .story-stats-compact {
-    gap: 12px;
+    gap: 8px;
   }
 
   .stat-compact {
@@ -444,7 +444,7 @@
   }
 
   .story-footer-premium {
-    padding: 10px 14px;
+    padding: 7px 10px;
   }
 
   .story-footer-premium .rp-panel {

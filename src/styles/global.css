@@ -271,7 +271,7 @@ img, video {
 .mobile-header {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 56px;
+  height: calc(56px + env(safe-area-inset-top, 0px));
   background: var(--bg-strong);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -280,7 +280,8 @@ img, video {
 }
 
 .mobile-header-content {
-  height: 100%;
+  height: 56px;
+  margin-top: env(safe-area-inset-top, 0px);
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -374,7 +375,7 @@ img, video {
 
 .main-content-mobile {
   position: fixed;
-  top: 47px;
+  top: calc(47px + env(safe-area-inset-top, 0px));
   left: 0; right: 0;
   bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
