@@ -963,7 +963,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
             ) : (
               <>
                 <div className="creator-list">{topCreators.map((c) => <CreatorRow key={c.userId} creator={c} />)}</div>
-                {eliteCreators.length > 3 && (
+                {eliteCreators.length > 0 && (
                   <button className="view-more-btn" onClick={() => setCreatorsPanel(true)}>View Top 30 Creators <ArrowRight size={13} /></button>
                 )}
               </>

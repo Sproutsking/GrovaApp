@@ -41,6 +41,7 @@ import { supabase }      from "../../services/config/supabase";
 import mediaUrlService   from "../../services/shared/mediaUrlService";
 import reelService       from "../../services/home/reelService";
 import followService     from "../../services/social/followService";
+import UserProfileModal  from "../Modals/UserProfileModal";
 import { getDiscoveryFeed } from "../../services/discovery/discoveryService";
 import { rankItems, getTopCategories } from "../../services/discovery/discoveryPersonalizationModel";
 
@@ -324,6 +325,7 @@ const FollowCard = React.memo(({ user, currentUserId }) => {
   const [btnState,  setBtnState]  = useState("idle");
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const avatarUrl = safeAvatarUrl(user.avatar_id);
   const initials  = (user.full_name || user.username || "?")
@@ -343,7 +345,7 @@ const FollowCard = React.memo(({ user, currentUserId }) => {
   const showImg = avatarUrl && !imgFailed;
 
   return (
-    <div className="fp-fc">
+    <div className="fp-fc" onClick={() => setShowProfile(true)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowProfile(true); }}>
       {/* Cover: gradient always as base, image fades over it */}
       <div className="fp-fc-cover" style={{ background: grad }}>
         {showImg && (
@@ -380,6 +382,13 @@ const FollowCard = React.memo(({ user, currentUserId }) => {
            : <><UserPlus size={11} /> Follow</>}
         </button>
       </div>
+      {showProfile && (
+        <UserProfileModal
+          user={user}
+          currentUser={{ id: currentUserId }}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
     </div>
   );
 });
