@@ -316,7 +316,7 @@ class DMMessageService {
       };
       if (replyToId) insertData.reply_to_id = replyToId;
 
-      const { data, error } = await supabase.rpc("send_direct_message", {
+      let { data, error } = await supabase.rpc("send_direct_message", {
         p_conversation_id: conversationId,
         p_sender_id: senderId,
         p_content: insertData.content,
@@ -325,6 +325,19 @@ class DMMessageService {
         p_media_type: insertData.media_type,
         p_attachments: attachments,
       });
+
+      // Older deployments may not have migration 061 yet. Keep sending usable
+      // while the RPC cache catches up, then let the server enforce blocks once
+      // the migration is present.
+      if (error && /could not find the function|schema cache/i.test(error.message || "")) {
+        let fallback = await supabase.from("messages").insert(insertData).select().single();
+        if (fallback.error && /attachments|column/i.test(fallback.error.message || "")) {
+          const { attachments: _attachments, ...legacyInsertData } = insertData;
+          fallback = await supabase.from("messages").insert(legacyInsertData).select().single();
+        }
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw error;
       const savedMessage = Array.isArray(data) ? data[0] : data;

@@ -1,4 +1,7 @@
--- Reliable direct-message writes, reciprocal blocking, reports, and preferences.
+-- Ensure the direct-message safety contract reaches databases that already recorded 061.
+
+alter table public.messages
+  add column if not exists attachments jsonb not null default '[]'::jsonb;
 
 create table if not exists public.user_blocks (
   blocker_id uuid not null references public.profiles(id) on delete cascade,
@@ -60,23 +63,12 @@ declare
   recipient_id uuid;
   new_message public.messages;
 begin
-  if auth.uid() is null or auth.uid() <> p_sender_id then
-    raise exception 'Unauthorized';
-  end if;
-  if nullif(trim(coalesce(p_content, '')), '') is null and jsonb_array_length(coalesce(p_attachments, '[]'::jsonb)) = 0 then
-    raise exception 'Message cannot be empty';
-  end if;
-
+  if auth.uid() is null or auth.uid() <> p_sender_id then raise exception 'Unauthorized'; end if;
+  if nullif(trim(coalesce(p_content, '')), '') is null and jsonb_array_length(coalesce(p_attachments, '[]'::jsonb)) = 0 then raise exception 'Message cannot be empty'; end if;
   select * into target from public.conversations where id = p_conversation_id;
-  if not found or (target.user1_id <> p_sender_id and target.user2_id <> p_sender_id) then
-    raise exception 'Conversation access denied';
-  end if;
+  if not found or (target.user1_id <> p_sender_id and target.user2_id <> p_sender_id) then raise exception 'Conversation access denied'; end if;
   recipient_id := case when target.user1_id = p_sender_id then target.user2_id else target.user1_id end;
-  if exists (select 1 from public.user_blocks where blocker_id = recipient_id and blocked_id = p_sender_id)
-     or exists (select 1 from public.user_blocks where blocker_id = p_sender_id and blocked_id = recipient_id) then
-    raise exception 'Messaging is unavailable because one user is blocked';
-  end if;
-
+  if exists (select 1 from public.user_blocks where (blocker_id = recipient_id and blocked_id = p_sender_id) or (blocker_id = p_sender_id and blocked_id = recipient_id)) then raise exception 'Messaging is unavailable because one user is blocked'; end if;
   insert into public.messages (conversation_id, sender_id, content, media_url, media_type, attachments, reply_to_id)
   values (p_conversation_id, p_sender_id, coalesce(nullif(trim(p_content), ''), 'Attachment'), p_media_url, p_media_type, coalesce(p_attachments, '[]'::jsonb), p_reply_to_id)
   returning * into new_message;
@@ -85,10 +77,6 @@ begin
 end;
 $$;
 
-revoke all on function public.send_direct_message(uuid, uuid, text, uuid, text, text, jsonb) from public;
-grant execute on function public.send_direct_message(uuid, uuid, text, uuid, text, text, jsonb) to authenticated;
-
--- Compatibility overload for clients released before media_type was added.
 create or replace function public.send_direct_message(
   p_conversation_id uuid,
   p_sender_id uuid,
@@ -102,25 +90,12 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  target public.conversations;
-  recipient_id uuid;
-  new_message public.messages;
 begin
-  if auth.uid() is null or auth.uid() <> p_sender_id then raise exception 'Unauthorized'; end if;
-  select * into target from public.conversations where id = p_conversation_id;
-  if not found or (target.user1_id <> p_sender_id and target.user2_id <> p_sender_id) then raise exception 'Conversation access denied'; end if;
-  recipient_id := case when target.user1_id = p_sender_id then target.user2_id else target.user1_id end;
-  if exists (select 1 from public.user_blocks where blocker_id in (p_sender_id, recipient_id) and blocked_id in (p_sender_id, recipient_id)) then
-    raise exception 'Messaging is unavailable because one user is blocked';
-  end if;
-  insert into public.messages (conversation_id, sender_id, content, media_url, attachments, reply_to_id)
-  values (p_conversation_id, p_sender_id, coalesce(nullif(trim(p_content), ''), 'Attachment'), p_media_url, coalesce(p_attachments, '[]'::jsonb), p_reply_to_id)
-  returning * into new_message;
-  update public.conversations set last_message_at = new_message.created_at, updated_at = now() where id = p_conversation_id;
-  return new_message;
+  return public.send_direct_message(p_conversation_id, p_sender_id, p_content, p_reply_to_id, p_media_url, null, p_attachments);
 end;
 $$;
 
+revoke all on function public.send_direct_message(uuid, uuid, text, uuid, text, text, jsonb) from public;
+grant execute on function public.send_direct_message(uuid, uuid, text, uuid, text, text, jsonb) to authenticated;
 revoke all on function public.send_direct_message(uuid, uuid, text, uuid, text, jsonb) from public;
 grant execute on function public.send_direct_message(uuid, uuid, text, uuid, text, jsonb) to authenticated;
