@@ -40,6 +40,14 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
     }
   }, [community?.id, userId]);
 
+  useEffect(() => {
+    if (!showMenu || window.innerWidth > 768) return undefined;
+    document.body.classList.add("community-menu-fullscreen");
+    return () => {
+      document.body.classList.remove("community-menu-fullscreen");
+    };
+  }, [showMenu]);
+
   const loadChannels = async () => {
     try {
       const [{ data: categories }, cachedData] = await Promise.all([
@@ -428,6 +436,26 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           padding: 76px 14px 14px;
           background: rgba(0,0,0,.28);
           backdrop-filter: blur(5px);
+        }
+
+        @media (max-width: 768px) {
+          body.community-menu-fullscreen .cv-menu-overlay {
+            inset: 0;
+            padding: 0;
+            background: rgba(0,0,0,0.76);
+          }
+
+          body.community-menu-fullscreen .cv-menu-panel {
+            width: 100vw;
+            max-width: none;
+            max-height: 100dvh;
+            height: 100dvh;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            border-top: 1px solid rgba(156,255,0,.2);
+            box-shadow: none;
+          }
         }
 
         .cv-menu-panel {

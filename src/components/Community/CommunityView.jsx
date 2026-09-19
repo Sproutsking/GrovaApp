@@ -94,11 +94,22 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   }, [isMobile]);
 
   // ── Give the community its own full mobile surface ───────────────────────
+  // Only hide the global shell while an actual community surface is open.
+  // This prevents the root header/bottom nav from disappearing by default on
+  // mobile when the user is elsewhere in the app.
   useEffect(() => {
-    const shouldHide = isMobile && (view === "chat" || view === "channels");
+    if (!isMobile) {
+      document.body.classList.remove("community-fullscreen");
+      return undefined;
+    }
+
+    const shouldHide = !!selectedCommunity && (view === "chat" || view === "channels");
     document.body.classList.toggle("community-fullscreen", shouldHide);
-    return () => document.body.classList.remove("community-fullscreen");
-  }, [isMobile, view]);
+
+    return () => {
+      document.body.classList.remove("community-fullscreen");
+    };
+  }, [isMobile, selectedCommunity, view]);
 
   // ── User profile ──────────────────────────────────────────────────────────
   useEffect(() => { loadFullUserProfile(); }, [userId]);

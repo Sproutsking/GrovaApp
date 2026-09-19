@@ -47,6 +47,17 @@ body.community-fullscreen {
   }
 }
 
+@media (max-width: 768px) {
+  body.community-menu-fullscreen {
+    overflow: hidden;
+  }
+
+  body.community-menu-fullscreen .mh-header,
+  body.community-menu-fullscreen .mbn {
+    display: none !important;
+  }
+}
+
 /* ============================================
    COMMUNITY SIDEBAR (icon column)
    ============================================ */

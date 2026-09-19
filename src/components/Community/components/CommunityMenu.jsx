@@ -105,6 +105,12 @@ const CommunityMenu = ({
     }
   }, [show, community]);
 
+  useEffect(() => {
+    if (!show || window.innerWidth > 768) return undefined;
+    document.body.classList.add("community-menu-fullscreen");
+    return () => document.body.classList.remove("community-menu-fullscreen");
+  }, [show]);
+
   const loadUserPermissions = async () => {
     try {
       const permissions = await permissionService.getUserPermissions(community.id, userId);
@@ -296,10 +302,10 @@ const CommunityMenu = ({
       />
 
       <style>{`
-        /* FIXED: 47px mobile / 57px desktop top offset to clear the app root header */
+        /* Keep the desktop menu below the root header. Mobile uses the full viewport. */
         .cm-overlay{
           position:fixed;
-          top:47px; /* mobile */
+          top:0;
           left:0;right:0;bottom:0;
           background:var(--modal-overlay);
           backdrop-filter:blur(4px);
@@ -307,7 +313,7 @@ const CommunityMenu = ({
           animation:overlayIn .25s ease;
         }
         @media(min-width:769px){
-          .cm-overlay{top:57px;} /* desktop */
+          .cm-overlay{top:57px;}
         }
         @keyframes overlayIn{from{opacity:0}to{opacity:1}}
 
@@ -363,6 +369,8 @@ const CommunityMenu = ({
         .cm-item-desc{font-size:10px;color:var(--text-secondary)}
 
         @media(max-width:768px){
+          body.community-menu-fullscreen .mh-header,
+          body.community-menu-fullscreen .mbn{display:none !important}
           .cm-sidebar{max-width:100%;border-left:none;animation:slideUpMobile .3s cubic-bezier(.4,0,.2,1)}
           @keyframes slideUpMobile{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         }
