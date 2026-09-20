@@ -19,6 +19,41 @@ const socialUpdatesService = {
     if (error) throw error;
     return data || [];
   },
+  async saveProfileConnection({ communityId, userId, provider, profileUrl }) {
+    let parsed;
+    try { parsed = new URL(profileUrl); } catch { throw new Error("Enter a valid public profile URL."); }
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error("Enter a valid public profile URL.");
+    const capabilities = getPlatformCapabilities(provider);
+    if (!capabilities) throw new Error("Choose a supported platform.");
+    const { data, error } = await supabase.from("community_social_connections").upsert({
+      community_id: communityId,
+      connected_by: userId,
+      provider,
+      provider_account_id: parsed.toString(),
+      display_name: parsed.hostname.replace(/^www\./, ""),
+      source_url: parsed.toString(),
+      status: "active",
+      scopes: ["profile_link"],
+      capabilities: { inboundReady: capabilities.inboundReady, canDetectLive: capabilities.canDetectLive, source: "profile_link" },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "community_id,provider,provider_account_id" }).select().single();
+    if (error) throw error;
+    return data;
+  },
+  async connectLinkedSource({ communityId, userId, provider, providerAccountId }) {
+    const { data, error } = await supabase.from("community_social_connections").upsert({
+      community_id: communityId,
+      connected_by: userId,
+      provider,
+      provider_account_id: providerAccountId,
+      display_name: provider,
+      status: "active",
+      scopes: ["identity_link"],
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "community_id,provider,provider_account_id" }).select().single();
+    if (error) throw error;
+    return data;
+  },
   async listPosts(channelId) {
     let { data, error } = await supabase.from("community_external_activities").select("*").eq("channel_id", channelId).order("published_at", { ascending: false });
     if (error?.code === "42P01") {
@@ -50,6 +85,13 @@ const socialUpdatesService = {
       .eq("activity_type", "live")
       .eq("status", "live")
       .order("starts_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+  async listRecentSyncRuns(communityId) {
+    const { data, error } = await supabase.from("community_sync_runs")
+      .select("*, connection:community_social_connections(provider, display_name)")
+      .eq("community_id", communityId).order("started_at", { ascending: false }).limit(20);
     if (error) throw error;
     return data || [];
   },
