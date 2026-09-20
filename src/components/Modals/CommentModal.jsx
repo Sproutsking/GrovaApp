@@ -274,14 +274,12 @@ const CommentModal = ({
             <h3>Comments</h3>
             <span className="comment-count">{comments.length}</span>
           </div>
-          <button
-            className="comment-close-btn"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={22} />
-          </button>
-          {isMobile && (
+          <div className="comment-header-actions">
+            <select className="comment-sort-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Filter comments">
+              <option value="recent">Recent</option>
+              <option value="popular">Popular</option>
+            </select>
+            {isMobile && (
             <button
               className="comment-fullscreen-btn"
               onClick={() => setIsFullscreen((value) => !value)}
@@ -289,27 +287,15 @@ const CommentModal = ({
             >
               {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
             </button>
-          )}
-        </div>
-
-        {/* Sort bar */}
-        <div className="comment-sort-bar">
-          <button
-            className={`sort-btn${sortBy === "recent" ? " active" : ""}`}
-            onClick={() => setSortBy("recent")}
-          >
-            Recent
-          </button>
-          <select className="comment-sort-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Sort comments">
-            <option value="recent">Recent</option>
-            <option value="popular">Popular</option>
-          </select>
-          <button
-            className={`sort-btn${sortBy === "popular" ? " active" : ""}`}
-            onClick={() => setSortBy("popular")}
-          >
-            Popular
-          </button>
+            )}
+            <button
+              className="comment-close-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X size={22} />
+            </button>
+          </div>
         </div>
 
         {/* Comments list */}
@@ -473,6 +459,12 @@ const CommentModal = ({
           align-items: center;
           gap: 10px;
         }
+        .comment-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-left: auto;
+        }
         .comment-modal-title h3 {
           font-size: 17px;
           font-weight: 700;
@@ -517,11 +509,25 @@ const CommentModal = ({
           align-items: center;
           justify-content: center;
         }
+        .comment-header-actions .comment-sort-select {
+          display: block;
+          min-width: 108px;
+          padding: 7px 25px 7px 10px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 9px;
+          background: rgba(255, 255, 255, 0.06);
+          color: #d8e2d2;
+          font: 12px inherit;
+          cursor: pointer;
+        }
+        .comment-header-actions .comment-sort-select:focus-visible {
+          outline: 2px solid rgba(132, 204, 22, 0.7);
+          outline-offset: 2px;
+        }
         @media (max-width: 768px) {
           .comment-fullscreen-btn { display: flex; }
           .comment-modal-header { gap: 8px; }
-          .comment-modal-header .comment-close-btn { order: 2; }
-          .comment-modal-header .comment-fullscreen-btn { order: 1; margin-left: auto; }
+          .comment-header-actions .comment-sort-select { min-width: 92px; }
         }
 
         /* ── SORT BAR ── */
