@@ -2,7 +2,7 @@
 // UI TRANSFER: Design system from prototype. All backend props/logic untouched.
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Search, Users, Eye, UserPlus, CheckCircle, TrendingUp,
+  Search, Users, Eye, UserPlus, CheckCircle, TrendingUp, Radio,
   Star, Zap, Globe, Crown, Sparkles, ChevronDown, X,
   Info, Lock, Hash, MessageCircle, Calendar, Shield,
 } from "lucide-react";
@@ -107,6 +107,11 @@ const MODE_CATEGORIES = {
     { id: "all", label: "All", Icon: Globe },
     { id: "blockchain", label: "Blockchain", Icon: Crown },
     { id: "business", label: "DeFi & Markets", Icon: TrendingUp },
+  ],
+  streaming: [
+    { id: "all", label: "All", Icon: Globe },
+    { id: "streaming", label: "Streaming", Icon: Radio },
+    { id: "gaming", label: "Creator Gaming", Icon: Star },
   ],
 };
 const SORT_OPTIONS = [

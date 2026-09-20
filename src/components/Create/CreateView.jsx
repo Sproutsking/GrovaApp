@@ -143,22 +143,22 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     ? ["Gaming", "Esports", "Game Guides", "Game Reviews", "Gaming News"]
     : activeTrinityLens === "web3"
       ? ["Web3", "Blockchain", "DeFi", "DAOs", "Crypto News"]
-      : activeTrinityLens === "student"
-        ? ["Study Notes", "Lessons", "Exam Prep", "Campus Life", "Student Projects"]
+      : activeTrinityLens === "streaming"
+        ? ["Stream Events", "Creator Updates", "Community Moments", "Clips", "Collaboration"]
       : postCategories;
   const modeReelCategories = activeTrinityLens === "gaming"
     ? ["Gaming", "Esports", "Game Clips", "Game Guides", "Live Highlights"]
     : activeTrinityLens === "web3"
       ? ["Web3", "Crypto News", "Token Analysis", "NFT Showcase", "Protocol Updates"]
-      : activeTrinityLens === "student"
-        ? ["Study Tips", "Quick Lessons", "Campus Life", "Career Advice", "Student Projects"]
+      : activeTrinityLens === "streaming"
+        ? ["Live Highlights", "Stream Clips", "Event Recaps", "Creator Tips", "Community Moments"]
       : reelCategories;
   const modeCopy = activeTrinityLens === "gaming"
     ? { title: "Gaming Creator Studio", subtitle: "Share clips, guides, and live gaming moments" }
     : activeTrinityLens === "web3"
       ? { title: "Web3 Creator Studio", subtitle: "Publish research, signals, and protocol ideas" }
-      : activeTrinityLens === "student"
-        ? { title: "Student Creator Studio", subtitle: "Share lessons, study notes, and campus life" }
+      : activeTrinityLens === "streaming"
+        ? { title: "Streaming Creator Studio", subtitle: "Shape the story around your streams and events" }
         : { title: "Creator Studio", subtitle: "Share your creativity, earn XEV" };
   useEffect(() => {
     setPostCategory(modePostCategories[0]);
@@ -713,7 +713,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             <Film size={14} /> Reel
           </button>
           <button className={`content-tab${activeTab === "culture" ? " active" : ""}`} onClick={() => handleTabChange("culture")}>
-            <Compass size={14} /> {activeTrinityLens === "student" ? "Campus" : "Culture"}
+            <Compass size={14} /> {activeTrinityLens === "streaming" ? "Events" : "Culture"}
           </button>
           <button className={`content-tab${activeTab === "story" ? " active" : ""}`} onClick={() => handleTabChange("story")}>
             <BookOpen size={14} /> Story

@@ -15,7 +15,7 @@ import UnifiedLoader from "../Shared/UnifiedLoader";
 // Lazy load gaming and web3 views
 const GamingHomeView = lazy(() => import("./GamingHomeView"));
 const Web3HomeView = lazy(() => import("./Web3HomeView"));
-const StudentHomeView = lazy(() => import("./StudentHomeView"));
+const StreamingHomeView = lazy(() => import("./StreamingHomeView"));
 
 const HomeViewRouter = (props) => {
   const { activeTrinityLens } = useTrinitylens();
@@ -24,7 +24,7 @@ const HomeViewRouter = (props) => {
     everyday: ["feed", "stories", "news", "culture"],
     gaming: ["feed", "clips", "news", "live"],
     web3: ["feed", "news", "alpha", "tokens", "signals"],
-    student: ["feed", "lessons", "resources", "study"],
+    streaming: ["feed", "live", "events", "network"],
   }[safeLens] || ["feed", "stories", "news", "culture"];
   const activeHomeTab = validTabs.includes(props.activeHomeTab)
     ? props.activeHomeTab
@@ -36,7 +36,7 @@ const HomeViewRouter = (props) => {
         {safeLens === "everyday" && <HomeView {...props} trinityLens="everyday" activeHomeTab={activeHomeTab} />}
         {safeLens === "gaming" && <GamingHomeView {...props} trinityLens="gaming" activeHomeTab={activeHomeTab} />}
         {safeLens === "web3" && <Web3HomeView {...props} trinityLens="web3" activeHomeTab={activeHomeTab} />}
-        {safeLens === "student" && <StudentHomeView {...props} trinityLens="student" activeHomeTab={activeHomeTab} />}
+        {safeLens === "streaming" && <StreamingHomeView {...props} trinityLens="streaming" activeHomeTab={activeHomeTab} />}
       </div>
     </Suspense>
   );

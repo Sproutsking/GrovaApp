@@ -560,6 +560,7 @@ const WalletView = ({
   refreshTrigger,
 }) => {
   const { profile } = useAuth();
+  const { activeTrinityLens } = useTrinitylens();
   const showPayWave = isNigerianUser(profile);
 
   const shellRef = useRef(null);           // ← for useMobileTop
@@ -567,6 +568,7 @@ const WalletView = ({
 
   const [activeTab,      setActiveTab]      = useState("overview");
   const [showPayWaveV,   setShowPayWaveV]   = useState(false);
+  const [walletNotice,   setWalletNotice]   = useState("");
   const [balance,        setBalance]        = useState(
     initialBalance || { tokens: 0, points: 0 }
   );
@@ -678,6 +680,10 @@ const WalletView = ({
   }, [userId]);
 
   const handleTabChange = (tab) => {
+    if (activeTrinityLens === "gaming" && ["swap", "trade", "paywave", "receive"].includes(tab)) {
+      setWalletNotice("This wallet feature is coming soon for Gaming mode.");
+      return;
+    }
     if (tab === "paywave") {
       if (!showPayWave) return;
       setShowPayWaveV(true);
@@ -714,6 +720,12 @@ const WalletView = ({
   return (
     <CurrencyProvider>
       <style>{LAYOUT_CSS}</style>
+      {walletNotice && (
+        <div role="status" style={{ margin: "0 20px 10px", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(163,230,53,.22)", background: "rgba(163,230,53,.06)", color: "#a3e635", fontSize: 12, fontWeight: 700 }}>
+          {walletNotice}
+          <button type="button" onClick={() => setWalletNotice("")} style={{ float: "right", border: 0, background: "transparent", color: "inherit", cursor: "pointer" }}>Dismiss</button>
+        </div>
+      )}
       {/* shellRef is used by useMobileTop to exclude its own children from measurement */}
       <div className="wv-shell" ref={shellRef}>
         <div className="wv-center">

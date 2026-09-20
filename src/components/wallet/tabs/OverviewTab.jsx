@@ -584,15 +584,21 @@ export default function OverviewTab({
   const primaryActions = [
     { icon: ArrowUpRight,  label: "Send",     tab: "send",     variant: "primary"  },
     { icon: Download,      label: "Deposit",  tab: "deposit",  variant: "default"  },
-    { icon: ArrowDownLeft, label: "Receive",  tab: "receive",  variant: "default"  },
     { icon: ArrowUpToLine, label: "Withdraw", tab: "withdraw", variant: "withdraw" },
   ];
 
   // ── Secondary action definitions ───────────────────────────────
   const secondaryActions = [
-    { icon: Repeat,    label: activeTrinityLens === "web3" ? "Token Swap" : "Swap", tab: "swap", variant: "default" },
-    { icon: TrendingUp, label: activeTrinityLens === "gaming" ? "Game Trade" : activeTrinityLens === "web3" ? "Stake / Trade" : "Trade", tab: "trade", variant: "default" },
-    ...(showPayWave
+    ...(activeTrinityLens === "web3"
+      ? [{ icon: ArrowDownLeft, label: "Crypto Receive", tab: "receive", variant: "default" }]
+      : []),
+    ...(activeTrinityLens === "web3"
+      ? [{ icon: Repeat, label: "Token Swap", tab: "swap", variant: "default" }]
+      : []),
+    ...(activeTrinityLens === "web3"
+      ? [{ icon: TrendingUp, label: "Stake / Trade", tab: "trade", variant: "default" }]
+      : []),
+    ...(showPayWave && activeTrinityLens !== "gaming" && activeTrinityLens !== "web3"
       ? [{ icon: Wifi, label: "PayWave",  tab: "paywave",  variant: "paywave" }]
       : []),
     { icon: Settings,  label: activeTrinityLens === "gaming" ? "Game Assets" : activeTrinityLens === "web3" ? "Signatures" : "Settings", tab: "settings", variant: "default" },

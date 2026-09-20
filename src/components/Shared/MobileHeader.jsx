@@ -117,11 +117,11 @@ const TRINITY_TABS = {
     { id: "tokens", Icon: Coins, label: "Tokens" },
     { id: "signals", Icon: BarChart2, label: "Signals" },
   ],
-  student: [
-    { id: "feed", Icon: PostsTabIcon, label: "Study Feed" },
-    { id: "lessons", Icon: StoriesTabIcon, label: "Lessons" },
-    { id: "resources", Icon: NewsTabIcon, label: "Resources" },
-    { id: "study", Icon: CultureTabIcon, label: "Study Hub" },
+  streaming: [
+    { id: "feed", Icon: PostsTabIcon, label: "Feed" },
+    { id: "live", Icon: Radio, label: "Live" },
+    { id: "events", Icon: StoriesTabIcon, label: "Events" },
+    { id: "network", Icon: CultureTabIcon, label: "Network" },
   ],
 };
 

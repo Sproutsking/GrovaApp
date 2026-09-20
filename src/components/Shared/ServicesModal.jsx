@@ -62,12 +62,12 @@ const LENS_SERVICES = {
     ["upgrade", "Web3 Tooling", "Access advanced protocol tools"],
     ["oracle", "XRC Oracle", "On-chain data and protocol feeds"],
   ],
-  student: [
-    ["community", "Study Circles", "Find classmates and learning groups"],
-    ["search", "Learning Library", "Discover lessons and study resources"],
-    ["saved", "Saved Resources", "Keep important study material close"],
-    ["rewards", "Student Rewards", "Track learning milestones and rewards"],
-    ["support", "Student Support", "Get help with your learning journey"],
+  streaming: [
+    ["stream", "Live Sessions", "Find broadcasts and join the event around them"],
+    ["community", "Creator Communities", "Find the communities where creators gather"],
+    ["analytics", "Creator Activity", "Review participation and distribution signals"],
+    ["rewards", "Opportunities", "Track meaningful creator and community opportunities"],
+    ["saved", "Event Memory", "Keep important moments and recaps close"],
   ],
 };
 

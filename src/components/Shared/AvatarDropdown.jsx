@@ -18,7 +18,7 @@ import ReactDOM from "react-dom";
 import {
   User, LogOut, ChevronDown, Crown, Shield,
   Plus, Check, RefreshCw, Trash2, Sun,
-  Gamepad2, Zap, Coins, GraduationCap, X,
+  Gamepad2, Zap, Coins, Radio, X,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import BoostAvatarRing from "./BoostAvatarRing";
@@ -335,7 +335,7 @@ const DropdownPortal = ({
           <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
-          <TrinitylensButton mode="student" label="Student" icon={<GraduationCap size={11}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="streaming" label="Streaming" icon={<Radio size={11}/>} onAccount={onAccount}/>
         </div>
       </div>
 
