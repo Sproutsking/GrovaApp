@@ -335,11 +335,12 @@ const MessageList = ({
           flex-direction: column;
           gap: 0;
         }
-.dm-message-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;margin-left:0;display:inline-block;min-width:15px;text-align:left;}
+.dm-message-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;margin-left:0;display:inline-flex;align-items:flex-end;justify-content:center;min-width:15px;line-height:1.1;align-self:flex-end;transform:translateY(-1px);}
 .dm-message-status-sent{color:#9ca3af;}
 .dm-message-status-delivered{color:#d1d5db;}
 .dm-message-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}
-.msg-meta.dm-meta-outgoing{justify-content:flex-end;align-items:center;gap:6px;width:100%;}
+.msg-meta.dm-meta-outgoing{justify-content:flex-end;align-items:flex-end;gap:6px;width:100%;}
+.msg-time{display:inline-flex;align-items:flex-end;}
 
         .msg-loading {
           display: flex;
