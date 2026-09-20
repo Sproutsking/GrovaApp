@@ -282,8 +282,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measureDesktopBounds) : null;
     const sidebar = document.querySelector(".sidebar, .xv-sidebar");
     const header = document.querySelector(".desktop-header, .mobile-header, .dh-header, .mh-header");
-    observer?.observe(sidebar);
-    observer?.observe(header);
+    if (sidebar && observer) observer.observe(sidebar);
+    if (header && observer) observer.observe(header);
     return () => {
       window.removeEventListener("resize", measureDesktopBounds);
       observer?.disconnect();
