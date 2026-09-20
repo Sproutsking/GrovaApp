@@ -7,6 +7,8 @@ import { X, Settings2 } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
 import WelcomeToolDashboard from "../../verification/WelcomeToolDashboard";
 import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
+import socialUpdatesService from "../../../../services/community/socialUpdatesService";
+import { getPlatformCapabilities } from "../../../../services/community/platformCapabilities";
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Choose how members prove access before entering.", icon: ShieldCheck, modes: [
     { id: "rules_gate", label: "Rules gate", description: "Members accept your rules before access is granted." },
@@ -27,6 +29,9 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   const [error, setError] = useState("");
   const [sourceConnected, setSourceConnected] = useState(false);
   const [linkedSources, setLinkedSources] = useState([]);
+  const [sourceRoutes, setSourceRoutes] = useState([]);
+  const [routeSelections, setRouteSelections] = useState({});
+  const [syncingSources, setSyncingSources] = useState(false);
   const [dashboardTool, setDashboardTool] = useState(null);
   const [welcomeDashboardOpen, setWelcomeDashboardOpen] = useState(false);
   const [draft, setDraft] = useState({});
@@ -46,8 +51,11 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       .then(({ data }) => { if (active) setSourceConnected(Boolean(data)); });
     if (userId) supabase.from("connections").select("provider, platform_user_id, auth_status").eq("user_id", userId).eq("auth_status", "active")
       .then(({ data }) => { if (active) setLinkedSources(data || []); });
+    socialUpdatesService.listRouting(communityId)
+      .then((data) => { if (active) setSourceRoutes(data); })
+      .catch((routingError) => { if (active) setError(routingError.message); });
     return () => { active = false; };
-  }, [communityId]);
+  }, [communityId, userId]);
 
   const getRow = (type) => rows.find((row) => row.tool_type === type) || { tool_type: type, enabled: false, config: {} };
   const selectedIds = (type) => {
@@ -66,9 +74,9 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     if (connectionError) setError(connectionError.message); else setSourceConnected(true);
   };
 
-  const connectLinkedSource = async (source) => {
+  const connectLinkedSource = async (source, channelId = null) => {
     if (!canManage || !userId) return;
-    const { error: connectionError } = await supabase.from("community_social_connections").upsert({
+    const { data: communityConnection, error: connectionError } = await supabase.from("community_social_connections").upsert({
       community_id: communityId,
       connected_by: userId,
       provider: source.provider,
@@ -77,9 +85,27 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       status: "active",
       scopes: ["profile_link"],
       updated_at: new Date().toISOString(),
-    }, { onConflict: "community_id,provider,provider_account_id" });
+    }, { onConflict: "community_id,provider,provider_account_id" }).select().single();
     if (connectionError) setError(connectionError.message);
-    else setError("");
+    else if (channelId && communityConnection) {
+      await socialUpdatesService.saveRouting({ communityId, channelId, connectionId: communityConnection.id, includeInLiveFeed: getPlatformCapabilities(source.provider)?.canDetectLive });
+      setSourceRoutes(await socialUpdatesService.listRouting(communityId));
+      setError("");
+    } else setError("");
+  };
+
+  const syncSources = async () => {
+    if (!canManage || !communityId) return;
+    setSyncingSources(true);
+    try {
+      await socialUpdatesService.requestSync(communityId);
+      setSourceRoutes(await socialUpdatesService.listRouting(communityId));
+      setError("");
+    } catch (syncError) {
+      setError(syncError.message || "Could not sync connected sources.");
+    } finally {
+      setSyncingSources(false);
+    }
   };
 
   const toggleChannel = async (type, channelId) => {
@@ -187,7 +213,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
               <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
             {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div>}
-            {open && tool.type === "social_updates" && canManage && <div className="community-tool-sources"><button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>{linkedSources.length ? <div className="community-tool-linked-sources">{linkedSources.map((source) => <button type="button" key={`${source.provider}-${source.platform_user_id}`} onClick={() => connectLinkedSource(source)}>{source.provider} <small>Use linked account</small></button>)}</div> : <span>Link an account in Account &gt; Identity to use it here.</span>}</div>}
+            {open && tool.type === "social_updates" && canManage && <div className="community-tool-sources"><button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button><button type="button" className="community-tool-source" onClick={syncSources} disabled={syncingSources}>{syncingSources ? "Syncing sources..." : "Sync connected sources"}</button>{linkedSources.length ? <div className="community-tool-linked-sources">{linkedSources.map((source) => { const sourceKey = `${source.provider}:${source.platform_user_id}`; const route = sourceRoutes.find((item) => item.connection?.provider === source.provider && item.connection?.provider_account_id === source.platform_user_id); const capability = getPlatformCapabilities(source.provider); return <div className="community-tool-linked-source" key={sourceKey}><span><strong>{source.provider}</strong><small>{source.platform_user_id}</small></span><select value={routeSelections[sourceKey] || route?.channel_id || ""} onChange={(event) => setRouteSelections((current) => ({ ...current, [sourceKey]: event.target.value }))}><option value="">Choose channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" disabled={!routeSelections[sourceKey] && !route?.channel_id} onClick={() => connectLinkedSource(source, routeSelections[sourceKey] || route?.channel_id)}>{route ? "Update route" : "Connect route"}</button>{capability?.canDetectLive && <small>Live detection available</small>}</div>; })}</div> : <span>Link an account in Account &gt; Identity to use it here.</span>}<small>Profile links identify a source. OAuth/API access is required before automatic imports can run.</small></div>}
           </div>
         );
       })}
