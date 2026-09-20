@@ -275,10 +275,14 @@ const CommentModal = ({
             <span className="comment-count">{comments.length}</span>
           </div>
           <div className="comment-header-actions">
-            <select className="comment-sort-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Filter comments">
-              <option value="recent">Recent</option>
-              <option value="popular">Popular</option>
-            </select>
+            <label className="comment-filter-control">
+              <span className="comment-filter-label">Sort</span>
+              <select className="comment-sort-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Filter comments">
+                <option value="recent">Recent</option>
+                <option value="popular">Popular</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
             {isMobile && (
             <button
               className="comment-fullscreen-btn"
@@ -511,14 +515,44 @@ const CommentModal = ({
         }
         .comment-header-actions .comment-sort-select {
           display: block;
-          min-width: 108px;
-          padding: 7px 25px 7px 10px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 9px;
-          background: rgba(255, 255, 255, 0.06);
+          min-width: 88px;
+          padding: 0 21px 0 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
           color: #d8e2d2;
           font: 12px inherit;
           cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+          outline: none;
+          position: relative;
+          z-index: 1;
+        }
+        .comment-filter-control {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          min-height: 32px;
+          padding: 0 9px 0 10px;
+          border: 1px solid rgba(132, 204, 22, 0.28);
+          border-radius: 9px;
+          background: rgba(132, 204, 22, 0.08);
+          color: #d8e2d2;
+          box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+          transition: border-color .15s, background .15s, box-shadow .15s;
+        }
+        .comment-filter-control:hover,
+        .comment-filter-control:focus-within {
+          border-color: rgba(132, 204, 22, 0.7);
+          background: rgba(132, 204, 22, 0.14);
+          box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.08);
+        }
+        .comment-filter-control > svg {
+          flex: 0 0 auto;
+          color: #84cc16;
+          pointer-events: none;
         }
         .comment-header-actions .comment-sort-select:focus-visible {
           outline: 2px solid rgba(132, 204, 22, 0.7);
@@ -527,7 +561,8 @@ const CommentModal = ({
         @media (max-width: 768px) {
           .comment-fullscreen-btn { display: flex; }
           .comment-modal-header { gap: 8px; }
-          .comment-header-actions .comment-sort-select { min-width: 92px; }
+          .comment-filter-control { min-height: 30px; padding-left: 8px; padding-right: 7px; }
+          .comment-header-actions .comment-sort-select { min-width: 76px; }
         }
 
         /* ── SORT BAR ── */

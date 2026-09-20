@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import postService from "../../services/home/postService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/gi;
 const TRAILING_PUNCTUATION = /[.,!?;:)\]}>'"]+$/;
@@ -172,6 +174,22 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
   const displayType = normalizeContentType(target.type || shared.contentType || "link");
   const prettyType = displayType === "profile" ? "profile" : displayType;
   const senderLabel = senderDisplayName || (isMine ? "You" : (shared.senderName || "Someone"));
+  const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    if (displayType !== "post") return undefined;
+    const postId = path.split("/").filter(Boolean).pop();
+    if (!postId) return undefined;
+    let active = true;
+    postService.getPost(postId).then((post) => {
+      if (!active || !post) return;
+      const imageId = Array.isArray(post.image_ids) ? post.image_ids[0] : null;
+      const imageMetadata = Array.isArray(post.image_metadata) ? post.image_metadata[0] : null;
+      const image = imageMetadata?.url || imageMetadata?.publicUrl || mediaUrlService.getImageUrl(imageId, { width: 720, height: 420, crop: "fill", gravity: "auto", quality: "auto:good", format: "auto" });
+      setPreview({ image: image || null, title: post.card_caption || post.content || "Xeevia post", author: post.profiles?.full_name || post.profiles?.username || "Xeevia creator" });
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [displayType, path]);
 
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 7, maxWidth: "100%", minWidth: 0 }}>
@@ -195,9 +213,14 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
             window.location.assign(shared.url);
           }
         }}
-        style={{ display: "inline-flex", width: "fit-content", padding: "7px 10px", borderRadius: 8, color: "#0b1205", background: "linear-gradient(135deg,#bef264,#84cc16)", fontSize: 12, fontWeight: 800, textDecoration: "none" }}
+        style={{ display: "flex", flexDirection: "column", width: "min(100%, 420px)", overflow: "hidden", borderRadius: 10, color: "#f4f7ee", background: "rgba(255,255,255,.06)", border: "1px solid rgba(163,230,53,.34)", fontSize: 12, fontWeight: 800, textDecoration: "none" }}
       >
-        View {prettyType}
+        {preview?.image && <img src={preview.image} alt="" loading="lazy" style={{ display: "block", width: "100%", maxHeight: 220, objectFit: "cover" }} />}
+        <span style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px" }}>
+          <span style={{ color: "#bef264", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em" }}>Xeevia {prettyType}</span>
+          <strong style={{ color: "#f4f7ee", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview?.title || `Open ${prettyType}`}</strong>
+          {preview?.author && <small style={{ color: "rgba(255,255,255,.58)", fontWeight: 500 }}>{preview.author}</small>}
+        </span>
       </a>
       {shared.note && <span style={{ color: "rgba(255,255,255,.72)", fontSize: 12, whiteSpace: "pre-wrap" }}><LinkifiedText onNavigate={onNavigate}>{shared.note}</LinkifiedText></span>}
     </span>

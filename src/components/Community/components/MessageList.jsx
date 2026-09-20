@@ -536,7 +536,7 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 0 5px 4px;
+          padding: 0 2px 4px;
           border-radius: 14px;
           backdrop-filter: blur(10px);
           position: relative;
@@ -602,7 +602,7 @@ const MessageList = ({
         }
 
         .msg-bubble.them.has-tail {
-          border-top-left-radius: 4px;
+          border-top-left-radius: 0;
         }
 
         .msg-bubble.them.has-tail::before {
@@ -631,7 +631,7 @@ const MessageList = ({
         }
 
         .msg-bubble.me.has-tail {
-          border-top-right-radius: 4px;
+          border-top-right-radius: 0;
         }
 
         .msg-bubble.me.has-tail::before {

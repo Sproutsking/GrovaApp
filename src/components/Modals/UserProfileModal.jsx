@@ -1184,6 +1184,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .upm-hdr { padding:18px 12px 12px; }
           .upm-profile-rail { display:none; }
           .upm-hdr, .upm-card-lower, .upm-tabs, .upm-cnt { box-sizing:border-box; }
+          .upm-tabs { padding-left:10px; padding-right:10px; }
+          .upm-cnt { width:100%; padding-left:0; padding-right:0; }
+          .upm-verification-entry { width:calc(100% - 40px); margin-left:20px; margin-right:20px; }
         }
 
         .upm-close {
@@ -1248,6 +1251,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
         .upm-tc { font-size:10px; padding:1px 5px; border-radius:8px; background:rgba(255,255,255,.07); color:#737373; }
         .upm-cnt { padding:10px 14px 20px; min-height:100px; }
+        .upm-cnt img, .upm-cnt video, .upm-dialog-feed img, .upm-dialog-feed video { filter:none !important; opacity:1 !important; image-rendering:auto; }
         .upm-full-feed { display:flex; flex-direction:column; gap:12px; }
         .upm-full-feed > * { width:100%; min-width:0; }
         .upm-dialog-feed { margin-top:2px; }

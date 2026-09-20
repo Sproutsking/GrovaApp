@@ -28,7 +28,8 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
 
   useEffect(() => { refresh().catch((loadError) => setError(loadError.message || "Could not load social sources.")); }, [communityId]);
 
-  const allConnections = [...connections];
+  const inboundProviders = new Set(["xeevia", "x", "facebook", "instagram", "youtube", "twitch", "tiktok", "discord", "snapchat", "kick"]);
+  const allConnections = connections.filter((connection) => inboundProviders.has(connection.provider));
   const knownKeys = new Set(connections.map((connection) => `${connection.provider}:${connection.provider_account_id}`));
   linkedSources.forEach((source) => {
     const key = `${source.provider}:${source.platform_user_id}`;

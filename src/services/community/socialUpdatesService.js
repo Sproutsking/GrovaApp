@@ -7,10 +7,9 @@ export const SOCIAL_PROVIDERS = [
   { id: "facebook", label: "Facebook", ready: true },
   { id: "instagram", label: "Instagram", ready: true },
   { id: "tiktok", label: "TikTok", ready: true },
-  { id: "discord", label: "Discord", ready: true },
   { id: "youtube", label: "YouTube", ready: true },
   { id: "twitch", label: "Twitch", ready: true },
-  { id: "snapchat", label: "Snapchat", ready: true },
+  { id: "kick", label: "Kick", ready: false },
 ];
 
 const socialUpdatesService = {
