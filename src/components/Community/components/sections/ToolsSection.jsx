@@ -136,6 +136,10 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   };
 
   const openDashboard = (tool) => {
+    if (tool.type === "social_updates") {
+      setOpenTool((current) => current === tool.type ? null : tool.type);
+      return;
+    }
     if (tool.type === "welcome") {
       setWelcomeDashboardOpen(true);
       return;

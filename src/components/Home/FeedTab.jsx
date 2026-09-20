@@ -396,7 +396,7 @@ const VirtualFeed = React.memo(({
       })}
       <style>{`
         .vf-list{display:flex;flex-direction:column;position:relative;}
-        .vf-item{contain:layout style;margin-bottom:10px;}
+        .vf-item{contain:layout style;margin-bottom:2px;}
       `}</style>
     </div>
   );

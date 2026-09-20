@@ -233,7 +233,7 @@ const MessageList = ({
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
               {showAvatar && (
-                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint, border: "0", boxShadow: "none", overflow: "visible" }} onClick={() => onProfileClick?.(msg.user)} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
+                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint, border: "0", boxShadow: "none", overflow: "visible" }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
                   <BoostAvatarRing
                     tier={msg.user?.subscription_tier}
                     themeId={msg.user?.boost_selections?.themeId}
@@ -561,8 +561,8 @@ const MessageList = ({
         .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 18px; border-bottom-right-radius: 0; }
         .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 18px; }
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: 100%; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: hidden; }
-        .mra-wrapper .msg-bubble { width: 100%; max-width: 100%; min-width: 0; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
+        .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
         .mra-ann { align-items: flex-start; width: 100%; max-width: min(760px, calc(100vw - 92px)); }
@@ -658,6 +658,12 @@ const MessageList = ({
           z-index: -1;
         }
 
+        .msg-item .mra-wrapper { overflow: visible; }
+        .msg-bubble.them.has-tail::before { border-color: rgba(19,29,23,.99) transparent transparent transparent !important; }
+        .msg-bubble.them.has-tail::after { border-color: rgba(156,255,0,.48) transparent transparent transparent !important; z-index: 0; }
+        .msg-bubble.me.has-tail::before { border-color: rgba(31,84,34,.99) transparent transparent transparent !important; }
+        .msg-bubble.me.has-tail::after { border-color: rgba(156,255,0,.68) transparent transparent transparent !important; z-index: 0; }
+
         .msg-user-name {
           border: 0;
           background: transparent;
@@ -696,7 +702,7 @@ const MessageList = ({
           gap: 4px;
           margin-top: 3px;
         }
-        .msg-item.me .msg-meta { justify-content: flex-end; }
+        .msg-item.me .msg-meta { justify-content: flex-start; }
         .msg-item.me .announcement-reply-button{align-self:flex-end}
         .msg-item.them .announcement-reply-button{align-self:flex-start}
   .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}

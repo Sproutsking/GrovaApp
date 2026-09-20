@@ -1112,7 +1112,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           position:fixed; left:var(--upm-left, 0px); right:0; top:var(--upm-top, 0px); bottom:0; z-index:10000;
           background:rgba(0,0,0,0.42);
           display:flex; align-items:center; justify-content:center;
-          padding:0; animation:upmFI .2s ease;
+          padding:0; animation:upmFI .2s ease; touch-action:manipulation;
         }
         .upm-section-surface { background:#0a0a0a; align-items:stretch; justify-content:stretch; }
         .upm-section-surface .upm-sheet { border-radius:0; border:0; box-shadow:none; animation:none; }
@@ -1179,6 +1179,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .upm-section-surface { bottom:64px; }
           .upm-section-surface .upm-sheet { height:calc(100dvh - 64px); max-height:calc(100dvh - 64px); border-radius:0; }
           .upm-main { width:100%; height:100%; }
+          .upm-bd, .upm-sheet, .upm-main { pointer-events:auto; touch-action:pan-y; }
           .upm-boost-profile .card-content { padding:10px; }
           .upm-hdr { padding:18px 12px 12px; }
           .upm-profile-rail { display:none; }
