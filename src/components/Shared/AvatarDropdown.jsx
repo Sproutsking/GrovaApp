@@ -110,11 +110,16 @@ const AccountRow = ({ account, isCurrent, onSwitch, onRemove, idx }) => (
 const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
   const { activeTrinityLens, setActiveTrinityLens } = useTrinitylens();
   const isActive = activeTrinityLens === mode;
+  const isLockedMode = mode !== "everyday";
 
   return (
     <button
-      onClick={() => setActiveTrinityLens(mode)}
-      title={`Switch to ${label} mode`}
+      onClick={() => {
+        if (isLockedMode) return;
+        setActiveTrinityLens(mode);
+      }}
+      disabled={isLockedMode}
+      title={isLockedMode ? `${label} is temporarily disabled while we focus on the Main experience` : `Switch to ${label} mode`}
       style={{
         flex: 1,
         display: "flex",
@@ -123,21 +128,22 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         gap: "5px",
         minHeight: "32px",
         padding: "6px 8px",
-        background: isActive ? "var(--primary-surface, rgba(132,204,22,0.15))" : "var(--surface)",
-        border: isActive ? "1.5px solid var(--primary, #84cc16)" : "1px solid var(--surface-border)",
+        background: isActive ? "var(--primary-surface, rgba(132,204,22,0.15))" : isLockedMode ? "rgba(255,255,255,0.02)" : "var(--surface)",
+        border: isActive ? "1.5px solid var(--primary, #84cc16)" : isLockedMode ? "1px solid rgba(148,163,184,0.18)" : "1px solid var(--surface-border)",
         borderRadius: "10px",
-        cursor: "pointer",
+        cursor: isLockedMode ? "not-allowed" : "pointer",
         transition: "background-color 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), opacity 0.06s cubic-bezier(0.34,1.56,0.64,1)",
         transform: isActive ? "scale(1.01) translateY(-1px)" : "scale(1) translateY(0)",
         willChange: "transform, opacity",
-        color: isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
+        color: isLockedMode ? "rgba(148,163,184,0.8)" : isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
         fontSize: "11px",
         fontWeight: isActive ? 700 : 600,
         fontFamily: "inherit",
         lineHeight: 1,
+        opacity: isLockedMode ? 0.7 : 1,
       }}
       onMouseEnter={(e) => {
-        if (!isActive) {
+        if (!isActive && !isLockedMode) {
           e.currentTarget.style.background = "var(--surface-strong)";
           e.currentTarget.style.borderColor = "var(--primary, #84cc16)";
           e.currentTarget.style.color = "var(--primary, #84cc16)";
@@ -145,7 +151,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         }
       }}
       onMouseLeave={(e) => {
-        if (!isActive) {
+        if (!isActive && !isLockedMode) {
           e.currentTarget.style.background = "var(--surface)";
           e.currentTarget.style.borderColor = "var(--surface-border)";
           e.currentTarget.style.color = "var(--text-secondary)";
@@ -336,6 +342,9 @@ const DropdownPortal = ({
           <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="streaming" label="Streaming" icon={<Radio size={11}/>} onAccount={onAccount}/>
+        </div>
+        <div style={{ padding: "8px 12px 0", color: "rgba(148,163,184,0.85)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>
+          Focus: community-first creator empire
         </div>
       </div>
 
