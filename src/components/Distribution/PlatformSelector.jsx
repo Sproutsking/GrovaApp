@@ -147,11 +147,13 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
   const [selected,    setSelected]    = useState(() => initialSelection);
   const [loadState,   setLoadState]   = useState("loading"); // "loading"|"ready"|"error"
+  const [loadError,   setLoadError]   = useState("");
 
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!userId) { setLoadState("ready"); return; }
     setLoadState("loading");
+    setLoadError("");
     try {
       // Only adapter-supported platforms with a valid token are returned.
       const connectedList = await distributionService.getConnectedPlatforms(userId);
@@ -167,13 +169,14 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
 
       setLoadState("ready");
     } catch (err) {
-      // This should never fire now that service swallows errors,
-      // but we guard anyway for absolute safety.
-      console.warn("[PlatformSelector] load error (non-fatal):", err?.message);
+      console.warn("[PlatformSelector] load error:", err?.message);
       setConnected([]);
       setSelected([]);
       onSelection?.([]);
-      setLoadState("ready");
+      setLoadError(err?.message || "Could not check connected platforms.");
+    } finally {
+      // Never leave the publish form in an indefinite loading state.
+      setLoadState((current) => current === "loading" ? "ready" : current);
     }
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -256,7 +259,9 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
         {/* ── Summary + link to Identity ── */}
         <div className="psSummary">
           <p className="psSummaryText">
-            {selected.length > 0
+            {loadError
+              ? <>{loadError}</>
+              : selected.length > 0
               ? <><strong>{selected.length} platform{selected.length !== 1 ? "s" : ""}</strong> will receive this post</>
               : noneConnected
                 ? <>No platforms linked — post stays on Xeevia only</>
@@ -276,6 +281,7 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
               <Link2 size={10} /> Link accounts
             </button>
           )}
+          {loadError && <button className="psLinkBtn" onClick={load}>Retry</button>}
         </div>
 
       </div>

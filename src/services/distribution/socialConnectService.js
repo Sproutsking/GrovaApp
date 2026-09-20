@@ -277,7 +277,7 @@ class SocialConnectService {
       sessionStorage.removeItem(PENDING_LINK_KEY);
       const linkMessage = linkError.message || "";
       if (/manual linking is disabled|linking.*disabled/i.test(linkMessage)) {
-        throw new Error("Provider linking is disabled in Supabase Auth. Enable Manual Linking and this OAuth provider in the hosted project settings, then try again.");
+        throw new Error("Supabase blocked account linking. In Supabase Dashboard open Authentication > Settings > User Signups, enable Manual Linking, and confirm this provider is enabled. This is separate from the provider's OAuth login setting.");
       }
       if (/provider.*already.*connected|already.*identity/i.test(linkMessage)) {
         throw new Error("This provider is already connected to another Xeevia account or identity. Sign in to that account before managing it.");
