@@ -416,9 +416,20 @@
   }
 
   .story-author-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
     padding-bottom: 7px;
     margin-bottom: 8px;
   }
+
+  .story-author-header .profile-preview,
+  .story-author-header > :first-child { min-width: 0; }
+
+  .story-timestamp { grid-column: 1; grid-row: 2; font-size: 10px; }
+  .story-follow-btn { grid-column: 2; grid-row: 1; padding: 4px 7px; font-size: 10px; }
+  .story-action-btn { grid-column: 2; grid-row: 2; margin-left: 0 !important; padding: 4px 7px; font-size: 10px; }
 
   .story-action-btn {
     padding: 5px 9px;

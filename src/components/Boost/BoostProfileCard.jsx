@@ -705,7 +705,8 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     : bgLayers;
 
   const cardRadius = style.borderRadius ?? 24;
-  const embeddedHeight = embedded ? (style.height ?? "fit-content") : "auto";
+  // Embedded cards are content-sized; the showcase version remains freely sized.
+  const embeddedHeight = embedded ? (style.height ?? "auto") : "auto";
   const embeddedMinHeight = embedded ? (style.minHeight ?? 0) : 0;
   const embeddedMaxHeight = embedded ? (style.maxHeight ?? "none") : "none";
 
@@ -732,7 +733,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
       data-design={theme.id.replace(`${tier}-`, "")}
       style={{
         width: "100%",
-        height: embedded ? (style.height ?? "fit-content") : undefined,
+        height: embedded ? (style.height ?? "auto") : undefined,
         minHeight: embedded ? (style.minHeight ?? 0) : undefined,
         maxHeight: embedded ? (style.maxHeight ?? "none") : undefined,
         position: "relative",
