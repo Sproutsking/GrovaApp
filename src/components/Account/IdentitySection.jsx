@@ -86,7 +86,7 @@ import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegist
 // Keyed to match CONNECTOR_DEFINITIONS keys. Add new entries here as new
 // platforms are onboarded; anything missing quietly falls back to the
 // platform's letter monogram (meta.letter) so nothing renders blank.
-const PLATFORM_ICONS = {
+export const PLATFORM_ICONS = {
   google:     FaGoogle,
   apple:      FaApple,
   github:     Github,

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, Link2, Plus, RefreshCw, Wifi } from "lucide-react";
 import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
 import { getPlatformCapabilities } from "../../../services/community/platformCapabilities";
+import { PLATFORM_ICONS } from "../../Account/IdentitySection";
 
 export default function SocialUpdatesDashboard({ communityId, userId, channels = [], linkedSources = [], canManage = false, onCreateChannel }) {
   const [connections, setConnections] = useState([]);
@@ -222,12 +223,15 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           const connected = Boolean(connection);
           const status = active ? "Active" : "Inactive";
           const routeChannel = activeRoute ? textChannels.find((channel) => channel.id === activeRoute.channel_id) : null;
+          const PlatformIcon = PLATFORM_ICONS[item.id] || null;
 
           return (
             <article key={item.id} className={`social-platform-card ${active ? "active" : "inactive"} ${connected ? "connected" : "missing"}`}>
               <div className="social-platform-topline">
                 <div className="social-platform-name-wrap">
-                  <div className="social-platform-badge">{item.label.slice(0, 1).toUpperCase()}</div>
+                  <div className="social-platform-badge">
+                    {PlatformIcon ? <PlatformIcon size={15} /> : item.label.slice(0, 1).toUpperCase()}
+                  </div>
                   <div>
                     <strong>{item.label}</strong>
                     <small>{connected ? connection.display_name || connection.provider_account_id || "Connected" : "Not linked yet"}</small>
