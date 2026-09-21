@@ -647,11 +647,11 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     if (!currentUser?.id) return null;
     return (
       <div className="form-group">
-        <div style={{ marginBottom: 10, color: "#d4d4d4", fontSize: 13 }}>
-          <strong>Distribute</strong> — share this {label} to your postable platforms instantly.
-          <span style={{ marginLeft: 8, fontSize: 11, color: "#737373" }}>
-            Manage connections in Account → Identity
-          </span>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ color: "#d4d4d4", fontSize: 13, fontWeight: 800 }}>Distribute this {label}</div>
+          <div style={{ marginTop: 3, color: "#737373", fontSize: 11, lineHeight: 1.45 }}>
+            Select linked destinations for this post. Manage connections in Account <span aria-hidden="true">›</span> Identity.
+          </div>
         </div>
         <PlatformSelector
           userId={currentUser.id}

@@ -23,7 +23,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link2 } from "lucide-react";
+import { Link2, RefreshCw } from "lucide-react";
 import distributionService from "../../services/distribution/distributionService";
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
@@ -37,6 +37,23 @@ const CSS = `
     display:flex; flex-direction:column; gap:10px;
     animation:psIn .25s ease both;
   }
+
+  .psHeader {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:2px 1px 0;
+  }
+  .psHeaderCopy { min-width:0; }
+  .psEyebrow { margin:0; color:#e5e5e5; font-size:12.5px; font-weight:800; letter-spacing:.01em; }
+  .psDescription { margin:3px 0 0; color:#777; font-size:10.5px; line-height:1.45; }
+  .psRefresh {
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:30px; height:30px; border:1px solid rgba(132,204,22,.24); border-radius:9px;
+    color:#84cc16; background:rgba(132,204,22,.07); cursor:pointer;
+    transition:background .18s, border-color .18s, transform .18s;
+  }
+  .psRefresh:hover { background:rgba(132,204,22,.14); border-color:rgba(132,204,22,.48); transform:translateY(-1px); }
+  .psRefresh:disabled { opacity:.55; cursor:wait; transform:none; }
+  .psRefreshIcon { animation:psSpin .8s linear infinite; }
 
   /* ── Platform grid ── */
   .psGrid {
@@ -132,13 +149,6 @@ const CSS = `
   }
   .psLinkBtn:hover { background:rgba(139,92,246,.18); }
 
-  /* ── Loading / error ── */
-  .psLoading {
-    display:flex; align-items:center; gap:9px;
-    padding:14px 12px; font-size:12px; color:#454545;
-    background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05);
-    border-radius:12px;
-  }
   .psSpin { animation:psSpin .8s linear infinite; }
 `;
 
@@ -147,33 +157,41 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
   const [selected,    setSelected]    = useState(() => initialSelection);
   const [loadError,   setLoadError]   = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const hasLoadedRef = React.useRef(false);
+  const selectedRef = React.useRef(selected);
 
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!userId) return;
+    setIsRefreshing(true);
     setLoadError("");
     try {
       // Only adapter-supported platforms with a valid token are returned.
       const connectedList = await Promise.race([
         distributionService.getConnectedPlatforms(userId),
-        new Promise((resolve) => setTimeout(() => resolve([]), 8000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Connection refresh timed out")), 8000)),
       ]);
-      setConnected(connectedList);
+      const nextConnected = Array.isArray(connectedList) ? connectedList : [];
+      setConnected(nextConnected);
 
-      // Auto-select all connected platforms if no initial selection provided;
-      // otherwise discard selections that are no longer publishable.
-      const nextSelection = initialSelection.length > 0
-        ? initialSelection.filter((platform) => connectedList.includes(platform))
-        : connectedList;
+      // Auto-select only on the first successful load. Manual refreshes keep
+      // the user's explicit on/off choices and remove only disconnected ones.
+      const nextSelection = hasLoadedRef.current
+        ? selectedRef.current.filter((platform) => nextConnected.includes(platform))
+        : initialSelection.length > 0
+          ? initialSelection.filter((platform) => nextConnected.includes(platform))
+          : nextConnected;
+      hasLoadedRef.current = true;
+      selectedRef.current = nextSelection;
       setSelected(nextSelection);
       onSelection?.(nextSelection);
 
     } catch (err) {
       console.warn("[PlatformSelector] load error:", err?.message);
-      setConnected([]);
-      setSelected([]);
-      onSelection?.([]);
       setLoadError(err?.message || "Could not check connected platforms.");
+    } finally {
+      setIsRefreshing(false);
     }
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -186,6 +204,7 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
       const next = prev.includes(platform)
         ? prev.filter(p => p !== platform)
         : [...prev, platform];
+      selectedRef.current = next;
       onSelection?.(next);
       return next;
     });
@@ -197,6 +216,16 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     <>
       <style>{CSS}</style>
       <div className="psWrap">
+
+        <div className="psHeader">
+          <div className="psHeaderCopy">
+            <p className="psEyebrow">Distribution destinations</p>
+            <p className="psDescription">Choose the linked platforms that should receive this post.</p>
+          </div>
+          <button className="psRefresh" type="button" onClick={load} disabled={isRefreshing} aria-label="Refresh linked platforms" title="Refresh linked platforms">
+            <RefreshCw size={14} className={isRefreshing ? "psRefreshIcon" : ""} />
+          </button>
+        </div>
 
         {/* ── Platform cards ── */}
         <div className="psGrid">
@@ -247,10 +276,10 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
             {loadError
               ? <>{loadError}</>
               : selected.length > 0
-              ? <><strong>{selected.length} platform{selected.length !== 1 ? "s" : ""}</strong> will receive this post</>
+              ? <><strong>{selected.length} destination{selected.length !== 1 ? "s" : ""}</strong> selected for this post</>
               : noneConnected
-                ? <>No platforms linked — post stays on Xeevia only</>
-                : <>No platforms selected — post stays on Xeevia only</>
+                ? <>No linked destinations yet. This post stays on Xeevia.</>
+                : <>No destinations selected. This post stays on Xeevia.</>
             }
           </p>
           {noneConnected && (
