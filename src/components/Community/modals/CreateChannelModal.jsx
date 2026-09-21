@@ -99,7 +99,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId, initialCategory = 
 
   return ReactDOM.createPortal(
     <>
-      <div className="channel-modal-overlay" onClick={onClose}>
+      <div className="channel-modal-overlay" style={{ zIndex: 100005 }} onClick={onClose}>
         <div className="channel-modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header channel-modal-header">
             <button className="modal-back" onClick={onClose} title="Back"><ArrowLeft size={20} /></button>

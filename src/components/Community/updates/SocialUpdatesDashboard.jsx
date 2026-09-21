@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ReactDOM from "react-dom";
 import { Check, ChevronDown, Link2, Plus, RefreshCw, Wifi } from "lucide-react";
 import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
+import channelService from "../../../services/community/channelService";
 import { getPlatformCapabilities } from "../../../services/community/platformCapabilities";
+import CreateChannelModal from "../modals/CreateChannelModal";
 import { PLATFORM_ICONS } from "../../Account/IdentitySection";
 
 export default function SocialUpdatesDashboard({ communityId, userId, channels = [], linkedSources = [], canManage = false, onCreateChannel }) {
@@ -14,6 +17,8 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
   const [syncingId, setSyncingId] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [openRouteMenu, setOpenRouteMenu] = useState(null);
 
   const textChannels = useMemo(() => channels.filter((channel) => channel.type !== "voice"), [channels]);
 
@@ -168,13 +173,21 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
       if (onCreateChannel) {
         onCreateChannel();
       } else {
-        setError("Create a channel before activating this platform.");
+        setShowCreateChannel(true);
       }
       setNotice("Create a channel first, then turn the platform on.");
       return;
     }
 
     await saveRoute(connection, textChannels[0].id);
+  };
+
+  const openCreateChannel = () => {
+    if (onCreateChannel) {
+      onCreateChannel();
+      return;
+    }
+    setShowCreateChannel(true);
   };
 
   return (
@@ -258,22 +271,52 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
               </div>
 
               <div className="social-platform-route-row">
-                <div className="select-wrap">
-                  <select
-                    value={activeRoute?.channel_id || ""}
-                    onChange={(event) => saveRoute(connection || { provider: item.id }, event.target.value)}
-                    disabled={!canManage || !connected}
+                <div className="route-menu-wrap">
+                  <button
+                    type="button"
+                    className={`route-menu-trigger${activeRoute ? " selected" : ""}`}
+                    onClick={() => setOpenRouteMenu((current) => current === item.id ? null : item.id)}
+                    disabled={!canManage || !connected || busy}
+                    aria-expanded={openRouteMenu === item.id}
+                    aria-haspopup="listbox"
                   >
-                    <option value="">Route to channel</option>
-                    {textChannels.map((channel) => (
-                      <option key={channel.id} value={channel.id}>#{channel.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={13} />
+                    <span className="route-menu-trigger-copy">
+                      <span className="route-menu-label">{activeRoute ? "Sending updates to" : "Route updates to"}</span>
+                      <strong>{routeChannel ? `#${routeChannel.name}` : "Choose a channel"}</strong>
+                    </span>
+                    <ChevronDown size={14} className={openRouteMenu === item.id ? "route-menu-chevron open" : "route-menu-chevron"} />
+                  </button>
+                  {openRouteMenu === item.id && (
+                    <div className="route-menu-panel" role="listbox" aria-label={`${item.label} update channel`}>
+                      <div className="route-menu-heading">Choose destination</div>
+                      {textChannels.length ? textChannels.map((channel) => (
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={activeRoute?.channel_id === channel.id}
+                          className={`route-menu-option${activeRoute?.channel_id === channel.id ? " selected" : ""}`}
+                          key={channel.id}
+                          onClick={() => {
+                            setOpenRouteMenu(null);
+                            saveRoute(connection || { provider: item.id }, channel.id);
+                          }}
+                        >
+                          <span className="route-menu-channel-icon">#</span>
+                          <span className="route-menu-option-copy"><strong>{channel.name}</strong><small>Community channel</small></span>
+                          {activeRoute?.channel_id === channel.id && <Check size={14} />}
+                        </button>
+                      )) : (
+                        <div className="route-menu-empty">Create a channel to receive updates.</div>
+                      )}
+                      <button type="button" className="route-menu-create" onClick={() => { setOpenRouteMenu(null); openCreateChannel(); }}>
+                        <Plus size={14} /> Create a new channel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {!textChannels.length && canManage && (
-                  <button type="button" className="social-platform-create" onClick={() => onCreateChannel ? onCreateChannel() : setError("Create a channel to route updates.")}>
+                {canManage && (
+                  <button type="button" className="social-platform-create" onClick={openCreateChannel}>
                     <Plus size={13} /> Create channel
                   </button>
                 )}
@@ -299,6 +342,27 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
 
       {notice && <div className="social-dashboard-notice">{notice}</div>}
       {error && <div className="social-dashboard-error">{error}</div>}
+
+      {showCreateChannel && ReactDOM.createPortal(
+        <CreateChannelModal
+          communityId={communityId}
+          onClose={() => setShowCreateChannel(false)}
+          onCreate={async (channelData) => {
+            try {
+              const created = await channelService.createChannel(channelData, communityId);
+              if (created) {
+                await refresh();
+              }
+              setShowCreateChannel(false);
+              setNotice("Channel created. You can route this platform to it now.");
+            } catch (createError) {
+              setError(createError.message || "Could not create channel.");
+              throw createError;
+            }
+          }}
+        />,
+        document.body,
+      )}
 
       <style>{`
         .social-updates-dashboard {
@@ -426,6 +490,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           gap: 10px;
         }
         .social-platform-card {
+          position: relative;
           display: flex;
           flex-direction: column;
           gap: 10px;
@@ -561,9 +626,152 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           gap: 8px;
           align-items: center;
         }
-        .select-wrap {
+        .route-menu-wrap {
           position: relative;
           flex: 1;
+        }
+        .route-menu-trigger {
+          width: 100%;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 8px 11px;
+          border-radius: 9px;
+          border: 1px solid rgba(255,255,255,0.09);
+          background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+          color: #f5f5f5;
+          text-align: left;
+          cursor: pointer;
+        }
+        .route-menu-trigger:hover:not(:disabled),
+        .route-menu-trigger[aria-expanded="true"] {
+          border-color: rgba(154,230,180,0.42);
+          background: rgba(154,230,180,0.08);
+        }
+        .route-menu-trigger:disabled {
+          opacity: .52;
+          cursor: not-allowed;
+        }
+        .route-menu-trigger-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          min-width: 0;
+        }
+        .route-menu-label {
+          color: rgba(255,255,255,0.52);
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+        }
+        .route-menu-trigger strong {
+          overflow: hidden;
+          color: #f5f5f5;
+          font-size: 11px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .route-menu-chevron {
+          flex-shrink: 0;
+          color: rgba(255,255,255,0.62);
+          transition: transform .16s ease;
+        }
+        .route-menu-chevron.open {
+          transform: rotate(180deg);
+          color: #9ae6b4;
+        }
+        .route-menu-panel {
+          position: absolute;
+          z-index: 12;
+          right: 0;
+          bottom: calc(100% + 7px);
+          left: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 7px;
+          border: 1px solid rgba(154,230,180,0.28);
+          border-radius: 11px;
+          background: #151a17;
+          box-shadow: 0 18px 42px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.025);
+        }
+        .route-menu-heading {
+          padding: 4px 6px 6px;
+          color: rgba(255,255,255,0.52);
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .route-menu-option,
+        .route-menu-create {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 38px;
+          padding: 7px 8px;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          background: transparent;
+          color: #f5f5f5;
+          text-align: left;
+          cursor: pointer;
+        }
+        .route-menu-option:hover,
+        .route-menu-option.selected {
+          border-color: rgba(154,230,180,0.2);
+          background: rgba(154,230,180,0.1);
+        }
+        .route-menu-channel-icon {
+          width: 23px;
+          height: 23px;
+          display: grid;
+          place-items: center;
+          flex-shrink: 0;
+          border-radius: 7px;
+          background: rgba(154,230,180,0.12);
+          color: #9ae6b4;
+          font-size: 12px;
+          font-weight: 800;
+        }
+        .route-menu-option-copy {
+          display: flex;
+          flex: 1;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .route-menu-option-copy strong {
+          overflow: hidden;
+          font-size: 11px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .route-menu-option-copy small {
+          color: rgba(255,255,255,0.48);
+          font-size: 9px;
+        }
+        .route-menu-empty {
+          padding: 9px 7px;
+          color: rgba(255,255,255,0.58);
+          font-size: 10px;
+          line-height: 1.4;
+        }
+        .route-menu-create {
+          justify-content: center;
+          margin-top: 2px;
+          border-color: rgba(154,230,180,0.26);
+          background: rgba(154,230,180,0.08);
+          color: #b9f7cc;
+          font-size: 10px;
+          font-weight: 800;
+        }
+        .route-menu-create:hover {
+          background: rgba(154,230,180,0.15);
         }
         .select-wrap select {
           width: 100%;
