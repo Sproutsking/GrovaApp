@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
-import { Check, ChevronRight, Crown, Link2, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
+import { Bot, Check, ChevronRight, Crown, Link2, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 
 import { X, Settings2 } from "lucide-react";
@@ -10,6 +10,7 @@ import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
 import socialUpdatesService, { SOCIAL_UPDATE_PROVIDER_IDS } from "../../../../services/community/socialUpdatesService";
 import { getPlatformCapabilities } from "../../../../services/community/platformCapabilities";
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
+import BotsDashboard from "../../bots/BotsDashboard";
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Choose how members prove access before entering.", icon: ShieldCheck, modes: [
     { id: "rules_gate", label: "Rules gate", description: "Members accept your rules before access is granted." },
@@ -18,6 +19,7 @@ const TOOL_CATALOG = [
     { id: "email_verification", label: "Email verification", description: "Verify a member through an approved email flow." },
   ] },
   { type: "social_updates", label: "Social updates", description: "Deliver connected updates to selected channels.", icon: Radio },
+  { type: "bots", label: "Bots", description: "Route posts to Discord servers and Telegram chats.", icon: Bot },
   { type: "tickets", label: "Tickets", description: "Give members a private support entry point.", icon: Ticket },
   { type: "welcome", label: "Welcome", description: "Show a polished introduction in a selected channel.", icon: Sparkles },
   { type: "moderation", label: "Moderation", description: "Automate safety, strikes, actions, and case history.", icon: ShieldCheck },
@@ -141,6 +143,10 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       setDashboardTool(tool);
       return;
     }
+    if (tool.type === "bots") {
+      setDashboardTool(tool);
+      return;
+    }
     if (tool.type === "welcome") {
       setWelcomeDashboardOpen(true);
       return;
@@ -224,6 +230,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       })}
       {error && <p className="community-tools-error">{error}</p>}
       {dashboardTool && dashboardTool.type === "social_updates" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Social updates</h2><p>Connect sources, route activity, and run a real inbound sync.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close social updates dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><SocialUpdatesDashboard communityId={communityId} userId={userId} channels={channels} linkedSources={linkedSources} canManage={canManage} onCreateChannel={onCreateChannel} /></div></section></div>, document.body)}
+      {dashboardTool && dashboardTool.type === "bots" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Bots</h2><p>Connect Discord and Telegram destinations for outbound posts.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close bots dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><BotsDashboard communityId={communityId} userId={userId} canManage={canManage} /></div></section></div>, document.body)}
       {welcomeDashboardOpen && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setWelcomeDashboardOpen(false)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Welcome experience</h2><p>Design the first impression members see when they arrive.</p></div><button type="button" onClick={() => setWelcomeDashboardOpen(false)} aria-label="Close welcome dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Welcome card channel</strong><p className="tool-dashboard-help">Select or create the channel where every welcome card will be posted.</p><select disabled={!canManage} value={getRow("welcome").channel_id || ""} onChange={(event) => toggleChannel("welcome", event.target.value)}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" disabled={!canManage} className="welcome-create-channel" onClick={onCreateChannel}>+ Create a channel first</button></div><div className="tool-dashboard-block"><strong>Member introduction destination</strong><p className="tool-dashboard-help">Choose the channel opened by “Introduce yourself”.</p><select disabled={!canManage} value={getRow("welcome").config?.introChannelId || ""} onChange={(event) => setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), { ...getRow("welcome"), config: { ...(getRow("welcome").config || {}), introChannelId: event.target.value } }])}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select></div><WelcomeToolDashboard value={getRow("welcome").config} communityName="your community" channels={channels} disabled={!canManage} onSave={saveWelcomeConfig} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Verification</h2><p>Manage live quick and picture verification for members.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><VerificationToolDashboard value={getRow("verification").config} disabled={!canManage} onSave={saveVerificationConfig} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "moderation" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Moderation</h2><p>Build a live safety system for this community.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close moderation dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><ModerationToolDashboard communityId={communityId} value={getRow("moderation").config} disabled={!canManage} onSave={saveModerationConfig} /></div></section></div>, document.body)}
