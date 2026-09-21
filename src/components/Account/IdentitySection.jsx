@@ -225,7 +225,7 @@ const CSS = `
     border:1px solid rgba(255,255,255,.07);
     border-radius:14px; padding:11px 12px;
     display:grid; grid-template-columns:34px minmax(0,1fr) auto;
-    align-items:center; column-gap:11px;
+    grid-template-rows:auto auto; align-items:center; column-gap:11px; row-gap:5px;
     transition:border-color .2s, background .2s, transform .14s;
   }
   .idCard:hover { transform:translateX(3px); }
@@ -245,11 +245,11 @@ const CSS = `
     display:flex; align-items:center; justify-content:center;
     font-size:14px; font-weight:900; border:1px solid;
     font-style:normal; transition:transform .18s; grid-column:1; grid-row:1;
-    flex-shrink:0;
+    flex-shrink:0; grid-row:1 / span 2;
   }
   .idCard:hover .idIcon { transform:scale(1.06); }
 
-  .idBody { min-width:0; display:flex; flex-direction:column; grid-column:2; grid-row:1; }
+  .idBody { min-width:0; display:flex; flex-direction:column; grid-column:2; grid-row:1 / span 2; align-self:stretch; justify-content:space-between; }
   .idPname {
     font-size:13px; font-weight:800; color:#f8fafc; margin:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -257,9 +257,9 @@ const CSS = `
   .idDivider {
     height:1px; width:100%;
     background:rgba(255,255,255,.08);
-    margin:5px 0;
+    margin:4px 0;
   }
-  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; min-width:0; }
+  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; min-width:0; min-height:17px; }
   .idLiveDot {
     display:inline-block; width:5px; height:5px; border-radius:50%; flex-shrink:0;
     background:#84cc16; animation:idPulse 2s ease-in-out infinite;
@@ -294,6 +294,14 @@ const CSS = `
     background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
+  .idAccountBtn {
+    grid-column:3; grid-row:2; justify-self:end; min-width:76px; max-width:120px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;
+    padding:5px 7px; border-radius:8px; border:1px solid rgba(132,204,22,.22);
+    background:rgba(132,204,22,.06); color:#b9df8c; font:600 9px inherit;
+    text-decoration:none;
+  }
+  .idAccountBtn.idAccountEmpty { border-color:rgba(255,255,255,.08); background:rgba(255,255,255,.03); color:#737373; }
 
   /* ── Connecting overlay on card ── */
   .idConnecting {
@@ -396,9 +404,10 @@ const CSS = `
 
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
-    .idCard { grid-template-columns:30px minmax(0,1fr) auto; padding:10px 11px; column-gap:9px; }
+    .idCard { grid-template-columns:30px minmax(0,1fr) auto; padding:9px 10px; column-gap:9px; }
     .idIcon { width:30px; height:30px; font-size:12px; border-radius:8px; }
-    .idBtn, .idSoonBadge { width:64px; padding:7px 5px; font-size:10px; }
+    .idBtn, .idSoonBadge { width:64px; padding:6px 5px; font-size:10px; }
+    .idAccountBtn { min-width:64px; max-width:92px; padding:4px 5px; font-size:8.5px; }
   }
 `;
 
@@ -675,9 +684,6 @@ const IdentitySection = ({ userId }) => {
                           : <Ic size={11} />
                         }
                         {cfg.label}
-                        {handle && (conn?.connected_via === "profile_link"
-                          ? <a className="idHandle idProfileLink" href={handle} target="_blank" rel="noreferrer">· Open profile</a>
-                          : <span className="idHandle">· @{handle}</span>)}
                       </div>
                       {/* Connect note for unlinked live platforms */}
                       {status === "none" && meta.live && meta.connectNote && (
@@ -685,7 +691,7 @@ const IdentitySection = ({ userId }) => {
                       )}
                     </div>
 
-                    {/* Action button */}
+                    {/* Top action: link state. The lower action shows the exact linked account or URL. */}
                     {!meta.live ? (
                       <span className="idSoonBadge">Soon</span>
                     ) : status === "active" ? (
@@ -712,6 +718,15 @@ const IdentitySection = ({ userId }) => {
                       >
                         {isConnecting ? "Connecting…" : meta.connectionMode === "profile_link" ? "Add link" : "Link"}
                       </button>
+                    )}
+                    {handle ? (
+                      conn?.connected_via === "profile_link" ? (
+                        <a className="idAccountBtn" href={handle} target="_blank" rel="noreferrer">Open link</a>
+                      ) : (
+                        <span className="idAccountBtn" title={handle}>@{handle}</span>
+                      )
+                    ) : (
+                      <span className="idAccountBtn idAccountEmpty">No account</span>
                     )}
                   </div>
                 );

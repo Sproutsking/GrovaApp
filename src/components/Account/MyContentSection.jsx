@@ -712,8 +712,8 @@ const MyContentSection = ({
           gap: 2px; padding: 2px;
         }
         @media (min-width: 460px) { .mcs-grid { grid-template-columns: repeat(4, 1fr); } }
-        .mcs-full-feed { display:flex; flex-direction:column; gap:12px; padding:10px 0 14px; }
-        .mcs-full-feed > * { width:100%; min-width:0; }
+        .mcs-full-feed { display:flex; flex-direction:column; gap:0; padding:0; }
+        .mcs-full-feed > * { width:100%; min-width:0; margin:0!important; border-radius:0!important; }
 
         /* ── Card ── */
         .mcs-card {
@@ -921,6 +921,9 @@ const MyContentSection = ({
             animation: mcs-vslideup 0.28s cubic-bezier(0.4,0,0.2,1);
           }
           @keyframes mcs-vslideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        }
+        @media (max-width: 480px) {
+          .mcs-root { width:calc(100% + 24px); margin-left:-12px; border-left:0; border-right:0; border-radius:0; }
         }
 
         .mcs-viewer-header {

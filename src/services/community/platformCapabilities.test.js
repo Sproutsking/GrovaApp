@@ -25,12 +25,12 @@ describe("platform capabilities", () => {
     expect(getPlatformCapabilities("tiktok")).toMatchObject({ outboundReady: false, inboundReady: false });
     expect(getPlatformCapabilities("kick")).toMatchObject({ identityOnly: false, inboundReady: false, outboundReady: false });
     expect(getDistributablePlatforms()).toEqual(expect.arrayContaining(["x", "facebook", "instagram", "linkedin"]));
-    expect(getInboundReadyPlatforms()).toEqual(expect.arrayContaining(["youtube", "twitch"]));
+    expect(getInboundReadyPlatforms()).toEqual(expect.arrayContaining(["x", "facebook", "instagram", "youtube", "twitch", "github", "reddit", "linkedin"]));
     expect(Object.keys(PLATFORM_CAPABILITIES)).toEqual(expect.arrayContaining(["youtube", "twitch", "tiktok", "snapchat"]));
   });
 
   test("limits social updates to social activity providers", () => {
-    expect(SOCIAL_UPDATE_PROVIDER_IDS).toEqual(["xeevia", "x", "youtube", "twitch"]);
+    expect(SOCIAL_UPDATE_PROVIDER_IDS).toEqual(expect.arrayContaining(["xeevia", "x", "facebook", "instagram", "youtube", "twitch", "kick", "discord", "reddit", "telegram", "github", "linkedin", "snapchat"]));
     expect(SOCIAL_PROVIDERS.map(({ id }) => id)).toEqual(SOCIAL_UPDATE_PROVIDER_IDS);
     expect(SOCIAL_UPDATE_PROVIDER_IDS).not.toEqual(expect.arrayContaining(["email", "google"]));
   });

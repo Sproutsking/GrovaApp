@@ -7,7 +7,7 @@ alter table public.community_social_connections
 
 alter table public.community_social_connections
   add constraint community_social_connections_provider_check
-  check (provider in ('xeevia', 'x', 'facebook', 'instagram', 'tiktok', 'discord', 'youtube', 'twitch', 'snapchat', 'linkedin', 'kick'));
+  check (provider in ('xeevia', 'x', 'facebook', 'instagram', 'tiktok', 'discord', 'youtube', 'twitch', 'snapchat', 'linkedin', 'kick', 'reddit', 'telegram', 'github'));
 
 alter table public.community_social_connections
   add column if not exists source_url text,

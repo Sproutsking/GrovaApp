@@ -7,7 +7,7 @@ import { X, Settings2 } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
 import WelcomeToolDashboard from "../../verification/WelcomeToolDashboard";
 import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
-import socialUpdatesService from "../../../../services/community/socialUpdatesService";
+import socialUpdatesService, { SOCIAL_UPDATE_PROVIDER_IDS } from "../../../../services/community/socialUpdatesService";
 import { getPlatformCapabilities } from "../../../../services/community/platformCapabilities";
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
 const TOOL_CATALOG = [
@@ -51,7 +51,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     supabase.from("community_social_connections").select("id").eq("community_id", communityId).eq("provider", "xeevia").eq("status", "active").maybeSingle()
       .then(({ data }) => { if (active) setSourceConnected(Boolean(data)); });
     if (userId) supabase.from("connections").select("provider, platform_user_id, auth_status").eq("user_id", userId).eq("auth_status", "active")
-      .then(({ data }) => { if (active) setLinkedSources(data || []); });
+      .then(({ data }) => { if (active) setLinkedSources((data || []).filter((source) => SOCIAL_UPDATE_PROVIDER_IDS.includes(source.provider))); });
     socialUpdatesService.listRouting(communityId)
       .then((data) => { if (active) setSourceRoutes(data); })
       .catch((routingError) => { if (active) setError(routingError.message); });
