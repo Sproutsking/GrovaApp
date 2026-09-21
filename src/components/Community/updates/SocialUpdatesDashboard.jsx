@@ -192,20 +192,12 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
 
   return (
     <div className="social-updates-dashboard">
-      <div className="social-dashboard-header">
-        <div>
-          <div className="social-dashboard-kicker">Community tool dashboard</div>
-          <h2>Social updates</h2>
-          <p>Connect sources, route activity, and sync inbound updates.</p>
-        </div>
-        <button type="button" className="social-dashboard-refresh" onClick={() => refresh().catch((loadError) => setError(loadError.message))} aria-label="Refresh sources">
-          <RefreshCw size={14} />
-        </button>
-      </div>
-
       <div className="social-dashboard-summary-row">
         <span><Check size={12} /> Ready inbound: Xeevia, X, Facebook, Instagram, YouTube, Twitch, Reddit, GitHub</span>
         <span><Wifi size={12} /> Live detection: YouTube, Twitch, Facebook, Instagram</span>
+        <button type="button" className="social-dashboard-refresh" onClick={() => refresh().catch((loadError) => setError(loadError.message))} aria-label="Refresh sources">
+          <RefreshCw size={14} />
+        </button>
       </div>
 
       {canManage && (
@@ -413,6 +405,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
+          align-items: center;
         }
         .social-dashboard-summary-row span {
           display: inline-flex;
@@ -424,6 +417,9 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           border: 1px solid rgba(134,239,172,0.14);
           color: #d8fbe5;
           font-size: 10px;
+        }
+        .social-dashboard-summary-row .social-dashboard-refresh {
+          margin-left: auto;
         }
         .social-dashboard-form {
           display: flex;
@@ -572,6 +568,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           align-items: center;
           justify-content: space-between;
           gap: 10px;
+          min-height: 24px;
         }
         .social-platform-meta {
           display: flex;
@@ -598,6 +595,8 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           cursor: pointer;
           padding: 0;
           transition: all 0.15s ease;
+          flex: 0 0 auto;
+          align-self: center;
         }
         .social-platform-toggle span {
           position: absolute;
@@ -829,6 +828,61 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           background: rgba(248,113,113,0.08);
           border: 1px solid rgba(248,113,113,0.2);
           color: #fca5a5;
+        }
+        @media (max-width: 620px) {
+          .social-updates-dashboard {
+            gap: 11px;
+          }
+          .social-dashboard-summary-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px;
+          }
+          .social-dashboard-summary-row span {
+            grid-column: 1 / -1;
+            width: 100%;
+            box-sizing: border-box;
+            line-height: 1.35;
+          }
+          .social-dashboard-summary-row .social-dashboard-refresh {
+            grid-column: 2;
+            grid-row: 1;
+            margin: 0;
+          }
+          .social-dashboard-form-row {
+            flex-direction: column;
+          }
+          .social-dashboard-form-row select,
+          .social-dashboard-form-row input,
+          .social-dashboard-form-row button {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 42px;
+          }
+          .social-platform-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 9px;
+          }
+          .social-platform-card {
+            min-width: 0;
+            padding: 12px;
+          }
+          .social-platform-route-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .route-menu-wrap,
+          .social-platform-create {
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .social-platform-create {
+            min-height: 40px;
+          }
+          .route-menu-panel {
+            bottom: auto;
+            top: calc(100% + 7px);
+          }
         }
       `}</style>
     </div>
