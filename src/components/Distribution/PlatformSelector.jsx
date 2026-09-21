@@ -23,7 +23,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link2, RefreshCw } from "lucide-react";
+import { Link2 } from "lucide-react";
 import distributionService from "../../services/distribution/distributionService";
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
@@ -146,13 +146,11 @@ const CSS = `
 const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
   const [selected,    setSelected]    = useState(() => initialSelection);
-  const [loadState,   setLoadState]   = useState("loading"); // "loading"|"ready"|"error"
   const [loadError,   setLoadError]   = useState("");
 
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
-    if (!userId) { setLoadState("ready"); return; }
-    setLoadState("loading");
+    if (!userId) return;
     setLoadError("");
     try {
       // Only adapter-supported platforms with a valid token are returned.
@@ -170,16 +168,12 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
       setSelected(nextSelection);
       onSelection?.(nextSelection);
 
-      setLoadState("ready");
     } catch (err) {
       console.warn("[PlatformSelector] load error:", err?.message);
       setConnected([]);
       setSelected([]);
       onSelection?.([]);
       setLoadError(err?.message || "Could not check connected platforms.");
-    } finally {
-      // Never leave the publish form in an indefinite loading state.
-      setLoadState((current) => current === "loading" ? "ready" : current);
     }
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -197,18 +191,6 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     });
   }, [connected, onSelection]);
 
-  // ── Loading ────────────────────────────────────────────────────────────────
-  if (loadState === "loading") return (
-    <>
-      <style>{CSS}</style>
-      <div className="psLoading">
-        <RefreshCw size={13} className="psSpin" color="#525252" />
-        Checking connected platforms…
-      </div>
-    </>
-  );
-
-  // ── Ready ──────────────────────────────────────────────────────────────────
   const noneConnected = connected.length === 0;
 
   return (
