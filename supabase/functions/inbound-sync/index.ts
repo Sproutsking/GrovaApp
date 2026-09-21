@@ -64,6 +64,14 @@ async function fetchYouTube(connection: Record<string, unknown>) {
   })).filter((item: any) => item.external_id);
 }
 
+async function fetchXeevia(connection: Record<string, unknown>) {
+  const userId = String(connection.provider_account_id || "");
+  if (!userId) throw new Error("Xeevia requires a connected account");
+  const { data, error } = await supabase.from("posts").select("id,user_id,content,created_at,image_ids,video_ids").eq("user_id", userId).is("deleted_at", null).order("created_at", { ascending: false }).limit(25);
+  if (error) throw error;
+  return (data || []).map((item: any) => ({ external_id: item.id, activity_type: "post", status: "published", author_name: userId, content: item.content, media: { image_ids: item.image_ids, video_ids: item.video_ids }, permalink: null, published_at: item.created_at, raw_payload: item }));
+}
+
 async function fetchX(connection: Record<string, unknown>) {
   const token = String(connection.__access_token || "");
   const username = sourceHandle(sourcePath(connection));
@@ -136,6 +144,7 @@ async function fetchTwitch(connection: Record<string, unknown>) {
 }
 
 async function fetchActivities(connection: Record<string, unknown>) {
+  if (connection.provider === "xeevia") return fetchXeevia(connection);
   if (connection.provider === "x") return fetchX(connection);
   if (connection.provider === "facebook") return fetchFacebook(connection);
   if (connection.provider === "instagram") return fetchInstagram(connection);
