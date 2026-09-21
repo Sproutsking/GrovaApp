@@ -60,7 +60,9 @@ Deno.serve(async (request) => {
     if (body.action === "dispatch") {
       const content = String(body.content || "").trim();
       if (!content) return json({ error: "Content is required" }, 400);
-      const { data: destinations, error } = await admin.from("community_bot_destinations").select("*").eq("community_id", communityId).eq("provider", provider).eq("enabled", true);
+      let destinationQuery = admin.from("community_bot_destinations").select("*").eq("community_id", communityId).eq("provider", provider).eq("enabled", true);
+      if (body.destinationId) destinationQuery = destinationQuery.eq("id", body.destinationId);
+      const { data: destinations, error } = await destinationQuery;
       if (error) throw error;
       const results = [];
       for (const destination of destinations || []) {

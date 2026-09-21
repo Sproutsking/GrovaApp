@@ -181,7 +181,23 @@ class DistributionService {
 
       // User explicitly chose platforms → intersect with connected
       if (selectedPlatforms && selectedPlatforms.length > 0) {
-        return selectedPlatforms.filter(p => connected.includes(p));
+        const platformTargets = selectedPlatforms.filter((platform) => connected.includes(platform));
+        const communityIds = selectedPlatforms
+          .filter((platform) => platform.startsWith("community:"))
+          .map((platform) => platform.slice("community:".length));
+        if (!communityIds.length) return platformTargets;
+        const { data: communityTargets } = await supabase
+          .from("community_bot_destinations")
+          .select("id,provider,community_id,integration:community_bot_integrations(status)")
+          .in("id", communityIds)
+          .eq("enabled", true);
+        const activeCommunityTargets = (communityTargets || []).filter((target) => {
+          const status = Array.isArray(target.integration)
+            ? target.integration[0]?.status
+            : target.integration?.status;
+          return status === "active";
+        });
+        return [...platformTargets, ...activeCommunityTargets.map((target) => `community:${target.id}`)];
       }
 
       // Global default: post to everything connected
@@ -297,6 +313,27 @@ class DistributionService {
   // ── Publish to a single platform ──────────────────────────────────────────
   async _publishToSinglePlatform(postId, userId, post, platform) {
     try {
+      if (platform.startsWith("community:")) {
+        const destinationId = platform.slice("community:".length);
+        const { data: destination, error: destinationError } = await supabase
+          .from("community_bot_destinations")
+          .select("id,provider,community_id")
+          .eq("id", destinationId)
+          .eq("enabled", true)
+          .maybeSingle();
+        if (destinationError || !destination) throw new Error("Community destination is no longer available");
+        const content = post.content || post.card_caption || post.caption || "";
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const url = `${origin}/post/${postId}`;
+        const { data, error } = await supabase.functions.invoke("community-bot", {
+          body: { action: "dispatch", provider: destination.provider, communityId: destination.community_id, destinationId, content, url, sourceId: postId, sourceType: "post" },
+        });
+        if (error) throw error;
+        const result = data?.results?.find((item) => item.destinationId === destinationId) || data;
+        if (!result?.ok && data?.ok === false) throw new Error(result?.error || "Community bot delivery failed");
+        await supabase.from("post_distribution").update({ status: "success", external_post_id: result?.externalMessageId || null, published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("post_id", postId).eq("platform", platform);
+        return { platform, status: "success", externalId: result?.externalMessageId || null };
+      }
       const adapter = adapters.getAdapter(platform);
       if (!adapter) throw new Error(`No adapter for: ${platform}`);
 
@@ -406,7 +443,7 @@ class DistributionService {
         .eq("post_id", postId);
 
       if (error) throw error;
-      const postableRows = (data || []).filter((row) => adapters.getAdapter(row.platform));
+      const postableRows = (data || []).filter((row) => adapters.getAdapter(row.platform) || row.platform.startsWith("community:"));
       if (postableRows.length === 0) return null;
 
       const byPlatform = {};

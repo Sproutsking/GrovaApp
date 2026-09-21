@@ -23,7 +23,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link2, RefreshCw } from "lucide-react";
+import { Bot, Link2, RefreshCw } from "lucide-react";
+import { supabase } from "../../services/config/supabase";
 import distributionService from "../../services/distribution/distributionService";
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
@@ -138,6 +139,22 @@ const CSS = `
   }
   .psSummaryText { font-size:11.5px; color:#525252; flex:1; }
   .psSummaryText strong { color:#a3a3a3; }
+  .psSectionLabel { display:flex; align-items:center; gap:6px; margin:2px 1px 0; color:#a3a3a3; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .psSectionLabel svg { color:#84cc16; }
+  .psCommunityGrid { display:grid; grid-template-columns:1fr; gap:7px; }
+  .psCommunityCard { display:flex; align-items:center; gap:10px; min-height:48px; padding:8px 10px; border:1px solid rgba(255,255,255,.07); border-radius:10px; background:rgba(255,255,255,.015); }
+  .psCommunityCard.psOn { border-color:rgba(132,204,22,.4); background:rgba(132,204,22,.07); }
+  .psCommunityCard.psOff { opacity:.62; }
+  .psCommunityIcon { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; flex-shrink:0; color:#84cc16; background:rgba(132,204,22,.1); }
+  .psCommunityCopy { min-width:0; flex:1; }
+  .psCommunityName { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#ededed; font-size:11.5px; font-weight:800; }
+  .psCommunitySub { margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#666; font-size:10px; }
+  .psCommunityStatus { flex-shrink:0; color:#84cc16; font-size:9px; font-weight:800; }
+  .psCommunityCard .psToggle { margin-left:0; appearance:none; padding:0; cursor:pointer; }
+  .psCommunityCard.psOn .psToggle { background:#84cc16; border-color:#84cc16; }
+  .psCommunityCard.psOn .psToggle::after { background:#111; transform:translateX(12px); }
+  .psCommunityCard.psOff .psToggle { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); }
+  .psCommunityCard.psLocked .psToggle { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.07); cursor:not-allowed; }
   .psLinkBtn {
     display:inline-flex; align-items:center; gap:5px;
     font-size:11px; font-weight:700; color:#c4b5fd;
@@ -154,6 +171,7 @@ const CSS = `
 // ── Component ─────────────────────────────────────────────────────────────────
 const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
+  const [communityTargets, setCommunityTargets] = useState([]);
   const [selected,    setSelected]    = useState(() => initialSelection);
   const [loadError,   setLoadError]   = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -166,21 +184,56 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     setIsRefreshing(true);
     setLoadError("");
     try {
-      // Only adapter-supported platforms with a valid token are returned.
-      const connectedList = await Promise.race([
-        distributionService.getConnectedPlatforms(userId),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Connection refresh timed out")), 8000)),
+      const [connectedList, ownedCommunities] = await Promise.all([
+        Promise.race([
+          distributionService.getConnectedPlatforms(userId),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Connection refresh timed out")), 8000)),
+        ]).catch(() => []),
+        supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
       ]);
       const nextConnected = Array.isArray(connectedList) ? connectedList : [];
+      const communities = ownedCommunities?.data || [];
+      let nextCommunityTargets = [];
+      if (communities.length) {
+        const { data: destinations, error: destinationError } = await supabase
+          .from("community_bot_destinations")
+          .select("id,community_id,provider,display_name,enabled,integration:community_bot_integrations(status)")
+          .in("community_id", communities.map((community) => community.id));
+        if (destinationError && destinationError.code !== "42P01") throw destinationError;
+        nextCommunityTargets = (destinations || []).map((destination) => ({
+          ...destination,
+          communityName: communities.find((community) => community.id === destination.community_id)?.name || "Community",
+          target: `community:${destination.id}`,
+          integrationStatus: Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status,
+          ready: destination.enabled && (Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status) === "active",
+        }));
+        const configuredCommunities = new Set(nextCommunityTargets.map((destination) => destination.community_id));
+        communities.forEach((community) => {
+          if (!configuredCommunities.has(community.id)) {
+            nextCommunityTargets.push({
+              id: `setup-${community.id}`,
+              community_id: community.id,
+              communityName: community.name,
+              displayName: "Connect a bot destination",
+              provider: "community",
+              target: `community:setup:${community.id}`,
+              ready: false,
+              setupOnly: true,
+            });
+          }
+        });
+      }
       setConnected(nextConnected);
+      setCommunityTargets(nextCommunityTargets);
 
       // Auto-select only on the first successful load. Manual refreshes keep
       // the user's explicit on/off choices and remove only disconnected ones.
+      const availableTargets = [...nextConnected, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       const nextSelection = hasLoadedRef.current
-        ? selectedRef.current.filter((platform) => nextConnected.includes(platform))
+        ? selectedRef.current.filter((platform) => availableTargets.includes(platform))
         : initialSelection.length > 0
-          ? initialSelection.filter((platform) => nextConnected.includes(platform))
-          : nextConnected;
+          ? initialSelection.filter((platform) => availableTargets.includes(platform))
+          : availableTargets;
       hasLoadedRef.current = true;
       selectedRef.current = nextSelection;
       setSelected(nextSelection);
@@ -198,7 +251,8 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
 
   // ── Toggle a platform ──────────────────────────────────────────────────────
   const toggle = useCallback((platform) => {
-    if (!connected.includes(platform)) return; // locked, ignore
+    const communityTarget = communityTargets.find((destination) => destination.target === platform);
+    if (!connected.includes(platform) && !communityTarget?.ready) return; // locked, ignore
     setSelected(prev => {
       const next = prev.includes(platform)
         ? prev.filter(p => p !== platform)
@@ -207,9 +261,9 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
       onSelection?.(next);
       return next;
     });
-  }, [connected, onSelection]);
+  }, [connected, communityTargets, onSelection]);
 
-  const noneConnected = connected.length === 0;
+  const noneConnected = connected.length === 0 && communityTargets.length === 0;
 
   return (
     <>
@@ -268,6 +322,29 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
             );
           })}
         </div>
+
+        {communityTargets.length > 0 && (
+          <>
+            <div className="psSectionLabel"><Bot size={12} /> Owned community destinations</div>
+            <div className="psCommunityGrid">
+              {communityTargets.map((destination) => {
+                const isSelected = selected.includes(destination.target);
+                const isReady = destination.ready;
+                return (
+                  <div key={destination.id} className={`psCommunityCard ${isReady ? isSelected ? "psOn" : "psOff" : "psLocked"}`}>
+                    <div className="psCommunityIcon"><Bot size={14} /></div>
+                    <div className="psCommunityCopy">
+                      <p className="psCommunityName">{destination.communityName} · {destination.display_name}</p>
+                      <p className="psCommunitySub">{destination.provider === "discord" ? "Discord channel" : destination.provider === "telegram" ? "Telegram chat" : "Bot destination"} · {isReady ? isSelected ? "Will receive this post" : "Available" : "Bot setup required"}</p>
+                    </div>
+                    <span className="psCommunityStatus">{isReady ? isSelected ? "ON" : "OFF" : "SETUP"}</span>
+                    <button type="button" className="psToggle" disabled={!isReady} onClick={() => toggle(destination.target)} aria-label={`Toggle ${destination.display_name}`} />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* ── Summary + link to Identity ── */}
         <div className="psSummary">
