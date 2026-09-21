@@ -38,6 +38,24 @@ const dispatchPublish = (item, type) => {
   );
 };
 
+const DistributionBlock = ({ label, userId, distribution }) => {
+  if (!userId) return null;
+  return (
+    <div className="form-group">
+      <PlatformSelector
+        userId={userId}
+        onSelection={distribution.setPlatforms}
+        initialSelection={distribution.selectedPlatforms}
+      />
+      {distribution.distributionError && (
+        <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, fontSize: 12, color: "#f87171" }}>
+          {distribution.distributionError}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
   const { activeTrinityLens } = useTrinitylens();
   const [activeTab,       setActiveTab]       = useState("post");
@@ -641,32 +659,6 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const cardGradient  = `linear-gradient(${gradientAngle}deg, ${customCardColor1} 0%, ${customCardColor2} 100%)`;
   const previewFontPx = getPreviewFontSize();
 
-  // ── Shared distribution block ─────────────────────────────────────────────
-  // Rendered in all three tabs — extracted to avoid repetition
-  const DistributionBlock = ({ label }) => {
-    if (!currentUser?.id) return null;
-    return (
-      <div className="form-group">
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ color: "#d4d4d4", fontSize: 13, fontWeight: 800 }}>Distribute this {label}</div>
-          <div style={{ marginTop: 3, color: "#737373", fontSize: 11, lineHeight: 1.45 }}>
-            Select linked destinations for this post. Manage connections in Account <span aria-hidden="true">›</span> Identity.
-          </div>
-        </div>
-        <PlatformSelector
-          userId={currentUser.id}
-          onSelection={distribution.setPlatforms}
-          initialSelection={distribution.selectedPlatforms}
-        />
-        {distribution.distributionError && (
-          <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, fontSize: 12, color: "#f87171" }}>
-            {distribution.distributionError}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <>
       <div className="create-studio-wrapper">
@@ -868,7 +860,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             </div>
 
             {/* [D2] Distribution — post tab */}
-            <DistributionBlock label="post" />
+            <DistributionBlock label="post" userId={currentUser?.id} distribution={distribution} />
 
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishPost}
@@ -922,7 +914,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             </div>
 
             {/* [D2] Distribution — reel tab */}
-            <DistributionBlock label="reel" />
+            <DistributionBlock label="reel" userId={currentUser?.id} distribution={distribution} />
 
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishReel}
@@ -1089,7 +1081,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             </div>
 
             {/* [D3] Distribution — story tab */}
-            <DistributionBlock label="story" />
+            <DistributionBlock label="story" userId={currentUser?.id} distribution={distribution} />
 
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishStory}
@@ -1140,7 +1132,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             </div>
 
             {/* Distribution — culture tab */}
-            <DistributionBlock label="culture" />
+            <DistributionBlock label="culture" userId={currentUser?.id} distribution={distribution} />
 
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishCulture}

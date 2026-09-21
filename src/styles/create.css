@@ -88,7 +88,7 @@
   gap: 6px;
   position: relative;
   z-index: 2;
-  padding: 8px 8px 0;
+  padding: 8px 8px 5px;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
@@ -241,7 +241,7 @@
 @media (max-width: 600px) {
   .studio-header { padding: 14px 10px 0; }
   .studio-title { font-size: 21px; }
-  .studio-header-actions { padding: 7px 2px 0; }
+  .studio-header-actions { padding: 7px 2px 5px; }
   .save-draft-btn, .drafts-btn { padding: 6px 9px; font-size: 10.5px; }
   .create-studio-wrapper .create-form { padding: 8px 6px 80px; }
   .create-studio-wrapper .form-group,

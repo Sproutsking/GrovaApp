@@ -135,7 +135,13 @@ class DistributionService {
         console.warn("[DistributionService] getConnectedPlatforms:", error.message);
         return [];
       }
-      const activeConnections = (data || []).filter((connection) => adapters.getAdapter(connection.provider));
+      const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
+      const activeConnections = (data || [])
+        .map((connection) => ({
+          ...connection,
+          provider: providerAliases[connection.provider] || connection.provider,
+        }))
+        .filter((connection) => adapters.getAdapter(connection.provider));
       if (!activeConnections.length) return [];
 
       const connectionIds = activeConnections.map((connection) => connection.id);

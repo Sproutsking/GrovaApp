@@ -35,7 +35,6 @@ const CSS = `
 
   .psWrap {
     display:flex; flex-direction:column; gap:10px;
-    animation:psIn .25s ease both;
   }
 
   .psHeader {
