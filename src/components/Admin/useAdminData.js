@@ -206,6 +206,7 @@ export function useStats() {
         today.getMonth(),
         1,
       ).toISOString();
+      const communityActivityCutoff = new Date(Date.now() - 7 * 86400000).toISOString();
 
       const [
         { count: totalUsers },
@@ -219,6 +220,8 @@ export function useStats() {
         { count: totalReels },
         { count: totalStories },
         { count: totalCommunities },
+        { count: totalCommunityMembers },
+        { data: activeCommunityRows },
         { data: allPayments },
         { data: paymentsToday },
         { data: paymentsThisWeek },
@@ -270,6 +273,13 @@ export function useStats() {
           .select("*", { count: "exact", head: true })
           .is("deleted_at", null),
         sb()
+          .from("community_members")
+          .select("id", { count: "exact", head: true }),
+        sb()
+          .from("community_members")
+          .select("community_id, user_id")
+          .gte("last_seen", communityActivityCutoff),
+        sb()
           .from("payments")
           .select("amount_cents,currency,provider")
           .eq("status", "completed"),
@@ -304,6 +314,17 @@ export function useStats() {
           .select("amount")
           .eq("type", "purchase_grant"),
       ]);
+
+      const activeCommunityIds = new Set(
+        (activeCommunityRows || [])
+          .map((row) => row?.community_id)
+          .filter(Boolean),
+      );
+      const activeCommunityUsers = new Set(
+        (activeCommunityRows || [])
+          .map((row) => row?.user_id)
+          .filter(Boolean),
+      );
 
       const totalRevenue = sumPaymentsUSD(allPayments);
       const revToday = sumPaymentsUSD(paymentsToday);
@@ -377,6 +398,9 @@ export function useStats() {
         totalContent:
           (totalPosts || 0) + (totalReels || 0) + (totalStories || 0),
         totalCommunities: totalCommunities || 0,
+        activeCommunities: activeCommunityIds.size || 0,
+        totalCommunityMembers: totalCommunityMembers || 0,
+        activeCommunityMembers: activeCommunityUsers.size || 0,
         totalRevenue,
         revenueToday: revToday,
         revenueWeek: revWeek,
@@ -1018,14 +1042,14 @@ export function useAnalytics() {
 // DAU is based on distinct users with recorded session activity, not account
 // status. This keeps the metric tied to actual use of the platform.
 export function useActiveUserAnalytics() {
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(30);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const windowDays = 30;
+      const windowDays = Math.max(days, 30);
       const cutoff = new Date(Date.now() - (windowDays - 1) * 86400000);
       cutoff.setHours(0, 0, 0, 0);
       const { data: sessions, error } = await sb()
@@ -1049,7 +1073,8 @@ export function useActiveUserAnalytics() {
         label: new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
         users: users.size,
       }));
-      const periods = [1, 2, 3, 4, 5, 7, 14, 21, 30].map((period) => {
+      const rangeOptions = [7, 30, 90, 180, 365, 730, 1095, 1825, 2190];
+      const periods = rangeOptions.map((period) => {
         const values = daily.slice(-period).map((entry) => entry.users);
         return {
           days: period,
@@ -1064,7 +1089,7 @@ export function useActiveUserAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => { load(); }, [load]);
   return { data, days, setDays, loading, reload: load };

@@ -252,9 +252,9 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
 
       <Section title="Daily Active Users" subtitle="Distinct users with session activity, measured in UTC day windows.">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-          {[1, 2, 3, 4, 5, 7, 14, 21, 30].map((period) => (
+          {[7, 30, 90, 180, 365, 730, 1095, 1825, 2190].map((period) => (
             <button key={period} onClick={() => activeUserAnalytics?.setDays(period)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${activeUserAnalytics?.days === period ? C.accent : C.border}`, background: activeUserAnalytics?.days === period ? `${C.accent}18` : C.bg1, color: activeUserAnalytics?.days === period ? C.accent : C.muted, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-              {period === 1 ? "Today" : `${period} days`}
+              {period >= 365 ? `${(period / 365).toFixed(period % 365 === 0 ? 0 : 1)}y` : `${period}d`}
             </button>
           ))}
         </div>

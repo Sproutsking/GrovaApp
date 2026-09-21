@@ -51,7 +51,7 @@ export default function TreasuryWalletPanel({ adminData }) {
     if (recipient || term.length < 2) { setResults([]); return undefined; }
     const timer = setTimeout(async () => {
       const { data } = await supabase.from("profiles")
-        .select("id, username, full_name, account_status")
+        .select("id, username, full_name, account_status, avatar_url, avatar, profile_image_url")
         .eq("account_status", "active")
         .ilike("username", `${term}%`)
         .neq("id", adminId)
@@ -99,6 +99,7 @@ export default function TreasuryWalletPanel({ adminData }) {
   };
 
   const total = Object.values(balances).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
+  const getProfileImage = (user) => user?.avatar_url || user?.avatar || user?.profile_image_url || user?.profileImageUrl || user?.image_url || user?.imageUrl || null;
 
   return (
     <section style={{ marginTop: 22, padding: 18, border: "1px solid #202820", borderRadius: 16, background: "#0b0f0b" }}>
@@ -119,7 +120,15 @@ export default function TreasuryWalletPanel({ adminData }) {
         <div style={{ position: "relative" }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 11, color: C.muted }} />
           <input value={recipient ? `@${recipient.username}` : query} onChange={(event) => { setRecipient(null); setQuery(event.target.value); }} placeholder="Search active user" style={{ width: "100%", padding: "9px 10px 9px 30px", background: "#080a08", color: C.text, border: "1px solid #252d25", borderRadius: 8 }} />
-          {!recipient && results.length > 0 && <div style={{ position: "absolute", zIndex: 4, top: 42, left: 0, right: 0, background: "#111611", border: "1px solid #273527", borderRadius: 8, overflow: "hidden" }}>{results.map((user) => <button key={user.id} type="button" onClick={() => { setRecipient(user); setResults([]); }} style={{ display: "block", width: "100%", padding: "9px 10px", textAlign: "left", background: "transparent", border: 0, color: C.text, cursor: "pointer" }}>@{user.username} <span style={{ color: C.muted }}>· {user.full_name || "Active user"}</span></button>)}</div>}
+          {!recipient && results.length > 0 && <div style={{ position: "absolute", zIndex: 4, top: 42, left: 0, right: 0, background: "#111611", border: "1px solid #273527", borderRadius: 8, overflow: "hidden" }}>{results.map((user) => { const avatar = getProfileImage(user); return (<button key={user.id} type="button" onClick={() => { setRecipient(user); setResults([]); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 10px", textAlign: "left", background: "transparent", border: 0, color: C.text, cursor: "pointer" }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", background: "#1d2b1d", border: "1px solid #2f4332", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {avatar ? <img src={avatar} alt={user.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10, fontWeight: 800, color: C.accent }}>{(user.username || user.full_name || "U").slice(0, 1).toUpperCase()}</span>}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontWeight: 800, color: C.text, lineHeight: 1.2 }}>@{user.username}</div>
+              <div style={{ color: C.muted, fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.full_name || "Active user"}</div>
+            </div>
+          </button>); })}</div>}
         </div>
         <input type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="EP amount" style={{ padding: "9px 10px", background: "#080a08", color: C.text, border: "1px solid #252d25", borderRadius: 8 }} />
       </div>

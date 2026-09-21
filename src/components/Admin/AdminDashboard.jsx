@@ -307,6 +307,24 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
           value={(s.totalUsers || 0).toLocaleString()} subValue={`+${s.newUsersToday || 0} today`}
           trend={s.newUsersWeek > 0 ? `+${s.newUsersWeek} this week` : undefined} trendPositive
           color={C.accent} ring={{ value: s.activeUsers || 0, max: s.totalUsers || 1 }} />
+        <MetricCard icon={Activity} label="Active Users"
+          value={(s.activeUsers || 0).toLocaleString()} subValue="Total active accounts"
+          color={C.info} ring={{ value: s.activeUsers || 0, max: s.totalUsers || 1 }} />
+        <MetricCard icon={Globe} label="Total Communities"
+          value={(s.totalCommunities || 0).toLocaleString()} subValue="All communities live"
+          color="#34d399" />
+        <MetricCard icon={TrendingUp} label="Active Communities"
+          value={(s.activeCommunities || 0).toLocaleString()} subValue="Active in last 7d"
+          color="#a78bfa" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: dashboardCols, gap: 14, marginBottom: 24 }}>
+        <MetricCard icon={Users2} label="Community Members"
+          value={(s.totalCommunityMembers || 0).toLocaleString()} subValue="All joined members"
+          color="#f59e0b" />
+        <MetricCard icon={Users2} label="Active Members"
+          value={(s.activeCommunityMembers || 0).toLocaleString()} subValue="Active across communities"
+          color="#22d3ee" />
         <MetricCard icon={DollarSign} label="Revenue"
           value={`$${(s.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subValue={`$${(s.revenueToday || 0).toFixed(2)} today`} color={C.success} />
@@ -314,9 +332,6 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
           subValue={openCases > 10 ? "Needs attention" : openCases > 0 ? "In progress" : "All clear"}
           color={openCases > 10 ? C.danger : openCases > 0 ? C.warn : C.success}
           onClick={() => onNavigate("support")} />
-        <MetricCard icon={Activity} label="Active Users"
-          value={(s.activeUsers || 0).toLocaleString()} subValue="Total active accounts"
-          color={C.info} ring={{ value: s.activeUsers || 0, max: s.totalUsers || 1 }} />
       </div>
 
       {/* Quick Actions + Online Team */}
