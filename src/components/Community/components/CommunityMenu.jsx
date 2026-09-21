@@ -7,6 +7,8 @@ import {
   ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette, Wrench,
 } from "lucide-react";
 import permissionService from "../../../services/community/permissionService";
+import { isCommunityMemberOnline } from "../../../services/community/communityOnlineStatusService";
+import { supabase } from "../../../services/config/supabase";
 import RolesPermissionsSection from "./sections/RolesPermissionsSection";
 import NotificationsSection from "./sections/NotificationsSection";
 import MembersSection from "./sections/MembersSection";
@@ -95,13 +97,16 @@ const CommunityMenu = ({
   const [menuView, setMenuView] = useState("main");
   const [selectedRole, setSelectedRole] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
+  const [liveCounts, setLiveCounts] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, title: "", message: "", onConfirm: ()=>{}, isDanger: false });
 
   useEffect(() => {
     if (show && community) {
       setMenuView("main");
       setSelectedRole(null);
+      setLiveCounts(null);
       loadUserPermissions();
+      loadLiveCounts();
     }
   }, [show, community]);
 
@@ -117,6 +122,22 @@ const CommunityMenu = ({
       setUserPermissions(permissions || {});
     } catch (error) {
       console.error("Error loading permissions:", error);
+    }
+  };
+
+  const loadLiveCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("community_members")
+        .select("is_online, last_seen")
+        .eq("community_id", community.id);
+      if (error) throw error;
+      setLiveCounts({
+        members: data?.length || 0,
+        online: (data || []).filter((member) => isCommunityMemberOnline(member)).length,
+      });
+    } catch (error) {
+      console.warn("Could not refresh community counts:", error?.message);
     }
   };
 
@@ -145,8 +166,10 @@ const CommunityMenu = ({
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
-  const memberCount = community?.member_count == null ? members.length : countValue(community.member_count);
-  const onlineCount = community?.online_count == null ? members.filter((m) => m.is_online).length : countValue(community.online_count);
+  const memberCount = liveCounts?.members ?? (community?.member_count == null ? members.length : countValue(community.member_count));
+  const onlineCount = liveCounts?.online ?? (community?.online_count == null
+    ? members.filter((member) => isCommunityMemberOnline(member)).length
+    : countValue(community.online_count));
 
   return (
     <>

@@ -1,11 +1,14 @@
 import { supabase } from "../config/supabase";
+import { isCommunityMemberOnline } from "./communityOnlineStatusService";
 
 class CommunityService {
   constructor() {
     this.cache = new Map();
     this.lastFetch = new Map();
     this.presenceChannels = new Map();
-    this.CACHE_TTL = 5 * 60 * 1000;
+    this.CACHE_TTL = 10 * 1000;
+    this.presenceHeartbeats = new Map();
+    this.presenceVisibilityHandlers = new Map();
   }
 
   getCachedCommunities(userId) { return this.cache.get(`communities:${userId}`) || []; }
@@ -21,8 +24,7 @@ class CommunityService {
     (members || []).forEach((member) => {
       const current = counts.get(member.community_id) || { total: 0, online: 0 };
       current.total += 1;
-      const lastSeen = member.last_seen ? new Date(member.last_seen).getTime() : 0;
-      if (member.is_online && lastSeen > Date.now() - 20000) current.online += 1;
+      if (isCommunityMemberOnline(member)) current.online += 1;
       counts.set(member.community_id, current);
     });
     return list.map((community) => ({
@@ -35,7 +37,11 @@ class CommunityService {
   async fetchCommunities(userId) {
     const key = `communities:${userId}`;
     const cached = this.cache.get(key);
-    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) return cached;
+    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) {
+      const refreshed = await this.hydrateCommunityCounts(cached);
+      this.cache.set(key, refreshed);
+      return refreshed;
+    }
     const { data, error } = await supabase
       .from("communities")
       .select("*, community_members(count)")
@@ -52,7 +58,11 @@ class CommunityService {
   async fetchUserCommunities(userId) {
     const key = `user-communities:${userId}`;
     const cached = this.cache.get(key);
-    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) return cached;
+    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) {
+      const refreshed = await this.hydrateCommunityCounts(cached);
+      this.cache.set(key, refreshed);
+      return refreshed;
+    }
     const { data, error } = await supabase
       .from("community_members")
       .select("community:communities!community_id(*)")
@@ -68,7 +78,11 @@ class CommunityService {
   async fetchCommunityDetails(communityId) {
     const key = `community:${communityId}`;
     const cached = this.cache.get(key);
-    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) return cached;
+    if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) {
+      const [refreshed] = await this.hydrateCommunityCounts([cached]);
+      this.cache.set(key, refreshed);
+      return refreshed;
+    }
     const { data, error } = await supabase.from("communities").select("*").eq("id", communityId).is("deleted_at", null).single();
     if (error) throw error;
     const [hydrated] = await this.hydrateCommunityCounts([data]);
@@ -154,21 +168,44 @@ class CommunityService {
   }
 
   async markOnline(communityId, userId, username) {
+    const presenceKey = `${communityId}:${userId}`;
     if (this.presenceChannels.has(communityId)) return;
     const channel = supabase.channel(`community-presence-${communityId}`, { config: { presence: { key: userId } } });
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         await channel.track({ user_id: userId, username, online_at: new Date().toISOString() });
-        await supabase.from("community_members").update({ is_online: true, last_seen: new Date().toISOString() }).eq("community_id", communityId).eq("user_id", userId);
+        await this._writePresence(communityId, userId, true);
       }
     });
     this.presenceChannels.set(communityId, channel);
+    this.presenceHeartbeats.set(presenceKey, setInterval(() => {
+      if (!document.hidden) this._writePresence(communityId, userId, true);
+    }, 10000));
+    const visibilityHandler = () => this._writePresence(communityId, userId, !document.hidden);
+    this.presenceVisibilityHandlers.set(presenceKey, visibilityHandler);
+    document.addEventListener("visibilitychange", visibilityHandler);
   }
 
   async markOffline(communityId, userId) {
+    const presenceKey = `${communityId}:${userId}`;
+    const heartbeat = this.presenceHeartbeats.get(presenceKey);
+    if (heartbeat) clearInterval(heartbeat);
+    this.presenceHeartbeats.delete(presenceKey);
+    const visibilityHandler = this.presenceVisibilityHandlers.get(presenceKey);
+    if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+    this.presenceVisibilityHandlers.delete(presenceKey);
     const channel = this.presenceChannels.get(communityId);
     if (channel) { await channel.untrack(); await supabase.removeChannel(channel); this.presenceChannels.delete(communityId); }
-    await supabase.from("community_members").update({ is_online: false, last_seen: new Date().toISOString() }).eq("community_id", communityId).eq("user_id", userId);
+    await this._writePresence(communityId, userId, false);
+  }
+
+  async _writePresence(communityId, userId, isOnline) {
+    const { error } = await supabase
+      .from("community_members")
+      .update({ is_online: isOnline, last_seen: new Date().toISOString() })
+      .eq("community_id", communityId)
+      .eq("user_id", userId);
+    if (error) console.error("Community presence update error:", error);
   }
 
   invalidateUserCache(userId) {

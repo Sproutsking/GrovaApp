@@ -18,6 +18,7 @@ import {
   Download,
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
+import { isCommunityMemberOnline } from "../../../../services/community/communityOnlineStatusService";
 
 const analyticsCache = new Map();
 const ANALYTICS_TTL = 60 * 1000;
@@ -69,16 +70,17 @@ const AnalyticsSection = ({ community }) => {
         { data: prevMembers },
         { data: channelRows },
         { count: totalMembers },
-        { count: onlineMembers },
+        { data: onlineMemberRows },
       ] = await Promise.all([
         supabase.from("community_members").select("id, joined_at").eq("community_id", community.id).gte("joined_at", startDate.toISOString()),
         supabase.from("community_members").select("id").eq("community_id", community.id).gte("joined_at", prevStart.toISOString()).lt("joined_at", startDate.toISOString()),
         supabase.from("community_channels").select("id").eq("community_id", community.id).is("deleted_at", null),
         supabase.from("community_members").select("id", { count: "exact", head: true }).eq("community_id", community.id),
-        supabase.from("community_members").select("id", { count: "exact", head: true }).eq("community_id", community.id).eq("is_online", true),
+        supabase.from("community_members").select("id, is_online, last_seen").eq("community_id", community.id),
       ]);
 
       const channelIds = (channelRows || []).map((channel) => channel.id);
+      const onlineMembers = (onlineMemberRows || []).filter((member) => isCommunityMemberOnline(member)).length;
       const [{ data: currentMessages }, { data: prevMessages }] = await Promise.all([
         channelIds.length
           ? supabase.from("community_messages").select("id, channel_id, user_id, created_at, reactions").in("channel_id", channelIds).gte("created_at", startDate.toISOString()).is("deleted_at", null)
