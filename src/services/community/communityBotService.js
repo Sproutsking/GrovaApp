@@ -55,6 +55,14 @@ const communityBotService = {
     if (error) throw error;
     return data;
   },
+
+  async discoverDiscordTargets(communityId) {
+    const { data, error } = await supabase.functions.invoke("community-bot", {
+      body: { action: "discover", provider: "discord", communityId },
+    });
+    if (error) throw error;
+    return data?.guilds || [];
+  },
 };
 
 export default communityBotService;

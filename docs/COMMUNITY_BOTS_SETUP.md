@@ -26,7 +26,8 @@ supabase functions deploy community-bot
 2. Create a Bot and copy its token into `DISCORD_BOT_TOKEN`.
 3. Add the application client ID to the frontend environment as `REACT_APP_DISCORD_BOT_CLIENT_ID`.
 4. Invite the bot with the dashboard link. Required permissions are View Channels, Send Messages, Embed Links, and Attach Files.
-5. In the Bots dashboard, add each target channel ID and its server ID.
+5. Reconnect Discord in Account > Identity so the `guilds` OAuth scope is granted.
+6. In the Bots dashboard, choose **Discover servers**, select a shared server, then select its channel. No Discord IDs need to be copied manually.
 
 The bot token must never be placed in frontend environment variables or database rows.
 

@@ -16,10 +16,15 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
   const [checking, setChecking] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [guilds, setGuilds] = useState([]);
+  const [selectedGuildId, setSelectedGuildId] = useState("");
+  const [selectedChannelId, setSelectedChannelId] = useState("");
 
   const meta = BOT_META[provider];
   const integration = useMemo(() => integrations.find((item) => item.provider === provider), [integrations, provider]);
   const providerDestinations = destinations.filter((item) => item.provider === provider);
+  const selectedGuild = guilds.find((guild) => guild.id === selectedGuildId);
+  const selectedChannel = selectedGuild?.channels.find((channel) => channel.id === selectedChannelId);
 
   const refresh = async () => {
     const next = await communityBotService.listIntegrations(communityId);
@@ -38,7 +43,7 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
       await communityBotService.saveIntegration({ communityId, userId, provider, status: "pending" });
       const clientId = provider === "discord" ? process.env.REACT_APP_DISCORD_BOT_CLIENT_ID : "";
       if (provider === "discord" && clientId) {
-        const url = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&permissions=18432&scope=bot%20applications.commands`;
+        const url = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&permissions=52224&scope=bot%20applications.commands`;
         window.open(url, "xeevia-discord-bot", "noopener,noreferrer,width=520,height=760");
         setNotice("Discord opened. Choose the server, authorize the bot, then add its channel below.");
       } else if (provider === "telegram") {
@@ -61,6 +66,29 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
       await refresh();
       setNotice(`${meta.destination} added. It is ready to receive selected posts.`);
     } catch (saveError) { setError(saveError.message || "Could not save destination."); }
+    finally { setBusy(false); }
+  };
+
+  const discoverDiscord = async () => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const nextGuilds = await communityBotService.discoverDiscordTargets(communityId);
+      setGuilds(nextGuilds);
+      setSelectedGuildId(nextGuilds[0]?.id || "");
+      setSelectedChannelId(nextGuilds[0]?.channels?.[0]?.id || "");
+      setNotice(nextGuilds.length ? "Choose a server and channel below." : "No shared servers found. Install the bot into a Discord server first.");
+    } catch (discoverError) { setError(discoverError.message || "Could not discover Discord servers."); }
+    finally { setBusy(false); }
+  };
+
+  const saveDiscoveredDiscord = async () => {
+    if (!integration || !selectedGuild || !selectedChannel) return;
+    setBusy(true); setError("");
+    try {
+      await communityBotService.saveDestination({ communityId, integrationId: integration.id, provider: "discord", externalId: selectedChannel.id, parentExternalId: selectedGuild.id, displayName: `${selectedGuild.name} / #${selectedChannel.name}`, destinationType: "channel" });
+      await refresh();
+      setNotice("Discord channel connected. It is ready to receive selected posts.");
+    } catch (saveError) { setError(saveError.message || "Could not save Discord channel."); }
     finally { setBusy(false); }
   };
 
@@ -96,12 +124,13 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
       </div>
       <section className="bot-panel" style={{ "--bot-color": meta.color }}>
         <div className="bot-panel-title"><div className="bot-mark"><Bot size={18} /></div><div><strong>{meta.label}</strong><small>{meta.help}</small></div><span className={`bot-status ${integration?.status || "pending"}`}>{integration?.status || "Not connected"}</span></div>
-        <div className="bot-actions"><button type="button" className="bot-primary" onClick={connectBot} disabled={!canManage || busy}><ExternalLink size={14} /> {integration ? "Connect another server" : "Connect bot"}</button><button type="button" className="bot-secondary" onClick={check} disabled={!integration || checking}><RefreshCw size={13} className={checking ? "bot-spin" : ""} /> Check connection</button></div>
+        <div className="bot-actions"><button type="button" className="bot-primary" onClick={connectBot} disabled={!canManage || busy}><ExternalLink size={14} /> {integration ? "Connect another server" : "Connect bot"}</button>{provider === "discord" && <button type="button" className="bot-secondary" onClick={discoverDiscord} disabled={!integration || busy}><RefreshCw size={13} /> Discover servers</button>}<button type="button" className="bot-secondary" onClick={check} disabled={!integration || checking}><RefreshCw size={13} className={checking ? "bot-spin" : ""} /> Check connection</button></div>
         <div className="bot-help">Bot credentials are kept in Supabase secrets. This dashboard stores only destination IDs and display names.</div>
       </section>
       <section className="bot-panel">
         <div className="bot-section-head"><div><strong>Connected destinations</strong><small>Each enabled destination receives posts selected in the distribution control.</small></div><span>{providerDestinations.filter((item) => item.enabled).length} active</span></div>
         <div className="bot-destination-list">{providerDestinations.map((destination) => <div className={`bot-destination ${destination.enabled ? "enabled" : "disabled"}`} key={destination.id}><div><strong>{destination.display_name}</strong><small>{meta.destination} ID: {destination.external_id}</small></div><button type="button" onClick={() => toggle(destination)} aria-label={`Toggle ${destination.display_name}`}><span /></button><button type="button" className="bot-delete" onClick={() => remove(destination)} aria-label={`Remove ${destination.display_name}`}><Trash2 size={13} /></button></div>)}{!providerDestinations.length && <div className="bot-empty">No {provider} destinations configured yet.</div>}</div>
+        {provider === "discord" && guilds.length > 0 && <div className="bot-discovery"><strong><Check size={13} /> Select a Discord destination</strong><select value={selectedGuildId} onChange={(event) => { setSelectedGuildId(event.target.value); setSelectedChannelId(guilds.find((guild) => guild.id === event.target.value)?.channels?.[0]?.id || ""); }}><option value="">Choose server</option>{guilds.map((guild) => <option key={guild.id} value={guild.id}>{guild.name}</option>)}</select><select value={selectedChannelId} onChange={(event) => setSelectedChannelId(event.target.value)} disabled={!selectedGuild}><option value="">Choose channel</option>{(selectedGuild?.channels || []).map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" onClick={saveDiscoveredDiscord} disabled={!selectedChannel || busy}><Plus size={13} /> Add selected channel</button></div>}
         {integration && <form className="bot-add-form" onSubmit={addDestination}><strong><Plus size={14} /> Add {meta.destination.toLowerCase()}</strong><input value={form.displayName} onChange={(e) => setForm((current) => ({ ...current, displayName: e.target.value }))} placeholder="Display name" required /><input value={form.externalId} onChange={(e) => setForm((current) => ({ ...current, externalId: e.target.value }))} placeholder={provider === "discord" ? "Channel ID" : "Chat ID"} required /><input value={form.parentExternalId} onChange={(e) => setForm((current) => ({ ...current, parentExternalId: e.target.value }))} placeholder={provider === "discord" ? "Server ID (optional)" : "Thread ID (optional)"} /><button type="submit" disabled={!canManage || busy}><Send size={13} /> Save destination</button></form>}
       </section>
       {notice && <p className="bots-notice"><Check size={14} />{notice}</p>}{error && <p className="bots-error"><X size={14} />{error}</p>}

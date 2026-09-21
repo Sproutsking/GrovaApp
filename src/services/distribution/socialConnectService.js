@@ -101,7 +101,7 @@ const PLATFORM_CONFIGS = {
   },
   discord: {
     provider: "discord",
-    scopes: "identify email",
+    scopes: "identify email guilds",
     label: "Discord",
   },
   facebook: {

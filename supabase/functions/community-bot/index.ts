@@ -57,6 +57,29 @@ Deno.serve(async (request) => {
       return json({ ok: true, provider, bot: provider === "telegram" ? result.result : result });
     }
 
+    if (body.action === "discover" && provider === "discord") {
+      const { data: connection } = await admin.from("connections").select("id").eq("user_id", user.id).eq("provider", "discord").eq("auth_status", "active").maybeSingle();
+      if (!connection) return json({ error: "Link Discord in Account > Identity first." }, 400);
+      const { data: tokenRow } = await admin.from("tokens").select("encrypted_token").eq("connection_id", connection.id).eq("revoked", false).maybeSingle();
+      if (!tokenRow?.encrypted_token) return json({ error: "Reconnect Discord with the guilds scope before discovering servers." }, 400);
+
+      const userGuildResponse = await fetch("https://discord.com/api/v10/users/@me/guilds", { headers: { Authorization: `Bearer ${tokenRow.encrypted_token}` } });
+      const userGuilds = await userGuildResponse.json();
+      if (!userGuildResponse.ok) return json({ error: userGuilds?.message || "Discord account access was rejected." }, 502);
+      const botGuildResponse = await fetch(`${config.api}/users/@me/guilds`, { headers: { Authorization: `Bot ${config.token}` } });
+      const botGuilds = await botGuildResponse.json();
+      if (!botGuildResponse.ok) return json({ error: botGuilds?.message || "Discord bot access was rejected." }, 502);
+      const botGuildIds = new Set((botGuilds || []).map((guild: { id: string }) => guild.id));
+      const guilds = [];
+      for (const guild of (userGuilds || []).filter((item: { id: string }) => botGuildIds.has(item.id))) {
+        const channelsResponse = await fetch(`${config.api}/guilds/${encodeURIComponent(guild.id)}/channels`, { headers: { Authorization: `Bot ${config.token}` } });
+        const channels = await channelsResponse.json();
+        if (!channelsResponse.ok) continue;
+        guilds.push({ id: guild.id, name: guild.name, icon: guild.icon || null, channels: (channels || []).filter((channel: { type: number }) => channel.type === 0 || channel.type === 5).map((channel: { id: string; name: string; type: number }) => ({ id: channel.id, name: channel.name, type: channel.type })) });
+      }
+      return json({ ok: true, guilds });
+    }
+
     if (body.action === "dispatch") {
       const content = String(body.content || "").trim();
       if (!content) return json({ error: "Content is required" }, 400);
