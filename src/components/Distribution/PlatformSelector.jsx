@@ -48,7 +48,7 @@ const CSS = `
   .psCard {
     position:relative;
     border:1px solid rgba(255,255,255,.07);
-    border-radius:14px; padding:12px 14px;
+    border-radius:12px; padding:10px 12px;
     display:flex; align-items:center; gap:11px;
     transition:border-color .18s, background .18s, opacity .18s, transform .12s;
     user-select:none;
@@ -156,7 +156,10 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     setLoadError("");
     try {
       // Only adapter-supported platforms with a valid token are returned.
-      const connectedList = await distributionService.getConnectedPlatforms(userId);
+      const connectedList = await Promise.race([
+        distributionService.getConnectedPlatforms(userId),
+        new Promise((resolve) => setTimeout(() => resolve([]), 8000)),
+      ]);
       setConnected(connectedList);
 
       // Auto-select all connected platforms if no initial selection provided;

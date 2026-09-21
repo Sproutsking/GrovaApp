@@ -1361,11 +1361,8 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
       {/* Empty */}
       {!loading && feedGroups.length===0 && (
         <div className="upd-empty">
-          <div style={{fontSize:56}}>📡</div>
-          <h3 style={{fontSize:20,fontWeight:800,color:"#fff",textAlign:"center",margin:0}}>No updates yet</h3>
-          <p style={{fontSize:13,color:"#555",textAlign:"center",maxWidth:280,lineHeight:1.6,margin:0}}>Follow people to see their status updates here.</p>
           <button onClick={()=>!atLimit&&setShowAdd(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:16,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.3)",color:"#84cc16",fontSize:14,fontWeight:700,cursor:atLimit?"not-allowed":"pointer",marginTop:8,opacity:atLimit?.4:1}}>
-            <Ic.Plus/> Create Your First Status
+            <Ic.Plus/> {myStatuses.length ? "Create Status" : "Create Your First Status"}
           </button>
         </div>
       )}
@@ -1466,7 +1463,7 @@ const ROOT_CSS = `
   .upd-card:hover { transform:translateY(-2px); }
   .upd-card-thumb { position:relative; height:140px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .upd-card-media { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .upd-card-text  { position:relative; z-index:1; font-size:10px; font-weight:700; text-align:center; padding:6px; word-break:break-word; line-height:1.3; }
+  .upd-card-text  { position:relative; z-index:1; margin-top:18px; max-width:calc(100% - 12px); font-size:10px; font-weight:700; text-align:center; padding:7px 8px; background:rgba(0,0,0,.72); border-radius:7px; word-break:break-word; line-height:1.3; }
   .upd-card-ov    { position:absolute; inset:0; background:linear-gradient(to top,rgba(0,0,0,.5),transparent); }
   .upd-card-footer { padding:7px 8px; background:#0a0a0a; }
   .upd-card-meta   { display:flex; justify-content:space-between; margin-bottom:5px; }

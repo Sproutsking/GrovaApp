@@ -11,6 +11,7 @@ import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
 import CreateChannelModal from "../modals/CreateChannelModal";
 import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
+import CommunityMenu from "../components/CommunityMenu";
 import { supabase } from "../../../services/config/supabase";
 
 const CHANNEL_TYPE_ICON = {
@@ -19,7 +20,7 @@ const CHANNEL_TYPE_ICON = {
   voice: Volume2,
 };
 
-const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenPreviousChannel, onBack }) => {
+const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenPreviousChannel, onBack, onLeave, onUpdate, onOpenInvite, onDeleteCommunity }) => {
   const [channels, setChannels] = useState([]);
   const [channelsReady, setChannelsReady] = useState(false);
   const [userPermissions, setUserPermissions] = useState({});
@@ -151,7 +152,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
                 <button key={channel.id} className="cv-channel-item" onClick={() => onSelectChannel(channel)}>
                   <span className="cv-channel-icon">{renderChannelIcon(channel)}</span>
                   <div className="cv-channel-info">
-                    <span className="cv-channel-name">#{channel.name}</span>
+                    <span className="cv-channel-name">{channel.name}</span>
                   </div>
                   {channel.is_private && <Lock size={14} className="cv-channel-lock" />}
                 </button>
@@ -202,24 +203,20 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
 
       {permissionsChannel && <ChannelPermissionsModal channel={permissionsChannel} communityId={community.id} roles={roles} onClose={() => setPermissionsChannel(null)} onSave={loadChannels} />}
 
-      {showMenu && (
-        <div className="cv-menu-overlay" onClick={() => setShowMenu(false)}>
-          <div className="cv-menu-panel" onClick={(event) => event.stopPropagation()}>
-            <div className="cv-menu-head">
-              <span>Community menu</span>
-              <button onClick={() => setShowMenu(false)} aria-label="Close menu"><X size={17} /></button>
-            </div>
-            {canManageChannels && (
-              <button className="cv-menu-action" onClick={() => { setShowMenu(false); setShowCreateChannel(true); }}>
-                <Plus size={16} /> Create channel
-              </button>
-            )}
-            <button className="cv-menu-action" onClick={() => { setShowMenu(false); onBack(); }}>
-              <ArrowLeft size={16} /> Back to communities
-            </button>
-          </div>
-        </div>
-      )}
+      <CommunityMenu
+        show={showMenu}
+        onClose={() => setShowMenu(false)}
+        community={community}
+        userId={userId}
+        onLeave={onLeave || (() => {})}
+        onUpdate={onUpdate || (async () => {})}
+        onCreateChannel={() => setShowCreateChannel(true)}
+        onOpenInvite={onOpenInvite || (() => {})}
+        onDeleteCommunity={onDeleteCommunity || (() => {})}
+        members={[]}
+        roles={roles}
+        channels={channels}
+      />
 
       <style>{`
         .channels-view {

@@ -47,9 +47,14 @@ const AnalyticsSection = ({ community }) => {
       const now = new Date();
       const rangeHours = {
         "24h": 24,
+        "48h": 48,
         "7d": 24 * 7,
+        "14d": 24 * 14,
+        "21d": 24 * 21,
         "30d": 24 * 30,
         "90d": 24 * 90,
+        "6m": 24 * 30 * 6,
+        "1y": 24 * 365,
       }[timeRange];
 
       const startDate = new Date(now.getTime() - rangeHours * 60 * 60 * 1000);
@@ -245,9 +250,14 @@ const AnalyticsSection = ({ community }) => {
 
   const timeRanges = [
     { value: "24h", label: "24 Hours" },
+    { value: "48h", label: "48 Hours" },
     { value: "7d", label: "7 Days" },
+    { value: "14d", label: "14 Days" },
+    { value: "21d", label: "21 Days" },
     { value: "30d", label: "30 Days" },
     { value: "90d", label: "90 Days" },
+    { value: "6m", label: "6 Months" },
+    { value: "1y", label: "1 Year" },
   ];
 
   const getTrendIcon = (trend) => {

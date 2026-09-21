@@ -415,6 +415,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
             currentUser={fullUserProfile || currentUser || { id: userId }}
             onSelectChannel={handleSelectChannel}
             onOpenPreviousChannel={handleSelectChannel}
+            onLeave={() => openConfirm("Leave community?", "You can always rejoin later.", () => handleLeaveCommunity(selectedCommunity.id))}
+            onUpdate={handleCommunityUpdate}
+            onOpenInvite={() => { setInviteCommunity(selectedCommunity); setShowInviteModal(true); }}
+            onDeleteCommunity={() => openConfirm("Delete this community?", "This permanently deletes the community and all of its data. This cannot be undone.", () => handleDeleteCommunity(selectedCommunity.id), true)}
             onBack={() => {
               setSelectedCommunity(null); setSelectedChannel(null);
               setView("discover"); currentCommunityRef.current = null;

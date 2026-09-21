@@ -667,7 +667,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }
               </div>
 
               <div className="dmh-tab-body">
-                {tab === "chats" && (
+                <div style={{ display: tab === "chats" ? "block" : "none", height: "100%" }}>
                   <ConversationList
                     currentUserId={uid}
                     onSelect={openChat}
@@ -679,21 +679,21 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }
                     activeGroupId={activeGroup?.id}
                     hideHeader
                   />
-                )}
-                {tab === "updates" && (
+                </div>
+                <div style={{ display: tab === "updates" ? "block" : "none", height: "100%" }}>
                   <UpdatesView
                     currentUser={norm}
                     userId={uid}
                     onOpenDM={handleStoryReply}
                     onStatusReplyThumbnail={handleStatusReplyWithThumbnail}
                   />
-                )}
-                {tab === "calls" && (
+                </div>
+                <div style={{ display: tab === "calls" ? "block" : "none", height: "100%" }}>
                   <CallsView
                     onStartCall={(callInfo) => handleStartCall(callInfo)}
                     currentUser={norm}
                   />
-                )}
+                </div>
               </div>
 
               {/* Mobile bottom nav */}

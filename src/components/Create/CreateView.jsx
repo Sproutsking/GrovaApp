@@ -677,16 +677,16 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
           <p className="studio-subtitle">{modeCopy.subtitle}</p>
 
           <div className="studio-header-actions">
-            <button className="save-draft-btn" onClick={handleManualSave} disabled={!hasUnsavedChanges || autoSaving}>
-              {autoSaving
-                ? <><Loader size={14} className="spinner" /><span>Saving…</span></>
-                : <><Save size={14} /><span>Save Draft</span></>}
-            </button>
             <button className="drafts-btn" onClick={() => setShowDrafts(true)}>
               <FileText size={14} /><span>My Drafts</span>
             </button>
             <button className="drafts-btn" onClick={() => setShowTemplates(true)}>
               <Sparkles size={14} /><span>Templates</span>
+            </button>
+            <button className="save-draft-btn studio-save-btn" onClick={handleManualSave} disabled={!hasUnsavedChanges || autoSaving}>
+              {autoSaving
+                ? <><Loader size={14} className="spinner" /><span>Saving…</span></>
+                : <><Save size={14} /><span>Save Draft</span></>}
             </button>
           </div>
 

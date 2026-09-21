@@ -15,13 +15,14 @@ class CommunityService {
     const list = Array.isArray(communities) ? communities : [];
     const ids = list.map((community) => community.id).filter(Boolean);
     if (!ids.length) return list;
-    const { data: members, error } = await supabase.from("community_members").select("community_id,is_online").in("community_id", ids);
+    const { data: members, error } = await supabase.from("community_members").select("community_id,is_online,last_seen").in("community_id", ids);
     if (error) throw error;
     const counts = new Map();
     (members || []).forEach((member) => {
       const current = counts.get(member.community_id) || { total: 0, online: 0 };
       current.total += 1;
-      if (member.is_online) current.online += 1;
+      const lastSeen = member.last_seen ? new Date(member.last_seen).getTime() : 0;
+      if (member.is_online && lastSeen > Date.now() - 20000) current.online += 1;
       counts.set(member.community_id, current);
     });
     return list.map((community) => ({

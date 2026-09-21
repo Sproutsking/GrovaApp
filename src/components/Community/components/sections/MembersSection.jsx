@@ -131,6 +131,11 @@ const MembersSection = ({ community, userId }) => {
   }, [])
     .filter((group) => group.members.length > 0);
 
+  const uniqueRoles = roles.filter((role, index, allRoles) => {
+    const key = role.name?.trim().toLowerCase() || role.id;
+    return allRoles.findIndex((candidate) => (candidate.name?.trim().toLowerCase() || candidate.id) === key) === index;
+  });
+
   return (
     <>
       <div className="members-header">
@@ -216,7 +221,7 @@ const MembersSection = ({ community, userId }) => {
                   <span>All Roles</span>
                   <span className="option-count">{members.length}</span>
                 </button>
-                {roles.map((role) => (
+                {uniqueRoles.map((role) => (
                   <button
                     key={role.id}
                     className={`filter-option ${filterRole === role.id ? "selected" : ""}`}
@@ -231,7 +236,7 @@ const MembersSection = ({ community, userId }) => {
                     />
                     <span>{role.name}</span>
                     <span className="option-count">
-                      {members.filter((m) => m.role_id === role.id).length}
+                      {members.filter((m) => m.role_id === role.id || m.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()).length}
                     </span>
                   </button>
                 ))}
