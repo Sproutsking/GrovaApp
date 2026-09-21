@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Link2, Plus, RefreshCw, Trash2, Wifi } from "lucide-react";
-import socialUpdatesService, { SOCIAL_PROVIDERS } from "../../../services/community/socialUpdatesService";
+import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
 import { getPlatformCapabilities } from "../../../services/community/platformCapabilities";
 
 export default function SocialUpdatesDashboard({ communityId, userId, channels = [], linkedSources = [], canManage = false }) {
@@ -28,7 +28,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
 
   useEffect(() => { refresh().catch((loadError) => setError(loadError.message || "Could not load social sources.")); }, [communityId]);
 
-  const inboundProviders = new Set(["xeevia", "x", "facebook", "instagram", "youtube", "twitch", "tiktok", "discord", "snapchat", "kick"]);
+  const inboundProviders = new Set(SOCIAL_UPDATE_PROVIDER_IDS);
   const allConnections = connections.filter((connection) => inboundProviders.has(connection.provider));
   const knownKeys = new Set(connections.map((connection) => `${connection.provider}:${connection.provider_account_id}`));
   linkedSources.forEach((source) => {

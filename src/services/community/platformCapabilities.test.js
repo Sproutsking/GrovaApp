@@ -1,4 +1,5 @@
 import { getDistributablePlatforms, getInboundReadyPlatforms, getPlatformCapabilities, PLATFORM_CAPABILITIES } from "./platformCapabilities";
+import { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS } from "./socialUpdatesService";
 
 describe("platform capabilities", () => {
   test("defines the inbound and outbound contract for creator platforms", () => {
@@ -26,5 +27,11 @@ describe("platform capabilities", () => {
     expect(getDistributablePlatforms()).toEqual(expect.arrayContaining(["x", "facebook", "instagram", "linkedin"]));
     expect(getInboundReadyPlatforms()).toEqual(expect.arrayContaining(["youtube", "twitch"]));
     expect(Object.keys(PLATFORM_CAPABILITIES)).toEqual(expect.arrayContaining(["youtube", "twitch", "tiktok", "snapchat"]));
+  });
+
+  test("limits social updates to social activity providers", () => {
+    expect(SOCIAL_UPDATE_PROVIDER_IDS).toEqual(["xeevia", "x", "youtube", "twitch"]);
+    expect(SOCIAL_PROVIDERS.map(({ id }) => id)).toEqual(SOCIAL_UPDATE_PROVIDER_IDS);
+    expect(SOCIAL_UPDATE_PROVIDER_IDS).not.toEqual(expect.arrayContaining(["email", "google"]));
   });
 });

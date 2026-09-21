@@ -1,15 +1,13 @@
 import { supabase } from "../config/supabase";
 import { getPlatformCapabilities } from "./platformCapabilities";
 
+export const SOCIAL_UPDATE_PROVIDER_IDS = ["xeevia", "x", "youtube", "twitch"];
+
 export const SOCIAL_PROVIDERS = [
   { id: "xeevia", label: "Xeevia", ready: true },
   { id: "x", label: "X", ready: true },
-  { id: "facebook", label: "Facebook", ready: true },
-  { id: "instagram", label: "Instagram", ready: true },
-  { id: "tiktok", label: "TikTok", ready: true },
   { id: "youtube", label: "YouTube", ready: true },
   { id: "twitch", label: "Twitch", ready: true },
-  { id: "kick", label: "Kick", ready: false },
 ];
 
 const socialUpdatesService = {
