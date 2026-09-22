@@ -61,6 +61,115 @@ export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", hea
         .craft-banner-hero .wc-meta-row{justify-content:center}.craft-side-rail .wc-meta-row,.craft-spotlight .wc-meta-row,.craft-poster .wc-meta-row,.craft-ticket-stub .wc-meta-row{justify-content:flex-start}.craft-minimal-row .wc-meta-row{justify-content:flex-start}
         @media(max-width:600px){.wc-frame{margin:8px 0;border-radius:16px}.wc-topline{padding:14px 15px 0}.wc-card-content{padding:14px 15px 16px}.wc-frame-heading{font-size:19px}.craft-spotlight .wc-frame-heading{font-size:22px}.craft-poster .wc-card-content{padding-left:90px;min-height:135px}.craft-ticket-stub .wc-card-content{padding-right:15px}.craft-minimal-row .wc-card-content{align-items:flex-start;flex-wrap:wrap}.wc-actions{width:100%}.wc-actions button{flex:1;min-width:140px}}
       `}</style>
+      <style>{`
+        .craft-minimal-row .wc-card-content {
+          display: grid;
+          grid-template-columns: auto minmax(150px, 1fr) minmax(78px, auto) minmax(124px, auto);
+          grid-template-rows: auto auto auto;
+          align-items: center;
+          column-gap: 14px;
+          row-gap: 2px;
+          padding: 14px 18px;
+        }
+        .craft-minimal-row .wc-avatar {
+          grid-column: 1;
+          grid-row: 1 / span 3;
+          margin: 0;
+        }
+        .craft-minimal-row .wc-card-content > em {
+          grid-column: 2;
+          grid-row: 1;
+          margin: 0;
+          line-height: 1.2;
+        }
+        .craft-minimal-row .wc-frame-heading {
+          grid-column: 2;
+          grid-row: 2;
+          margin: 0;
+          min-width: 0;
+          font-size: 16px;
+        }
+        .craft-minimal-row .wc-frame-heading .wc-heading-btn {
+          max-width: 100%;
+        }
+        .craft-minimal-row .wc-card-content > p {
+          grid-column: 2;
+          grid-row: 3;
+          min-width: 0;
+          margin: 0;
+          overflow: hidden;
+          font-size: 10px;
+          line-height: 1.35;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .craft-minimal-row .wc-meta-row {
+          grid-column: 3;
+          grid-row: 1 / span 3;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          margin: 0;
+          min-width: 0;
+        }
+        .craft-minimal-row .wc-meta-row span {
+          max-width: 100%;
+          white-space: nowrap;
+        }
+        .craft-minimal-row .wc-actions {
+          grid-column: 4;
+          grid-row: 1 / span 3;
+          flex-direction: column;
+          align-items: stretch;
+          width: 124px;
+          margin: 0;
+        }
+        .craft-minimal-row .wc-actions button {
+          width: 124px;
+          min-width: 0;
+          padding: 8px 10px;
+          white-space: nowrap;
+        }
+        .craft-minimal-row .wc-footer {
+          padding: 0 18px 10px;
+        }
+        @media (max-width: 720px) {
+          .craft-minimal-row .wc-card-content {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            column-gap: 10px;
+          }
+          .craft-minimal-row .wc-meta-row {
+            grid-column: 3;
+          }
+          .craft-minimal-row .wc-actions {
+            grid-column: 2 / span 2;
+            grid-row: 4;
+            flex-direction: row;
+            width: 100%;
+            margin-top: 8px;
+          }
+          .craft-minimal-row .wc-actions button {
+            flex: 1;
+            width: auto;
+          }
+        }
+        @media (max-width: 480px) {
+          .craft-minimal-row .wc-card-content {
+            grid-template-columns: auto minmax(0, 1fr);
+          }
+          .craft-minimal-row .wc-meta-row {
+            grid-column: 2;
+            grid-row: 4;
+            flex-direction: row;
+            align-items: center;
+            margin-top: 6px;
+          }
+          .craft-minimal-row .wc-actions {
+            grid-column: 1 / span 2;
+            grid-row: 5;
+          }
+        }
+      `}</style>
     </article>
   );
 }
