@@ -4,7 +4,7 @@ import { supabase } from "../../../services/config/supabase";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
-import { getWelcomeTheme, WelcomeCardFrame } from "./WelcomeChannelCard";
+import { getWelcomeDesign, getWelcomeTheme, WelcomeCardFrame } from "./WelcomeChannelCard";
 
 const DEFAULTS = {
   eyebrow: "You found your people",
@@ -59,22 +59,24 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
 
   const config = { ...DEFAULTS, ...welcomeConfig };
   const theme = getWelcomeTheme(config.themeId);
+  const cardDesign = getWelcomeDesign(config.designId || config.craft);
   const name = member?.full_name || member?.username || "new member";
   const role = member?.role;
   const roleColor = role?.color || theme.accent;
-  const design = getBoostNameDesign(member?.subscription_tier, member?.boost_selections?.fontId, member?.boost_selections?.colorId);
+  const nameDesign = getBoostNameDesign(member?.subscription_tier, member?.boost_selections?.fontId, member?.boost_selections?.colorId);
   const avatar = mediaUrlService.resolveAvatarUrl(member?.avatar_id || member?.avatar_metadata?.url || member?.avatar_metadata?.publicUrl, 240);
   const avatarSize = AVATAR_SIZE_BY_CRAFT[theme.craft] || 74;
 
   return <WelcomeCardFrame
     theme={theme}
+    design={cardDesign}
     density={config.layout === "compact" ? "compact" : "regular"}
     eyebrow={config.eyebrow}
     kicker={`Welcome to ${community?.name || "the community"}`}
     topRight={config.showMemberCount ? <small><UserPlus size={12} /> New member</small> : null}
-    heading={<button type="button" className="wc-heading-btn" onClick={() => onProfileClick?.(member)} style={{ color: roleColor, fontFamily: design.font?.family, fontWeight: design.font?.weight }}>{name}</button>}
+    heading={<button type="button" className="wc-heading-btn" onClick={() => onProfileClick?.(member)} style={{ color: roleColor, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight }}>{name}</button>}
     description={config.description}
-    avatar={<button type="button" onClick={() => onProfileClick?.(member)} aria-label={`Open ${name}'s profile`} style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex" }}><BoostAvatarRing tier={member?.subscription_tier} themeId={member?.boost_selections?.themeId} accentColor={design.color?.color || roleColor} size={avatarSize} src={avatar} letter={name.charAt(0).toUpperCase()} showBadge /></button>}
+    avatar={<button type="button" onClick={() => onProfileClick?.(member)} aria-label={`Open ${name}'s profile`} style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex" }}><BoostAvatarRing tier={member?.subscription_tier} themeId={member?.boost_selections?.themeId} accentColor={nameDesign.color?.color || roleColor} size={avatarSize} src={avatar} letter={name.charAt(0).toUpperCase()} showBadge /></button>}
     meta={<>{role && <span style={{ color: roleColor, borderColor: `${roleColor}66` }}><ShieldCheck size={12} /> {role.name}</span>}{member?.verified && <span><Check size={12} /> Verified</span>}{member?.subscription_tier && <span>{member.subscription_tier} boost</span>}</>}
     actions={(config.showPrimaryAction || config.showSecondaryAction) && <>{config.showPrimaryAction && <button type="button" onClick={() => onIntroduce?.(config.introChannelId)} disabled={!config.introChannelId}><UserPlus size={14} />{config.primaryLabel}</button>}{config.showSecondaryAction && <button type="button" onClick={() => onBrowse?.()}>{config.secondaryLabel}</button>}</>}
     footer={<time dateTime={createdAt}>{createdAt ? new Date(createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Just now"}</time>}

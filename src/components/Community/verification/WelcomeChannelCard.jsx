@@ -2,23 +2,36 @@ import React, { useState, useEffect } from "react";
 import { PartyPopper, Sparkles, Sun, Waves, Gem, Circle } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 
+export const WELCOME_CARD_DESIGNS = [
+  { id: "banner-hero", label: "Banner hero", description: "Centered welcome with a clear first action.", craft: "banner-hero", icon: PartyPopper },
+  { id: "side-rail", label: "Side rail", description: "A guided welcome with a strong visual rail.", craft: "side-rail", icon: Waves },
+  { id: "spotlight", label: "Spotlight", description: "Headline-led welcome for bold communities.", craft: "spotlight", icon: Sun },
+  { id: "minimal-row", label: "Minimal row", description: "A quiet, compact welcome for busy channels.", craft: "minimal-row", icon: Circle },
+  { id: "poster", label: "Poster", description: "A dramatic welcome built around the member moment.", craft: "poster", icon: Sparkles },
+  { id: "ticket-stub", label: "Ticket stub", description: "A pass-like welcome with a dedicated action side.", craft: "ticket-stub", icon: Gem },
+];
+
 export const WELCOME_CARD_THEMES = [
-  { id: "lime-classic", label: "Lime classic", icon: PartyPopper, bg: "linear-gradient(145deg, rgba(29,45,25,.96), rgba(9,15,11,.98))", border: "rgba(156,255,0,.2)", accent: "#9cff00", craft: "banner-hero" },
-  { id: "ocean-brief", label: "Ocean brief", icon: Waves, bg: "linear-gradient(145deg, rgba(17,28,40,.97), rgba(8,13,18,.99))", border: "rgba(96,165,250,.22)", accent: "#67e8f9", craft: "side-rail" },
-  { id: "sunset-warm", label: "Sunset warm", icon: Sun, bg: "linear-gradient(145deg, rgba(45,28,18,.97), rgba(18,10,7,.99))", border: "rgba(251,146,60,.24)", accent: "#fb923c", craft: "spotlight" },
-  { id: "glass-quiet", label: "Glass quiet", icon: Circle, bg: "linear-gradient(145deg, rgba(30,30,34,.9), rgba(14,14,17,.96))", border: "rgba(255,255,255,.14)", accent: "#e5e7eb", craft: "minimal-row" },
-  { id: "cosmic-bold", label: "Cosmic bold", icon: Sparkles, bg: "linear-gradient(150deg, #1e0a3c 0%, #3b0764 60%, #1a0630 100%)", border: "rgba(236,72,153,.28)", accent: "#ec4899", craft: "poster" },
-  { id: "diamond-mono", label: "Diamond mono", icon: Gem, bg: "linear-gradient(145deg, rgba(20,22,28,.97), rgba(9,10,13,.99))", border: "rgba(167,139,250,.24)", accent: "#a78bfa", craft: "ticket-stub" },
+  { id: "lime-classic", label: "Lime classic", group: "Lime", icon: PartyPopper, bg: "linear-gradient(145deg, rgba(29,45,25,.96), rgba(9,15,11,.98))", border: "rgba(156,255,0,.2)", accent: "#9cff00" },
+  { id: "lime-glass", label: "Lime glass", group: "Lime", icon: Circle, bg: "linear-gradient(145deg, rgba(44,67,31,.78), rgba(9,15,11,.96))", border: "rgba(190,242,100,.3)", accent: "#bef264" },
+  { id: "gold-lime", label: "Gold and lime", group: "Gold + lime", icon: Sparkles, bg: "linear-gradient(145deg, rgba(60,52,18,.96), rgba(17,29,12,.98))", border: "rgba(250,204,21,.3)", accent: "#facc15" },
+  { id: "gold-black", label: "Gold and black", group: "Gold + black", icon: Gem, bg: "linear-gradient(145deg, rgba(40,34,18,.98), rgba(7,8,8,.99))", border: "rgba(250,204,21,.28)", accent: "#f5c451" },
+  { id: "black-lime", label: "Black and lime", group: "Black + lime", icon: PartyPopper, bg: "linear-gradient(145deg, rgba(17,21,18,.99), rgba(2,5,4,.99))", border: "rgba(163,230,53,.28)", accent: "#a3e635" },
+  { id: "black-glass", label: "Black glass", group: "Black", icon: Circle, bg: "linear-gradient(145deg, rgba(31,34,33,.94), rgba(5,7,7,.99))", border: "rgba(255,255,255,.16)", accent: "#d1d5db" },
 ];
 
 export function getWelcomeTheme(id) {
   return WELCOME_CARD_THEMES.find((t) => t.id === id) || WELCOME_CARD_THEMES[0];
 }
 
+export function getWelcomeDesign(id) {
+  return WELCOME_CARD_DESIGNS.find((design) => design.id === id) || WELCOME_CARD_DESIGNS[0];
+}
+
 const HERO_CRAFTS = new Set(["banner-hero", "spotlight", "poster"]);
 
-export function WelcomeCardFrame({ theme, eyebrow = "", kicker = "", heading, description = "", avatar, meta, actions, topRight, footer, density = "regular" }) {
-  const craft = theme?.craft || "banner-hero";
+export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", heading, description = "", avatar, meta, actions, topRight, footer, density = "regular" }) {
+  const craft = design?.craft || theme?.craft || "banner-hero";
   const Icon = theme?.icon;
   const isHero = HERO_CRAFTS.has(craft);
   const eyebrowNode = <span><i className="wc-eyebrow-badge">{Icon && <Icon size={11} />}</i>{eyebrow}</span>;
@@ -53,6 +66,8 @@ export function WelcomeCardFrame({ theme, eyebrow = "", kicker = "", heading, de
 
 export default function WelcomeChannelCard({ community }) {
   const [welcome, setWelcome] = useState({
+    designId: "banner-hero",
+    eyebrow: "Welcome",
     title: "Find your people. Make something memorable.",
     description: "Introduce yourself, explore the channels, and join the conversation.",
     themeId: "lime-classic",
@@ -61,19 +76,12 @@ export default function WelcomeChannelCard({ community }) {
   useEffect(() => {
     if (!community?.id) return;
     const fetchWelcome = async () => {
-      const { data } = await supabase.from("communities").select("settings").eq("id", community.id).single();
-      const wc = data?.settings?.welcome_card;
-      if (wc) {
-        setWelcome((current) => ({
-          title: wc.title || current.title,
-          description: wc.description || current.description,
-          themeId: wc.themeId || current.themeId,
-        }));
-      }
+      const { data: setting } = await supabase.from("community_tool_settings").select("config").eq("community_id", community.id).eq("tool_type", "welcome").maybeSingle();
+      if (setting?.config) setWelcome((current) => ({ ...current, ...setting.config }));
     };
     fetchWelcome();
   }, [community?.id]);
 
   const theme = getWelcomeTheme(welcome.themeId);
-  return <WelcomeCardFrame theme={theme} eyebrow="Welcome" kicker={`Welcome to ${community?.name || "the community"}`} heading={welcome.title} description={welcome.description} />;
+  return <WelcomeCardFrame theme={theme} design={getWelcomeDesign(welcome.designId || welcome.craft)} density={welcome.layout === "compact" ? "compact" : "regular"} eyebrow={welcome.eyebrow || "Welcome"} kicker={`Welcome to ${community?.name || "the community"}`} heading={welcome.title} description={welcome.description} />;
 }
