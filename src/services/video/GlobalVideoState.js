@@ -146,6 +146,18 @@ const GlobalVideoState = {
     this.notify();
   },
 
+  clearCurrentlyVisibleVideo(id = this.currentlyVisibleVideo) {
+    if (!id || this.currentlyVisibleVideo !== id) return;
+    const current = this._registry.get(id);
+    if (current) {
+      try {
+        current.videoEl.pause();
+      } catch {}
+    }
+    this.currentlyVisibleVideo = null;
+    this.notify();
+  },
+
   setActiveTab(tab) {
     if (this.activeTab === tab) return;
     // Pause all videos when switching tabs

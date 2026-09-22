@@ -23,6 +23,7 @@ import ActionMenu from "../Shared/ActionMenu";
 import ParsedText from "../Shared/ParsedText";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import followService from "../../services/social/followService";
+import GlobalVideoState from "../../services/video/GlobalVideoState";
 
 // ── Relative timestamp ────────────────────────────────────────────────────────
 const relTime = (dateStr) => {
@@ -55,50 +56,6 @@ function safeVideoUrl(id) {
     return null;
   }
 }
-// ── Global video state ────────────────────────────────────────────────────────
-const GlobalVideoState = {
-  globalPlayState: false,
-  globalMuteState: true,
-  currentlyVisibleVideo: null,
-  listeners: new Set(),
-  subscribe(cb) {
-    this.listeners.add(cb);
-    return () => this.listeners.delete(cb);
-  },
-  notify() {
-    this.listeners.forEach((cb) => cb());
-  },
-  setGlobalPlayState(v) {
-    this.globalPlayState = v;
-    sessionStorage.setItem("reels_global_play_state", v.toString());
-    this.notify();
-  },
-  getGlobalPlayState() {
-    const s = sessionStorage.getItem("reels_global_play_state");
-    return s === null ? false : s === "true";
-  },
-  setGlobalMuteState(v) {
-    this.globalMuteState = v;
-    sessionStorage.setItem("reels_global_muted", v.toString());
-    this.notify();
-  },
-  getGlobalMuteState() {
-    const s = sessionStorage.getItem("reels_global_muted");
-    return s === null ? true : s === "true";
-  },
-  setCurrentlyVisibleVideo(id) {
-    if (this.currentlyVisibleVideo !== id) {
-      this.currentlyVisibleVideo = id;
-      this.notify();
-    }
-  },
-  init() {
-    this.globalPlayState = this.getGlobalPlayState();
-    this.globalMuteState = this.getGlobalMuteState();
-  },
-};
-GlobalVideoState.init();
-
 // ── Category colors map ───────────────────────────────────────────────────────
 const CATEGORY_COLORS = {
   entertainment: {
@@ -199,17 +156,25 @@ const ReelCard = ({
   useEffect(() => {
     const handleFullscreenOpened = () => {
       setFullscreenActive(true);
+      GlobalVideoState.setFullscreenOpen(true);
       if (videoRef.current) videoRef.current.pause();
       setPlaying(false);
     };
-    const handleFullscreenClosed = () => setFullscreenActive(false);
+    const handleFullscreenClosed = () => {
+      setFullscreenActive(false);
+      GlobalVideoState.setFullscreenOpen(false);
+      if (isVisible && GlobalVideoState.globalPlayState && videoRef.current) {
+        videoRef.current.play().catch(() => {});
+        setPlaying(true);
+      }
+    };
     window.addEventListener("fullscreen-opened", handleFullscreenOpened);
     window.addEventListener("fullscreen-closed", handleFullscreenClosed);
     return () => {
       window.removeEventListener("fullscreen-opened", handleFullscreenOpened);
       window.removeEventListener("fullscreen-closed", handleFullscreenClosed);
     };
-  }, []);
+  }, [isVisible]);
 
   const isOwnReel =
     reel.user_id === currentUser?.id || reel.user_id === currentUser?.uid;
@@ -267,7 +232,7 @@ const ReelCard = ({
     const unsub = GlobalVideoState.subscribe(() => {
       setMuted(GlobalVideoState.globalMuteState);
       if (videoRef.current) {
-        const shouldPlay = isVisible && GlobalVideoState.globalPlayState && !fullscreenActive;
+        const shouldPlay = isVisible && GlobalVideoState.globalPlayState && !fullscreenActive && !GlobalVideoState.fullscreenOpen;
         if (shouldPlay && !playing) {
           videoRef.current.play().catch(() => {});
           setPlaying(true);
@@ -289,7 +254,7 @@ const ReelCard = ({
           const visible =
             entry.isIntersecting && entry.intersectionRatio >= 0.75;
           setIsVisible(visible);
-          if (visible && !fullscreenActive) {
+          if (visible && !fullscreenActive && !GlobalVideoState.fullscreenOpen) {
             GlobalVideoState.setCurrentlyVisibleVideo(reel.id);
             if (
               GlobalVideoState.globalPlayState &&
@@ -299,7 +264,11 @@ const ReelCard = ({
               videoRef.current.play().catch(() => {});
               setPlaying(true);
             }
-          } else if (videoRef.current && playing) {
+          } else if (!visible && GlobalVideoState.currentlyVisibleVideo === reel.id) {
+            GlobalVideoState.clearCurrentlyVisibleVideo(reel.id);
+          }
+
+          if (videoRef.current && playing && (!visible || fullscreenActive || GlobalVideoState.fullscreenOpen)) {
             videoRef.current.pause();
             setPlaying(false);
           }

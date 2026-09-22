@@ -6,58 +6,7 @@ import FullScreenReactionPanel from "../Shared/FullScreenReactionPanel";
 import CommentModal from "../Modals/CommentModal";
 import ShareModal from "../Modals/ShareModal";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-
-const GlobalVideoState = {
-  globalPlayState: false,
-  globalMuteState: true,
-  currentlyVisibleVideo: null,
-  listeners: new Set(),
-
-  subscribe(callback) {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  },
-
-  notify() {
-    this.listeners.forEach((callback) => callback());
-  },
-
-  setGlobalPlayState(shouldPlay) {
-    this.globalPlayState = shouldPlay;
-    sessionStorage.setItem("reels_global_play_state", shouldPlay.toString());
-    this.notify();
-  },
-
-  getGlobalPlayState() {
-    const saved = sessionStorage.getItem("reels_global_play_state");
-    return saved === null ? false : saved === "true";
-  },
-
-  setGlobalMuteState(shouldMute) {
-    this.globalMuteState = shouldMute;
-    sessionStorage.setItem("reels_global_muted", shouldMute.toString());
-    this.notify();
-  },
-
-  getGlobalMuteState() {
-    const saved = sessionStorage.getItem("reels_global_muted");
-    return saved === null ? true : saved === "true";
-  },
-
-  setCurrentlyVisibleVideo(videoId) {
-    if (this.currentlyVisibleVideo !== videoId) {
-      this.currentlyVisibleVideo = videoId;
-      this.notify();
-    }
-  },
-
-  init() {
-    this.globalPlayState = this.getGlobalPlayState();
-    this.globalMuteState = this.getGlobalMuteState();
-  },
-};
-
-GlobalVideoState.init();
+import GlobalVideoState from "../../services/video/GlobalVideoState";
 
 const FullScreenReels = ({
   reels = [],
@@ -135,15 +84,21 @@ const FullScreenReels = ({
   }, []);
 
   useEffect(() => {
+    const previousPlayState = GlobalVideoState.getGlobalPlayState();
+    const previousMuteState = GlobalVideoState.getGlobalMuteState();
+
+    GlobalVideoState.setFullscreenOpen(true);
+    GlobalVideoState.setGlobalMuteState(previousMuteState);
     window.dispatchEvent(new CustomEvent("fullscreen-opened"));
-    GlobalVideoState.setGlobalPlayState(true);
+
     // Lock body scroll during full-screen
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
     return () => {
       window.dispatchEvent(new CustomEvent("fullscreen-closed"));
-      GlobalVideoState.setGlobalPlayState(false);
+      GlobalVideoState.setFullscreenOpen(false);
+      GlobalVideoState.setGlobalPlayState(previousPlayState);
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.width = "";
