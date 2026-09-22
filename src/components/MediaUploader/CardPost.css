@@ -23,6 +23,11 @@
   /* Explicit flex so height resolves properly */
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+}
+
+.cp-wrapper-auto {
+  height: auto;
 }
 
 /* ── CARD SURFACE ─────────────────────────────────────────────────────────────
@@ -131,6 +136,8 @@
   justify-content: center;
   /* padding and textAlign/alignItems set inline per-card */
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .cp-text-layer p {
@@ -138,8 +145,12 @@
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   white-space: pre-wrap;
   max-width: 100%;
+  min-width: 0;
+  text-wrap: balance;
 
   /* Render-quality */
   text-rendering: optimizeLegibility;
@@ -184,10 +195,6 @@
     border-radius: 14px;
   }
 
-  .cp-text-layer p {
-    /* On very small screens, scale down slightly but keep impact */
-    font-size: clamp(14px, 5.5vw, inherit) !important;
-  }
 }
 
 /* ── PRINT ────────────────────────────────────────────────────────────────────

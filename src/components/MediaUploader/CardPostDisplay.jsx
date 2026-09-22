@@ -17,56 +17,65 @@ const EDGE_STYLES = {
 };
 
 // ─── SMART AUTO-SCALE ─────────────────────────────────────────────────────────
+// Auto sizing is deliberately based on content, not viewport width. This keeps
+// the same card stable across phones while still leaving room for wrapping.
 const getAutoTypo = (text = "") => {
   const chars = text.trim().length;
   const words = text.trim().split(/\s+/).filter(Boolean).length;
 
   if (words <= 2 && chars <= 10)
     return {
-      fontSize: "clamp(58px, 11vw, 80px)",
+      fontSize: "52px",
       lineHeight: "1.0",
-      letterSpacing: "-0.04em",
+      letterSpacing: "-0.03em",
       fontWeight: 900,
     };
   if (words <= 3 && chars <= 22)
     return {
-      fontSize: "clamp(42px, 8.5vw, 62px)",
+      fontSize: "40px",
       lineHeight: "1.08",
-      letterSpacing: "-0.03em",
+      letterSpacing: "-0.02em",
       fontWeight: 900,
     };
   if (words <= 6 && chars <= 40)
     return {
-      fontSize: "clamp(32px, 6.5vw, 48px)",
+      fontSize: "32px",
       lineHeight: "1.15",
-      letterSpacing: "-0.025em",
+      letterSpacing: "-0.015em",
       fontWeight: 800,
     };
   if (words <= 10 && chars <= 65)
     return {
-      fontSize: "clamp(26px, 5.2vw, 38px)",
+      fontSize: "25px",
       lineHeight: "1.22",
-      letterSpacing: "-0.02em",
+      letterSpacing: "-0.01em",
       fontWeight: 800,
     };
   if (chars <= 100)
     return {
-      fontSize: "clamp(21px, 4.2vw, 30px)",
+      fontSize: "21px",
       lineHeight: "1.3",
-      letterSpacing: "-0.015em",
+      letterSpacing: "-0.01em",
       fontWeight: 700,
     };
   if (chars <= 160)
     return {
-      fontSize: "clamp(18px, 3.5vw, 24px)",
-      lineHeight: "1.4",
-      letterSpacing: "-0.01em",
+      fontSize: "18px",
+      lineHeight: "1.35",
+      letterSpacing: "-0.005em",
       fontWeight: 700,
     };
+  if (chars <= 240)
+    return {
+      fontSize: "16px",
+      lineHeight: "1.4",
+      letterSpacing: "0",
+      fontWeight: 650,
+    };
   return {
-    fontSize: "clamp(15px, 2.8vw, 19px)",
-    lineHeight: "1.5",
-    letterSpacing: "-0.005em",
+    fontSize: "15px",
+    lineHeight: "1.45",
+    letterSpacing: "0",
     fontWeight: 600,
   };
 };
@@ -91,14 +100,14 @@ const getCardHeight = (text = "") => {
   const chars = text.trim().length;
   const words = text.trim().split(/\s+/).filter(Boolean).length;
 
-  if (words <= 2 && chars <= 10) return "160px";
-  if (words <= 3 && chars <= 22) return "190px";
-  if (words <= 6 && chars <= 40) return "220px";
-  if (words <= 10 && chars <= 65) return "260px";
-  if (chars <= 100) return "300px";
-  if (chars <= 160) return "350px";
-  if (chars <= 240) return "400px";
-  return "460px";
+  if (words <= 2 && chars <= 10) return "152px";
+  if (words <= 3 && chars <= 22) return "172px";
+  if (words <= 6 && chars <= 40) return "198px";
+  if (words <= 10 && chars <= 65) return "224px";
+  if (chars <= 100) return "252px";
+  if (chars <= 160) return "292px";
+  if (chars <= 240) return "332px";
+  return "372px";
 };
 
 // ─── SMART PADDING ────────────────────────────────────────────────────────────
@@ -127,8 +136,9 @@ const CardPostDisplay = ({ post }) => {
   const userCardHeight = meta.cardHeight;
 
   const edgeOverlay = EDGE_STYLES[edgeStyle] ?? EDGE_STYLES.medium;
+  const isAutoLayout = !userCardHeight;
   const cardHeight = userCardHeight || getCardHeight(cardText);
-  const padding = getPadding(cardText);
+  const padding = isAutoLayout ? getPadding(cardText) : "24px 28px";
 
   // Build the final text style
   let textStyle;
@@ -154,11 +164,15 @@ const CardPostDisplay = ({ post }) => {
     };
   }
 
+  const resolvedAlign =
+    isAutoLayout && align === "center" && cardText.trim().length > 65
+      ? "left"
+      : align;
   const alignItems =
-    align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    resolvedAlign === "left" ? "flex-start" : resolvedAlign === "right" ? "flex-end" : "center";
 
   return (
-    <div className="cp-wrapper" style={{ height: cardHeight }}>
+    <div className={`cp-wrapper${isAutoLayout ? " cp-wrapper-auto" : ""}`} style={{ height: cardHeight }}>
       <div className="cp-card" style={{ background: gradient }}>
         {/* Micro-grain noise */}
         <div className="cp-noise" aria-hidden="true" />
@@ -181,7 +195,7 @@ const CardPostDisplay = ({ post }) => {
         {/* Text */}
         <div
           className="cp-text-layer"
-          style={{ padding, textAlign: align, alignItems }}
+          style={{ padding, textAlign: resolvedAlign, alignItems }}
         >
           <p style={textStyle}>{cardText}</p>
         </div>
