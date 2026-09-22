@@ -446,7 +446,8 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
   const [assignee, setAssignee]       = useState(ticket.assigned_to || "");
   const [showMenu, setShowMenu]       = useState(false);
   const [acting, setActing]           = useState(false);
-  const [userTyping, setUserTyping]   = useState(false);
+    const [userTyping, setUserTyping]   = useState(false);
+    const [sendError, setSendError]    = useState("");
   const [ticketUserProfile, setTicketUserProfile] = useState(ticket.profiles || null);
 
   const channelRef    = useRef(null);
@@ -547,18 +548,29 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
   const sendReply = async () => {
     if (!reply.trim() || sending) return;
     setSending(true);
+    setSendError("");
     clearTimeout(typingTimer.current);
     broadcastTyping(false);
     const content = reply.trim();
-    setReply("");
-    await supabase.from("support_messages").insert({
+    const { error } = await supabase.from("support_messages").insert({
       ticket_id: ticket.id, user_id: adminData.user_id,
       content, is_staff: true, is_internal: false,
       staff_name: adminData.full_name || "Support",
     });
-    if (["open", "in_progress"].includes(ticket.status)) {
-      await supabase.from("support_tickets").update({ status: "waiting", updated_at: new Date().toISOString() }).eq("id", ticket.id);
+    if (error) {
+      if (mounted.current) {
+        setSendError("Your reply could not be sent. Please try again.");
+        setSending(false);
+      }
+      return;
     }
+    setReply("");
+    if (["open", "in_progress"].includes(ticket.status)) {
+      const { error: statusError } = await supabase.from("support_tickets")
+        .update({ status: "waiting", updated_at: new Date().toISOString() }).eq("id", ticket.id);
+      if (statusError && mounted.current) setSendError("Reply sent, but ticket status could not be updated.");
+    }
+    await loadMessages();
     if (mounted.current) setSending(false);
     onUpdate();
   };
@@ -816,6 +828,16 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
           messages.map((msg, i) => <Bubble key={msg.id || i} msg={msg} adminUserId={adminData.user_id} />)
         )}
 
+        {sendError && (
+          <div style={{
+            margin: "0 0 12px", padding: "9px 12px", borderRadius: 10,
+            background: "rgba(239,68,68,0.06)",
+            border: "1px solid rgba(239,68,68,0.18)",
+            color: "#fca5a5", fontSize: 12, lineHeight: 1.5,
+          }}>
+            {sendError}
+          </div>
+        )}
         {userTyping && <TypingIndicator isUser userProfile={ticketUserProfile} />}
         <div ref={bottomRef} />
       </div>

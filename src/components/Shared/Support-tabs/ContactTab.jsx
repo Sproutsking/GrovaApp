@@ -173,6 +173,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
   const [sending,     setSending]     = useState(false);
   const [loading,     setLoading]     = useState(true);
   const [staffTyping, setStaffTyping] = useState(null);
+  const [sendError,   setSendError]   = useState("");
 
   const channelRef    = useRef(null);
   const ticketChanRef = useRef(null);
@@ -250,28 +251,42 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
 
   const loadMessages = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("support_messages")
       .select("*, profiles:user_id(id, full_name, avatar_id, avatar_metadata)")
       .eq("ticket_id", ticket.id).eq("is_internal", false)
       .order("created_at", { ascending: true });
-    if (mounted.current) { setMessages(data || []); setLoading(false); }
+    if (mounted.current) {
+      setMessages(data || []);
+      setLoading(false);
+      if (error) setSendError("We could not load the conversation. Please try again.");
+    }
   };
 
   const sendMessage = async () => {
     if (!newMsg.trim() || sending || !userId) return;
     setSending(true);
+    setSendError("");
     clearTimeout(typingTimer.current);
     broadcastTyping(false);
     const content = newMsg.trim();
-    setNewMsg("");
-    await supabase.from("support_messages").insert({
+    const { error } = await supabase.from("support_messages").insert({
       ticket_id: ticket.id, user_id: userId, content, is_staff: false, is_internal: false,
     });
-    if (["waiting", "open"].includes(ticket.status)) {
-      await supabase.from("support_tickets")
-        .update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("id", ticket.id);
+    if (error) {
+      if (mounted.current) {
+        setSendError("Your message could not be sent. Please try again.");
+        setSending(false);
+      }
+      return;
     }
+    setNewMsg("");
+    if (["waiting", "open"].includes(ticket.status)) {
+      const { error: statusError } = await supabase.from("support_tickets")
+        .update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("id", ticket.id);
+      if (statusError && mounted.current) setSendError("Message sent, but ticket status could not be updated.");
+    }
+    await loadMessages();
     if (mounted.current) setSending(false);
     onRefresh();
     inputRef.current?.focus();
@@ -407,6 +422,16 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
         {staffTyping && (
           <div style={{ animation: "ctFadeUp .2s ease" }}>
             <TypingIndicator isStaff adminId={staffTyping} />
+          </div>
+        )}
+        {sendError && (
+          <div style={{
+            marginTop: 4, padding: "9px 12px", borderRadius: 10,
+            background: "rgba(239,68,68,0.06)",
+            border: "1px solid rgba(239,68,68,0.18)",
+            color: "#fca5a5", fontSize: 12, lineHeight: 1.5,
+          }}>
+            {sendError}
           </div>
         )}
         <div ref={bottomRef} />
