@@ -2,6 +2,7 @@ export const DEFAULT_VERIFICATION_CONFIG = {
   mode: "quick",
   quickEnabled: true,
   pictureEnabled: true,
+  rulesEnabled: false,
   name: "Xeevia Verification",
   avatarIcon: "shield",
   accentColor: "#c9a66b",
@@ -18,6 +19,14 @@ export const DEFAULT_VERIFICATION_CONFIG = {
     descriptionTemplate: "Select the card showing the {label}, then tap its letter below.",
     verifiedTitle: "You are verified",
     verifiedDescription: "Your identity is confirmed. You now have full access.",
+  },
+  rules: {
+    enabled: false,
+    title: "Read and accept the community rules",
+    description: "Please read these rules before requesting access.",
+    rules: "Be respectful.\nKeep the community safe.\nNo spam or harassment.",
+    rulesChannelId: "",
+    verificationChannelId: "",
   },
   panels: {
     rules: { label: "Rules", text: "Real identities only. One account holds one seal." },
@@ -36,6 +45,7 @@ export function normalizeVerificationConfig(saved = {}) {
     ...saved,
     quick: { ...DEFAULT_VERIFICATION_CONFIG.quick, ...(saved.quick || {}) },
     picture: { ...DEFAULT_VERIFICATION_CONFIG.picture, ...(saved.picture || {}) },
+    rules: { ...DEFAULT_VERIFICATION_CONFIG.rules, ...(saved.rules || {}) },
     panels: {
       rules: { ...DEFAULT_VERIFICATION_CONFIG.panels.rules, ...((saved.panels || {}).rules || {}) },
       info: { ...DEFAULT_VERIFICATION_CONFIG.panels.info, ...((saved.panels || {}).info || {}) },

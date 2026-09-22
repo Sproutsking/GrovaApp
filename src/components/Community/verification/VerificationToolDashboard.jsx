@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Check, Upload, X } from "lucide-react";
 import { DEFAULT_VERIFICATION_CONFIG, challengeIsReady, normalizeVerificationConfig } from "./verificationConfig";
+import VerificationModeDashboard from "./VerificationModeDashboard";
+import PictureVerificationDashboard from "./PictureVerificationDashboard";
 
 const AVATARS = ["shield", "lock", "badge", "fingerprint", "scan"];
 const COLORS = ["#c9a66b", "#5b7ce0", "#3fb96f", "#8b7fd6", "#e2555c"];
@@ -29,13 +31,20 @@ const resizeImage = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-export default function VerificationToolDashboard({ value, onSave, disabled = false }) {
+export default function VerificationToolDashboard({ value, onSave, disabled = false, focusMode = null }) {
   const initial = normalizeVerificationConfig(value || DEFAULT_VERIFICATION_CONFIG);
   const [config, setConfig] = useState(initial);
   const [slots, setSlots] = useState(createSlots(initial.challenge.cards));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [selectedMode, setSelectedMode] = useState(null);
+
+  if (focusMode === "picture") {
+    return <PictureVerificationDashboard value={initial} disabled={disabled} onSave={onSave} />;
+  }
+  if (focusMode === "quick") {
+    return <VerificationModeDashboard mode={focusMode} value={initial} disabled={disabled} onSave={onSave} />;
+  }
 
   const patch = (next) => setConfig((current) => ({ ...current, ...next }));
   const patchSection = (section, next) => setConfig((current) => ({ ...current, [section]: { ...current[section], ...next } }));
@@ -68,7 +77,7 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
     const modes = [
       ["quick", "Quick verify", "One-tap verification with the live member access flow.", true],
       ["picture", "Picture check", "Image challenge verification with configurable answers.", true],
-      ["rules_gate", "Rules gate", "Require members to accept your community rules.", false],
+      ["rules_gate", "Rules gate", "Require members to accept your community rules.", true],
       ["reaction_verification", "Reaction verification", "Verify members through a configured reaction role.", false],
       ["wallet_verification", "Wallet verification", "Verify ownership of a supported wallet identity.", false],
       ["email_verification", "Email verification", "Verify members through an approved email flow.", false],

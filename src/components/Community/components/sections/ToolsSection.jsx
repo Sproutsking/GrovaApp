@@ -5,6 +5,8 @@ import { supabase } from "../../../../services/config/supabase";
 
 import { X, Settings2 } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
+import RulesVerificationDashboard from "../../verification/RulesVerificationDashboard";
+import VerificationModeDashboard from "../../verification/VerificationModeDashboard";
 import WelcomeToolDashboard from "../../verification/WelcomeToolDashboard";
 import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
 import socialUpdatesService, { SOCIAL_UPDATE_PROVIDER_IDS } from "../../../../services/community/socialUpdatesService";
@@ -12,12 +14,9 @@ import { getPlatformCapabilities } from "../../../../services/community/platform
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
 import BotsDashboard from "../../bots/BotsDashboard";
 const TOOL_CATALOG = [
-  { type: "verification", label: "Verification", description: "Choose how members prove access before entering.", icon: ShieldCheck, modes: [
-    { id: "rules_gate", label: "Rules gate", description: "Members accept your rules before access is granted." },
-    { id: "reaction_verification", label: "Reaction verification", description: "Members verify by selecting a reaction." },
-    { id: "wallet_verification", label: "Wallet verification", description: "Require a supported wallet identity." },
-    { id: "email_verification", label: "Email verification", description: "Verify a member through an approved email flow." },
-  ] },
+  { type: "quick_verification", label: "Quick verify", description: "Configure the one-tap identity check.", icon: ShieldCheck },
+  { type: "picture_verification", label: "Picture check", description: "Configure the visual challenge separately.", icon: ShieldCheck },
+  { type: "rules_verification", label: "Rules verification", description: "Write rules and route the acceptance check.", icon: ShieldCheck },
   { type: "social_updates", label: "Social updates", description: "Deliver connected updates to selected channels.", icon: Radio },
   { type: "bots", label: "Bots", description: "Route posts to Discord servers and Telegram chats.", icon: Bot },
   { type: "tickets", label: "Tickets", description: "Give members a private support entry point.", icon: Ticket },
@@ -38,6 +37,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   const [dashboardTool, setDashboardTool] = useState(null);
   const [welcomeDashboardOpen, setWelcomeDashboardOpen] = useState(false);
   const [draft, setDraft] = useState({});
+  const [focusedVerificationMode, setFocusedVerificationMode] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -139,6 +139,11 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   };
 
   const openDashboard = (tool) => {
+    if (tool.type === "quick_verification" || tool.type === "picture_verification") {
+      setFocusedVerificationMode(tool.type === "quick_verification" ? "quick" : "picture");
+      setDashboardTool({ ...tool, type: "verification" });
+      return;
+    }
     if (tool.type === "social_updates") {
       setDashboardTool(tool);
       return;
@@ -170,6 +175,28 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     if (!canManage || !dashboardTool) return;
     const row = getRow("verification");
     const nextRow = { ...row, community_id: communityId, tool_type: "verification", enabled: Boolean(row.enabled || selectedIds("verification").size), channel_id: row.channel_id || null, config, updated_at: new Date().toISOString() };
+    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
+    if (saveError) throw saveError;
+    setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
+    setDashboardTool(null);
+  };
+
+  const saveRulesConfig = async (config) => {
+    if (!canManage || !dashboardTool) return;
+    const row = getRow("verification");
+    const nextConfig = { ...(row.config || {}), rules: config, rulesEnabled: Boolean(config.enabled) };
+    const nextRow = { ...row, community_id: communityId, tool_type: "verification", enabled: Boolean(row.enabled || config.enabled), channel_id: row.channel_id || config.verificationChannelId || null, config: nextConfig, updated_at: new Date().toISOString() };
+    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
+    if (saveError) throw saveError;
+    setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
+    setDashboardTool(null);
+  };
+
+  const saveFocusedVerification = async (mode, config) => {
+    if (!canManage || !dashboardTool) return;
+    const row = getRow("verification");
+    const nextConfig = { ...(row.config || {}), [mode]: config[mode], [`${mode}Enabled`]: config[`${mode}Enabled`] };
+    const nextRow = { ...row, community_id: communityId, tool_type: "verification", enabled: true, config: nextConfig, updated_at: new Date().toISOString() };
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
     if (saveError) throw saveError;
     setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
@@ -228,7 +255,8 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       {dashboardTool && dashboardTool.type === "social_updates" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Social updates</h2><p>Connect sources, route activity, and run a real inbound sync.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close social updates dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><SocialUpdatesDashboard communityId={communityId} userId={userId} channels={channels} linkedSources={linkedSources} canManage={canManage} onCreateChannel={onCreateChannel} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "bots" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Bots</h2><p>Connect Discord and Telegram destinations for outbound posts.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close bots dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><BotsDashboard communityId={communityId} userId={userId} canManage={canManage} /></div></section></div>, document.body)}
       {welcomeDashboardOpen && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setWelcomeDashboardOpen(false)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Welcome experience</h2><p>Design the first impression members see when they arrive.</p></div><button type="button" onClick={() => setWelcomeDashboardOpen(false)} aria-label="Close welcome dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Welcome card channel</strong><p className="tool-dashboard-help">Select or create the channel where every welcome card will be posted.</p><select disabled={!canManage} value={getRow("welcome").channel_id || ""} onChange={(event) => toggleChannel("welcome", event.target.value)}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" disabled={!canManage} className="welcome-create-channel" onClick={onCreateChannel}>+ Create a channel first</button></div><div className="tool-dashboard-block"><strong>Member introduction destination</strong><p className="tool-dashboard-help">Choose the channel opened by “Introduce yourself”.</p><select disabled={!canManage} value={getRow("welcome").config?.introChannelId || ""} onChange={(event) => setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), { ...getRow("welcome"), config: { ...(getRow("welcome").config || {}), introChannelId: event.target.value } }])}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select></div><WelcomeToolDashboard value={getRow("welcome").config} communityName="your community" channels={channels} disabled={!canManage} onSave={saveWelcomeConfig} /></div></section></div>, document.body)}
-      {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Verification</h2><p>Manage live quick and picture verification for members.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><VerificationToolDashboard value={getRow("verification").config} disabled={!canManage} onSave={saveVerificationConfig} /></div></section></div>, document.body)}
+      {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => { setDashboardTool(null); setFocusedVerificationMode(null); }}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>{focusedVerificationMode === "quick" ? "Quick verify" : focusedVerificationMode === "picture" ? "Picture check" : "Verification methods"}</h2><p>Configure this verification method independently.</p></div><button type="button" onClick={() => { setDashboardTool(null); setFocusedVerificationMode(null); }} aria-label="Close verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><VerificationToolDashboard value={getRow("verification").config} focusMode={focusedVerificationMode} disabled={!canManage} onSave={saveVerificationConfig} /></div></section></div>, document.body)}
+      {dashboardTool && dashboardTool.type === "rules_verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Rules verification</h2><p>Write the rules and choose where members read and accept them.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close rules verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><RulesVerificationDashboard value={getRow("verification").config?.rules} channels={channels} disabled={!canManage} onSave={saveRulesConfig} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "moderation" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Moderation</h2><p>Build a live safety system for this community.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close moderation dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><ModerationToolDashboard communityId={communityId} value={getRow("moderation").config} disabled={!canManage} onSave={saveModerationConfig} /></div></section></div>, document.body)}
       {dashboardTool && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>{dashboardTool.label}</h2><p>{dashboardTool.description}</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close tool dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Tool type</strong><div className="tool-mode-grid">{(dashboardTool.modes || [{ id: "default", label: "Standard", description: "Use the standard configuration for this tool." }]).map((mode) => <button type="button" key={mode.id} className={`tool-mode-card${draft.mode === mode.id ? " selected" : ""}`} onClick={() => setDraft((current) => ({ ...current, mode: mode.id }))}><span>{draft.mode === mode.id ? <Check size={14} /> : null}</span><b>{mode.label}</b><small>{mode.description}</small></button>)}</div></div><div className="tool-dashboard-block"><strong>Member-facing channels</strong><p className="tool-dashboard-help">Choose where this tool is available. Selecting a channel opens it in the channel list without changing your existing channel arrangement.</p><div className="tool-channel-grid">{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selectedIds(dashboardTool.type).has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(dashboardTool.type, channel.id)}><i>{selectedIds(dashboardTool.type).has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div></div>{dashboardTool.type === "verification" && <div className="tool-dashboard-block"><strong>Verification setup</strong><input disabled={!canManage} value={draft.message || ""} onChange={(event) => setDraft((current) => ({ ...current, message: event.target.value }))} placeholder="Message shown before verification" maxLength={300} /><small className="tool-dashboard-help">Some verification types require an enabled Xeevia platform integration before members can use them.</small></div>}{dashboardTool.type === "welcome" && <div className="tool-dashboard-block"><strong>Welcome content</strong><input disabled={!canManage} value={draft.title || "Welcome to our community"} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={draft.description || "Introduce yourself and join the conversation."} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Welcome description" rows={4} maxLength={500} /></div>}</div><footer><button type="button" className="tool-dashboard-cancel" onClick={() => setDashboardTool(null)}>Cancel</button><button type="button" className="tool-dashboard-save" disabled={!canManage} onClick={saveDashboard}>Save tool setup</button></footer></section></div>, document.body)}
       <style>{`
