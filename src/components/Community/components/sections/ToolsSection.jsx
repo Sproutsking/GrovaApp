@@ -188,10 +188,6 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
 
   const saveWelcomeConfig = async (config) => {
     if (!canManage) return;
-    if (!selectedIds("welcome").size) {
-      setError("Select or create a channel for the welcome experience before activating it.");
-      return;
-    }
     const row = getRow("welcome");
     const nextConfig = { ...config, introChannelId: row.config?.introChannelId || config.introChannelId || "" };
     const nextRow = { ...row, community_id: communityId, tool_type: "welcome", enabled: Boolean(row.enabled || selectedIds("welcome").size), channel_id: row.channel_id || null, config: nextConfig, updated_at: new Date().toISOString() };

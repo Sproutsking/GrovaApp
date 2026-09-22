@@ -65,7 +65,7 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
   const roleColor = role?.color || theme.accent;
   const nameDesign = getBoostNameDesign(member?.subscription_tier, member?.boost_selections?.fontId, member?.boost_selections?.colorId);
   const avatar = mediaUrlService.resolveAvatarUrl(member?.avatar_id || member?.avatar_metadata?.url || member?.avatar_metadata?.publicUrl, 240);
-  const avatarSize = AVATAR_SIZE_BY_CRAFT[theme.craft] || 74;
+  const avatarSize = AVATAR_SIZE_BY_CRAFT[cardDesign.craft] || 74;
 
   return <WelcomeCardFrame
     theme={theme}
