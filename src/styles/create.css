@@ -819,6 +819,25 @@
   overflow-wrap: break-word;
 }
 
+.card-post-link-preview {
+  width: 100%;
+  margin-top: 2px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.card-post-link-preview .xeevia-link-preview-wrap,
+.card-post-link-preview .xeevia-link-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.card-post-link-preview .xeevia-link-card {
+  min-height: 58px;
+  border-radius: 10px;
+}
+
 /* ── CUSTOM CARD TRIGGER ── */
 .custom-card-trigger {
   width: 100%;

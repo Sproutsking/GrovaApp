@@ -26,6 +26,7 @@ import Drafts             from "../Drafts/Drafts";
 import CustomCardMaker    from "../MediaUploader/CustomCardMaker";
 import TemplateLibrary    from "../MediaUploader/TemplateLibrary";
 import SmartTextarea      from "../SmartTextarea/SmartTextarea";
+import LinkifiedText, { getExternalUrls } from "../Shared/LinkifiedText";
 import useDistribution    from "../../hooks/useDistribution";          // [D4]
 import PlatformSelector   from "../Distribution/PlatformSelector";
 import DistributionStatus from "../Distribution/DistributionStatus";
@@ -396,6 +397,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
 
   const postLinkSource = useTextCard ? postContent : postCaption;
   const hasPostLink = /https?:\/\/[^\s]+/i.test(postLinkSource);
+  const cardPreviewUrl = useTextCard ? getExternalUrls(postContent)[0] || "" : "";
 
   const getPreviewFontSize = () => {
     if (cardFontSize !== null) return cardFontSize;
@@ -765,6 +767,12 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                     </div>
                   )}
                 </div>
+
+                {cardPreviewUrl && (
+                  <div className="card-post-link-preview" aria-label="Card post link preview">
+                    <LinkifiedText previewOnly>{cardPreviewUrl}</LinkifiedText>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label"><Type size={12} /> Card Text (max 40 words)</label>
