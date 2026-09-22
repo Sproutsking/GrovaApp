@@ -190,6 +190,17 @@ export default function WelcomeChannelCard({ community }) {
       if (setting?.config) setWelcome((current) => ({ ...current, ...setting.config }));
     };
     fetchWelcome();
+    const channel = supabase.channel(`welcome-settings:${community.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_tool_settings", filter: `community_id=eq.${community.id}` }, fetchWelcome)
+      .subscribe();
+    const handleWelcomeUpdate = (event) => {
+      if (event.detail?.communityId === community.id) setWelcome((current) => ({ ...current, ...event.detail.config }));
+    };
+    window.addEventListener("community:welcome-settings-updated", handleWelcomeUpdate);
+    return () => {
+      window.removeEventListener("community:welcome-settings-updated", handleWelcomeUpdate);
+      supabase.removeChannel(channel).catch(() => {});
+    };
   }, [community?.id]);
 
   const theme = getWelcomeTheme(welcome.themeId);

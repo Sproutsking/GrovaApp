@@ -218,10 +218,17 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const row = getRow("welcome");
     const nextConfig = { ...config, introChannelId: row.config?.introChannelId || config.introChannelId || "" };
     const nextRow = { ...row, community_id: communityId, tool_type: "welcome", enabled: Boolean(row.enabled || selectedIds("welcome").size), channel_id: row.channel_id || null, config: nextConfig, updated_at: new Date().toISOString() };
-    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
-    if (saveError) { setError(saveError.message); return; }
+    const previousRows = rows;
     setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), nextRow]);
     setWelcomeDashboardOpen(false);
+    setError("");
+    window.dispatchEvent(new CustomEvent("community:welcome-settings-updated", { detail: { communityId, config: nextConfig } }));
+    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
+    if (saveError) {
+      setRows(previousRows);
+      setError(saveError.message);
+      setWelcomeDashboardOpen(true);
+    }
   };
 
   const navigation = [
