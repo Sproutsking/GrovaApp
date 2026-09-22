@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Check, ExternalLink, LayoutTemplate, Sparkles, UserPlus } from "lucide-react";
-import { getWelcomeTheme, WELCOME_CARD_THEMES } from "./WelcomeChannelCard";
+import { getWelcomeTheme, WELCOME_CARD_THEMES, WelcomeCardFrame } from "./WelcomeChannelCard";
 
 const LAYOUTS = [
   { id: "hero", label: "Hero", description: "Large welcome moment with a clear next step." },
@@ -42,13 +42,17 @@ export const normalizeWelcomeConfig = (value = {}) => ({
 
 function Preview({ config, communityName = "your community" }) {
   const theme = getWelcomeTheme(config.themeId);
-  const Icon = theme.icon;
   return (
-    <div className={`welcome-builder-preview welcome-preview-${config.layout}`} style={{ "--welcome-accent": theme.accent, "--welcome-bg": theme.bg, "--welcome-border": theme.border }}>
-      <div className="welcome-preview-glow" />
-      <div className="welcome-preview-topline"><span><Icon size={14} /> {config.eyebrow}</span>{config.showMemberCount && <small><UserPlus size={12} /> Live member detail</small>}</div>
-      <div className="welcome-preview-main"><div className="welcome-preview-copy"><strong>Welcome to {communityName}</strong><h3>{config.title}</h3><p>{config.description}</p></div>{(config.showPrimaryAction || config.showSecondaryAction) && <div className="welcome-preview-actions">{config.showPrimaryAction && <button type="button"><UserPlus size={14} />{config.primaryLabel}</button>}{config.showSecondaryAction && <button type="button" className="welcome-preview-secondary"><LayoutTemplate size={14} />{config.secondaryLabel}</button>}</div>}</div>
-    </div>
+    <WelcomeCardFrame
+      theme={theme}
+      density={config.layout === "compact" ? "compact" : "regular"}
+      eyebrow={config.eyebrow}
+      kicker={`Welcome to ${communityName}`}
+      heading={config.title}
+      description={config.description}
+      topRight={config.showMemberCount ? <small><UserPlus size={12} /> Live member detail</small> : null}
+      actions={(config.showPrimaryAction || config.showSecondaryAction) && <>{config.showPrimaryAction && <button type="button"><UserPlus size={14} />{config.primaryLabel}</button>}{config.showSecondaryAction && <button type="button"><LayoutTemplate size={14} />{config.secondaryLabel}</button>}</>}
+    />
   );
 }
 
