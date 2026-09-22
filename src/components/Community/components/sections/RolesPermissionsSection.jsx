@@ -102,6 +102,7 @@ const RolesPermissionsSection = ({
   const [saved, setSaved]               = useState(false);
   const [showCreate, setShowCreate]     = useState(false);
   const [newName, setNewName]           = useState("");
+  const [error, setError]               = useState("");
 
   const openRole = (role) => {
     setSelectedRole(role);
@@ -132,6 +133,7 @@ const RolesPermissionsSection = ({
   const handleSave = async () => {
     if (!selectedRole || !canManageRoles) return;
     setSaving(true);
+    setError("");
     try {
       await onUpdateRole(selectedRole.id, {
         permissions: editedPerms,
@@ -142,6 +144,7 @@ const RolesPermissionsSection = ({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
+      setError(err?.message || "Unable to save role");
       console.error("Save role error:", err);
     } finally {
       setSaving(false);
@@ -150,11 +153,13 @@ const RolesPermissionsSection = ({
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
+    setError("");
     try {
       await onCreateRole({ name: newName.trim(), color: "#667eea", icon: "♟" });
       setNewName("");
       setShowCreate(false);
     } catch (err) {
+      setError(err?.message || "Unable to create role");
       console.error("Create role error:", err);
     }
   };
@@ -203,6 +208,7 @@ const RolesPermissionsSection = ({
             </button>
           </div>
         )}
+        {error && <div className="rps-error" role="alert">{error}</div>}
 
         {/* Role rows */}
         <div className="rps-roles-list">

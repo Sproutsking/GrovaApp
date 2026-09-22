@@ -245,9 +245,9 @@ const CommunityMenu = ({
                     ...(canManageBackground ? [{ label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} }] : []),
                     ...(canManageCommunity ? [
                       { label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#43e97b,#38f9d7)", onClick:()=>setMenuView("settings"), arrow:true },
-                      { label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true },
                       { label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,#a8edea,#fed6e3)", onClick:()=>setMenuView("analytics"), arrow:true },
                     ] : []),
+                    ...(canManageRoles ? [{ label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true }] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
                     { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
                     ...(canCreateChannels ? [{ label:"Manage Channels", desc:"Edit channels and organize categories", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),

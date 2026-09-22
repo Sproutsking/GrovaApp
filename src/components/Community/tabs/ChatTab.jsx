@@ -359,13 +359,18 @@ const ChatTab = ({
       return;
     }
     if (payload.type === "role") {
-      await roleService.updateRole(payload.roleId, payload.updates);
+      await roleService.updateRole(payload.roleId, payload.updates, userId);
       await loadRoles();
       await loadMembers();
       return;
     }
     if (payload.type === "createRole") {
-      await roleService.createRole(payload.roleData, community.id);
+      await roleService.createRole(payload.roleData, community.id, userId);
+      await loadRoles();
+      return;
+    }
+    if (payload.type === "reorderRoles") {
+      await roleService.reorderRoles(payload.roles, community.id, userId);
       await loadRoles();
       return;
     }
@@ -651,18 +656,18 @@ const ChatTab = ({
   const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
   const canSendMessages = isOwner || (
     Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages")
-      ? channelPermissions.sendMessages !== false
-      : userPermissions.sendMessages !== false
+      ? channelPermissions.sendMessages === true
+      : userPermissions.sendMessages === true
   );
   const canAttachFiles = isOwner || hasAdminOverride || userPermissions.manageChannels === true || (
     Object.prototype.hasOwnProperty.call(channelPermissions, "attachFiles")
-      ? channelPermissions.attachFiles !== false
+      ? channelPermissions.attachFiles === true
       : userPermissions.attachFiles === true
   );
   const canAddReactions = isOwner || (
     Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions")
-      ? channelPermissions.addReactions !== false
-      : userPermissions.addReactions !== false
+      ? channelPermissions.addReactions === true
+      : userPermissions.addReactions === true
   );
 
   const showSkeleton = !channelsReady && channels.length === 0;

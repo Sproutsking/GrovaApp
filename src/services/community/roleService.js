@@ -48,8 +48,12 @@ class RoleService {
   /**
    * Create a new role (creates a "Novice" role with restricted permissions)
    */
-  async createRole(roleData, communityId) {
+  async createRole(roleData, communityId, actorUserId) {
     try {
+      if (!actorUserId || !(await this.hasPermission(communityId, actorUserId, "manageRoles"))) {
+        throw new Error("You do not have permission to manage roles");
+      }
+
       // Validate role data
       const validation = RoleModel.validate(roleData);
       if (!validation.valid) {
@@ -62,9 +66,17 @@ class RoleService {
         permissions = this.getNovicePermissions();
       }
 
+      const { data: lastRole } = await supabase
+        .from("community_roles")
+        .select("position")
+        .eq("community_id", communityId)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       const roleModel = new RoleModel({
         ...roleData,
         community_id: communityId,
+        position: (lastRole?.position ?? -1) + 1,
         permissions: permissions,
       });
 
@@ -221,7 +233,7 @@ class RoleService {
     try {
       if (!communityId || !userId || !channel?.id) return false;
       const role = await this.getUserRole(communityId, userId);
-      if (!role) return true;
+      if (!role) return false;
       const roleModel = RoleModel.fromAPI(role);
       if (roleModel.hasPermission("administrator")) return true;
       const { data: membership } = await supabase
@@ -270,12 +282,27 @@ class RoleService {
   /**
    * Update role
    */
-  async updateRole(roleId, updates) {
+  async updateRole(roleId, updates, actorUserId) {
     try {
+      const { data: existingRole, error: roleError } = await supabase
+        .from("community_roles")
+        .select("*")
+        .eq("id", roleId)
+        .single();
+      if (roleError || !existingRole) throw new Error("Role not found");
+      if (!actorUserId || !(await this.hasPermission(existingRole.community_id, actorUserId, "manageRoles"))) {
+        throw new Error("You do not have permission to manage roles");
+      }
+      const actorRole = await this.getUserRole(existingRole.community_id, actorUserId);
+      const targetRole = RoleModel.fromAPI(existingRole);
+      if (targetRole.isOwner() || (actorRole && !RoleModel.fromAPI(actorRole).canManageRole(targetRole))) {
+        throw new Error("You cannot manage this role");
+      }
+      const allowedUpdates = (({ name, color, icon, permissions }) => ({ name, color, icon, permissions }))(updates || {});
       const { data, error } = await supabase
         .from("community_roles")
         .update({
-          ...updates,
+          ...allowedUpdates,
           updated_at: new Date().toISOString(),
         })
         .eq("id", roleId)
@@ -288,6 +315,24 @@ class RoleService {
       console.error("Error updating role:", error);
       throw error;
     }
+  }
+
+  async reorderRoles(roles, communityId, actorUserId) {
+    if (!actorUserId || !(await this.hasPermission(communityId, actorUserId, "manageRoles"))) {
+      throw new Error("You do not have permission to manage roles");
+    }
+    const orderedRoles = (roles || []).filter((role) => role.community_id === communityId);
+    const owner = orderedRoles.find((role) => role.name === "Owner");
+    const actorRole = await this.getUserRole(communityId, actorUserId);
+    if (owner && actorRole && !RoleModel.fromAPI(actorRole).isOwner() && !RoleModel.fromAPI(actorRole).canManageRole(RoleModel.fromAPI(owner))) {
+      throw new Error("You cannot reorder the Owner role");
+    }
+    const results = await Promise.all(orderedRoles.map((role, position) =>
+      supabase.from("community_roles").update({ position, updated_at: new Date().toISOString() }).eq("id", role.id).eq("community_id", communityId),
+    ));
+    const failed = results.find((result) => result.error);
+    if (failed) throw failed.error;
+    return true;
   }
 
   /**
