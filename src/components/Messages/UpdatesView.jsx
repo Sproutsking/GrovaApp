@@ -1126,6 +1126,19 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
       }
       if (!mountRef.current) return;
 
+      const followedIds = new Set([userId]);
+      const ownerIds = [...new Set((data || []).map((status) => status.user_id).filter(Boolean))].filter((id) => id !== userId);
+      if (ownerIds.length) {
+        const { data: follows, error: followsError } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", userId)
+          .in("following_id", ownerIds);
+        if (followsError) throw followsError;
+        (follows || []).forEach(({ following_id }) => followedIds.add(following_id));
+      }
+      data = (data || []).filter((status) => followedIds.has(status.user_id));
+
       const enriched = (data||[]).map((s) => ({
         ...s,
         media_type: s.media_type || (s.image_id ? (isVideoStatusFull(s)?"video":"image") : "text"),
@@ -1188,6 +1201,8 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
       await statusUpdateService.toggleLike(statusId, userId);
     } catch {
       setLikedIds((p) => { const n=new Set(p); wasLiked?n.add(statusId):n.delete(statusId); return n; });
+      setMyStatuses((p) => p.map((s) => s.id===statusId?{...s,likes:Math.max(0,(s.likes||0)-delta)}:s));
+      setFeedGroups((p) => p.map((g) => ({...g,statuses:g.statuses.map((s) => s.id===statusId?{...s,likes:Math.max(0,(s.likes||0)-delta)}:s)})));
     }
   }, [userId]);
 
@@ -1216,6 +1231,15 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
 
   const handleRepost = useCallback(async (status) => {
     if (!status || !userId) return;
+    if (status.user_id !== userId) {
+      const { data: follow, error } = await supabase.from("follows")
+        .select("follower_id")
+        .eq("follower_id", userId)
+        .eq("following_id", status.user_id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!follow) throw new Error("You must follow this user to repost their status");
+    }
     const author = status.profile?.username || status.profile?.full_name || "someone";
     const txt = status.text ? `↩ Reposted @${author}: ${status.text}`.slice(0,CHAR_MAX) : `↩ Reposted @${author}`;
     try {

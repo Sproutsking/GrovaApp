@@ -583,6 +583,16 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
     setLoading(true);
     setError(null);
     try {
+      // Resolve server-side secrets through the Edge Function; never bundle them into React.
+      const { data: serverCatalog, error: serverError } = await supabase.functions.invoke("sound-library", { method: "GET" });
+      if (!serverError && Array.isArray(serverCatalog?.sounds)) {
+        setSongs(serverCatalog.sounds);
+        serverCatalog.sounds.slice(0, 12).forEach((song) => {
+          if (song.url && _durCache[song.id] === undefined) cacheDuration(song.url, song.id, () => {});
+        });
+        return;
+      }
+
       // Discover which optional columns exist (cached after first call)
       const schema = await probeSchema();
       const selectStr = buildSelect(schema);
@@ -703,9 +713,6 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
   // ── Shared list body ──────────────────────────────────────────────────────
   const ListBody = ({ compact = false }) => (
     <div className="sg4-list-wrap">
-      {/* R2 setup warning */}
-      <R2Banner />
-
       {/* Detail panel overlay */}
       {detailSong && (
         <div className="sg4-detail-overlay">
@@ -832,8 +839,7 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
               <div className="sg4-hdr-title">Sound Library</div>
               <div className="sg4-hdr-sub">
                 {loading ? "Loading…" :
-                 songs.length > 0 ? `${songs.length} tracks · R2 ${HAS_R2 ? "✓" : "⚠ not set"}` :
-                 HAS_R2 ? "R2 configured · no DB rows" : "⚠ Set REACT_APP_R2_PUBLIC_URL"}
+                 songs.length > 0 ? `${songs.length} tracks` : "No tracks available"}
               </div>
             </div>
           </div>
@@ -869,7 +875,6 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
           </div>
         ) : (
           <div className="sg4-list-wrap">
-            <R2Banner />
             <div className="sg4-list">
               {loading && <Skeleton />}
               {!loading && error && <ErrorState msg={error} onRetry={loadSongs} />}
@@ -965,22 +970,9 @@ const EmptyState = () => (
   <div className="sg4-center">
     <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(132,204,22,.08)", border: "1px solid rgba(132,204,22,.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎵</div>
     <p style={{ color: "rgba(255,255,255,.5)", fontSize: 15, fontWeight: 700, textAlign: "center", margin: 0 }}>No sounds found</p>
-    {!HAS_R2 ? (
-      <div style={{ background: "rgba(245,158,11,.07)", border: "1px solid rgba(245,158,11,.25)", borderRadius: 12, padding: "12px 16px", maxWidth: 280 }}>
-        <p style={{ color: "#f59e0b", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>⚠️ R2 not configured</p>
-        <p style={{ color: "rgba(255,255,255,.4)", fontSize: 11, margin: 0, lineHeight: 1.6 }}>
-          Add to your <code style={{ color: "#84cc16" }}>.env</code> file:<br/>
-          <code style={{ color: "#84cc16", fontSize: 10 }}>REACT_APP_R2_PUBLIC_URL=https://pub-xxx.r2.dev</code>
-        </p>
-      </div>
-    ) : (
-      <p style={{ color: "rgba(255,255,255,.25)", fontSize: 12, textAlign: "center", maxWidth: 280, lineHeight: 1.7, margin: 0 }}>
-        Your R2 bucket is configured. Add rows to your{" "}
-        <code style={{ color: "#84cc16", background: "rgba(132,204,22,.08)", padding: "1px 5px", borderRadius: 4 }}>sounds</code> table —
-        each row needs at least a <code style={{ color: "#84cc16", background: "rgba(132,204,22,.08)", padding: "1px 5px", borderRadius: 4 }}>name</code> column
-        matching the filename in R2 (e.g. <code style={{ color: "#84cc16", background: "rgba(132,204,22,.08)", padding: "1px 5px", borderRadius: 4 }}>artist-track.mp3</code>).
-      </p>
-    )}
+    <p style={{ color: "rgba(255,255,255,.25)", fontSize: 12, textAlign: "center", maxWidth: 280, lineHeight: 1.7, margin: 0 }}>
+      The sound catalog is empty. Add audio tracks to the configured library and try again.
+    </p>
   </div>
 );
 

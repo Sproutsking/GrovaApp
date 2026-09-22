@@ -452,6 +452,22 @@ class StatusUpdateService {
   // ══════════════════════════════════════════════════════════════════════════
 
   async toggleLike(statusId, userId) {
+    const { data: status, error: statusError } = await supabase
+      .from("status_updates")
+      .select("user_id")
+      .eq("id", statusId)
+      .single();
+    if (statusError) throw statusError;
+    if (status.user_id !== userId) {
+      const { data: follow, error: followError } = await supabase
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", userId)
+        .eq("following_id", status.user_id)
+        .maybeSingle();
+      if (followError) throw followError;
+      if (!follow) throw new Error("You must follow this user to like their status");
+    }
     const { data: existing, error: lookupError } = await supabase
       .from("status_likes")
       .select("id")

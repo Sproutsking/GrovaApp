@@ -1,4 +1,6 @@
 // src/services/sounds/soundService.js
+import { supabase } from "../config/supabase";
+
 const soundService = {
   async trackSoundUsage(soundName, userId, reelId) {
     // Check if sound exists
