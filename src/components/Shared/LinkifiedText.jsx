@@ -97,6 +97,9 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
     try { return new URL(url, window.location.origin).pathname; } catch { return ""; }
   })();
   const internalType = path.match(/^\/(post|reel|story|profile|community|invite)\//i)?.[1];
+  const internalLabel = internalType
+    ? internalType.charAt(0).toUpperCase() + internalType.slice(1)
+    : "Link";
   const handleClick = (event) => {
     event.stopPropagation();
     if (internalType && onNavigate) {
@@ -105,13 +108,22 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
     }
   };
 
-  if (displayMode === "embed" && !internal) {
+  if (displayMode === "embed") {
+    const previewTitle = internal ? `Xeevia ${internalLabel.toLowerCase()}` : `${platform.label} link`;
+    const hostLabel = internal ? "Xeevia content" : new URL(url).hostname;
     return (
       <span className="xeevia-link-wrap xeevia-link-preview-wrap">
-        <a className="xeevia-link-card" href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick}>
-          <img className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: "rgba(255,255,255,.08)" }} src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(url).hostname)}&sz=64`} alt="" loading="lazy" />
-          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{platform.label} link</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{new URL(url).hostname}</small></span>
-          <span className="xeevia-link-open" style={{ marginLeft: "auto", color: platform.color, flex: "0 0 auto" }} aria-hidden="true">↗</span>
+        <a
+          className={`xeevia-link-card${internal ? " xeevia-link-card--internal" : ""}`}
+          href={url}
+          target={internal ? "_self" : "_blank"}
+          rel={internal ? "noopener" : "noopener noreferrer"}
+          onClick={handleClick}
+          style={{ borderLeftColor: internal ? "#a3e635" : platform.color }}
+        >
+          <span className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: internal ? "rgba(163,230,53,.14)" : "rgba(255,255,255,.08)", display: "grid", placeItems: "center", color: internal ? "#a3e635" : platform.color, fontSize: 12, fontWeight: 800 }}>{internal ? internalLabel.slice(0, 1) : "↗"}</span>
+          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: internal ? "#d9f99d" : platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewTitle}</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hostLabel}</small></span>
+          <span className="xeevia-link-open" style={{ marginLeft: "auto", color: internal ? "#a3e635" : platform.color, flex: "0 0 auto" }} aria-hidden="true">↗</span>
         </a>
         {trailing}
       </span>
@@ -134,14 +146,13 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
   const parts = children.split(URL_PATTERN);
   if (previewOnly) {
     const url = children.replace(TRAILING_PUNCTUATION, "");
-    if (!/^https?:\/\//i.test(url) || isInternalXeeviaUrl(url)) return null;
+    if (!/^https?:\/\//i.test(url)) return null;
     return <LinkSegment url={url} trailing="" onNavigate={onNavigate} displayMode="embed" />;
   }
   const previewUrls = displayMode === "embed"
     ? parts
       .filter((part) => /^https?:\/\//i.test(part))
       .map((part) => part.replace(TRAILING_PUNCTUATION, ""))
-      .filter((url) => !isInternalXeeviaUrl(url))
     : [];
   return (
     <span className={`xeevia-linkified-text${className ? ` ${className}` : ""}`}>

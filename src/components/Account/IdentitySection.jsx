@@ -685,10 +685,7 @@ const IdentitySection = ({ userId }) => {
                         }
                         {cfg.label}
                       </div>
-                      {/* Connect note for unlinked live platforms */}
-                      {status === "none" && meta.live && meta.connectNote && (
-                        <div className="idConnectNote">{meta.connectNote}</div>
-                      )}
+                      {/* Connect notes intentionally hidden to keep the identity grid clean. */}
                     </div>
 
                     {/* Top action: link state. The lower action shows the exact linked account or URL. */}

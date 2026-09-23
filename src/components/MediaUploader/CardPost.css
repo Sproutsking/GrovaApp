@@ -140,7 +140,8 @@
   box-sizing: border-box;
 }
 
-.cp-text-layer p {
+.cp-text-layer p,
+.cp-text-layer .cp-copy > span {
   margin: 0;
   word-wrap: break-word;
   word-break: break-word;
@@ -165,6 +166,36 @@
   /* Font stack — system fonts that look premium */
   font-family:
     -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.cp-copy {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cp-copy-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-more-btn {
+  align-self: flex-end;
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 10, 12, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 /* ── RESPONSIVE ───────────────────────────────────────────────────────────────

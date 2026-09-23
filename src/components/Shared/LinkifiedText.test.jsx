@@ -22,7 +22,7 @@ describe("LinkifiedText", () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByRole("link"));
+    fireEvent.click(screen.getAllByRole("link")[0]);
     expect(onParentClick).not.toHaveBeenCalled();
   });
 
@@ -89,9 +89,11 @@ describe("LinkifiedText", () => {
     expect(screen.getAllByRole("link")[0].textContent).toContain("https://preeb.cloud/about");
   });
 
-  it("does not duplicate internal Xeevia navigation links", () => {
+  it("shows preview cards for internal Xeevia links too", () => {
     render(<LinkifiedText>Open https://app.xeevia.com/post/abc-123</LinkifiedText>);
-    expect(screen.getAllByRole("link")).toHaveLength(1);
+    const links = screen.getAllByRole("link");
+    expect(links[0].getAttribute("href")).toBe("https://app.xeevia.com/post/abc-123");
+    expect(links[1].textContent).toContain("Xeevia post");
   });
 
   it("extracts only external URLs for message-level preview placement", () => {

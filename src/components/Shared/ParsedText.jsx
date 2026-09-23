@@ -65,7 +65,7 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
 
   const parts = parseText(text);
   const previewUrls = displayMode === "embed"
-    ? parts.filter((part) => part.type === "url" && !isInternalXeeviaUrl(part.content)).map((part) => part.content)
+    ? parts.filter((part) => part.type === "url").map((part) => part.content)
     : [];
 
   return (

@@ -1,4 +1,5 @@
 import React from "react";
+import LinkifiedText from "../Shared/LinkifiedText";
 import "./CardPost.css";
 
 // ─── EDGE OVERLAYS ────────────────────────────────────────────────────────────
@@ -118,6 +119,14 @@ const getPadding = (text = "") => {
   return "24px 28px";
 };
 
+export const shouldClampCardText = (text = "") => {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean).length;
+  const chars = trimmed.length;
+  return words > 8 || chars > 70;
+};
+
 // ─── CARD POST DISPLAY ────────────────────────────────────────────────────────
 const CardPostDisplay = ({ post }) => {
   // Extract metadata from the post
@@ -170,6 +179,7 @@ const CardPostDisplay = ({ post }) => {
       : align;
   const alignItems =
     resolvedAlign === "left" ? "flex-start" : resolvedAlign === "right" ? "flex-end" : "center";
+  const shouldClamp = shouldClampCardText(cardText);
 
   return (
     <div className={`cp-wrapper${isAutoLayout ? " cp-wrapper-auto" : ""}`} style={{ height: cardHeight }}>
@@ -197,7 +207,10 @@ const CardPostDisplay = ({ post }) => {
           className="cp-text-layer"
           style={{ padding, textAlign: resolvedAlign, alignItems }}
         >
-          <p style={textStyle}>{cardText}</p>
+          <div className={`cp-copy${shouldClamp ? " cp-copy-clamped" : ""}`}>
+            <LinkifiedText>{cardText}</LinkifiedText>
+          </div>
+          {shouldClamp && <button type="button" className="cp-more-btn">More</button>}
         </div>
       </div>
     </div>
