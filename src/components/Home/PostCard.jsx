@@ -697,7 +697,7 @@ const PostCard = ({
     const measure = () => {
       const el = capRef.current; if (!el) return;
       const lh = parseFloat(window.getComputedStyle(el).lineHeight) || 22;
-      setCapClamp(el.scrollHeight > lh * 2 + 6);
+      setCapClamp(el.scrollHeight > lh * 1.3 + 2);
     };
     const ro = new ResizeObserver(measure); ro.observe(capRef.current); measure();
     return () => ro.disconnect();
@@ -906,14 +906,21 @@ const PostCard = ({
               </div>
 
               {post.content && (
-                <>
+                <div className={`gvp-cap-wrap${capExp ? " expanded" : ""}`}>
                   <div ref={capRef} className={`gvp-text gvp-cap${!capExp && capClamp ? " gvp-cap-clamp" : ""}`}>
                     <ParsedText text={post.content} displayMode={linkDisplayMode} />
                   </div>
-                  {capClamp && !capExp && (
-                    <button className="gvp-expand gvp-expand-inline" onClick={() => setCapExp(true)}>…more</button>
+                  {(capClamp || capExp) && (
+                    <button
+                      type="button"
+                      className="gvp-expand gvp-expand-inline"
+                      onClick={() => setCapExp((previous) => !previous)}
+                      aria-expanded={capExp}
+                    >
+                      {capExp ? "Less" : "More"}
+                    </button>
                   )}
-                </>
+                </div>
               )}
             </>
           )}
@@ -997,11 +1004,12 @@ const CSS = `
 .gvp-text{padding:0 14px;color:#eeeeee;font-size:14px;line-height:1.7;margin-top:4px;margin-bottom:0;word-break:break-word;white-space:pre-wrap;}
 .gvp-text-only.gvp-fade{position:relative;}
 .gvp-text-only.gvp-fade::after{content:"";position:absolute;bottom:0;left:0;right:0;height:48px;background:linear-gradient(to bottom,transparent,#080808);pointer-events:none;}
-.gvp-cap{margin:6px 0 2px;padding:0 14px;}
-.gvp-cap-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.gvp-expand{display:inline-block;background:none;border:none;padding:2px 14px 0;color:#6b7280;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:color .15s;margin-bottom:2px;line-height:1.6;}
-.gvp-expand:hover{color:#84cc16;}
-.gvp-expand-inline{padding:1px 14px 3px;}
+.gvp-cap-wrap{display:flex;align-items:flex-start;gap:8px;padding:6px 14px 0;margin:0;}
+.gvp-cap{margin:0;flex:1;min-width:0;padding:0;}
+.gvp-cap-clamp{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.gvp-expand{display:inline-block;background:none;border:none;padding:2px 0 0;color:#84cc16;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:color .15s;margin:0;line-height:1.5;flex-shrink:0;letter-spacing:.04em;text-transform:uppercase;}
+.gvp-expand:hover{color:#a3e635;}
+.gvp-expand-inline{padding:0;align-self:flex-start;}
 
 /* ── Media wrapper ── */
 .gvp-media-wrap{position:relative;margin-top:4px;overflow:hidden;}

@@ -174,28 +174,6 @@
   max-width: 100%;
 }
 
-.cp-copy-clamped {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.cp-more-btn {
-  align-self: flex-end;
-  margin-top: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(10, 10, 12, 0.28);
-  color: rgba(255, 255, 255, 0.92);
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  line-height: 1.2;
-  cursor: pointer;
-}
 
 /* ── RESPONSIVE ───────────────────────────────────────────────────────────────
    On mobile: slightly tighter margins, same smart height logic still applies.
