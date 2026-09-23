@@ -192,35 +192,26 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
         supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
       ]);
       const nextConnected = Array.isArray(connectedList) ? connectedList : [];
-      const communities = ownedCommunities?.data || [];
+      const communities = (ownedCommunities?.data || []).filter(Boolean);
+      const communityIds = Array.from(new Set(communities.map((community) => community.id)));
       let nextCommunityTargets = [];
-      if (communities.length) {
+      if (communityIds.length) {
         const { data: destinations, error: destinationError } = await supabase
           .from("community_bot_destinations")
           .select("id,community_id,provider,display_name,enabled,integration:community_bot_integrations(status)")
-          .in("community_id", communities.map((community) => community.id));
+          .in("community_id", communityIds);
         if (destinationError && destinationError.code !== "42P01") throw destinationError;
-        nextCommunityTargets = (destinations || []).map((destination) => ({
-          ...destination,
-          communityName: communities.find((community) => community.id === destination.community_id)?.name || "Community",
-          target: `community:${destination.id}`,
-          integrationStatus: Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status,
-          ready: destination.enabled && (Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status) === "active",
-        }));
-        const configuredCommunities = new Set(nextCommunityTargets.map((destination) => destination.community_id));
-        communities.forEach((community) => {
-          if (!configuredCommunities.has(community.id)) {
-            nextCommunityTargets.push({
-              id: `setup-${community.id}`,
-              community_id: community.id,
-              communityName: community.name,
-              displayName: "Connect a bot destination",
-              provider: "community",
-              target: `community:setup:${community.id}`,
-              ready: false,
-              setupOnly: true,
-            });
-          }
+        nextCommunityTargets = (destinations || []).map((destination) => {
+          const integrationStatus = Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status;
+          const normalizedStatus = String(integrationStatus || "").toLowerCase();
+          const ready = Boolean(destination.enabled) && ["active", "pending", "connected", "ready"].includes(normalizedStatus);
+          return {
+            ...destination,
+            communityName: communities.find((community) => community.id === destination.community_id)?.name || "Community",
+            target: `community:${destination.id}`,
+            integrationStatus,
+            ready,
+          };
         });
       }
       setConnected(nextConnected);

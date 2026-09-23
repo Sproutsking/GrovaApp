@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import LinkifiedText from "../Shared/LinkifiedText";
 import "./CardPost.css";
 
@@ -180,6 +180,7 @@ const CardPostDisplay = ({ post }) => {
   const alignItems =
     resolvedAlign === "left" ? "flex-start" : resolvedAlign === "right" ? "flex-end" : "center";
   const shouldClamp = shouldClampCardText(cardText);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className={`cp-wrapper${isAutoLayout ? " cp-wrapper-auto" : ""}`} style={{ height: cardHeight }}>
@@ -207,10 +208,14 @@ const CardPostDisplay = ({ post }) => {
           className="cp-text-layer"
           style={{ padding, textAlign: resolvedAlign, alignItems }}
         >
-          <div className={`cp-copy${shouldClamp ? " cp-copy-clamped" : ""}`}>
+          <div className={`cp-copy${shouldClamp && !expanded ? " cp-copy-clamped" : ""}`}>
             <LinkifiedText>{cardText}</LinkifiedText>
           </div>
-          {shouldClamp && <button type="button" className="cp-more-btn">More</button>}
+          {shouldClamp && (
+            <button type="button" className="cp-more-btn" onClick={() => setExpanded((previous) => !previous)}>
+              {expanded ? "Less" : "More"}
+            </button>
+          )}
         </div>
       </div>
     </div>
