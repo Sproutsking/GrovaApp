@@ -3,6 +3,13 @@ export const DEFAULT_VERIFICATION_CONFIG = {
   quickEnabled: true,
   pictureEnabled: true,
   rulesEnabled: false,
+  roleGrant: {
+    enabled: false,
+    roleName: "Verified",
+    roleId: null,
+    grantOnVerify: true,
+    channelAccess: [],
+  },
   name: "Xeevia Verification",
   avatarIcon: "shield",
   accentColor: "#c9a66b",
@@ -46,6 +53,10 @@ export function normalizeVerificationConfig(saved = {}) {
     quick: { ...DEFAULT_VERIFICATION_CONFIG.quick, ...(saved.quick || {}) },
     picture: { ...DEFAULT_VERIFICATION_CONFIG.picture, ...(saved.picture || {}) },
     rules: { ...DEFAULT_VERIFICATION_CONFIG.rules, ...(saved.rules || {}) },
+    roleGrant: {
+      ...DEFAULT_VERIFICATION_CONFIG.roleGrant,
+      ...(saved.roleGrant || {}),
+    },
     panels: {
       rules: { ...DEFAULT_VERIFICATION_CONFIG.panels.rules, ...((saved.panels || {}).rules || {}) },
       info: { ...DEFAULT_VERIFICATION_CONFIG.panels.info, ...((saved.panels || {}).info || {}) },

@@ -14,6 +14,7 @@ import { getPlatformCapabilities } from "../../../../services/community/platform
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
 import BotsDashboard from "../../bots/BotsDashboard";
 const TOOL_CATALOG = [
+  { type: "verification", label: "Verification", description: "Gate access with role-based checks, rules, and identity verification.", icon: ShieldCheck },
   { type: "quick_verification", label: "Quick verify", description: "Configure the one-tap identity check.", icon: ShieldCheck },
   { type: "picture_verification", label: "Picture check", description: "Configure the visual challenge separately.", icon: ShieldCheck },
   { type: "rules_verification", label: "Rules verification", description: "Write rules and route the acceptance check.", icon: ShieldCheck },
@@ -139,6 +140,11 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   };
 
   const openDashboard = (tool) => {
+    if (tool.type === "verification") {
+      setFocusedVerificationMode(null);
+      setDashboardTool({ ...tool, type: "verification" });
+      return;
+    }
     if (tool.type === "quick_verification" || tool.type === "picture_verification") {
       setFocusedVerificationMode(tool.type === "quick_verification" ? "quick" : "picture");
       setDashboardTool({ ...tool, type: "verification" });

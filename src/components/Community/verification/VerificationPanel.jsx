@@ -39,12 +39,55 @@ export default function VerificationPanel({ communityId, userId, onVerified }) {
     { key: "perks", icon: Star, color: config.accentColor, ...config.panels.perks },
   ] : [], [config]);
 
+  const resolveVerifiedRoleId = async (verificationConfig = config) => {
+    if (!verificationConfig?.roleGrant?.enabled) return null;
+    const targetName = (verificationConfig.roleGrant.roleName || "Verified").trim() || "Verified";
+    const targetId = verificationConfig.roleGrant.roleId?.trim();
+
+    let query = supabase.from("community_roles").select("id").eq("community_id", communityId);
+    if (targetId) query = query.eq("id", targetId);
+    else query = query.ilike("name", targetName);
+
+    const { data: matchingRoles, error: lookupError } = await query.limit(1);
+    if (lookupError) throw lookupError;
+    if (matchingRoles?.[0]?.id) return matchingRoles[0].id;
+
+    const { data: createdRole, error: createError } = await supabase.from("community_roles").insert({
+      community_id: communityId,
+      name: targetName,
+      color: verificationConfig.accentColor || "#84cc16",
+      position: 99,
+      is_default: false,
+      permissions: {
+        sendMessages: true,
+        attachFiles: true,
+        embedLinks: true,
+        addReactions: true,
+        viewChannels: true,
+        readMessageHistory: true,
+        viewMembers: true,
+        changeOwnNickname: true,
+        useSlashCommands: true,
+      },
+    }).select("id").single();
+
+    if (createError) throw createError;
+    return createdRole?.id || null;
+  };
+
   const completeVerification = async (method) => {
     setStage("verifying");
     setError("");
     try {
       const { data, error: rpcError } = await supabase.rpc("verify_community_member", { p_community_id: communityId, p_user_id: userId, p_method: method });
       if (rpcError || !data?.success) throw new Error(rpcError?.message || data?.error || "Verification could not be completed.");
+
+      const verifiedRoleId = await resolveVerifiedRoleId();
+      if (verifiedRoleId) {
+        const { error: roleError } = await supabase.from("community_members").update({ role_id: verifiedRoleId }).eq("community_id", communityId).eq("user_id", userId);
+        if (roleError) throw new Error(roleError.message || "Verification succeeded but the role was not assigned.");
+      }
+
       setStage("verified");
       onVerified?.();
     } catch (verifyError) {
