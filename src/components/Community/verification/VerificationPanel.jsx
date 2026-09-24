@@ -1,133 +1,33 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Info, ShieldCheck, Shuffle, Star, X } from "lucide-react";
-import { supabase } from "../../../services/config/supabase";
-import { challengeIsReady, normalizeVerificationConfig } from "./verificationConfig";
+import React, { useCallback, useEffect, useState } from "react";
+import verificationService from "../../../services/community/verificationService";
+import VerificationPanelView from "./VerificationPanelView";
 
-const LETTERS = ["A", "B", "C", "D", "E", "F"];
-const shuffle = (cards) => [...cards].sort(() => Math.random() - 0.5).map((card, index) => ({ ...card, letter: LETTERS[index] }));
-
-export default function VerificationPanel({ communityId, userId, onVerified }) {
-  const [config, setConfig] = useState(null);
-  const [cards, setCards] = useState([]);
-  const [targetId, setTargetId] = useState(null);
-  const [mode, setMode] = useState("quick");
-  const [stage, setStage] = useState("idle");
-  const [wrongLetter, setWrongLetter] = useState(null);
-  const [openPanel, setOpenPanel] = useState(null);
+export default function VerificationPanel({ communityId, onVerified }) {
+  const [panel, setPanel] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [acceptedRules, setAcceptedRules] = useState(false);
-  const timeoutRef = useRef(null);
 
-  useEffect(() => () => clearTimeout(timeoutRef.current), []);
-  useEffect(() => {
-    let active = true;
-    supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "verification").maybeSingle().then(({ data }) => {
-      if (!active) return;
-      const next = normalizeVerificationConfig(data?.config || {});
-      setConfig(next);
-      setMode(next.rulesEnabled && next.rules?.enabled ? "rules" : next.mode === "picture" && next.pictureEnabled && challengeIsReady(next) ? "picture" : next.quickEnabled ? "quick" : "picture");
-      setCards(shuffle(next.challenge.cards));
-      setTargetId(next.challenge.correctId);
-    });
-    return () => { active = false; };
+  const load = useCallback(async () => {
+    try { setPanel(await verificationService.getPanel(communityId)); setError(""); }
+    catch (e) { setError(e.message || "Could not load verification."); }
+    finally { setLoading(false); }
   }, [communityId]);
+  useEffect(() => { load(); }, [load]);
 
-  const targetCard = cards.find((card) => card.id === targetId);
-  const panels = useMemo(() => config ? [
-    { key: "rules", icon: ShieldCheck, color: "#e2555c", ...config.panels.rules },
-    { key: "info", icon: Info, color: "#5b7ce0", ...config.panels.info },
-    { key: "perks", icon: Star, color: config.accentColor, ...config.panels.perks },
-  ] : [], [config]);
-
-  const resolveVerifiedRoleId = async (verificationConfig = config) => {
-    if (!verificationConfig?.roleGrant?.enabled) return null;
-    const targetName = (verificationConfig.roleGrant.roleName || "Verified").trim() || "Verified";
-    const targetId = verificationConfig.roleGrant.roleId?.trim();
-
-    let query = supabase.from("community_roles").select("id").eq("community_id", communityId);
-    if (targetId) query = query.eq("id", targetId);
-    else query = query.ilike("name", targetName);
-
-    const { data: matchingRoles, error: lookupError } = await query.limit(1);
-    if (lookupError) throw lookupError;
-    if (matchingRoles?.[0]?.id) return matchingRoles[0].id;
-
-    const { data: createdRole, error: createError } = await supabase.from("community_roles").insert({
-      community_id: communityId,
-      name: targetName,
-      color: verificationConfig.accentColor || "#84cc16",
-      position: 99,
-      is_default: false,
-      permissions: {
-        sendMessages: true,
-        attachFiles: true,
-        embedLinks: true,
-        addReactions: true,
-        viewChannels: true,
-        readMessageHistory: true,
-        viewMembers: true,
-        changeOwnNickname: true,
-        useSlashCommands: true,
-      },
-    }).select("id").single();
-
-    if (createError) throw createError;
-    return createdRole?.id || null;
-  };
-
-  const completeVerification = async (method) => {
-    setStage("verifying");
-    setError("");
+  const complete = async (method, payload) => {
+    setBusy(true);
     try {
-      const { data, error: rpcError } = await supabase.rpc("verify_community_member", { p_community_id: communityId, p_user_id: userId, p_method: method });
-      if (rpcError || !data?.success) throw new Error(rpcError?.message || data?.error || "Verification could not be completed.");
-
-      const verifiedRoleId = await resolveVerifiedRoleId();
-      if (verifiedRoleId) {
-        const { error: roleError } = await supabase.from("community_members").update({ role_id: verifiedRoleId }).eq("community_id", communityId).eq("user_id", userId);
-        if (roleError) throw new Error(roleError.message || "Verification succeeded but the role was not assigned.");
-      }
-
-      setStage("verified");
-      onVerified?.();
-    } catch (verifyError) {
-      setStage("idle");
-      setError(verifyError.message || "Verification could not be completed.");
-    }
+      const res = await verificationService.complete(communityId, method, payload);
+      if (res?.success) { await load(); onVerified?.(res); } else if (res?.lockedUntil) await load();
+      return res;
+    } catch (e) { return { success: false, error: e.message || "Verification failed." }; }
+    finally { setBusy(false); }
   };
 
-  const handleQuickVerify = () => {
-    if (stage !== "idle") return;
-    setStage("checking");
-    timeoutRef.current = setTimeout(() => completeVerification("quick"), 650);
-  };
-
-  const handlePicturePick = (letter) => {
-    if (stage !== "idle") return;
-    if (letter === targetCard?.letter) completeVerification("picture");
-    else {
-      setWrongLetter(letter);
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setWrongLetter(null), 1100);
-    }
-  };
-
-  if (!config) return <section className="verification-panel"><div className="verification-loading">Loading verification...</div></section>;
-  const pictureReady = config.pictureEnabled && challengeIsReady(config);
-  const rulesReady = config.rulesEnabled && config.rules?.enabled;
-  const activeMode = mode === "rules" && rulesReady ? "rules" : mode === "picture" && pictureReady ? "picture" : config.quickEnabled ? "quick" : "picture";
-
-  return (
-    <section className="verification-panel" style={{ "--verification-accent": config.accentColor }}>
-      <div className="verification-header"><div className="verification-icon"><ShieldCheck size={24} /></div><div><div className="verification-kicker">{config.name}</div><h1>{stage === "verified" ? (activeMode === "picture" ? config.picture.verifiedTitle : config.quick.verifiedTitle) : activeMode === "picture" ? config.picture.idleTitle : config.quick.idleTitle}</h1><p>{stage === "verified" ? (activeMode === "picture" ? config.picture.verifiedDescription : config.quick.verifiedDescription) : config.message}</p></div></div>
-      {config.quickEnabled && ((config.pictureEnabled && pictureReady) || rulesReady) && stage === "idle" && <div className="verification-mode-tabs"><button type="button" className={activeMode === "quick" ? "selected" : ""} onClick={() => setMode("quick")}>Quick verify</button>{pictureReady && <button type="button" className={activeMode === "picture" ? "selected" : ""} onClick={() => setMode("picture")}>Picture check</button>}{rulesReady && <button type="button" className={activeMode === "rules" ? "selected" : ""} onClick={() => setMode("rules")}>Rules</button>}</div>}
-      {stage === "verified" ? <div className="verification-success"><Check size={18} /> Verified. Your community access is being updated.</div> : activeMode === "rules" ? <div className="verification-rules"><h2>{config.rules.title}</h2><p>{config.rules.description}</p><pre>{config.rules.rules}</pre><label><input type="checkbox" checked={acceptedRules} onChange={(event) => setAcceptedRules(event.target.checked)} /> I have read and accept these rules.</label><button type="button" className="verification-submit" onClick={() => completeVerification("rules_gate")} disabled={!acceptedRules || stage !== "idle"}>Accept and verify</button></div> : activeMode === "picture" ? <><p className="verification-instruction">{config.picture.descriptionTemplate.replace("{label}", targetCard?.label || "target")}</p><div className="verification-picture-grid">{cards.map((card) => <div className="verification-picture-card" key={card.id}><img src={card.image} alt="" /><span>{card.letter}</span></div>)}</div><div className="verification-letter-grid">{cards.map((card) => <button type="button" key={card.letter} className={wrongLetter === card.letter ? "wrong" : ""} onClick={() => handlePicturePick(card.letter)}>{card.letter}</button>)}</div>{wrongLetter && <div className="verification-wrong">Not quite - try again.</div>}</> : <div className="verification-actions"><button type="button" className="verification-submit" onClick={handleQuickVerify} disabled={stage !== "idle"}>{stage === "checking" ? "Checking..." : config.quick.buttonLabel}</button><div className="verification-info-buttons">{panels.map((panel) => { const PanelIcon = panel.icon; const open = openPanel === panel.key; return <button type="button" key={panel.key} className={open ? "open" : ""} style={{ color: panel.color }} onClick={() => setOpenPanel(open ? null : panel.key)} aria-label={panel.label} title={panel.label}><PanelIcon size={15} /></button>; })}</div></div>}
-      {activeMode === "picture" && stage === "idle" && <button type="button" className="verification-shuffle" onClick={() => { setCards(shuffle(config.challenge.cards)); setWrongLetter(null); }}><Shuffle size={14} /> New challenge</button>}
-      {error && <div className="verification-error">{error}</div>}
-      {panels.map((panel) => { const PanelIcon = panel.icon; return <div className={`verification-info-panel${openPanel === panel.key ? " open" : ""}`} key={panel.key}><PanelIcon size={15} color={panel.color} /><span>{panel.text}</span><button type="button" onClick={() => setOpenPanel(null)} aria-label="Close"><X size={13} /></button></div>; })}
-      <style>{`.verification-panel{margin:18px auto;padding:16px 18px;border-radius:16px;box-shadow:0 16px 42px rgba(0,0,0,.28)}.verification-actions{align-items:center;gap:8px;margin-top:16px}.verification-submit{padding:12px 22px;border:1px solid color-mix(in srgb,var(--verification-accent) 70%,#fff);border-radius:10px;background:linear-gradient(135deg,#e1b968,var(--verification-accent));font-weight:900;letter-spacing:.01em;box-shadow:0 8px 18px color-mix(in srgb,var(--verification-accent) 24%,transparent),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}.verification-submit:hover:not(:disabled){transform:translateY(-1px);filter:saturate(1.12) brightness(1.06);box-shadow:0 11px 24px color-mix(in srgb,var(--verification-accent) 34%,transparent),inset 0 1px 0 rgba(255,255,255,.5)}.verification-submit:active:not(:disabled){transform:translateY(1px) scale(.98)}.verification-info-buttons{display:flex;gap:6px;align-items:center;margin:0}.verification-info-buttons button{transition:transform .15s ease,background .15s ease}.verification-info-buttons button:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}@media(max-width:600px){.verification-panel{margin:10px;padding:14px}}`}</style>
-      <style>{`.verification-panel{max-width:760px;margin:26px auto;padding:24px;border:1px solid color-mix(in srgb,var(--verification-accent) 35%,transparent);border-radius:20px;background:linear-gradient(145deg,rgba(20,31,21,.96),rgba(8,13,10,.98));color:#f3faef;box-shadow:0 20px 60px rgba(0,0,0,.3)}.verification-header{display:flex;gap:14px;align-items:flex-start}.verification-icon{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;color:var(--verification-accent);background:color-mix(in srgb,var(--verification-accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--verification-accent) 45%,transparent);flex-shrink:0}.verification-kicker{font-size:10px;color:var(--verification-accent);text-transform:uppercase;letter-spacing:.12em;font-weight:800}.verification-panel h1{margin:3px 0;font-size:23px}.verification-panel p{margin:0;color:#94a794;font-size:12px;line-height:1.5}.verification-mode-tabs{display:flex;gap:6px;margin-top:20px}.verification-mode-tabs button,.verification-shuffle{padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:transparent;color:#94a794;cursor:pointer}.verification-mode-tabs button.selected{color:var(--verification-accent);border-color:var(--verification-accent);background:rgba(156,255,0,.08)}.verification-actions{display:flex;margin-top:22px}.verification-submit{padding:13px 20px;border:0;border-radius:11px;background:var(--verification-accent);color:#071000;font-weight:800;cursor:pointer}.verification-submit:disabled{opacity:.5}.verification-picture-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.verification-picture-card{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}.verification-picture-card img{width:100%;height:100%;object-fit:cover}.verification-picture-card span{position:absolute;top:5px;right:5px;padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.6);font-size:10px;font-weight:800}.verification-letter-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:10px}.verification-letter-grid button{height:32px;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:transparent;color:#c8d4c8;font-weight:800;cursor:pointer}.verification-letter-grid button:hover{border-color:var(--verification-accent)}.verification-letter-grid button.wrong{border-color:#e2555c;color:#e2555c}.verification-instruction{margin-top:14px!important}.verification-wrong{margin-top:8px;color:#e2555c;font-size:11px}.verification-shuffle{display:inline-flex;align-items:center;gap:5px;margin-top:10px}.verification-success{display:flex;align-items:center;gap:8px;margin-top:20px;padding:12px;border-radius:10px;background:rgba(63,185,111,.12);color:#b8f0c8;font-size:12px}.verification-error{margin-top:12px;padding:10px;border-radius:9px;color:#ffaaa3;background:rgba(255,75,65,.1);font-size:11px}.verification-info-buttons{display:flex;gap:8px;margin-top:18px}.verification-info-buttons button{width:32px;height:32px;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:transparent;cursor:pointer}.verification-info-buttons button.open{border-color:currentColor}.verification-info-panel{display:none;align-items:flex-start;gap:8px;margin-top:10px;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#94a794;font-size:11px}.verification-info-panel.open{display:flex}.verification-info-panel span{flex:1}.verification-info-panel button{border:0;background:transparent;color:#94a794;cursor:pointer}@media(max-width:600px){.verification-panel{margin:14px;padding:16px}}`}</style>
-      <style>{`.verification-panel{width:min(100%,620px)!important;max-width:620px!important;margin:10px auto!important;padding:12px 14px!important;border-radius:14px!important}.verification-actions{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;margin:12px 0 0 50px!important;min-height:32px;max-width:calc(100% - 50px)}.verification-submit{height:32px!important;padding:0 18px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 auto}.verification-info-buttons{display:flex!important;align-items:center!important;gap:6px!important;margin:0!important;flex:0 0 auto}.verification-info-buttons button{width:30px!important;height:30px!important}.verification-header{gap:10px!important}.verification-icon{width:40px!important;height:40px!important;border-radius:11px!important}.verification-panel h1{font-size:20px!important}.verification-success{margin-top:12px!important;padding:9px!important}@media(max-width:600px){.verification-actions{margin-left:0!important;max-width:100%}}`}</style>
-    </section>
-  );
+  const note = (text) => <section style={{ maxWidth: 560, margin: "40px auto", padding: 20, color: "#98ab98", fontSize: 13, textAlign: "center" }}>{text}</section>;
+  if (loading) return note("Loading verification…");
+  if (error) return note(error);
+  if (!panel?.configured) return note("Verification isn't configured for this community yet.");
+  return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} />;
 }

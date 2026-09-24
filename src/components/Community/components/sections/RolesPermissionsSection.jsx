@@ -8,6 +8,7 @@ import {
   Check, X, Users, Crown, Save, Trash2,
 } from "lucide-react";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
+import RoleAccessPanel from "./RoleAccessPanel";
 
 // ─── Permission groups (Discord-style but ours) ───────────────────────────────
 const PERM_GROUPS = [
@@ -76,6 +77,7 @@ const COLORS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const RolesPermissionsSection = ({
+  communityId,
   roles = [],
   members = [],
   canManageRoles = false,
@@ -377,6 +379,19 @@ const RolesPermissionsSection = ({
           {filteredGroups.length === 0 && (
             <div className="rps-no-match">No permissions match "{permSearch}"</div>
           )}
+
+          {selectedRole && communityId && (
+            <div className="rps-access-panel">
+              <div className="rps-field-label" style={{ marginTop: 14 }}>Channel access</div>
+              <RoleAccessPanel
+                communityId={communityId}
+                role={selectedRole}
+                roles={roles}
+                canManage={canManageRoles}
+                onChanged={() => {}}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -504,6 +519,7 @@ const rpsStyles = `
   .rps-empty-members{padding:18px 8px;color:#555;font-size:11px;text-align:center}
   .rps-assign-label{display:flex;flex-direction:column;gap:7px;margin-top:14px;font-size:10px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px}
   .rps-assign-label select{padding:9px 10px;border-radius:8px;background:#121212;border:1px solid rgba(156,255,0,.25);color:#bbb;font-size:12px;outline:none}
+  .rps-access-panel{margin-top:12px;padding-top:6px;border-top:1px solid rgba(255,255,255,.05)}
 
   /* Permissions tab */
   .rps-perms{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:0}

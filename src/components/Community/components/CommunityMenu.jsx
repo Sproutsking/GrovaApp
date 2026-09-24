@@ -290,6 +290,7 @@ const CommunityMenu = ({
             {menuView === "notifications" && <NotificationsSection community={community} onUpdateNotifications={async(s)=>onUpdate({type:"notifications",settings:s})} />}
             {menuView === "roles"         && (
               <RolesPermissionsSection
+                communityId={community.id}
                 roles={roles} members={members}
                 selectedRole={selectedRole} setSelectedRole={setSelectedRole}
                 canManageRoles={canManageRoles}
