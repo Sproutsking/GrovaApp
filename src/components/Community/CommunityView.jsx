@@ -31,6 +31,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCommunity, setInviteCommunity] = useState(null);
   const [pendingInvite, setPendingInvite] = useState(null);
+  const [postCreateGuide, setPostCreateGuide] = useState(null);
   const [fullUserProfile, setFullUserProfile] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -224,6 +225,13 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const handleCreateCommunity = async (communityData) => {
     const newCommunity = await communityService.createCommunity(communityData, userId);
     await loadCommunities();
+    setPostCreateGuide({
+      id: newCommunity?.id,
+      name: newCommunity?.name || communityData.name,
+      description: newCommunity?.description || communityData.description || "",
+      icon: newCommunity?.icon || communityData.icon || "🌟",
+      banner_gradient: newCommunity?.banner_gradient || communityData.bannerGradient || "linear-gradient(135deg,#667eea,#764ba2)",
+    });
     handleSelectCommunity(newCommunity);
     setShowCreateCommunity(false);
   };
@@ -502,6 +510,33 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         />
       )}
 
+      {postCreateGuide && (
+        <div className="community-launch-guide-overlay" onClick={() => setPostCreateGuide(null)}>
+          <div className="community-launch-guide" onClick={(e) => e.stopPropagation()}>
+            <button className="community-launch-close" onClick={() => setPostCreateGuide(null)}>×</button>
+            <div className="community-launch-banner" style={{ background: postCreateGuide.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
+              <div className="community-launch-icon">{postCreateGuide.icon?.startsWith("http") ? <img src={postCreateGuide.icon} alt="" /> : (postCreateGuide.icon || "🌟")}</div>
+            </div>
+            <div className="community-launch-content">
+              <div className="community-launch-kicker">Community ready</div>
+              <h3>{postCreateGuide.name}</h3>
+              <p>{postCreateGuide.description || "Your community is live. Here is the fastest path to making it feel complete."}</p>
+              <ul>
+                <li>Drag channels to categories and re-order them to match your flow.</li>
+                <li>Open roles and permissions to lock the Owner role and set member access.</li>
+                <li>Invite people and create a verification or welcome channel to make the experience feel premium.</li>
+              </ul>
+              <div className="community-launch-docs">
+                <div className="community-launch-doc"><strong>Settings</strong><span>Appearance, privacy, and ownership</span></div>
+                <div className="community-launch-doc"><strong>Channels</strong><span>Organizer, categories, and defaults</span></div>
+                <div className="community-launch-doc"><strong>Roles</strong><span>Owner protection and admin access</span></div>
+              </div>
+              <button className="community-launch-action" onClick={() => setPostCreateGuide(null)}>Start customizing</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pendingInvite && (
         <InviteHandler
           inviteCode={pendingInvite}
@@ -525,6 +560,135 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         }}
         onCancel={() => setConfirmAction(null)}
       />
+
+      <style>{`
+        .community-launch-guide-overlay {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(2, 4, 7, 0.82);
+          backdrop-filter: blur(10px);
+          z-index: 12000;
+          padding: 18px;
+        }
+        .community-launch-guide {
+          position: relative;
+          width: min(540px, calc(100vw - 32px));
+          background: rgba(15, 17, 22, 0.98);
+          border: 1.5px solid rgba(156,255,0,0.22);
+          border-radius: 22px;
+          overflow: hidden;
+          box-shadow: 0 18px 54px rgba(0,0,0,0.6), 0 0 36px rgba(156,255,0,0.12);
+        }
+        .community-launch-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          z-index: 2;
+          width: 32px;
+          height: 32px;
+          border: 0;
+          border-radius: 50%;
+          background: rgba(0,0,0,0.35);
+          color: #fff;
+          font-size: 22px;
+          cursor: pointer;
+        }
+        .community-launch-banner {
+          height: 120px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          overflow: hidden;
+        }
+        .community-launch-icon {
+          width: 72px;
+          height: 72px;
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.24);
+          border: 2px solid rgba(255,255,255,0.2);
+          box-shadow: 0 8px 26px rgba(0,0,0,0.28);
+          font-size: 34px;
+          font-weight: 900;
+        }
+        .community-launch-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 18px;
+        }
+        .community-launch-content {
+          padding: 18px 18px 20px;
+        }
+        .community-launch-kicker {
+          font-size: 10.5px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #9cff00;
+          font-weight: 800;
+          margin-bottom: 8px;
+        }
+        .community-launch-content h3 {
+          margin: 0 0 8px;
+          font-size: 24px;
+          color: #fff;
+        }
+        .community-launch-content p {
+          margin: 0 0 12px;
+          color: #d3d3d3;
+          line-height: 1.5;
+          font-size: 13px;
+        }
+        .community-launch-content ul {
+          margin: 0 0 14px;
+          padding-left: 18px;
+          color: #d7d7d7;
+          font-size: 12.5px;
+          line-height: 1.6;
+        }
+        .community-launch-docs {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          margin-bottom: 18px;
+        }
+        .community-launch-doc {
+          background: rgba(26, 26, 26, 0.82);
+          border: 1px solid rgba(156,255,0,0.18);
+          border-radius: 12px;
+          padding: 10px 8px;
+        }
+        .community-launch-doc strong {
+          display: block;
+          color: #fff;
+          font-size: 12px;
+          margin-bottom: 4px;
+        }
+        .community-launch-doc span {
+          color: #a8a8a8;
+          font-size: 11px;
+          line-height: 1.4;
+        }
+        .community-launch-action {
+          width: 100%;
+          padding: 12px 16px;
+          border: 0;
+          border-radius: 12px;
+          background: linear-gradient(135deg,#9cff00,#667eea);
+          color: #07120f;
+          font-weight: 900;
+          cursor: pointer;
+        }
+        @media (max-width: 560px) {
+          .community-launch-docs { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 };

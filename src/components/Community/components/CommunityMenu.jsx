@@ -88,6 +88,29 @@ const CommunityIcon = ({ community, size = 52 }) => {
   );
 };
 
+const COMMUNITY_SETUP_GUIDES = [
+  {
+    title: "Owner controls",
+    summary: "The owner role is protected and stays above all other roles.",
+    detail: "Keep ownership fixed, protect admin powers, and avoid accidental role changes by non-owners.",
+  },
+  {
+    title: "Channels",
+    summary: "Use channels for topics, support, announcements, and verification.",
+    detail: "Create channels, set their purpose, and keep the welcome or verification flow visible to new members.",
+  },
+  {
+    title: "Categories",
+    summary: "Group channels together so members can navigate faster.",
+    detail: "Drag and drop channels into categories to organize your structure and keep discussions clean.",
+  },
+  {
+    title: "Community settings",
+    summary: "Tune the look, privacy, and default member experience.",
+    detail: "Use community settings to keep your banner, privacy mode, and onboarding flow aligned with your brand.",
+  },
+];
+
 const CommunityMenu = ({
   show, onClose, community, userId,
   onLeave, onUpdate, onCreateChannel, onDeleteCommunity,
@@ -240,6 +263,7 @@ const CommunityMenu = ({
                 <div className="cm-section">
                   {[
                     { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true },
+                    { label:"Help & Setup", desc:"Learn settings, channels, and categories", icon:<Star size={16}/>, gradient:"linear-gradient(135deg,#f9d423,#ff4e50)", onClick:()=>setMenuView("help"), arrow:true },
                     { label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,#f093fb,#f5576c)", onClick:()=>{onClose();onOpenInvite();} },
                     ...(canCreateChannels ? [{ label:"Create Channel", desc:"Add a new channel", icon:<Plus size={16}/>, gradient:"linear-gradient(135deg,#4facfe,#00f2fe)", onClick:onCreateChannel }] : []),
                     ...(canManageBackground ? [{ label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} }] : []),
@@ -287,6 +311,25 @@ const CommunityMenu = ({
             )}
 
             {menuView === "members"       && <MembersSection community={community} userId={userId} />}
+            {menuView === "help" && (
+              <div className="community-help-shell">
+                <div className="community-help-header">
+                  <div>
+                    <span className="community-help-kicker">Community playbook</span>
+                    <h2>How to make your community feel premium</h2>
+                  </div>
+                </div>
+                <div className="community-help-list">
+                  {COMMUNITY_SETUP_GUIDES.map((guide) => (
+                    <div key={guide.title} className="community-help-card">
+                      <div className="community-help-card-title">{guide.title}</div>
+                      <div className="community-help-card-summary">{guide.summary}</div>
+                      <p>{guide.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {menuView === "notifications" && <NotificationsSection community={community} onUpdateNotifications={async(s)=>onUpdate({type:"notifications",settings:s})} />}
             {menuView === "roles"         && (
               <RolesPermissionsSection
@@ -391,6 +434,60 @@ const CommunityMenu = ({
         .cm-item-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
         .cm-item-title{font-size:13px;font-weight:700;color:var(--text)}
         .cm-item-desc{font-size:10px;color:var(--text-secondary)}
+
+        .community-help-shell {
+          padding: 18px 16px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .community-help-header {
+          padding: 4px 4px 0;
+        }
+        .community-help-kicker {
+          display: inline-block;
+          font-size: 11px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #9cff00;
+          font-weight: 800;
+          margin-bottom: 6px;
+        }
+        .community-help-header h2 {
+          margin: 0;
+          font-size: 20px;
+          color: #fff;
+          line-height: 1.2;
+        }
+        .community-help-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .community-help-card {
+          background: rgba(18,18,18,0.9);
+          border: 1.5px solid rgba(156,255,0,0.2);
+          border-radius: 14px;
+          padding: 14px 14px 12px;
+        }
+        .community-help-card-title {
+          font-size: 14px;
+          font-weight: 800;
+          color: #fff;
+          margin-bottom: 5px;
+        }
+        .community-help-card-summary {
+          font-size: 12px;
+          font-weight: 700;
+          color: #9cff00;
+          margin-bottom: 6px;
+        }
+        .community-help-card p {
+          margin: 0;
+          color: #a3a3a3;
+          font-size: 12px;
+          line-height: 1.5;
+        }
 
         @media(max-width:768px){
           body.community-menu-fullscreen .mh-header,

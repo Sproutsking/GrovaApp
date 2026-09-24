@@ -313,6 +313,9 @@ class RoleService {
         .eq("id", roleId)
         .single();
       if (roleError || !existingRole) throw new Error("Role not found");
+      if (String(existingRole.name || "").trim().toLowerCase() === "owner") {
+        throw new Error("The owner role is protected and cannot be edited by other admins.");
+      }
       if (!actorUserId || !(await this.hasPermission(existingRole.community_id, actorUserId, "manageRoles"))) {
         throw new Error("You do not have permission to manage roles");
       }
@@ -363,13 +366,18 @@ class RoleService {
    */
   async deleteRole(roleId) {
     try {
-      // Check if role is default
       const { data: role } = await supabase
         .from("community_roles")
-        .select("is_default")
+        .select("name, is_default")
         .eq("id", roleId)
         .single();
 
+      if (!role) {
+        throw new Error("Role not found");
+      }
+      if (String(role.name || "").trim().toLowerCase() === "owner") {
+        throw new Error("The owner role is protected and cannot be deleted.");
+      }
       if (role?.is_default) {
         throw new Error("Cannot delete default role");
       }
