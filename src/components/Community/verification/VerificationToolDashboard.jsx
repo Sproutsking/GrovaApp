@@ -85,14 +85,8 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
   const [config, setConfig] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [selectedMode, setSelectedMode] = useState(focusMode || null);
-
-  useEffect(() => {
-    setSelectedMode(focusMode || null);
-  }, [focusMode]);
 
   const selectMode = (modeId) => {
-    setSelectedMode(modeId);
     onModeSelect?.(modeId);
   };
 
@@ -124,22 +118,6 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
     }} />;
   }
   if (focusMode === "role_grant") {
-    return <RoleGrantPage config={config} disabled={disabled} saving={saving} error={error} onPatch={patch} onSave={() => handleSave({ ...config, roleGrant: { ...config.roleGrant, enabled: Boolean(config.roleGrant?.enabled) } })} />;
-  }
-
-  if (selectedMode === "quick") {
-    return <VerificationModeDashboard mode="quick" value={config} disabled={disabled} onSave={(next) => handleSave(next)} />;
-  }
-  if (selectedMode === "picture") {
-    return <PictureVerificationDashboard value={config} disabled={disabled} onSave={(next) => handleSave({ ...config, ...next })} />;
-  }
-  if (selectedMode === "rules_gate") {
-    return <RulesVerificationDashboard value={config.rules} channels={channels} disabled={disabled} onSave={async (rulesConfig) => {
-      const next = { ...config, rules: { ...config.rules, ...rulesConfig }, rulesEnabled: Boolean(rulesConfig.enabled) };
-      await handleSave(next);
-    }} />;
-  }
-  if (selectedMode === "role_grant") {
     return <RoleGrantPage config={config} disabled={disabled} saving={saving} error={error} onPatch={patch} onSave={() => handleSave({ ...config, roleGrant: { ...config.roleGrant, enabled: Boolean(config.roleGrant?.enabled) } })} />;
   }
 
