@@ -11,7 +11,8 @@ set search_path = public
 as $$
 declare
   membership public.community_members%rowtype;
-  current_role public.community_roles%rowtype;
+  current_role_name text;
+  current_permissions jsonb;
   target_role_id uuid;
   role_name text;
   role_id_override text;
@@ -54,8 +55,8 @@ begin
     return jsonb_build_object('success', false, 'error', 'Community membership not found');
   end if;
 
-  select *
-    into current_role
+  select lower(trim(name)), permissions
+    into current_role_name, current_permissions
   from public.community_roles
   where id = membership.role_id
   limit 1;
@@ -110,11 +111,11 @@ begin
     return jsonb_build_object('success', false, 'error', 'No target role is configured for verification');
   end if;
 
-  if current_role.name is not null and (
-      lower(trim(current_role.name)) = 'owner'
-      or current_role.permissions @> '{"administrator": true}'::jsonb
-      or current_role.permissions @> '{"manageCommunity": true}'::jsonb
-      or current_role.permissions @> '{"manageRoles": true}'::jsonb
+  if current_role_name is not null and (
+      current_role_name = 'owner'
+      or coalesce(current_permissions, '{}'::jsonb) @> '{"administrator": true}'::jsonb
+      or coalesce(current_permissions, '{}'::jsonb) @> '{"manageCommunity": true}'::jsonb
+      or coalesce(current_permissions, '{}'::jsonb) @> '{"manageRoles": true}'::jsonb
     ) then
     return jsonb_build_object(
       'success', true,
