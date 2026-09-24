@@ -173,8 +173,10 @@ class RoleModel {
       updated_at: this.updatedAt,
     };
 
-    if (this.id) {
-      payload.id = this.id;
+    const rawId = this.id;
+    const normalizedId = typeof rawId === "string" ? rawId.trim() : rawId;
+    if (normalizedId && normalizedId !== "null" && normalizedId !== "undefined") {
+      payload.id = normalizedId;
     }
 
     return payload;

@@ -101,9 +101,14 @@ class PermissionService {
         throw new Error(validation.errors.join(", "));
       }
 
+      const payload = roleModel.toJSON();
+      if (payload.id == null || ["null", "undefined", ""].includes(String(payload.id).trim().toLowerCase())) {
+        delete payload.id;
+      }
+
       const { data, error } = await supabase
         .from("community_roles")
-        .insert(roleModel.toJSON())
+        .insert(payload)
         .select()
         .single();
 

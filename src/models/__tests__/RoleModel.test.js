@@ -3,6 +3,7 @@ import RoleModel from "../RoleModel";
 describe("RoleModel", () => {
   it("omits the id when creating a fresh role record", () => {
     const role = new RoleModel({
+      id: null,
       community_id: "11111111-1111-1111-1111-111111111111",
       name: "Support",
       color: "#00FF00",
@@ -11,5 +12,17 @@ describe("RoleModel", () => {
 
     expect(role.toJSON()).not.toHaveProperty("id");
     expect(role.toJSON().name).toBe("Support");
+  });
+
+  it("removes null-like ids before insert so Supabase never gets a null primary key", () => {
+    const role = new RoleModel({
+      id: "null",
+      community_id: "11111111-1111-1111-1111-111111111111",
+      name: "Support",
+      color: "#00FF00",
+      permissions: { viewChannels: true },
+    });
+
+    expect(role.toJSON()).not.toHaveProperty("id");
   });
 });
