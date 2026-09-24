@@ -1,6 +1,7 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
+import { resolveAccessForRole } from "./accessService";
 
 function getAvatarUrl(avatarId) {
   if (!avatarId || typeof avatarId !== "string") {
@@ -151,13 +152,35 @@ class RoleService {
 
       const roleModel = RoleModel.fromAPI(role);
 
-      // Administrator can see everything
       if (roleModel.hasPermission("administrator")) {
         return true;
       }
 
-      // Others can view if they have viewChannels permission
-      return roleModel.hasPermission("viewChannels");
+      const { data: membership } = await supabase
+        .from("community_members")
+        .select("role_id")
+        .eq("community_id", communityId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!membership?.role_id) return roleModel.hasPermission("viewChannels");
+
+      const { data: allChannels } = await supabase
+        .from("community_channels")
+        .select("id,name,category,category_id,is_private")
+        .eq("community_id", communityId);
+
+      const targetChannel = (allChannels || []).find((channel) => channel.id === channelName || channel.name === channelName) || null;
+      const rules = await this.getAccessRulesForCommunity(communityId);
+      const access = resolveAccessForRole({
+        roleId: membership.role_id,
+        channel: targetChannel,
+        categoryId: targetChannel?.category_id ?? targetChannel?.category ?? null,
+        rules,
+        defaultOpen: roleModel.hasPermission("viewChannels") && !targetChannel?.is_private,
+      });
+
+      return access.canView;
     } catch (error) {
       console.error("Error checking channel view permission:", error);
       return false;
@@ -167,61 +190,46 @@ class RoleService {
   /**
    * Get channels visible to user based on their role
    */
+  async getAccessRulesForCommunity(communityId) {
+    try {
+      const { data, error } = await supabase
+        .from("community_access_rules")
+        .select("community_id,target_type,target_id,role_id,can_view,can_send")
+        .eq("community_id", communityId);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("Error loading community access rules:", error);
+      return [];
+    }
+  }
+
   async getVisibleChannels(communityId, userId, allChannels) {
     try {
       const role = await this.getUserRole(communityId, userId);
       if (!role) return (allChannels || []).filter((channel) => !channel.is_private);
 
       const roleModel = RoleModel.fromAPI(role);
-
-      // Administrator can see all channels
-      if (roleModel.hasPermission("administrator")) {
-        return allChannels;
-      }
+      if (roleModel.hasPermission("administrator")) return allChannels || [];
 
       const { data: membership } = await supabase
         .from("community_members")
         .select("role_id")
         .eq("community_id", communityId)
         .eq("user_id", userId)
-        .single();
-      if (!membership?.role_id) return allChannels.filter((channel) => !channel.is_private);
+        .maybeSingle();
+      if (!membership?.role_id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
 
-      const { data: accessRows } = await supabase
-        .from("community_member_channel_access")
-        .select("channel_id,can_view")
-        .eq("community_id", communityId)
-        .eq("user_id", userId);
-      const accessMap = new Map((accessRows || []).map((item) => [item.channel_id, item.can_view]));
-      const { data: overrides } = await supabase
-        .from("channel_permission_overrides")
-        .select("channel_id, state")
-        .eq("role_id", membership.role_id)
-        .eq("permission", "viewChannel");
-      const overrideMap = new Map((overrides || []).map((item) => [item.channel_id, item.state]));
-      const categoryNames = [...new Set((allChannels || []).map((channel) => channel.category).filter(Boolean))];
-      const { data: categories } = await supabase
-        .from("community_channel_categories")
-        .select("id,name")
-        .eq("community_id", communityId)
-        .in("name", categoryNames);
-      const categoryIds = new Map((categories || []).map((category) => [category.name, category.id]));
-      const { data: categoryOverrides } = await supabase
-        .from("category_permission_overrides")
-        .select("category_id,state,apply_to_channels")
-        .eq("community_id", communityId)
-        .eq("role_id", membership.role_id)
-        .eq("permission", "viewChannel");
-      const categoryOverrideMap = new Map((categoryOverrides || []).filter((item) => item.apply_to_channels).map((item) => [item.category_id, item.state]));
-      return allChannels.filter((channel) => {
-        if (accessMap.has(channel.id)) return accessMap.get(channel.id) === true;
-        const explicit = overrideMap.get(channel.id);
-        if (explicit === "deny") return false;
-        if (explicit === "allow") return true;
-        const inherited = categoryOverrideMap.get(categoryIds.get(channel.category));
-        if (inherited === "deny") return false;
-        if (inherited === "allow") return true;
-        return roleModel.hasPermission("viewChannels") && !channel.is_private;
+      const rules = await this.getAccessRulesForCommunity(communityId);
+      return (allChannels || []).filter((channel) => {
+        const access = resolveAccessForRole({
+          roleId: membership.role_id,
+          channel,
+          categoryId: channel.category_id ?? channel.category ?? null,
+          rules,
+          defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
+        });
+        return access.canView;
       });
     } catch (error) {
       console.error("Error getting visible channels:", error);
@@ -243,6 +251,21 @@ class RoleService {
         .eq("user_id", userId)
         .maybeSingle();
       if (!membership?.role_id) return true;
+
+      const rules = await this.getAccessRulesForCommunity(communityId);
+      const access = resolveAccessForRole({
+        roleId: membership.role_id,
+        channel,
+        categoryId: channel.category_id ?? channel.category ?? null,
+        rules,
+        defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
+      });
+
+      if (access.restricted && !access.canView) return false;
+      if (permission === "sendMessages" && access.restricted && !access.canSend) return false;
+      if (permission === "attachFiles" && access.restricted && !access.canSend) return false;
+      if (permission === "addReactions" && access.restricted && !access.canSend) return false;
+      if (permission === "mentionEveryone" && access.restricted && !access.canSend) return false;
 
       const { data: channelOverride } = await supabase
         .from("channel_permission_overrides")

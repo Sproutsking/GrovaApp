@@ -228,9 +228,41 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     setShowCreateCommunity(false);
   };
 
+  useEffect(() => {
+    const handleCommunityDeepLink = async (event) => {
+      const communityId = event?.detail?.communityId;
+      if (!communityId) return;
+      const match = myCommunities.find((item) => item.id === communityId) || allCommunities.find((item) => item.id === communityId);
+      if (match) {
+        await handleSelectCommunity(match);
+        return;
+      }
+      const fetched = await communityService.fetchCommunityDetails(communityId).catch(() => null);
+      if (fetched) await handleSelectCommunity(fetched);
+    };
+
+    const handleInviteDeepLink = (event) => {
+      const inviteCode = event?.detail?.inviteCode;
+      if (inviteCode) setPendingInvite(inviteCode);
+    };
+
+    window.addEventListener("community:navigate", handleCommunityDeepLink);
+    window.addEventListener("community:invite", handleInviteDeepLink);
+
+    return () => {
+      window.removeEventListener("community:navigate", handleCommunityDeepLink);
+      window.removeEventListener("community:invite", handleInviteDeepLink);
+    };
+  }, [myCommunities, allCommunities, handleSelectCommunity]);
+
   const handleJoinCommunity = async (communityId) => {
     const community = allCommunities.find((item) => item.id === communityId);
-    if (!community || myCommunities.some((item) => item.id === communityId)) return;
+    if (!community) return;
+    if (myCommunities.some((item) => item.id === communityId)) {
+      const joined = await communityService.fetchCommunityDetails(communityId).catch(() => null);
+      if (joined) handleSelectCommunity(joined);
+      return;
+    }
 
     // Update navigation and sidebar state immediately; persistence continues in the background.
     const optimisticCommunity = { ...community, member_count: (community.member_count || 0) + 1 };
@@ -247,6 +279,13 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       const joined = await communityService.fetchCommunityDetails(communityId);
       if (joined) handleSelectCommunity(joined);
     } catch (error) {
+      const alreadyJoined = /already\s+(a\s+)?member/i.test(error?.message || "");
+      if (alreadyJoined) {
+        const joined = await communityService.fetchCommunityDetails(communityId).catch(() => null);
+        if (joined) handleSelectCommunity(joined);
+        return;
+      }
+
       setMyCommunities((current) => current.filter((item) => item.id !== communityId));
       if (currentCommunityRef.current === communityId) {
         setSelectedCommunity(null);

@@ -2,6 +2,51 @@ import { supabase } from "../config/supabase";
 
 export const targetKey = (type, id) => `${type}:${id}`;
 
+export function resolveAccessForRole({ roleId, channel, categoryId, rules = [], defaultOpen = true }) {
+  const normalizedRules = Array.isArray(rules) ? rules : [];
+  const channelId = channel?.id ?? channel?.channel_id ?? null;
+  const effectiveCategoryId = categoryId ?? channel?.category_id ?? channel?.category ?? null;
+
+  const channelTargetRules = normalizedRules.filter((rule) => {
+    return String(rule.target_type || "") === "channel" && String(rule.target_id ?? "") === String(channelId ?? "");
+  });
+
+  const categoryTargetRules = normalizedRules.filter((rule) => {
+    return String(rule.target_type || "") === "category" && String(rule.target_id ?? "") === String(effectiveCategoryId ?? "");
+  });
+
+  const targetRules = channelTargetRules.length ? channelTargetRules : categoryTargetRules;
+  const matchingRule = targetRules.find((rule) => String(rule.role_id ?? "") === String(roleId ?? ""));
+
+  if (!targetRules.length) {
+    return {
+      canView: Boolean(defaultOpen),
+      canSend: Boolean(defaultOpen),
+      restricted: false,
+      inherited: false,
+      source: null,
+    };
+  }
+
+  if (!matchingRule) {
+    return {
+      canView: false,
+      canSend: false,
+      restricted: true,
+      inherited: !channelTargetRules.length && categoryTargetRules.length > 0,
+      source: channelTargetRules.length ? "channel" : "category",
+    };
+  }
+
+  return {
+    canView: matchingRule.can_view === true,
+    canSend: matchingRule.can_send === true,
+    restricted: true,
+    inherited: !channelTargetRules.length && categoryTargetRules.length > 0,
+    source: channelTargetRules.length ? "channel" : "category",
+  };
+}
+
 export async function fetchStructure(communityId) {
   const [cats, chans, rules] = await Promise.all([
     supabase.from("community_channel_categories").select("id,name,position").eq("community_id", communityId).order("position", { ascending: true }),
@@ -56,4 +101,14 @@ export const notifyAccessChanged = () => {
   }
 };
 
-export default { fetchStructure, groupRules, categoryIdOf, isChannelRestricted, upsertRules, openTarget, notifyAccessChanged, targetKey };
+export default {
+  fetchStructure,
+  groupRules,
+  categoryIdOf,
+  isChannelRestricted,
+  upsertRules,
+  openTarget,
+  notifyAccessChanged,
+  targetKey,
+  resolveAccessForRole,
+};

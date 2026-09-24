@@ -415,11 +415,13 @@ const MainApp = memo(() => {
       return;
     }
 
-    const postMatch    = pathname.match(/^\/post\/([^/]+)$/);
-    const reelMatch    = pathname.match(/^\/reel\/([^/]+)$/);
-    const storyMatch   = pathname.match(/^\/story\/([^/]+)$/);
-    const shareMatch   = pathname.match(/^\/share\/(post|reel|story)\/([^/]+)$/);
-    const profileMatch = pathname.match(/^\/profile\/([^/]+)$/);
+    const postMatch      = pathname.match(/^\/post\/([^/]+)$/);
+    const reelMatch      = pathname.match(/^\/reel\/([^/]+)$/);
+    const storyMatch     = pathname.match(/^\/story\/([^/]+)$/);
+    const shareMatch     = pathname.match(/^\/share\/(post|reel|story)\/([^/]+)$/);
+    const profileMatch   = pathname.match(/^\/profile\/([^/]+)$/);
+    const communityMatch = pathname.match(/^\/community\/([^/]+)$/);
+    const inviteMatch    = pathname.match(/^\/invite\/([^/]+)$/);
 
     if (shareMatch) {
       const [, sharedType, sharedId] = shareMatch;
@@ -436,6 +438,16 @@ const MainApp = memo(() => {
       setActiveTab("home"); setHomeSection("stories");
       setDeepLinkTarget({ type: "story", id: decodeURIComponent(storyMatch[1]) });
       setMountedTabs((p) => new Set([...p, "home"]));
+    } else if (communityMatch) {
+      const targetId = decodeURIComponent(communityMatch[1]);
+      setActiveTab("community");
+      setMountedTabs((p) => new Set([...p, "community"]));
+      window.dispatchEvent(new CustomEvent("community:navigate", { detail: { communityId: targetId } }));
+    } else if (inviteMatch) {
+      const inviteCode = decodeURIComponent(inviteMatch[1]);
+      setActiveTab("community");
+      setMountedTabs((p) => new Set([...p, "community"]));
+      window.dispatchEvent(new CustomEvent("community:invite", { detail: { inviteCode } }));
     } else if (profileMatch) {
       const targetId = decodeURIComponent(profileMatch[1]);
       if (targetId === user?.id) {

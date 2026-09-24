@@ -3,9 +3,13 @@ import { supabase } from "../config/supabase";
 
 export const COMMUNITY_ONLINE_WINDOW_MS = 20_000;
 export const isCommunityMemberOnline = (member, now = Date.now()) => {
-  if (!member?.is_online || !member?.last_seen) return false;
+  if (!member?.last_seen) return Boolean(member?.is_online);
+
   const lastSeen = new Date(member.last_seen).getTime();
-  return Number.isFinite(lastSeen) && now - lastSeen < COMMUNITY_ONLINE_WINDOW_MS;
+  if (!Number.isFinite(lastSeen)) return Boolean(member?.is_online);
+
+  const isRecent = now - lastSeen < COMMUNITY_ONLINE_WINDOW_MS;
+  return Boolean(member?.is_online) || isRecent;
 };
 
 class CommunityOnlineStatusService {

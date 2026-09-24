@@ -2,6 +2,7 @@
 // Fixed: auto-join + immediate navigation into community
 import React, { useState, useEffect } from "react";
 import { UserPlus, CheckCircle, X, AlertCircle, ArrowRight } from "lucide-react";
+import { supabase } from "../../../services/config/supabase";
 import communityService from "../../../services/community/communityService";
 
 const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
@@ -33,9 +34,42 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
         if (onSuccess) onSuccess(community.id);
       }, 1600);
     } catch (error) {
+      const message = error?.message || "";
+      const isAlreadyMember = /already\s+(a\s+)?member/i.test(message);
+
+      if (isAlreadyMember) {
+        try {
+          const normalizedCode = inviteCode.trim().toUpperCase();
+          const { data: inviteRow } = await supabase
+            .from("community_invites")
+            .select("community_id")
+            .eq("code", normalizedCode)
+            .maybeSingle();
+
+          const destinationId = inviteRow?.community_id;
+          const { data: existingCommunity } = destinationId
+            ? await supabase.from("communities").select("*").eq("id", destinationId).maybeSingle()
+            : { data: null };
+
+          if (existingCommunity) {
+            setCommunityName(existingCommunity.name);
+            setCommunityId(existingCommunity.id);
+            setCommunity(existingCommunity);
+            setStatus("success");
+            setMessage(`You're already a member of ${existingCommunity.name}.`);
+            setTimeout(() => {
+              if (onSuccess) onSuccess(existingCommunity.id);
+            }, 900);
+            return;
+          }
+        } catch {
+          // fall through to the standard error state below.
+        }
+      }
+
       console.error("Invite handler error:", error);
       setStatus("error");
-      setMessage(error.message || "Failed to join community");
+      setMessage(message || "Failed to join community");
     }
   };
 
@@ -189,7 +223,7 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
         }
         .go-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(156,255,0,.45); }
 
-        .err-actions { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+        .err-actions { display:flex; flex-direction:row; gap:8px; margin-top:16px; }
         .retry-btn {
           padding:11px; border-radius:10px;
           background:rgba(18,18,18,.95); border:1.5px solid rgba(156,255,0,.35);
