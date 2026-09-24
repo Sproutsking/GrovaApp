@@ -161,8 +161,7 @@ class RoleModel {
    * Convert to JSON for API requests
    */
   toJSON() {
-    return {
-      id: this.id,
+    const payload = {
       community_id: this.communityId,
       name: this.name,
       color: this.color,
@@ -173,6 +172,12 @@ class RoleModel {
       created_at: this.createdAt,
       updated_at: this.updatedAt,
     };
+
+    if (this.id) {
+      payload.id = this.id;
+    }
+
+    return payload;
   }
 
   /**

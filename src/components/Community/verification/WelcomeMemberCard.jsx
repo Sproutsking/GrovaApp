@@ -33,7 +33,14 @@ export function getWelcomeMemberId(content) {
 }
 
 export default function WelcomeMemberCard({ communityId, memberId, community, createdAt, onProfileClick, onIntroduce, onBrowse }) {
-  const [member, setMember] = useState(null);
+  const [member, setMember] = useState({
+    full_name: "new member",
+    username: "new member",
+    role: null,
+    verified: false,
+    subscription_tier: null,
+    boost_selections: null,
+  });
   const [welcomeConfig, setWelcomeConfig] = useState({});
 
   useEffect(() => {
@@ -45,7 +52,12 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
       ]);
       const { data: profile } = await supabase.from("profiles").select("id,username,full_name,avatar_id,avatar_metadata,verified,subscription_tier,boost_selections").eq("id", memberId).maybeSingle();
       if (active) {
-        setMember({ ...profile, role: membership?.role || null });
+        setMember({
+          ...((profile || {})),
+          full_name: profile?.full_name || profile?.username || "new member",
+          username: profile?.username || "new member",
+          role: membership?.role || null,
+        });
         setWelcomeConfig(setting?.config || {});
       }
     };
