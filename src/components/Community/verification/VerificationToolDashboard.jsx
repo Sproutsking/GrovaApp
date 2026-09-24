@@ -80,7 +80,7 @@ function RoleGrantPage({ config, disabled, saving, error, onPatch, onSave }) {
   );
 }
 
-export default function VerificationToolDashboard({ value, onSave, disabled = false, focusMode = null, channels = [] }) {
+export default function VerificationToolDashboard({ value, onSave, disabled = false, focusMode = null, channels = [], onModeSelect }) {
   const initial = normalizeVerificationConfig(value || DEFAULT_VERIFICATION_CONFIG);
   const [config, setConfig] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -90,6 +90,11 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
   useEffect(() => {
     setSelectedMode(focusMode || null);
   }, [focusMode]);
+
+  const selectMode = (modeId) => {
+    setSelectedMode(modeId);
+    onModeSelect?.(modeId);
+  };
 
   const patch = (next) => setConfig((current) => ({ ...current, ...next }));
 
@@ -156,7 +161,7 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
       </div>
       <div className="verification-picker-grid">
         {modes.map((mode) => (
-          <button type="button" key={mode.id} className={`verification-mode-card${mode.live ? " live" : " soon"}`} disabled={disabled || !mode.live} onClick={() => setSelectedMode(mode.id)}>
+          <button type="button" key={mode.id} className={`verification-mode-card${mode.live ? " live" : " soon"}`} disabled={disabled || !mode.live} onClick={() => selectMode(mode.id)}>
             <span className="verification-mode-state">{mode.live ? "Live" : "Coming soon"}</span>
             <strong>{mode.label}</strong>
             <small>{mode.description}</small>
