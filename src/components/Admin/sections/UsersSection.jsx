@@ -279,8 +279,8 @@ export default function UsersSection({ adminData, usersHook }) {
             />
           )}
 
-          {/* Hard Delete — only for non-deleted users */}
-          {canDelete && !u.deleted_at && (
+          {/* Hard Delete — allow delete even if the profile was deactivated earlier */}
+          {canDelete && (!u.deleted_at || u.account_status === "deactivated") && (
             <Btn
               icon={Trash2}
               size="sm"
@@ -292,7 +292,9 @@ export default function UsersSection({ adminData, usersHook }) {
 
           {/* Restore */}
           {canRestore &&
-            (!!u.deleted_at || u.account_status === "deactivated") && (
+            (!!u.deleted_at ||
+              u.account_status === "deactivated" ||
+              u.account_status === "disabled") && (
               <Btn
                 icon={Unlock}
                 size="sm"

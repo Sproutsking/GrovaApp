@@ -663,10 +663,26 @@ export function useUsers(pageSize = 20) {
         .update({
           deleted_at: null,
           account_status: "active",
+          deactivated_reason: null,
+          account_locked_until: null,
+          failed_login_attempts: 0,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
       if (error) throw error;
+
+      await createSecurityAlert({
+        eventType: "user_account_restored",
+        severity: "info",
+        title: "User account restored",
+        description: "A previously deactivated account was restored and returned to active status.",
+        source: "admin_panel",
+        metadata: {
+          target_user_id: userId,
+          restored_by: (await sb().auth.getUser())?.data?.user?.id || null,
+        },
+      });
+
       await load();
     }, "Failed to restore user.");
 
