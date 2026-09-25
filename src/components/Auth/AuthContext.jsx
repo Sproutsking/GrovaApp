@@ -44,7 +44,6 @@ import React, {
 import { supabase } from "../../services/config/supabase";
 import { isAbortError } from "../../services/shared/abortHandler";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
-import { hasAdminProfileFlag } from "../../services/auth/adminAccess";
 import { grantSignupEP } from "../../services/economy/epEconomyService";
 
 const AuthContext = createContext(null);
@@ -515,24 +514,14 @@ export default function AuthProvider({ children }) {
 
           if (isPaidProfileData(data)) setPaid(true);
 
-          const hasAdminFlag = hasAdminProfileFlag(data);
-          const adminInfo = hasAdminFlag ? await fetchAdminRole(userId) : null;
+          // Canonical source of truth: live admin membership in `admin_team`.
+          // Any profile-level admin flag is treated as stale legacy data and ignored.
+          const adminInfo = await fetchAdminRole(userId);
 
-          if (hasAdminFlag || adminInfo) {
+          if (adminInfo) {
             if (isMounted.current) {
               setIsAdmin(true);
-              setAdminData(
-                adminInfo || {
-                  id: userId,
-                  role: data.role || "admin",
-                  roleLabel: ADMIN_ROLE_MAP[data.role]?.label || "Admin",
-                  roleLevel: ADMIN_ROLE_MAP[data.role]?.level || 60,
-                  roleColor: ADMIN_ROLE_MAP[data.role]?.color || "#94a3b8",
-                  permissions: data.permissions || [],
-                  isCEO: data.role === "ceo_owner",
-                  isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
-                },
-              );
+              setAdminData(adminInfo);
             }
           } else {
             if (isMounted.current) {
@@ -544,7 +533,7 @@ export default function AuthProvider({ children }) {
           // [NEW] Start enforcement after successful profile load
           // Non-admin users get their account status monitored from this point.
           // This is the earliest safe point — we now know if they're admin or not.
-          if (!hasAdminFlag && !explicitSignOutRef.current) {
+          if (!adminInfo && !explicitSignOutRef.current) {
             // Run one immediate check, then start the interval
             enforceAccountStatus(userId);
             startEnforcement(userId);

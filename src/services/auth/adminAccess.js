@@ -1,15 +1,5 @@
 export function hasAdminProfileFlag(profile) {
-  if (!profile || typeof profile !== "object") return false;
-
-  const role = profile.role || "";
-  return !!(
-    profile.is_admin ||
-    profile.is_super_admin ||
-    role === "admin" ||
-    role === "super_admin" ||
-    role === "ceo_owner" ||
-    role === "a_admin" ||
-    role === "b_admin" ||
-    role === "support"
-  );
+  // Security rule: admin authority is determined only by the live `admin_team` membership.
+  // Profile flags are not trusted and must never grant front-end admin access.
+  return false;
 }

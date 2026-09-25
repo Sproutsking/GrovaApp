@@ -1,9 +1,42 @@
--- Lock down admin_team direct writes so only the CEO can alter the CEO row,
--- and only the server-side management function can perform role changes.
+-- CEO-only admin authorization.
+-- `public.profiles` does not store an app-role column; the admin authority is the `admin_team` table.
+-- This blocks direct client-side authorization and ensures only the CEO can add, remove, or update admin roles.
 
--- 1) Replace the overly broad direct-update policy.
-drop policy if exists admin_team_restricted_update on public.admin_team;
-create policy admin_team_restricted_update on public.admin_team
+alter table public.admin_team enable row level security;
+revoke all on table public.admin_team from anon;
+revoke all on table public.admin_team from authenticated;
+
+-- Everyone can see only their own row; CEO can see all rows.
+drop policy if exists admin_team_self_read on public.admin_team;
+create policy admin_team_self_read on public.admin_team
+for select to authenticated
+using (
+  user_id = auth.uid()
+  or exists (
+    select 1
+    from public.admin_team caller
+    where caller.user_id = auth.uid()
+      and caller.status = 'active'
+      and caller.role = 'ceo_owner'
+  )
+);
+
+-- Only the CEO may create or update admin rows.
+drop policy if exists admin_team_ceo_only_insert on public.admin_team;
+create policy admin_team_ceo_only_insert on public.admin_team
+for insert to authenticated
+with check (
+  exists (
+    select 1
+    from public.admin_team caller
+    where caller.user_id = auth.uid()
+      and caller.status = 'active'
+      and caller.role = 'ceo_owner'
+  )
+);
+
+drop policy if exists admin_team_ceo_only_update on public.admin_team;
+create policy admin_team_ceo_only_update on public.admin_team
 for update to authenticated
 using (
   exists (
@@ -11,19 +44,9 @@ using (
     from public.admin_team caller
     where caller.user_id = auth.uid()
       and caller.status = 'active'
-      and caller.role in ('ceo_owner', 'super_admin')
+      and caller.role = 'ceo_owner'
   )
-  and admin_team.user_id <> auth.uid()
-  and not (
-    admin_team.role = 'ceo_owner'
-    and not exists (
-      select 1
-      from public.admin_team caller
-      where caller.user_id = auth.uid()
-        and caller.status = 'active'
-        and caller.role = 'ceo_owner'
-    )
-  )
+  and user_id <> auth.uid()
 )
 with check (
   exists (
@@ -31,34 +54,32 @@ with check (
     from public.admin_team caller
     where caller.user_id = auth.uid()
       and caller.status = 'active'
-      and caller.role in ('ceo_owner', 'super_admin')
+      and caller.role = 'ceo_owner'
   )
-  and admin_team.user_id <> auth.uid()
-  and not (
-    (coalesce(new.role, admin_team.role) = 'ceo_owner' or coalesce(old.role, admin_team.role) = 'ceo_owner')
-    and not exists (
-      select 1
-      from public.admin_team caller
-      where caller.user_id = auth.uid()
-        and caller.status = 'active'
-        and caller.role = 'ceo_owner'
-    )
-  )
+  and user_id <> auth.uid()
 );
 
--- 2) Prevent direct role edits by blocking code paths that mutate role/status fields without the server guard.
-drop trigger if exists profile_admin_guard on public.profiles;
-create trigger profile_admin_guard
-before insert or update on public.profiles
-for each row execute function public.ensure_admin_role_is_server_only();
+drop policy if exists admin_team_ceo_only_delete on public.admin_team;
+create policy admin_team_ceo_only_delete on public.admin_team
+for delete to authenticated
+using (
+  exists (
+    select 1
+    from public.admin_team caller
+    where caller.user_id = auth.uid()
+      and caller.status = 'active'
+      and caller.role = 'ceo_owner'
+  )
+  and user_id <> auth.uid()
+);
 
--- 3) Re-assert the function-level protection explicitly for role changes.
+-- Hard enforce the authority model: only the CEO may manage admin membership.
 create or replace function public.manage_admin_member(
   p_action text,
   p_member_id uuid default null,
   p_user_id uuid default null,
   p_role text default null,
-  p_permissions jsonb default null
+  p_permissions text[] default null
 )
 returns public.admin_team
 language plpgsql
@@ -73,19 +94,25 @@ begin
     raise exception 'Unauthorized';
   end if;
 
+  if caller_role <> 'ceo_owner' then
+    raise exception 'Only the CEO can manage admin access';
+  end if;
+
   if p_action not in ('add', 'remove', 'restore', 'update') then
     raise exception 'Invalid admin action';
   end if;
 
   if p_action = 'add' then
-    if caller_role not in ('ceo_owner', 'super_admin') or p_user_id is null then
-      raise exception 'Not permitted';
+    if p_user_id is null then
+      raise exception 'User id is required';
     end if;
-    if p_role = 'ceo_owner' and caller_role <> 'ceo_owner' then
-      raise exception 'Only the CEO can create a CEO admin';
+
+    if p_role is not null and p_role not in ('ceo_owner', 'super_admin', 'a_admin', 'b_admin', 'admin', 'support') then
+      raise exception 'Invalid admin role';
     end if;
+
     insert into public.admin_team(user_id, email, full_name, role, permissions, status, created_at)
-    select p.id, p.email, p.full_name, coalesce(p_role, 'support'), coalesce(p_permissions, '[]'::jsonb), 'active', now()
+    select p.id, p.email, p.full_name, coalesce(p_role, 'support'), coalesce(p_permissions, ARRAY[]::text[]), 'active', now()
     from public.profiles p
     where p.id = p_user_id
     on conflict (user_id) do update set
@@ -95,35 +122,25 @@ begin
       full_name = excluded.full_name,
       email = excluded.email
     returning * into target;
+
     if target.id is null then
       raise exception 'User profile not found';
     end if;
+
     return target;
   end if;
 
-  select * into target from public.admin_team where id = p_member_id for update;
+  select * into target
+  from public.admin_team
+  where id = p_member_id
+  for update;
+
   if target.id is null then
     raise exception 'Admin member not found';
   end if;
 
   if target.user_id = auth.uid() and p_action in ('remove', 'update') then
     raise exception 'You cannot remove or demote your own active admin account';
-  end if;
-
-  if target.role = 'ceo_owner' and caller_role <> 'ceo_owner' then
-    raise exception 'Only the CEO can manage the CEO account';
-  end if;
-
-  if p_role is not null and p_role not in ('ceo_owner', 'super_admin', 'a_admin', 'b_admin', 'admin', 'support') then
-    raise exception 'Invalid admin role';
-  end if;
-
-  if p_role = 'ceo_owner' and caller_role <> 'ceo_owner' then
-    raise exception 'Only the CEO can promote a CEO admin';
-  end if;
-
-  if caller_role <> 'ceo_owner' and target.role in ('super_admin', 'ceo_owner') then
-    raise exception 'Only the CEO can manage senior admins';
   end if;
 
   if p_action = 'remove' then
@@ -147,5 +164,5 @@ begin
 end;
 $$;
 
-revoke all on function public.manage_admin_member(text, uuid, uuid, text, jsonb) from public;
-grant execute on function public.manage_admin_member(text, uuid, uuid, text, jsonb) to authenticated;
+revoke all on function public.manage_admin_member(text, uuid, uuid, text, text[]) from public;
+grant execute on function public.manage_admin_member(text, uuid, uuid, text, text[]) to authenticated;

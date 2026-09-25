@@ -185,7 +185,7 @@ create or replace function public.manage_admin_member(
   p_member_id uuid default null,
   p_user_id uuid default null,
   p_role text default null,
-  p_permissions jsonb default null
+  p_permissions text[] default null
 )
 returns public.admin_team
 language plpgsql
@@ -204,7 +204,7 @@ begin
     if p_role not in ('ceo_owner', 'super_admin', 'a_admin', 'b_admin', 'admin', 'support') then raise exception 'Invalid admin role'; end if;
     if p_role = 'ceo_owner' and caller_role <> 'ceo_owner' then raise exception 'Only the CEO can create a CEO admin'; end if;
     insert into public.admin_team(user_id, email, full_name, role, permissions, status, created_at)
-    select p.id, p.email, p.full_name, coalesce(p_role, 'support'), coalesce(p_permissions, '[]'::jsonb), 'active', now()
+    select p.id, p.email, p.full_name, coalesce(p_role, 'support'), coalesce(p_permissions, ARRAY[]::text[]), 'active', now()
     from public.profiles p where p.id = p_user_id
     on conflict (user_id) do update set role = excluded.role, permissions = excluded.permissions, status = 'active', full_name = excluded.full_name, email = excluded.email
     returning * into target;
@@ -234,8 +234,8 @@ $$;
 revoke all on function public.create_security_alert(text, text, text, text, text, jsonb, uuid[]) from public;
 revoke all on function public.set_security_alert_viewers(uuid, uuid[]) from public;
 revoke all on function public.update_security_alert_status(uuid, text) from public;
-revoke all on function public.manage_admin_member(text, uuid, uuid, text, jsonb) from public;
+revoke all on function public.manage_admin_member(text, uuid, uuid, text, text[]) from public;
 grant execute on function public.create_security_alert(text, text, text, text, text, jsonb, uuid[]) to authenticated;
 grant execute on function public.set_security_alert_viewers(uuid, uuid[]) to authenticated;
 grant execute on function public.update_security_alert_status(uuid, text) to authenticated;
-grant execute on function public.manage_admin_member(text, uuid, uuid, text, jsonb) to authenticated;
+grant execute on function public.manage_admin_member(text, uuid, uuid, text, text[]) to authenticated;
