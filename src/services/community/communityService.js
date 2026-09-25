@@ -101,13 +101,26 @@ class CommunityService {
 
   async createCommunity(data, userId) {
     const icon = data.iconFile ? await this._uploadCommunityIcon(data.iconFile, userId) : (data.icon || null);
-    const { data: community, error } = await supabase.rpc("create_community_with_defaults", {
+    const { data: createdCommunity, error } = await supabase.rpc("create_community_with_defaults", {
       p_name: data.name, p_description: data.description || "", p_icon: icon,
       p_banner_gradient: data.bannerGradient || null, p_is_private: Boolean(data.isPrivate), p_owner_id: userId,
     });
     if (error) throw error;
+    const community = Array.isArray(createdCommunity) ? createdCommunity[0] : createdCommunity;
+    if (community?.id) {
+      const { data: updatedCommunity, error: settingsError } = await supabase
+        .from("communities")
+        .update({ settings: { ...(community.settings || {}), platform_mode: data.platformMode || "everyday" } })
+        .eq("id", community.id)
+        .select()
+        .single();
+      if (settingsError) throw settingsError;
+      this.cache.set(`community:${community.id}`, updatedCommunity);
+    }
     this.invalidateUserCache(userId);
-    return community;
+    return community?.id
+      ? { ...community, settings: { ...(community.settings || {}), platform_mode: data.platformMode || "everyday" } }
+      : community;
   }
 
   async updateCommunity(communityId, userId, updates) {

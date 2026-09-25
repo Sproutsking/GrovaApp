@@ -8,7 +8,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const VALID_TRINITY_LENSES = ['everyday'];
+export const PLATFORM_MODES = [
+  { id: "everyday", label: "Main", enabled: true },
+  { id: "gaming", label: "Gaming", enabled: false },
+  { id: "web3", label: "Web3", enabled: false },
+  { id: "streaming", label: "Streaming", enabled: false },
+];
+
+export const VALID_TRINITY_LENSES = PLATFORM_MODES.filter((mode) => mode.enabled).map((mode) => mode.id);
 
 export const normalizeTrinityLens = (value) => {
   if (value === 'student') return 'everyday';

@@ -8,6 +8,7 @@ import React, { useState, useRef } from "react";
 import ReactDOM from "react-dom";
 import { X, Upload, ImagePlus, Shuffle, Check, Sparkles, AlignLeft, Lock, Globe, Palette, ArrowLeft } from "lucide-react";
 import { PREMIUM_GRADIENTS, CATEGORY_ORDER, CATEGORY_BLURB, getGradientById } from "../utils/communityVisuals";
+import { PLATFORM_MODES } from "../../../hooks/useTrinitylens";
 import EmojiPanel from "../components/EmojiPanel";
 
 const QUICK_EMOJIS = [
@@ -27,6 +28,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [platformMode, setPlatformMode] = useState("everyday");
   const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -73,6 +75,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         icon: iconMode === "emoji" ? selectedEmoji : null,
         iconFile: iconMode === "image" ? iconFile : null,
         bannerGradient,
+        platformMode,
         isPrivate,
       });
     } catch (err) {
@@ -224,6 +227,11 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
               maxLength={300}
               rows={3}
             />
+
+            <div className="cc-field-label" style={{ marginTop: 12 }}>Platform mode</div>
+            <select className="field-input cc-mode-select" value={platformMode} onChange={(event) => setPlatformMode(event.target.value)}>
+              {PLATFORM_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label}{mode.enabled ? "" : " (preview)"}</option>)}
+            </select>
           </div>
 
           {/* ── Privacy card ─────────────────────────────────────── */}

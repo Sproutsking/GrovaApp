@@ -20,12 +20,15 @@ import { supabase } from "../../../../services/config/supabase";
 import EmojiPanel from "../EmojiPanel";
 import { CHANNEL_BUTTON_STYLES, CHANNEL_DIVIDER_STYLES } from "../../utils/channelStyles";
 import { CATEGORY_FOLDER_STYLES } from "../../utils/CategoryGroup";
+import { CATEGORY_BLURB, CATEGORY_ORDER, getGradientById, PREMIUM_GRADIENTS } from "../../utils/communityVisuals";
+import { PLATFORM_MODES } from "../../../../hooks/useTrinitylens";
 
 const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, onClose }) => {
   const [settings, setSettings] = useState({
     name: "",
     description: "",
     icon: "",
+    platformMode: "everyday",
     isPrivate: false,
     backgroundTheme: "security",
     bannerGradient: "",
@@ -42,6 +45,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
   const [selectedToolMode, setSelectedToolMode] = useState(null);
   const fileInputRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [bannerCategory, setBannerCategory] = useState(CATEGORY_ORDER[0]);
 
   const backgroundThemes = [
     {
@@ -89,21 +93,6 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     },
   ];
 
-  const bannerGradients = [
-    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-    "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-    "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-    "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-    "linear-gradient(135deg, #30cfd0 0%, #330867 100%)",
-    "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
-    "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
-    "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
-    "linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%)",
-    "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)",
-    "linear-gradient(135deg, #f77062 0%, #fe5196 100%)",
-  ];
-
   const toolCatalog = {
     verification: {
       label: "Verification",
@@ -134,6 +123,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         name: community.name || "",
         description: community.description || "",
         icon: community.icon || "",
+        platformMode: community.settings?.platform_mode || "everyday",
         isPrivate: community.is_private || false,
         backgroundTheme: community.background_theme || "security",
         bannerGradient:
@@ -146,6 +136,8 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           folderStyle: community.settings?.channel_appearance?.folderStyle || "simple",
         },
       });
+      const existingBanner = PREMIUM_GRADIENTS.find((preset) => preset.css === community.banner_gradient);
+      setBannerCategory(existingBanner?.category || CATEGORY_ORDER[0]);
       setIconPreview(community.icon?.startsWith("http") ? community.icon : null);
       setIconFile(null);
     }
@@ -181,6 +173,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
       payload.settings = {
         ...(community.settings || {}),
         channel_appearance: settings.channelAppearance,
+        platform_mode: settings.platformMode,
       };
       await onUpdate(payload);
       setSaved(true);
@@ -378,6 +371,17 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
             </div>
           </div>
 
+          <div className="setting-group">
+            <label className="setting-label">Platform mode</label>
+            <select
+              className="setting-input mode-select"
+              value={settings.platformMode}
+              onChange={(event) => setSettings((current) => ({ ...current, platformMode: event.target.value }))}
+            >
+              {PLATFORM_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label}{mode.enabled ? "" : " (preview)"}</option>)}
+            </select>
+          </div>
+
           {/* Background Theme */}
           <div className="setting-group">
             <label className="setting-label">
@@ -419,19 +423,33 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
               <Palette size={16} />
               Banner Gradient
             </label>
-            <div className="gradient-grid">
-              {bannerGradients.map((gradient, index) => (
+            <div className="banner-category-row">
+              {CATEGORY_ORDER.map((category) => (
                 <button
-                  key={index}
-                  className={`gradient-option ${settings.bannerGradient === gradient ? "selected" : ""}`}
-                  style={{ background: gradient }}
-                  onClick={() =>
-                    setSettings({ ...settings, bannerGradient: gradient })
-                  }
+                  type="button"
+                  key={category}
+                  className={`banner-category${bannerCategory === category ? " selected" : ""}`}
+                  onClick={() => setBannerCategory(category)}
                 >
-                  {settings.bannerGradient === gradient && (
-                    <Check size={18} color="#fff" />
-                  )}
+                  {category}
+                </button>
+              ))}
+            </div>
+            <div className="banner-category-hint">{CATEGORY_BLURB[bannerCategory]}</div>
+            <div className="gradient-grid">
+              {PREMIUM_GRADIENTS.filter((gradient) => gradient.category === bannerCategory).map((gradient) => (
+                <button
+                  type="button"
+                  key={gradient.id}
+                  aria-label={`${gradient.category} ${gradient.label}`}
+                  className={`gradient-option ${settings.bannerGradient === gradient.css ? "selected" : ""}`}
+                  style={{ backgroundImage: gradient.css, backgroundSize: gradient.backgroundSize || "cover" }}
+                  onClick={() => {
+                    setSettings((current) => ({ ...current, bannerGradient: gradient.css }));
+                    setBannerCategory(gradient.category);
+                  }}
+                >
+                  {settings.bannerGradient === gradient.css && <Check size={18} color="#fff" />}
                 </button>
               ))}
             </div>
@@ -931,6 +949,12 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           grid-template-columns: repeat(4, 1fr);
           gap: 10px;
         }
+
+        .banner-category-row { display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin; }
+        .banner-category { flex:0 0 auto;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.04);color:#a6ada7;font-size:11px;font-weight:700;cursor:pointer; }
+        .banner-category.selected { border-color:rgba(156,255,0,.48);background:rgba(156,255,0,.09);color:#b6ff65; }
+        .banner-category-hint { margin:-2px 0 9px;color:#7f8980;font-size:11px; }
+        .mode-select { appearance:auto; }
 
         .gradient-option {
           height: 60px;

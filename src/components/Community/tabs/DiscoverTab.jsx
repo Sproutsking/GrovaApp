@@ -2,12 +2,13 @@
 // UI TRANSFER: Design system from prototype. All backend props/logic untouched.
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Search, Users, Eye, UserPlus, CheckCircle, TrendingUp, Radio,
-  Star, Zap, Globe, Crown, Sparkles, ChevronDown, X,
-  Info, Lock, Hash, MessageCircle, Calendar, Shield,
+  Search, Users, Eye, UserPlus, CheckCircle, Radio,
+  Star, Zap, Globe, Crown, ChevronDown, X,
+  Info, Lock, Hash, MessageCircle, Calendar, Shield, BellDot,
 } from "lucide-react";
 import CommunityAvatar from "../utils/communityVisuals";
-import useTrinitylens from "../../../hooks/useTrinitylens";
+import { PLATFORM_MODES } from "../../../hooks/useTrinitylens";
+import communityUnreadService from "../../../services/community/communityUnreadService";
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
@@ -83,8 +84,9 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         .dm-features{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:16px}
         .dm-feature{display:flex;align-items:center;gap:7px;padding:9px 10px;background:rgba(16,16,16,.95);border:1px solid rgba(30,30,30,.9);border-radius:9px;color:#bbb;font-size:11px;font-weight:600}
         .dm-actions{display:flex;justify-content:center}
-        .dm-join-btn{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:linear-gradient(135deg,#9cff00,#667eea);border:none;color:#000;font-size:14px;font-weight:800;cursor:pointer;transition:all .25s;box-shadow:0 4px 14px rgba(156,255,0,.28);font-family:'Outfit',sans-serif}
-        .dm-join-btn:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(156,255,0,.45)}
+          .dm-join-btn{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:linear-gradient(145deg,#d9f99d 0%,#9cff00 42%,#65a30d 100%);border:1px solid rgba(236,252,203,.8);border-bottom:3px solid #3f6212;color:#172307;font-size:14px;font-weight:900;cursor:pointer;transition:transform .18s,box-shadow .18s,filter .18s;box-shadow:inset 0 1px 1px rgba(255,255,255,.7),0 5px 0 #365314,0 8px 16px rgba(0,0,0,.35),0 0 18px rgba(156,255,0,.22);font-family:'Outfit',sans-serif}
+          .dm-join-btn:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:inset 0 1px 1px rgba(255,255,255,.8),0 6px 0 #365314,0 11px 20px rgba(0,0,0,.42),0 0 24px rgba(156,255,0,.35)}
+          .dm-join-btn:active{transform:translateY(2px);border-bottom-width:1px;box-shadow:inset 0 1px 2px rgba(0,0,0,.2),0 2px 5px rgba(0,0,0,.35)}
         .dm-joined{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:rgba(156,255,0,.1);border:2px solid rgba(156,255,0,.3);color:#9cff00;font-size:14px;font-weight:800}
       `}</style>
     </>
@@ -92,33 +94,11 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
 };
 
 // ─── Filter categories ─────────────────────────────────────────────────────────
-const CATEGORIES = [
-  {id:"all",label:"All",Icon:Globe},{id:"blockchain",label:"Blockchain",Icon:Crown},
-  {id:"technology",label:"Tech",Icon:Zap},{id:"creative",label:"Creative",Icon:Sparkles},
-  {id:"gaming",label:"Gaming",Icon:Star},{id:"business",label:"Business",Icon:TrendingUp},
-];
-const MODE_CATEGORIES = {
-  gaming: [
-    { id: "all", label: "All", Icon: Globe },
-    { id: "gaming", label: "Gaming", Icon: Star },
-    { id: "technology", label: "Game Tech", Icon: Zap },
-  ],
-  web3: [
-    { id: "all", label: "All", Icon: Globe },
-    { id: "blockchain", label: "Blockchain", Icon: Crown },
-    { id: "business", label: "DeFi & Markets", Icon: TrendingUp },
-  ],
-  streaming: [
-    { id: "all", label: "All", Icon: Globe },
-    { id: "streaming", label: "Streaming", Icon: Radio },
-    { id: "gaming", label: "Creator Gaming", Icon: Star },
-  ],
-};
-const SORT_OPTIONS = [
-  {id:"trending",label:"Trending"},{id:"members",label:"Members"},
-  {id:"active",label:"Active"},{id:"newest",label:"Newest"},
-];
-
+const MODE_FILTERS = [{ id: "all", label: "All modes", Icon: Globe }, ...PLATFORM_MODES.map((mode) => ({
+  id: mode.id,
+  label: mode.label,
+  Icon: mode.id === "gaming" ? Star : mode.id === "web3" ? Crown : mode.id === "streaming" ? Radio : Zap,
+}))];
 const countValue = (value) => {
   if (Array.isArray(value)) return countValue(value[0]);
   if (value && typeof value === "object") return countValue(value.count);
@@ -127,50 +107,37 @@ const countValue = (value) => {
 };
 
 const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
-  const { activeTrinityLens } = useTrinitylens();
-  const visibleCategories = MODE_CATEGORIES[activeTrinityLens] || CATEGORIES.slice(0, 3);
   const [search, setSearch]         = useState("");
-  const [category, setCategory]     = useState("all");
-  const [sort, setSort]             = useState("trending");
+  const [modeFilter, setModeFilter] = useState("all");
   const [showSearch, setShowSearch] = useState(false);
   const [showCatDd, setShowCatDd]   = useState(false);
-  const [showSortDd, setShowSortDd] = useState(false);
   const [detail, setDetail]         = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState(() => communityUnreadService.getSnapshot());
   const catRef  = useRef(null);
-  const sortRef = useRef(null);
 
-  useEffect(() => {
-    if (!visibleCategories.some((item) => item.id === category)) setCategory("all");
-  }, [activeTrinityLens]);
+  useEffect(() => communityUnreadService.subscribe(() => setUnreadCounts(communityUnreadService.getSnapshot())), []);
 
   useEffect(() => {
     const h = (e) => {
       if (showCatDd  && catRef.current  && !catRef.current.contains(e.target))  setShowCatDd(false);
-      if (showSortDd && sortRef.current && !sortRef.current.contains(e.target)) setShowSortDd(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, [showCatDd, showSortDd]);
+  }, [showCatDd]);
 
-  const isMember  = (id) => myCommunities.some((c) => c.id === id);
-  const pub       = communities.filter((c) => !c.is_private);
-  const audience  = pub.reduce((a,c)=>a+countValue(c.member_count),0);
+  const isMember  = (id) => (myCommunities || []).some((c) => String(c.id) === String(id));
+  const pub       = (communities || []).filter((c) => !c.is_private);
 
   const filtered = pub
     .filter((c) => {
       const q = search.toLowerCase();
+            const communityMode = c.settings?.platform_mode || c.platform_mode || "everyday";
       return (c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)) &&
-             (category === "all" || c.category === category);
+              (modeFilter === "all" || communityMode === modeFilter);
     })
-    .sort((a,b) => {
-      if (sort==="members") return countValue(b.member_count)-countValue(a.member_count);
-      if (sort==="active")  return countValue(b.online_count)-countValue(a.online_count);
-      if (sort==="newest")  return new Date(b.created_at)-new Date(a.created_at);
-      return (b.trending_score||countValue(b.member_count))-(a.trending_score||countValue(a.member_count));
-    });
+    .sort((a,b) => (b.trending_score||countValue(b.member_count))-(a.trending_score||countValue(a.member_count)));
 
-  const selCat  = visibleCategories.find(c=>c.id===category) || visibleCategories[0];
-  const selSort = SORT_OPTIONS.find(s=>s.id===sort);
+  const selectedMode = MODE_FILTERS.find((mode) => mode.id === modeFilter) || MODE_FILTERS[0];
 
   return (
     <>
@@ -188,17 +155,17 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
               <Search size={13}/>
             </button>
             <div className="disc-dd" ref={catRef}>
-              <button className={`disc-ctrl has-lbl${showCatDd?" on":""}`} onClick={()=>setShowCatDd(!showCatDd)}>
-                {selCat&&<selCat.Icon size={13}/>}
-                <span>{selCat?.label}</span>
+              <button className={`disc-ctrl has-lbl${showCatDd?" on":""}`} onClick={()=>setShowCatDd(!showCatDd)} aria-label="Filter by platform mode">
+                <selectedMode.Icon size={13}/>
+                <span>{selectedMode.label}</span>
                 <ChevronDown size={10} style={{transition:"transform .18s",transform:showCatDd?"rotate(180deg)":"none"}}/>
               </button>
               {showCatDd&&(
                 <div className="disc-dd-menu">
-                  {visibleCategories.map(({id,label,Icon})=>(
-                    <button key={id} className={`disc-dd-item${category===id?" on":""}`} onClick={()=>{setCategory(id);setShowCatDd(false);}}>
+                  {MODE_FILTERS.map(({id,label,Icon})=>(
+                    <button key={id} className={`disc-dd-item${modeFilter===id?" on":""}`} onClick={()=>{setModeFilter(id);setShowCatDd(false);}}>
                       <Icon size={12}/>{label}
-                      {category===id&&<CheckCircle size={11} style={{marginLeft:"auto",color:"#9cff00"}}/>}
+                      {modeFilter===id&&<CheckCircle size={11} style={{marginLeft:"auto",color:"#9cff00"}}/>}
                     </button>
                   ))}
                 </div>
@@ -237,6 +204,11 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                   className="disc-card"
                   style={{animationDelay:`${Math.min(idx*.04,.28)}s`}}
                 >
+                  {member && (unreadCounts[c.id] || 0) > 0 && (
+                    <span className="disc-card-unread-badge" aria-label={`${unreadCounts[c.id]} unread updates in ${c.name}`}>
+                      <BellDot size={12} />{unreadCounts[c.id] > 99 ? "99+" : unreadCounts[c.id]}
+                    </span>
+                  )}
                   {/* Accent layer — pointer-events:none prevents click blocking */}
                   <div
                     className="disc-card-accent"
@@ -413,6 +385,26 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           isolation: isolate;
           box-shadow: 0 10px 28px var(--shadow-soft);
         }
+        .disc-card-unread-badge {
+          position: absolute;
+          z-index: 3;
+          top: 9px;
+          right: 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          min-width: 28px;
+          height: 24px;
+          padding: 0 7px;
+          border: 1px solid rgba(236,252,203,.8);
+          border-radius: 999px;
+          background: linear-gradient(145deg,#d9f99d 0%,#84cc16 48%,#4d7c0f 100%);
+          color: #172307;
+          font: 900 10px/1 'Outfit',sans-serif;
+          box-shadow: inset 0 1px 1px rgba(255,255,255,.7),0 3px 8px rgba(0,0,0,.45),0 0 12px rgba(132,204,22,.28);
+          pointer-events: none;
+        }
         @keyframes cardIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .disc-card:hover {
           border-color: var(--accent-border-strong);
@@ -478,11 +470,13 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           display: flex; align-items: center; justify-content: center; gap: 4px;
           font-family: 'Outfit', sans-serif;
         }
-        .dca-btn.join { background: var(--accent-gradient); color: var(--accent-contrast); box-shadow: 0 2px 8px var(--accent-shadow); }
-        .dca-btn.join:hover { box-shadow: 0 4px 16px var(--accent-shadow-strong); transform: translateY(-1px); }
+        .dca-btn.join { background: linear-gradient(145deg,#d9f99d 0%,#9cff00 42%,#65a30d 100%); color:#172307; border:1px solid rgba(236,252,203,.8); border-bottom:3px solid #3f6212; box-shadow:inset 0 1px 1px rgba(255,255,255,.72),0 4px 0 #365314,0 7px 12px rgba(0,0,0,.34); }
+        .dca-btn.join:hover { box-shadow:inset 0 1px 1px rgba(255,255,255,.8),0 5px 0 #365314,0 10px 17px rgba(0,0,0,.42),0 0 16px rgba(156,255,0,.3); transform:translateY(-2px); }
+        .dca-btn.join:active { transform:translateY(2px);border-bottom-width:1px;box-shadow:inset 0 1px 2px rgba(0,0,0,.22),0 2px 5px rgba(0,0,0,.35); }
         .dca-btn.joined { background: var(--accent-bg-soft); border: 1.5px solid var(--accent-border); color: var(--accent); }
-        .dca-btn.details { background: var(--surface); border: 1.5px solid var(--surface-border); color: var(--text-secondary); }
-        .dca-btn.details:hover { border-color: var(--accent-border); color: var(--accent); transform: translateY(-1px); }
+        .dca-btn.details { background:linear-gradient(145deg,#f1f5f9 0%,#cbd5e1 48%,#94a3b8 100%);border:1px solid rgba(255,255,255,.82);border-bottom:3px solid #64748b;color:#1e293b;box-shadow:inset 0 1px 1px rgba(255,255,255,.9),0 4px 0 #475569,0 7px 12px rgba(0,0,0,.32); }
+        .dca-btn.details:hover { border-color:#f8fafc;color:#0f172a;transform:translateY(-2px);box-shadow:inset 0 1px 1px #fff,0 5px 0 #475569,0 10px 17px rgba(0,0,0,.42); }
+        .dca-btn.details:active { transform:translateY(2px);border-bottom-width:1px;box-shadow:inset 0 1px 2px rgba(0,0,0,.2),0 2px 5px rgba(0,0,0,.35); }
         .dca-btn.view { background: var(--surface); border: 1.5px solid var(--surface-border); color: var(--text-secondary); }
         .dca-btn.view:hover { border-color: var(--accent-border); color: var(--accent); transform: translateY(-1px); }
 
@@ -501,7 +495,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           .disc-grid { grid-template-columns: 1fr; gap: 8px; }
         }
         @media (max-width: 360px) {
-          .disc-ctrl.has-lbl span { display: none; }
+          .disc-ctrl.has-lbl span { display: inline; }
           .disc-ctrl.has-lbl { padding: 5px 7px; }
         }
       `}</style>

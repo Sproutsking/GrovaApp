@@ -35,10 +35,23 @@ class CommunityUnreadService {
 
   async sync(userId, communities = []) {
     if (!userId) return;
+    if (this._userId && this._userId !== userId && this._channel) {
+      await supabase.removeChannel(this._channel);
+      this._channel = null;
+      this._channels.clear();
+      this._channelCounts.clear();
+      this._counts.clear();
+    }
     this._userId = userId;
     const communityIds = communities.map((community) => community.id).filter(Boolean);
     if (!communityIds.length) {
       this._counts.clear();
+      this._channels.clear();
+      this._channelCounts.clear();
+      if (this._channel) {
+        await supabase.removeChannel(this._channel);
+        this._channel = null;
+      }
       this._notify();
       return;
     }
