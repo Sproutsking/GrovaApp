@@ -251,6 +251,33 @@ OfflineBanner.displayName = "OfflineBanner";
 // ── MainApp ───────────────────────────────────────────────────────────────────
 const MainApp = memo(() => {
   const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line
+  const [liveAdminRole, setLiveAdminRole] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
+      setLiveAdminRole(null);
+      return undefined;
+    }
+
+    supabase
+      .from("admin_team")
+      .select("role, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setLiveAdminRole(data?.role || null);
+      })
+      .catch(() => {
+        if (active) setLiveAdminRole(null);
+      });
+
+    return () => { active = false; };
+  }, [user?.id]);
+
+  const effectiveIsAdmin = Boolean(isAdmin || !!liveAdminRole);
 
   const [currentUser, setCurrentUser] = useState(() => ({
     id:       user?.id,
@@ -1076,7 +1103,7 @@ const MainApp = memo(() => {
   // ── Sidebar ──────────────────────────────────────────────────────────────
   const renderSidebar = () => {
     if (isMobile || showAdminDashboard) return null;
-    if (isAdmin) {
+    if (effectiveIsAdmin) {
       return (
         <Suspense fallback={null}>
           <AdminSidebar
@@ -1128,7 +1155,7 @@ const MainApp = memo(() => {
     <div className="app-container">
       <OfflineBanner visible={showOfflineBanner} />
 
-      {showAdminDashboard && isAdmin && (
+      {showAdminDashboard && effectiveIsAdmin && (
         <Suspense fallback={<AdminDashboardLoader />}>
           <AdminDashboard
             adminData={adminData}

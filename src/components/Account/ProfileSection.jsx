@@ -298,6 +298,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [adminRole, setAdminRole] = useState(null);
   const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
 
+  const { isAdmin: authIsAdmin } = useAuth() || {};
+
   const isMobile = window.innerWidth <= 768;
 
   useEffect(() => {
@@ -327,11 +329,19 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from("admin_team").select("role").eq("user_id", userId).maybeSingle()
-      .then(({ data }) => setAdminRole(data?.role || null)).catch(() => setAdminRole(null));
+    let active = true;
+    supabase.from("admin_team").select("role").eq("user_id", userId).eq("status", "active").maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setAdminRole(data?.role || null);
+      })
+      .catch(() => {
+        if (active) setAdminRole(null);
+      });
+    return () => { active = false; };
   }, [userId]);
 
-  const { isAdmin } = useAuth() || {};
+  const isAdmin = Boolean(authIsAdmin || !!adminRole);
 
   const verificationSections = buildVerificationDashboardSections(verificationItems, { username: profile?.username });
   const selectedSectionData = verificationSections.find((section) => section.id === selectedSection) || null;
