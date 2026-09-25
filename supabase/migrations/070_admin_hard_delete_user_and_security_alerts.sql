@@ -52,9 +52,12 @@ begin
     updated_at = now()
   where id = p_target_user_id;
 
-  if not p_allow_signin_again then
-    perform auth.admin.delete_user(p_target_user_id);
-  end if;
+  -- Supabase does not expose auth.admin.delete_user to database SQL. The
+  -- profile lock above is the server-enforced access boundary: the session
+  -- is revoked, the profile is deactivated, and account enforcement blocks
+  -- any future sign-in from using the account. Auth-user deletion, when
+  -- required for legal data erasure, must run through a service-role edge
+  -- function rather than an authenticated database RPC.
 
   return true;
 end;

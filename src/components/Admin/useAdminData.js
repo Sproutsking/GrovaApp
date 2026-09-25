@@ -613,11 +613,15 @@ export function useUsers(pageSize = 20) {
         rpcFailed &&
         /not find|does not exist|schema cache|404/i.test(rpcErrorMsg || "");
 
-      if (rpcFailed && !rpcMissing) {
+      const unsupportedAuthDelete =
+        rpcFailed &&
+        /auth\.admin\.delete_user|not implemented|cross-database references/i.test(rpcErrorMsg || "");
+
+      if (rpcFailed && !rpcMissing && !unsupportedAuthDelete) {
         throw new Error(`Delete failed: ${rpcErrorMsg}`);
       }
 
-      if (rpcMissing || rpcFailed) {
+      if (rpcMissing || unsupportedAuthDelete || rpcFailed) {
         const { error: softErr } = await sb()
           .from("profiles")
           .update({
