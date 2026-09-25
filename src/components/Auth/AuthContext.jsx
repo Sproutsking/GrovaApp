@@ -470,9 +470,22 @@ export default function AuthProvider({ children }) {
       if (
         !force &&
         lastFetchedUserId.current === userId &&
-        lastGoodProfile.current
-      )
+        lastGoodProfile.current &&
+        adminData && adminData.id === userId
+      ) {
+        // Keep the auth state fresh even when the profile object is cached.
+        // We must still re-check live admin membership so the sidebar can switch
+        // instantly without waiting for stale profile flags to settle.
+        const adminInfo = await fetchAdminRole(userId);
+        if (adminInfo) {
+          setIsAdmin(true);
+          setAdminData(adminInfo);
+        } else {
+          setIsAdmin(false);
+          setAdminData(null);
+        }
         return;
+      }
       if (fetchInFlight.current && !force) return;
 
       fetchInFlight.current = true;
@@ -583,7 +596,7 @@ export default function AuthProvider({ children }) {
         if (isMounted.current) setProfileLoading(false);
       }
     },
-    [fetchAdminRole, setPaid, enforceAccountStatus, startEnforcement],
+    [fetchAdminRole, setPaid, enforceAccountStatus, startEnforcement, adminData],
   );
 
   // ── Session guard ─────────────────────────────────────────────────────────
