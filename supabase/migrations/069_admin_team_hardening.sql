@@ -48,6 +48,7 @@ with check (
 );
 
 -- Prevent anyone from escalating their own profile to admin via a client-side update.
+-- The trusted admin authority is the `admin_team` table; `profiles` has no app-role column.
 create or replace function public.ensure_admin_role_is_server_only()
 returns trigger
 language plpgsql
@@ -55,16 +56,12 @@ security definer
 set search_path = public
 as $$
 begin
-  if tg_op = 'INSERT' and new.is_admin then
+  if tg_op = 'INSERT' and coalesce(new.is_admin, false) then
     raise exception 'Direct profile admin flags are not allowed. Admin membership is managed by server-side admin controls.';
   end if;
 
   if tg_op = 'UPDATE' and coalesce(new.is_admin, false) and new.is_admin <> coalesce(old.is_admin, false) then
     raise exception 'Direct profile admin flags are not allowed. Admin membership is managed by server-side admin controls.';
-  end if;
-
-  if tg_op = 'UPDATE' and coalesce(new.role, '') in ('admin', 'super_admin', 'ceo_owner', 'a_admin', 'b_admin') and new.role <> coalesce(old.role, '') then
-    raise exception 'Direct role changes on profiles are not allowed. Admin membership is managed by server-side admin controls.';
   end if;
 
   return new;

@@ -285,8 +285,15 @@ class AuthService {
   async checkAdminStatus(userId) {
     if (!userId) return null;
     try {
-      const { data } = await supabase.from("profiles").select("is_admin").eq("id", userId).maybeSingle();
-      return data?.is_admin ? { role: "admin" } : null;
+      const { data } = await supabase
+        .from("admin_team")
+        .select("role, status")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!data?.role) return null;
+      return { role: data.role };
     } catch { return null; }
   }
 
