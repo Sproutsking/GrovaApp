@@ -11,13 +11,7 @@ create policy admin_team_self_read on public.admin_team
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role in ('ceo_owner', 'super_admin')
-  )
+  or public.current_admin_role() in ('ceo_owner', 'super_admin')
 );
 
 drop policy if exists admin_team_no_direct_insert on public.admin_team;
@@ -29,22 +23,10 @@ drop policy if exists admin_team_restricted_update on public.admin_team;
 create policy admin_team_restricted_update on public.admin_team
 for update to authenticated
 using (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role in ('ceo_owner', 'super_admin')
-  )
+  public.current_admin_role() in ('ceo_owner', 'super_admin')
 )
 with check (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role in ('ceo_owner', 'super_admin')
-  )
+  public.current_admin_role() in ('ceo_owner', 'super_admin')
 );
 
 -- Prevent anyone from escalating their own profile to admin via a client-side update.

@@ -12,13 +12,7 @@ create policy admin_team_self_read on public.admin_team
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role = 'ceo_owner'
-  )
+  or public.current_admin_role() = 'ceo_owner'
 );
 
 -- Only the CEO may create or update admin rows.
@@ -26,36 +20,18 @@ drop policy if exists admin_team_ceo_only_insert on public.admin_team;
 create policy admin_team_ceo_only_insert on public.admin_team
 for insert to authenticated
 with check (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role = 'ceo_owner'
-  )
+  public.current_admin_role() = 'ceo_owner'
 );
 
 drop policy if exists admin_team_ceo_only_update on public.admin_team;
 create policy admin_team_ceo_only_update on public.admin_team
 for update to authenticated
 using (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role = 'ceo_owner'
-  )
+  public.current_admin_role() = 'ceo_owner'
   and user_id <> auth.uid()
 )
 with check (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role = 'ceo_owner'
-  )
+  public.current_admin_role() = 'ceo_owner'
   and user_id <> auth.uid()
 );
 
@@ -63,13 +39,7 @@ drop policy if exists admin_team_ceo_only_delete on public.admin_team;
 create policy admin_team_ceo_only_delete on public.admin_team
 for delete to authenticated
 using (
-  exists (
-    select 1
-    from public.admin_team caller
-    where caller.user_id = auth.uid()
-      and caller.status = 'active'
-      and caller.role = 'ceo_owner'
-  )
+  public.current_admin_role() = 'ceo_owner'
   and user_id <> auth.uid()
 );
 

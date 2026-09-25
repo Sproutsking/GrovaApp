@@ -435,33 +435,61 @@ export default function AuthProvider({ children }) {
   // ── Admin role loader ─────────────────────────────────────────────────────
   const fetchAdminRole = useCallback(async (userId) => {
     if (!userId) return null;
-    try {
-      const { data } = await supabase
-        .from("admin_team")
-        .select("role, permissions, status")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .maybeSingle();
-      if (!data) return null;
-      const roleInfo = ADMIN_ROLE_MAP[data.role] ?? {
-        label: data.role,
-        level: 50,
-        color: "#94a3b8",
-      };
-      return {
-        id: userId,
-        role: data.role,
-        roleLabel: roleInfo.label,
-        roleLevel: roleInfo.level,
-        roleColor: roleInfo.color,
-        permissions: data.permissions || [],
-        isCEO: data.role === "ceo_owner",
-        isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
-      };
-    } catch {
+    const { data, error } = await supabase
+      .from("admin_team")
+      .select("role, permissions, status")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[AuthContext] Admin membership lookup failed:", error.message);
+      }
       return null;
     }
+
+    if (!data) return null;
+    const roleInfo = ADMIN_ROLE_MAP[data.role] ?? {
+      label: data.role,
+      level: 50,
+      color: "#94a3b8",
+    };
+    return {
+      id: userId,
+      role: data.role,
+      roleLabel: roleInfo.label,
+      roleLevel: roleInfo.level,
+      roleColor: roleInfo.color,
+      permissions: data.permissions || [],
+      isCEO: data.role === "ceo_owner",
+      isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
+    };
   }, []);
+
+  // Resolve admin membership as soon as the auth session is known. Admin access
+  // must not wait for the profile query, which can be slower or independently fail.
+  useEffect(() => {
+    let active = true;
+    const userId = user?.id;
+
+    if (!userId) {
+      setIsAdmin(false);
+      setAdminData(null);
+      return undefined;
+    }
+
+    setIsAdmin(false);
+    setAdminData(null);
+    fetchAdminRole(userId).then((adminInfo) => {
+      if (!active) return;
+      setIsAdmin(Boolean(adminInfo));
+      setAdminData(adminInfo);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, fetchAdminRole]);
 
   // ── Profile loader ────────────────────────────────────────────────────────
   const loadProfile = useCallback(
