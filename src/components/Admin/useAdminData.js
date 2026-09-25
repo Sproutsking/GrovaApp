@@ -114,6 +114,36 @@ async function _revokeAuthSession(userId) {
   }
 }
 
+export async function createSecurityAlert({
+  eventType,
+  severity = "warning",
+  title,
+  description,
+  source = "admin_panel",
+  metadata = {},
+  viewerIds = [],
+}) {
+  try {
+    const { data, error } = await sb().rpc("create_security_alert", {
+      p_event_type: eventType,
+      p_severity: severity,
+      p_title: title,
+      p_description: description,
+      p_source: source,
+      p_metadata: metadata,
+      p_viewer_ids: viewerIds,
+    });
+    if (error) {
+      console.warn("[createSecurityAlert] RPC failed:", error.message);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.warn("[createSecurityAlert] Failed:", e.message);
+    return null;
+  }
+}
+
 // ─── useTable helper ───────────────────────────────────────────────────────
 export function useTable(tableName, options = {}) {
   const {
@@ -552,19 +582,20 @@ export function useUsers(pageSize = 20) {
     }, "Failed to unsuspend user.");
 
   // ─── Hard delete with graceful fallback ────────────────────────────────
-  // Tries the admin_hard_delete_user RPC first (which should also remove
-  // the auth.users row). If that RPC doesn't exist in this project's
-  // Postgres schema (PGRST202 / "Could not find the function"), we fall
-  // back to a soft delete so the action still succeeds and the user is
-  // immediately locked out, instead of throwing a confusing RPC error.
-  const deleteUser = (userId) =>
+  // Supports a decision: allow the user to sign in again later or permanently
+  // remove their auth account immediately. If the RPC is missing, we fall
+  // back to a soft delete so the action still succeeds and the account is
+  // immediately locked out or restored later based on admin choice.
+  const deleteUser = (userId, options = {}) =>
     safeCall(async () => {
+      const allowSignInAgain = !!options.allowSignInAgain;
       let rpcFailed = false;
       let rpcErrorMsg = "";
 
       try {
         const { data, error } = await sb().rpc("admin_hard_delete_user", {
           p_target_user_id: userId,
+          p_allow_signin_again: allowSignInAgain,
         });
         if (error) {
           rpcFailed = true;
@@ -583,25 +614,43 @@ export function useUsers(pageSize = 20) {
         /not find|does not exist|schema cache|404/i.test(rpcErrorMsg || "");
 
       if (rpcFailed && !rpcMissing) {
-        // RPC exists but genuinely failed (e.g. permission, FK constraint) —
-        // surface that real error rather than silently soft-deleting.
         throw new Error(`Delete failed: ${rpcErrorMsg}`);
       }
 
-      if (rpcMissing) {
-        // Fallback: soft delete + revoke session. Account is fully locked
-        // out immediately even though the auth.users row remains.
+      if (rpcMissing || rpcFailed) {
         const { error: softErr } = await sb()
           .from("profiles")
           .update({
             deleted_at: new Date().toISOString(),
-            account_status: "deactivated",
-            deactivated_reason: "Deleted by admin",
+            account_status: allowSignInAgain ? "deactivated" : "deactivated",
+            deactivated_reason: allowSignInAgain
+              ? "Temporarily deleted by admin; restore allowed"
+              : "Permanently deleted by admin",
+            account_locked_until: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("id", userId);
         if (softErr) throw softErr;
       }
+
+      const alertTitle = allowSignInAgain
+        ? "User account archived for possible restore"
+        : "User account permanently removed";
+      const alertDescription = allowSignInAgain
+        ? "This user was deactivated and flagged for later restore. They should not be able to sign in again until an admin explicitly restores them."
+        : "This user was permanently removed from the platform and must not be able to sign in again.";
+      await createSecurityAlert({
+        eventType: "user_account_delete",
+        severity: allowSignInAgain ? "warning" : "critical",
+        title: alertTitle,
+        description: alertDescription,
+        source: "admin_panel",
+        metadata: {
+          target_user_id: userId,
+          allow_signin_again: allowSignInAgain,
+          acted_by: (await sb().auth.getUser())?.data?.user?.id || null,
+        },
+      });
 
       await _revokeAuthSession(userId).catch(() => {});
       await load();
@@ -1619,6 +1668,22 @@ export function usePlatformFreeze() {
             { onConflict: "region" },
           );
         if (error) throw error;
+
+        await createSecurityAlert({
+          eventType: "platform_freeze_toggled",
+          severity: freeze ? "warning" : "info",
+          title: freeze ? `Platform freeze enforced for ${regionId}` : `Platform freeze lifted for ${regionId}`,
+          description: freeze
+            ? `The admin security controls have frozen activity for ${regionId}. Review all transactions and user activity before reopening access.`
+            : `The admin security controls reopened access for ${regionId}. Monitor for suspicious activity immediately.`,
+          source: "system_controls",
+          metadata: {
+            region: regionId,
+            frozen: freeze,
+            frozen_by: adminId || null,
+          },
+        });
+
         await load();
       } finally {
         setLoading(false);

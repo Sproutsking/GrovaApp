@@ -24,8 +24,9 @@ import {
   DollarSign,
   BookOpen,
 } from "lucide-react";
-import { C, Btn, AdminOnlinePanel, LivePulse } from "./AdminUI.jsx";
+import { C, Btn, AdminOnlinePanel, LivePulse, Modal } from "./AdminUI.jsx";
 import { getVisibleSections, ROLE_META } from "./permissions.js";
+import { useToast } from "../../contexts/ToastContext";
 import {
   useStats, useUsers, useInvites, useAnalytics,
   useSecurity, useNotifications, usePlatformFreeze,
@@ -531,6 +532,9 @@ export default function AdminDashboard({ adminData, onClose }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileAdmin,    setIsMobileAdmin]    = useState(false);
   const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
+  const [securityAlertModal, setSecurityAlertModal] = useState(null);
+  const lastSecurityAlertId = useRef(null);
+  const { warning: warnToast } = useToast();
 
   useEffect(() => {
     const handleResize = () => setIsMobileAdmin(window.innerWidth <= 900);
@@ -561,6 +565,24 @@ export default function AdminDashboard({ adminData, onClose }) {
     setActiveSection(section);
     window.scrollTo(0, 0);
   }, []);
+
+  const openSecurityAlerts = (securityCenterHook.alerts || []).filter(
+    (alert) => alert.status !== "resolved",
+  );
+  const latestSecurityAlert = openSecurityAlerts[0] || null;
+
+  useEffect(() => {
+    if (!latestSecurityAlert) return;
+    if (lastSecurityAlertId.current === latestSecurityAlert.id) return;
+
+    lastSecurityAlertId.current = latestSecurityAlert.id;
+    setSecurityAlertModal(latestSecurityAlert);
+    warnToast(
+      latestSecurityAlert.title || "Security alert",
+      latestSecurityAlert.description || "This incident requires immediate attention.",
+      { duration: 10000, position: "top-right" },
+    );
+  }, [latestSecurityAlert, warnToast]);
 
   const dashboardCols = isMobileAdmin ? "1fr" : "repeat(4, 1fr)";
   const quickActionCols = isMobileAdmin ? "repeat(2, 1fr)" : "repeat(3, 1fr)";
@@ -689,6 +711,38 @@ export default function AdminDashboard({ adminData, onClose }) {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: C.bg, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif", color: C.text, overflow: "hidden", position: "fixed", top: 0, left: 0, zIndex: 10000 }}>
       {showAmbassadorComingSoon && <ComingSoonModal title="Ambassador Management" onClose={() => setShowAmbassadorComingSoon(false)} />}
+      {securityAlertModal && (
+        <Modal
+          open={!!securityAlertModal}
+          onClose={() => setSecurityAlertModal(null)}
+          title={securityAlertModal.title || "Security alert"}
+          danger
+          width={560}
+        >
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.6 }}>
+              {securityAlertModal.description || "Immediate review recommended."}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#fca5a5" }}>
+                {securityAlertModal.severity || "warning"}
+              </span>
+              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "rgba(96,165,250,0.12)", color: "#93c5fd" }}>
+                {securityAlertModal.source || "system"}
+              </span>
+            </div>
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, color: C.text, fontSize: 13 }}>
+              {securityAlertModal.metadata && Object.keys(securityAlertModal.metadata).length > 0 ? (
+                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", color: C.text2, background: C.bg2, padding: 12, borderRadius: 8 }}>
+                  {JSON.stringify(securityAlertModal.metadata, null, 2)}
+                </pre>
+              ) : (
+                <span>No extra metadata attached.</span>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
       <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} securityAlertCount={(securityCenterHook.alerts || []).filter((alert) => alert.status !== "resolved").length} collapsed={sidebarCollapsed || isMobileAdmin} onToggle={() => setSidebarCollapsed((c) => !c)} />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>

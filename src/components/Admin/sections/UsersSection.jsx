@@ -16,7 +16,7 @@
 // VERIFY/TIER/WALLET: All direct DB writes, instant effect
 // ============================================================================
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
   Trash2,
@@ -47,6 +47,7 @@ import {
   ConfirmDialog,
 } from "../AdminUI.jsx";
 import { can, PERMISSIONS } from "../permissions.js";
+import { supabase as apiSupabase } from "../../../services/config/supabase";
 
 export default function UsersSection({ adminData, usersHook }) {
   const {
@@ -80,6 +81,8 @@ export default function UsersSection({ adminData, usersHook }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionAlert, setActionAlert] = useState(null);
   const [banReason, setBanReason] = useState("");
+  const [deleteAllowSigninAgain, setDeleteAllowSigninAgain] = useState(false);
+  const [userSecurityMeta, setUserSecurityMeta] = useState(null);
 
   const canEdit = can(adminData, PERMISSIONS.EDIT_USERS);
   const canBan = can(adminData, PERMISSIONS.BAN_USERS);
@@ -124,6 +127,35 @@ export default function UsersSection({ adminData, usersHook }) {
       setActionLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedUser?.id) {
+      setUserSecurityMeta(null);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      try {
+        const { data, error } = await apiSupabase
+          .from("user_sessions")
+          .select("country, region, city, ip_address, user_agent, last_seen")
+          .eq("user_id", selectedUser.id)
+          .order("last_seen", { ascending: false })
+          .limit(1);
+
+        if (!active) return;
+        if (error) throw error;
+        setUserSecurityMeta(data?.[0] || null);
+      } catch (e) {
+        if (active) setUserSecurityMeta(null);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedUser?.id]);
 
   const filterOptions = [
     { value: "all", label: "All Users" },
@@ -423,6 +455,15 @@ export default function UsersSection({ adminData, usersHook }) {
                   (selectedUser.engagement_points || 0).toLocaleString(),
                 ],
                 ["Payment Status", selectedUser.payment_status || "—"],
+                ["Country", userSecurityMeta?.country || "—"],
+                ["Region", userSecurityMeta?.region || "—"],
+                ["Last IP", userSecurityMeta?.ip_address || "—"],
+                [
+                  "Device",
+                  userSecurityMeta?.user_agent
+                    ? userSecurityMeta.user_agent.slice(0, 38)
+                    : "—",
+                ],
               ].map(([k, v]) => (
                 <div
                   key={k}
@@ -559,20 +600,93 @@ export default function UsersSection({ adminData, usersHook }) {
       />
 
       {/* ── Hard Delete Confirm ── */}
-      <ConfirmDialog
+      <Modal
         open={actionModal?.type === "delete"}
-        onClose={() => setActionModal(null)}
-        title="Permanently Delete Account"
+        onClose={() => {
+          setActionModal(null);
+          setDeleteAllowSigninAgain(false);
+        }}
+        title="Delete Account"
         danger
-        message={`This will permanently delete ${actionModal?.user?.full_name}'s auth account. They will NEVER be able to log in again. Their data is retained for records. This cannot be undone.`}
-        confirmLabel="Delete Permanently"
-        onConfirm={() =>
-          doAction(
-            () => deleteUser(actionModal.user.id),
-            "Account permanently deleted. Auth session destroyed.",
-          )
+        width={460}
+        footer={
+          <>
+            <Btn
+              label="Cancel"
+              onClick={() => {
+                setActionModal(null);
+                setDeleteAllowSigninAgain(false);
+              }}
+            />
+            <Btn
+              label={
+                deleteAllowSigninAgain ? "Delete & Keep Restore Option" : "Delete Permanently"
+              }
+              danger
+              loading={actionLoading}
+              onClick={() =>
+                doAction(
+                  () =>
+                    deleteUser(actionModal.user.id, {
+                      allowSignInAgain: deleteAllowSigninAgain,
+                    }),
+                  deleteAllowSigninAgain
+                    ? "Account deactivated. It can be restored later if needed."
+                    : "Account permanently deleted. Auth session destroyed.",
+                )
+              }
+            />
+          </>
         }
-      />
+      >
+        <div style={{ display: "grid", gap: 14 }}>
+          <Alert
+            type="warn"
+            message={
+              deleteAllowSigninAgain
+                ? "This leaves the account in a restoreable state. The user should not be able to sign in until an admin restores them."
+                : "This permanently removes access and blocks any future sign-ins."
+            }
+          />
+          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+            Should {actionModal?.user?.full_name} ever be allowed to sign in again?
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setDeleteAllowSigninAgain(false)}
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 10,
+                border: `1px solid ${deleteAllowSigninAgain ? C.border : "rgba(239,68,68,0.7)"}`,
+                background: deleteAllowSigninAgain ? "transparent" : "rgba(239,68,68,0.08)",
+                color: C.text,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              No — block forever
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteAllowSigninAgain(true)}
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 10,
+                border: `1px solid ${deleteAllowSigninAgain ? "rgba(59,130,246,0.7)" : C.border}`,
+                background: deleteAllowSigninAgain ? "rgba(59,130,246,0.08)" : "transparent",
+                color: C.text,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Yes — allow restore later
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Restore Confirm ── */}
       <ConfirmDialog
