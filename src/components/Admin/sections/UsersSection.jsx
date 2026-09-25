@@ -92,13 +92,16 @@ export default function UsersSection({ adminData, usersHook }) {
 
   // Client-side filter on top of server search
   const filterFn = (u) => {
+    const isDeleted = Boolean(u.deleted_at) || u.account_status === "deactivated";
+    if (filter !== "deleted" && isDeleted) return false;
+
     switch (filter) {
       case "active":
         return u.account_status === "active" && !u.deleted_at;
       case "suspended":
         return u.account_status === "suspended";
       case "deleted":
-        return !!u.deleted_at || u.account_status === "deactivated";
+        return isDeleted;
       case "pro":
         return u.is_pro;
       case "vip":
@@ -158,7 +161,7 @@ export default function UsersSection({ adminData, usersHook }) {
   }, [selectedUser?.id]);
 
   const filterOptions = [
-    { value: "all", label: "All Users" },
+    { value: "all", label: "All Active Users" },
     { value: "active", label: "Active" },
     { value: "suspended", label: "Suspended / Banned" },
     { value: "deleted", label: "Deleted" },
