@@ -37,8 +37,197 @@ const CSS = `
     --lime2: #c8f56a;
     --red:   #e05252;
     --text:  #dde8dd;
+    --muted: #b8c6b8;
+    --panel: rgba(19, 22, 20, 0.8);
+    --panel-strong: rgba(17, 19, 17, 0.96);
     --dim:   #2a3a2a;
     --dim2:  #1a2a1a;
+  }
+
+  .xv-auth-shell {
+    position: relative;
+    width: 100%;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(168,230,61,0.08), transparent 26%),
+      radial-gradient(circle at 80% 30%, rgba(168,230,61,0.06), transparent 22%),
+      linear-gradient(180deg, #020604 0%, #0a0d0a 100%);
+    overflow: hidden;
+  }
+
+  .xv-auth-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(168,230,61,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,230,61,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(circle at center, black 55%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .xv-auth-card {
+    position: relative;
+    width: min(92vw, 720px);
+    min-height: 660px;
+    background: rgba(18, 20, 18, 0.8);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 0 0 1px rgba(168,230,61,0.08), 0 30px 60px rgba(0,0,0,0.45);
+    border-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+  }
+
+  .xv-auth-card::before {
+    content: "";
+    position: absolute;
+    inset: 14px;
+    border: 1px dashed rgba(255,255,255,0.16);
+    border-radius: 18px;
+    pointer-events: none;
+  }
+
+  .xv-auth-panel {
+    position: relative;
+    width: min(100%, 440px);
+    padding: 32px 24px 26px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .xv-auth-topbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    color: rgba(255,255,255,0.75);
+    font-size: 11px;
+    letter-spacing: 1.7px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .xv-auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'DM Sans', sans-serif;
+    color: #edf7dd;
+    letter-spacing: 0.2px;
+  }
+
+  .xv-auth-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, #a8e63d, #d8ff84);
+    box-shadow: 0 0 14px rgba(168,230,61,0.8);
+  }
+
+  .xv-auth-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.8;
+  }
+
+  .xv-auth-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a8e63d;
+    box-shadow: 0 0 12px rgba(168,230,61,0.7);
+  }
+
+  .xv-auth-heading {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 700;
+    font-size: clamp(18px, 2vw, 25px);
+    color: rgba(255,255,255,0.96);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .xv-auth-subcopy {
+    margin: 18px 0 22px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(222,233,222,0.76);
+    text-align: center;
+  }
+
+  .xv-auth-btn-stack {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .xv-auth-divider {
+    position: relative;
+    width: 100%;
+    margin: 22px 0 18px;
+    text-align: center;
+    color: rgba(255,255,255,0.45);
+    font-size: 12px;
+    text-transform: lowercase;
+  }
+
+  .xv-auth-divider::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  }
+
+  .xv-auth-divider span {
+    position: relative;
+    display: inline-block;
+    background: rgba(18, 20, 18, 0.9);
+    padding: 0 12px;
+  }
+
+  .xv-auth-email {
+    margin-top: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(168,230,61,0.35);
+    transition: color .2s ease, border-color .2s ease;
+  }
+
+  .xv-auth-email:hover {
+    color: #d7ff8d;
+    border-color: rgba(168,230,61,0.75);
+  }
+
+  .xv-auth-legal {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.8;
+    color: rgba(190,203,190,0.8);
+  }
+
+  .xv-auth-legal a {
+    color: #d6ff76;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(214,255,118,0.35);
   }
 
   /* ── Core keyframes ── */
@@ -1375,42 +1564,43 @@ function LoginView() {
       }}
     >
       {/* ── Heading ── */}
-      <div style={{ marginBottom: 28, textAlign: "center" }}>
+      <div style={{ marginBottom: 8, textAlign: "center", width: "100%" }}>
         <div
           style={{
-            fontFamily: "'Bebas Neue',sans-serif",
-            fontSize: "clamp(32px,4.5vw,48px)",
-            letterSpacing: "2px",
-            lineHeight: 1,
-            color: "var(--text)",
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: "clamp(22px,2.6vw,30px)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            lineHeight: 1.15,
+            color: "rgba(255,255,255,0.97)",
             animation: "XV_riseIn .65s ease .05s both",
             opacity: 0,
+            fontWeight: 700,
           }}
         >
-          WELCOME BACK
+          Enter Xeevia
         </div>
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#c8f56a",
-            marginTop: 8,
+            fontSize: 15,
+            fontWeight: 500,
+            color: "rgba(222,233,222,0.72)",
+            marginTop: 12,
             animation: "XV_riseIn .65s ease .13s both",
             opacity: 0,
-            textShadow: "0 0 12px rgba(200,245,106,0.2)",
-            letterSpacing: "0.3px",
+            textShadow: "0 0 12px rgba(200,245,106,0.12)",
+            letterSpacing: "0.2px",
           }}
         >
-          Sign in to continue to Xeevia
+          Your network means something.
         </div>
         <div
           style={{
-            width: 28,
-            height: 2,
-            marginTop: 12,
+            width: 48,
+            height: 1,
+            margin: "18px auto 0",
             background:
-              "linear-gradient(90deg,transparent,var(--lime),transparent)",
-            margin: "12px auto 0",
+              "linear-gradient(90deg,transparent,rgba(168,230,61,0.8),transparent)",
             animation: "XV_fadeIn .8s ease .2s both",
             opacity: 0,
           }}
@@ -1439,7 +1629,7 @@ function LoginView() {
       )}
 
       {/* ── Provider buttons ── */}
-      <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+      <div className="xv-auth-btn-stack">
         {PROVIDERS.map((p) => (
           <ProviderBtn
             key={p.id}
@@ -1461,70 +1651,17 @@ function LoginView() {
         ))}
       </div>
 
-      {/* ── Terms ── */}
-      <div
-        style={{
-          marginTop: 24,
-          fontSize: 11,
-          fontWeight: 500,
-          color: "#8fb88f",
-          lineHeight: 1.9,
-          textAlign: "center",
-          animation: "XV_fadeIn 1s ease .55s both",
-          opacity: 0,
-          letterSpacing: "0.2px",
-        }}
-      >
-        By continuing you agree to our{" "}
-        <a
-          href="/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: "#d4fc72",
-            fontWeight: 700,
-            textDecoration: "none",
-            cursor: "pointer",
-            borderBottom: "1.5px solid rgba(212,252,114,0.4)",
-            transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            textShadow: "0 0 8px rgba(212,252,114,0.15)",
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.borderBottomColor = "rgba(212,252,114,0.8)";
-            e.target.style.textShadow = "0 0 16px rgba(212,252,114,0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.borderBottomColor = "rgba(212,252,114,0.4)";
-            e.target.style.textShadow = "0 0 8px rgba(212,252,114,0.15)";
-          }}
-        >
-          Terms
-        </a>
-        {" & "}
-        <a
-          href="/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: "#d4fc72",
-            fontWeight: 700,
-            textDecoration: "none",
-            cursor: "pointer",
-            borderBottom: "1.5px solid rgba(212,252,114,0.4)",
-            transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            textShadow: "0 0 8px rgba(212,252,114,0.15)",
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.borderBottomColor = "rgba(212,252,114,0.8)";
-            e.target.style.textShadow = "0 0 16px rgba(212,252,114,0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.borderBottomColor = "rgba(212,252,114,0.4)";
-            e.target.style.textShadow = "0 0 8px rgba(212,252,114,0.15)";
-          }}
-        >
-          Privacy
-        </a>
+      <div className="xv-auth-divider"><span>or</span></div>
+
+      <a className="xv-auth-email" href="/auth/email" onClick={(e) => e.preventDefault()}>
+        Continue with email →
+      </a>
+
+      <div className="xv-auth-legal">
+        Your data. Your rules.<br />
+        <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+        {' · '}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
       </div>
     </div>
   );
@@ -1540,59 +1677,25 @@ export default function AuthWall({ paywall = false }) {
   if (paywall) return <PaywallGate />;
 
   return (
-    <div
-      style={{
-        height: "100dvh",
-        width: "100%",
-        background: "var(--bg)",
-        display: "flex",
-        alignItems: "stretch",
-        position: "relative",
-        overflow: "hidden",
-      }}
-      className="xv"
-    >
+    <div className="xv xv-auth-shell" style={{ height: "100dvh", width: "100%" }}>
       <style>{CSS}</style>
       <Grain />
       <Corners />
       <ScanLine />
 
-      {/* ── Left panel — give the brand/story side more breathing room ── */}
-      <div
-        className="xv-left"
-        style={{
-          flex: "0 0 58%",
-          height: "100dvh",
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <LeftPanel />
-      </div>
+      <div className="xv-auth-card" role="dialog" aria-modal="true" aria-label="Xeevia sign in panel">
+        <div className="xv-auth-panel">
+          <div className="xv-auth-topbar">
+            <div className="xv-auth-brand">
+              <span className="xv-auth-mark" aria-hidden="true" />
+              <span>Xeevia</span>
+            </div>
+            <div className="xv-auth-status">
+              <span>Global</span>
+              <span className="xv-auth-status-dot" aria-hidden="true" />
+            </div>
+          </div>
 
-      {/* ── Right panel — keep the sign-in panel comfortable but less dominant ── */}
-      <div
-        className="xv-right"
-        style={{
-          flex: "1 1 42%",
-          height: "100dvh",
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          zIndex: 2,
-          borderLeft: "1px solid rgba(168,230,61,.03)",
-        }}
-      >
-        <div
-          className="xv-right-inner"
-          style={{
-            width: "100%",
-            maxWidth: 360,
-            padding: "0 28px",
-          }}
-        >
           <LoginView />
         </div>
       </div>
