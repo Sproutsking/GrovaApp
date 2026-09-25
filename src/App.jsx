@@ -58,6 +58,7 @@ import callService                 from "./services/messages/callService";
 import { useNavigation }           from "./hooks/useNavigation";
 import { useBackButton }           from "./hooks/useBackButton";
 import { usePullToRefresh }        from "./hooks/usePullToRefresh";
+import { ToastProvider }           from "./contexts/ToastContext";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
@@ -1464,10 +1465,12 @@ function AppRouter() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 const App = () => (
-  <AuthProvider>
-    <BoostStyles />
-    <AppRouter />
-  </AuthProvider>
+  <ToastProvider>
+    <AuthProvider>
+      <BoostStyles />
+      <AppRouter />
+    </AuthProvider>
+  </ToastProvider>
 );
 
 export default App;
