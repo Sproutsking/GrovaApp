@@ -1,6 +1,6 @@
 // src/components/wallet/tabs/SendTab.jsx
 // ════════════════════════════════════════════════════════════════════
-//  UNIFIED SEND — $XEV + EP
+//  EP SEND — internal username transfers
 //  FIXES:
 //   • "Continue" / "Confirm & Send" button renamed to st-action-btn
 //     (isolated from btn-primary / btn-ghost collisions)
@@ -11,8 +11,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   ArrowLeft, Send, Flame, AlertCircle,
-  CheckCircle, Zap, TrendingUp, X, Loader,
-  Sparkles, Shield, ChevronRight,
+  CheckCircle, Zap, X, Loader,
+  Sparkles, ChevronRight,
 } from "lucide-react";
 import { walletService } from "../../../services/wallet/walletService";
 import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
@@ -22,26 +22,12 @@ import TwoFAModal from "../../Modals/TwoFAModal";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import XevAvatar from "../components/XevAvatar";
 
-const XEV_RATE = 2.5;
-
-function computeEPBurn(currency, amount) {
+function computeEPBurn(amount) {
   const a = parseFloat(amount) || 0;
-  if (currency === "EP") {
-    if (a < 100)  return 0.5;
-    if (a < 500)  return 2;
-    if (a < 2000) return 5;
-    return 10;
-  }
-  const ngn = a * XEV_RATE;
-  if (ngn < 250)   return 1;
-  if (ngn < 1000)  return 2;
-  if (ngn < 5000)  return 4;
-  if (ngn < 25000) return 7;
+  if (a < 100) return 0.5;
+  if (a < 500) return 2;
+  if (a < 2000) return 5;
   return 10;
-}
-
-function isWalletAddress(s) {
-  return /^0x[a-fA-F0-9]{40,}$/.test((s || "").trim());
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -50,15 +36,6 @@ function isWalletAddress(s) {
    component so global wallet styles can't override it.
 ───────────────────────────────────────────────────────────────── */
 const CSS = `
-/* ── currency switcher ── */
-.cs-wrap{display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:4px;width:fit-content;margin:0 20px 24px;gap:2px;position:relative;}
-.cs-pill{position:absolute;top:4px;left:4px;height:calc(100% - 8px);border-radius:100px;transition:transform .22s cubic-bezier(.4,0,.2,1),width .22s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:0;}
-.cs-pill.xev{background:rgba(163,230,53,.1);border:1px solid rgba(163,230,53,.2);}
-.cs-pill.ep{background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);}
-.cs-btn{position:relative;display:flex;align-items:center;gap:7px;padding:9px 20px;border-radius:100px;border:none;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.28);z-index:1;white-space:nowrap;}
-.cs-btn.active-xev{color:#a3e635;}.cs-btn.active-ep{color:#22d3ee;}
-.cs-divider{width:1px;height:16px;background:rgba(255,255,255,.08);flex-shrink:0;}
-
 /* ── recipient search ── */
 .st-input-row{display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:visible;position:relative;transition:border-color .2s,box-shadow .2s;}
 .st-input-row:focus-within{border-color:rgba(163,230,53,.35);box-shadow:0 0 0 3px rgba(163,230,53,.07);}
@@ -188,28 +165,6 @@ const CSS = `
 }
 `;
 
-function CurrencySwitcher({ currency, onChange }) {
-  const xevRef = useRef(null);
-  const epRef  = useRef(null);
-  const [pill, setPill] = useState({ width: 0, transform: "translateX(0px)" });
-  useEffect(() => {
-    const r = currency === "XEV" ? xevRef.current : epRef.current;
-    if (r) setPill({ width: r.offsetWidth, transform: `translateX(${r.offsetLeft - 4}px)` });
-  }, [currency]);
-  return (
-    <div className="cs-wrap">
-      <div className={`cs-pill ${currency === "XEV" ? "xev" : "ep"}`} style={pill} />
-      <button ref={xevRef} className={`cs-btn ${currency === "XEV" ? "active-xev" : ""}`} onClick={() => onChange("XEV")}>
-        <TrendingUp size={11} />$XEV
-      </button>
-      <div className="cs-divider" />
-      <button ref={epRef} className={`cs-btn ${currency === "EP" ? "active-ep" : ""}`} onClick={() => onChange("EP")}>
-        <Zap size={11} />EP
-      </button>
-    </div>
-  );
-}
-
 /* ── useMobileHeaderOffset ──────────────────────────────────────────
    Measures the first fixed/sticky element above the wallet shell
    and exposes the height as a CSS variable on the component root.
@@ -247,10 +202,9 @@ const SendTab = ({
   const rootRef = useRef(null);
   useMobileHeaderOffset(rootRef);
 
-  const [currency,     setCurrency]     = useState("EP");
+  const currency = "EP";
   const [rawInput,     setRawInput]     = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
-  const [walletAddr,   setWalletAddr]   = useState(null);
   const [amount,       setAmount]       = useState("");
   const [note,         setNote]         = useState("");
   const [step,         setStep]         = useState(1);
@@ -275,15 +229,12 @@ const SendTab = ({
   const searchTimer = useRef(null);
   const prevBal     = useRef(null);
 
-  const epBurn    = computeEPBurn(currency, amount);
-  const fiatValue = currency === "XEV" ? (parseFloat(amount) || 0) * XEV_RATE : 0;
-  const available = currency === "XEV" ? (balance?.tokens || 0) : (balance?.points || 0);
+  const epBurn    = computeEPBurn(amount);
+  const available = balance?.points || 0;
   const parsed    = parseFloat(amount) || 0;
-  const epMinFail = currency === "EP" && parsed > 0 && parsed < 5;
-  const hasRcpt   = !!(selectedUser || walletAddr);
-  const tooLittle = parsed > available ||
-    (currency === "XEV" && (balance?.points || 0) < epBurn) ||
-    (currency === "EP"  && (balance?.points || 0) < parsed + epBurn);
+  const epMinFail = parsed > 0 && parsed < 5;
+  const hasRcpt   = !!selectedUser;
+  const tooLittle = balance?.points < parsed + epBurn;
 
   const toast = useCallback((msg, type = "ok", ms = 3500) => {
     setToastMsg(msg); setToastType(type); setToastShow(true);
@@ -295,14 +246,6 @@ const SendTab = ({
   useEffect(() => {
     clearTimeout(searchTimer.current);
     if (selectedUser) { setShowDrop(false); return; }
-
-    if (isWalletAddress(rawInput)) {
-      setWalletAddr(rawInput.trim());
-      setSelectedUser(null);
-      setShowDrop(false);
-      return;
-    }
-    setWalletAddr(null);
 
     const q = rawInput.replace(/^@/, "").trim();
     if (q.length < 2) { setShowDrop(false); setResults([]); return; }
@@ -348,23 +291,17 @@ const SendTab = ({
   };
 
   const clearRcpt = () => {
-    setSelectedUser(null); setWalletAddr(null); setRawInput(""); setError("");
+    setSelectedUser(null); setRawInput(""); setError("");
     setTimeout(() => inputRef.current?.focus(), 50);
   };
-
-  const handleCurrencyChange = (c) => { setCurrency(c); setAmount(""); setError(""); };
 
   const handleContinue = () => {
     setError("");
     if (!hasRcpt)                              return setError("Select a recipient first");
-    if (walletAddr && currency === "EP")       return setError("Wallet addresses only support $XEV");
     if (!amount || parsed <= 0)                return setError("Enter a valid amount");
-    if (currency === "EP" && parsed < 5)       return setError("Minimum EP send is 5 EP");
-    if (parsed > available)                    return setError(`Insufficient ${currency} balance`);
-    if (currency === "XEV" && (balance?.points || 0) < epBurn)
-                                               return setError(`Need ${epBurn} EP for burn fee`);
-    if (currency === "EP" && (balance?.points || 0) < parsed + epBurn)
-                                               return setError(`Need ${parsed + epBurn} EP total`);
+    if (parsed < 5) return setError("Minimum EP send is 5 EP");
+    if (parsed > available) return setError("Insufficient EP balance");
+    if (available < parsed + epBurn) return setError(`Need ${parsed + epBurn} EP total`);
     setStep(2);
   };
 
@@ -372,10 +309,8 @@ const SendTab = ({
     setPendingAction({
       transactionType: "transfer",
       amount: parsed,
-      recipient: selectedUser ? `@${selectedUser.username}` : walletAddr,
-      description: currency === "EP"
-        ? `Send ${parsed} EP to ${selectedUser?.username || walletAddr}`
-        : `Send ${parsed} $XEV to ${selectedUser?.username || walletAddr}`,
+      recipient: `@${selectedUser?.username}`,
+      description: `Send ${parsed} EP to ${selectedUser?.username}`,
     });
     setShowPinModal(true);
   };
@@ -389,14 +324,7 @@ const SendTab = ({
   const handleSend = useCallback(async () => {
     setError("");
     prevBal.current = { tokens: balance?.tokens || 0, points: balance?.points || 0 };
-    if (balance) {
-      if (currency === "XEV") {
-        balance.tokens = Math.max(0, (balance.tokens || 0) - parsed);
-        balance.points = Math.max(0, (balance.points || 0) - epBurn);
-      } else {
-        balance.points = Math.max(0, (balance.points || 0) - parsed - epBurn);
-      }
-    }
+    if (balance) balance.points = Math.max(0, (balance.points || 0) - parsed - epBurn);
 
     const optTx = {
       id: `opt_${Date.now()}`,
@@ -423,7 +351,7 @@ const SendTab = ({
     toast(`Sending ${parsed} ${currency}…`);
 
     try {
-      const toId = selectedUser ? `@${selectedUser.username}` : walletAddr;
+      const toId = `@${selectedUser.username}`;
       const result = await walletService.sendTokens({
         fromUserId: userId, toIdentifier: toId,
         amount: parsed, currency, note, epBurn,
@@ -431,7 +359,7 @@ const SendTab = ({
       if (result.success) {
         setTxId(result.transaction_id);
         setRpcLoading(false); setRpcDone(true);
-        toast(`✓ Delivered to @${selectedUser?.username || walletAddr?.slice(0, 8) + "…"}`, "ok");
+        toast(`✓ Delivered to @${selectedUser.username}`, "ok");
         if (typeof setTransactions === "function")
           setTransactions(p => p.filter(tx => tx.id !== optTx.id));
         if (onRefresh) onRefresh();
@@ -439,10 +367,7 @@ const SendTab = ({
         throw new Error(result.error || "Transaction failed");
       }
     } catch (err) {
-      if (balance && prevBal.current) {
-        balance.tokens = prevBal.current.tokens;
-        balance.points = prevBal.current.points;
-      }
+      if (balance && prevBal.current) balance.points = prevBal.current.points;
       if (typeof setTransactions === "function")
         setTransactions(p => p.filter(tx => tx.id !== optTx.id));
       setRpcLoading(false);
@@ -450,11 +375,11 @@ const SendTab = ({
       setStep(1);
       toast(`⚠ Failed — ${err.message || "balance restored"}`, "err", 4500);
     }
-  }, [selectedUser, walletAddr, parsed, currency, epBurn, balance, note, userId, onRefresh, setTransactions, toast]);
+  }, [selectedUser, parsed, currency, epBurn, balance, note, userId, onRefresh, setTransactions, toast]);
 
   const resetForm = () => {
     setStep(1); setAmount(""); setRawInput(""); setSelectedUser(null);
-    setWalletAddr(null); setNote(""); setError("");
+    setNote(""); setError("");
     setTxId(null); setRpcDone(false); setRpcLoading(false);
   };
 
@@ -493,14 +418,9 @@ const SendTab = ({
         <div style={{ fontSize:24,fontWeight:800,color:"#fff",marginBottom:6 }}>
           {rpcLoading ? "Sending…" : "Sent!"}
         </div>
-        <div style={{ fontSize:38,fontWeight:700,fontFamily:"DM Mono,monospace",color:currency==="EP"?"#22d3ee":"#a3e635",marginBottom:4,letterSpacing:"-0.04em" }}>
+        <div style={{ fontSize:38,fontWeight:700,fontFamily:"DM Mono,monospace",color:"#a3e635",marginBottom:4,letterSpacing:"-0.04em" }}>
           {parsed.toLocaleString()} <span style={{ fontSize:18 }}>{currency}</span>
         </div>
-        {fiatValue > 0 && (
-          <div style={{ fontSize:13,color:"rgba(255,255,255,.3)",fontFamily:"DM Mono,monospace",marginBottom:8 }}>
-            ≈ ₦{fiatValue.toLocaleString()}
-          </div>
-        )}
 
         {selectedUser ? (
           <div onClick={() => setProfileUser(selectedUser)} style={{
@@ -518,11 +438,7 @@ const SendTab = ({
             </div>
             <ChevronRight size={14} color="rgba(255,255,255,.2)" />
           </div>
-        ) : (
-          <div style={{ fontSize:11,color:"rgba(255,255,255,.3)",marginBottom:16,fontFamily:"DM Mono,monospace" }}>
-            to {walletAddr?.slice(0,10)}…{walletAddr?.slice(-6)}
-          </div>
-        )}
+        ) : null}
 
         <div style={{ display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.12)",borderRadius:100,fontSize:11,color:"#f87171",marginBottom:16 }}>
           <Flame size={11} />{epBurn} EP burned
@@ -595,27 +511,12 @@ const SendTab = ({
           </div>
         )}
 
-        {walletAddr && (
-          <div className="waddr-card" style={{ margin:"0 20px 20px" }}>
-            <div style={{ width:38,height:38,borderRadius:10,background:"rgba(34,211,238,.08)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-              <Shield size={18} color="#22d3ee" />
-            </div>
-            <div style={{ flex:1 }}>
-              <div className="waddr-badge" style={{ marginBottom:5 }}><Shield size={8}/>On-chain</div>
-              <div className="waddr-text">{walletAddr}</div>
-            </div>
-          </div>
-        )}
-
         <div className="summary-card">
           <div className="summary-card-title">Transaction Details</div>
           <div className="summary-row">
             <span>Amount</span>
-            <strong style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>{parsed.toLocaleString()} {currency}</strong>
+            <strong style={{ color:"#a3e635" }}>{parsed.toLocaleString()} EP</strong>
           </div>
-          {fiatValue > 0 && (
-            <div className="summary-row"><span>Value</span><span>≈ ₦{fiatValue.toLocaleString()}</span></div>
-          )}
           {note && (
             <div className="summary-row"><span>Note</span><span style={{ maxWidth:180,textAlign:"right",fontSize:12 }}>{note}</span></div>
           )}
@@ -623,11 +524,9 @@ const SendTab = ({
           <div className="summary-row total">
             <span>EP Burn</span><strong style={{ color:"#f87171" }}>−{epBurn} EP</strong>
           </div>
-          {currency === "EP" && (
-            <div className="summary-row">
-              <span>Total EP</span><strong style={{ color:"rgba(255,255,255,.5)" }}>{parsed + epBurn} EP</strong>
-            </div>
-          )}
+          <div className="summary-row">
+            <span>Total EP</span><strong style={{ color:"rgba(255,255,255,.5)" }}>{parsed + epBurn} EP</strong>
+          </div>
         </div>
 
         <div className="ep-burn-notice" style={{ margin:"0 20px 24px" }}>
@@ -695,11 +594,9 @@ const SendTab = ({
         </button>
         <div>
           <div className="view-title">Send</div>
-          <div className="view-subtitle">Transfer $XEV or EP instantly</div>
+          <div className="view-subtitle">Send EP to a Xeevia username</div>
         </div>
       </div>
-
-      <CurrencySwitcher currency={currency} onChange={handleCurrencyChange} />
 
       <div className="form-body">
         {/* ── Recipient ── */}
@@ -707,7 +604,7 @@ const SendTab = ({
           <label className="field-label">
             Recipient
             <span style={{ marginLeft:8,fontSize:10,color:"rgba(255,255,255,.2)",fontWeight:400,fontFamily:"DM Mono,monospace" }}>
-              @username or 0x… address
+              @username
             </span>
           </label>
 
@@ -731,25 +628,6 @@ const SendTab = ({
               </div>
             </div>
 
-          ) : walletAddr ? (
-            <div className="waddr-card">
-              <div style={{ width:40,height:40,borderRadius:10,background:"rgba(34,211,238,.08)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                <Shield size={20} color="#22d3ee"/>
-              </div>
-              <div style={{ flex:1 }}>
-                <div className="waddr-badge" style={{ marginBottom:5 }}>
-                  <Shield size={8}/>On-chain address detected
-                </div>
-                <div className="waddr-text">{walletAddr.slice(0,20)}…{walletAddr.slice(-8)}</div>
-                {currency === "EP" && (
-                  <div style={{ fontSize:10,color:"#f87171",marginTop:4 }}>Switch to $XEV for wallet address sends</div>
-                )}
-              </div>
-              <button className="rcpt-chg-btn" onClick={clearRcpt} style={{ flexShrink:0 }}>
-                <X size={11}/> Clear
-              </button>
-            </div>
-
           ) : (
             <div style={{ position:"relative" }} ref={dropRef}>
               <div className="st-input-row">
@@ -757,7 +635,7 @@ const SendTab = ({
                 <input
                   ref={inputRef}
                   className="st-field"
-                  placeholder="username or 0x wallet address"
+                  placeholder="Search by Xeevia username"
                   value={rawInput}
                   onChange={e => { setRawInput(e.target.value); setError(""); }}
                   onFocus={() => { if (results.length > 0) setShowDrop(true); }}
@@ -804,9 +682,7 @@ const SendTab = ({
         <div className="field-group">
           <label className="field-label">
             Amount
-            {currency === "EP" && (
-              <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:9,opacity:.7 }}>MIN 5 EP</span>
-            )}
+            <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:9,opacity:.7 }}>MIN 5 EP</span>
           </label>
           <div className="amount-field">
             <input
@@ -815,23 +691,18 @@ const SendTab = ({
               placeholder="0"
               value={amount}
               onChange={e => { setAmount(e.target.value); setError(""); }}
-              min={currency==="EP"?5:0}
-              step={currency==="EP"?1:"any"}
+              min={5}
+              step={1}
             />
             <div className="amount-ticker-row">
-              <span className="amount-ticker" style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>
-                {currency==="XEV"?"$XEV":"EP"}
-              </span>
-              {currency==="XEV" && parsed > 0 && (
-                <span className="amount-fiat-display">≈ ₦{fiatValue.toLocaleString()}</span>
-              )}
-              {currency==="EP" && parsed > 0 && !epMinFail && (
+              <span className="amount-ticker" style={{ color:"#a3e635" }}>EP</span>
+              {parsed > 0 && !epMinFail && (
                 <span className="amount-fiat-display">{parsed<100?"0.5 EP fee":`${epBurn} EP fee`}</span>
               )}
             </div>
           </div>
           <div className="field-hint">
-            Available: <strong style={{ color:"rgba(255,255,255,.5)" }}>{available.toLocaleString()}</strong> {currency}
+            Available: <strong style={{ color:"rgba(255,255,255,.5)" }}>{available.toLocaleString()}</strong> EP
           </div>
         </div>
 
@@ -853,7 +724,7 @@ const SendTab = ({
         {parsed > 0 && !epMinFail && (
           <div className="ep-burn-notice" style={{ marginBottom:14 }}>
             <Flame size={13} color="#f87171"/>
-            <span>{currency==="EP" && parsed < 100 ? "Micro-transfer: 0.5 EP fee only" : `${epBurn} EP will be burned`}</span>
+            <span>{parsed < 100 ? "Micro-transfer: 0.5 EP fee only" : `${epBurn} EP will be burned`}</span>
           </div>
         )}
 
@@ -876,7 +747,7 @@ const SendTab = ({
       <div className="st-action-row">
         <button
           className="st-action-btn"
-          disabled={!hasRcpt || !amount || parsed <= 0 || tooLittle || epMinFail || (walletAddr && currency === "EP")}
+          disabled={!hasRcpt || !amount || parsed <= 0 || tooLittle || epMinFail}
           onClick={handleContinue}
         >
           <Send size={14}/>Review Transfer

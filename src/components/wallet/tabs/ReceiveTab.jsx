@@ -318,7 +318,7 @@ const CSS = `
 }
 `;
 
-const ReceiveTab = ({ setActiveTab, userId }) => {
+const LegacyCryptoReceiveTab = ({ setActiveTab, userId }) => {
   const { profile } = useAuth();
   const [activeChain,  setActiveChain]  = useState("cardano");
   const [addresses,    setAddresses]    = useState({});
@@ -545,4 +545,66 @@ const ReceiveTab = ({ setActiveTab, userId }) => {
   );
 };
 
-export default ReceiveTab;
+export default function ReceiveTab({ setActiveTab }) {
+  const { profile } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const username = profile?.username ? `@${profile.username}` : "";
+
+  const copyHandle = async () => {
+    if (!username) return;
+    try {
+      await navigator.clipboard.writeText(username);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  const shareHandle = async () => {
+    if (!username) return;
+    const shareData = { title: "Send me EP on Xeevia", text: `Send EP to ${username} on Xeevia.` };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (error) { if (error?.name !== "AbortError") await copyHandle(); }
+    } else {
+      await copyHandle();
+    }
+  };
+
+  return (
+    <section className="ep-receive-root">
+      <style>{`
+        .ep-receive-root{width:100%;min-height:100%;box-sizing:border-box;padding:16px 18px 32px;color:#edf2e8}
+        .ep-receive-head{display:flex;align-items:center;gap:12px;padding:4px 0 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+        .ep-receive-back{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.035);color:#c5d0c1;cursor:pointer}
+        .ep-receive-title{font-size:16px;font-weight:800;color:#f4f8f1}.ep-receive-subtitle{margin-top:2px;font-size:11px;color:#829080}
+        .ep-receive-panel{width:min(100%,640px);margin:22px auto 0;padding:clamp(16px,3vw,28px);box-sizing:border-box;border:1px solid rgba(163,230,53,.18);border-radius:14px;background:linear-gradient(145deg,rgba(163,230,53,.045),rgba(255,255,255,.018) 50%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.04),0 18px 42px rgba(0,0,0,.2)}
+        .ep-receive-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a3e635}.ep-receive-panel h2{margin:7px 0 5px;font-size:clamp(20px,3vw,26px);color:#f4f8f1}.ep-receive-panel p{margin:0;color:#8f9b8d;font-size:12px;line-height:1.6}
+        .ep-receive-handle{display:flex;align-items:center;gap:10px;margin-top:20px;padding:10px 10px 10px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:rgba(0,0,0,.26);min-width:0}
+        .ep-receive-handle strong{flex:1;min-width:0;overflow-wrap:anywhere;color:#d9f99d;font:700 16px 'JetBrains Mono',monospace}
+        .ep-receive-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:5px 9px;border:1px solid rgba(163,230,53,.23);border-radius:8px;background:rgba(163,230,53,.08);color:#c9f69b;font:700 11px inherit;white-space:nowrap;cursor:pointer}
+        .ep-receive-share{margin-top:10px;background:linear-gradient(145deg,#d9f99d,#84cc16 65%,#4d7c0f);border-color:rgba(236,252,203,.6);color:#172307;box-shadow:inset 0 1px rgba(255,255,255,.65),0 3px 0 #365314}
+        .ep-receive-share:active{transform:translateY(2px);box-shadow:inset 0 1px 2px rgba(0,0,0,.2),0 1px 0 #365314}
+        .ep-receive-note{display:flex;gap:9px;margin-top:18px;padding:11px 12px;border:1px solid rgba(163,230,53,.12);border-radius:9px;background:rgba(163,230,53,.035);color:#9aa595;font-size:11px;line-height:1.6}
+        @media(max-width:767px){.ep-receive-root{padding:12px 12px 24px}.ep-receive-panel{margin-top:14px;border-radius:11px}.ep-receive-handle{padding:9px}.ep-receive-action{padding-inline:8px}}
+      `}</style>
+      <header className="ep-receive-head">
+        <button type="button" className="ep-receive-back" onClick={() => setActiveTab("overview")} aria-label="Back to wallet"><ArrowLeft size={17}/></button>
+        <div><div className="ep-receive-title">Receive EP</div><div className="ep-receive-subtitle">Share your Xeevia username</div></div>
+      </header>
+      <div className="ep-receive-panel">
+        <div className="ep-receive-kicker">Internal transfer · EP</div>
+        <h2>Get funded by your people.</h2>
+        <p>Friends can find this handle in Send and transfer EP directly to your Xeevia wallet.</p>
+        <div className="ep-receive-handle">
+          <strong>{username || "Username unavailable"}</strong>
+          <button type="button" className="ep-receive-action" onClick={copyHandle} disabled={!username}>
+            {copied ? <CheckCircle size={14}/> : <Copy size={14}/>} {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <button type="button" className="ep-receive-action ep-receive-share" onClick={shareHandle} disabled={!username}>
+          <ExternalLink size={14}/> Share receive details
+        </button>
+        <div className="ep-receive-note"><Zap size={15} color="#a3e635"/><span>EP stays inside Xeevia. There are no blockchain addresses, network fees, or confirmation delays for an EP transfer.</span></div>
+      </div>
+    </section>
+  );
+}

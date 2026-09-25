@@ -4,8 +4,8 @@
 //  • userId from useAuth() — never undefined
 //  • DualInput stacks on narrow screens
 //  • Rate live ticker
-//  • EP / XEV toggle
-//  • PAY (Paystack card + bank), IMPORT (wallet sign), RECEIVE (crypto address)
+//  • Wallet funding is focused on EP through Paystack card and bank flows.
+//  • Crypto import/receive options remain intentionally out of the wallet UI.
 // ════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -55,6 +55,7 @@ const CSS = `
 @keyframes dt-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 
 .dt-shell {
+  width: 100%; min-width: 0; box-sizing: border-box;
   font-family: 'Syne', sans-serif;
   color: rgba(255,255,255,.92);
   background: transparent;
@@ -129,32 +130,7 @@ const CSS = `
 }
 
 /* ── CURRENCY TOGGLE ── */
-.dt-cur-wrap { margin-bottom: 16px }
-.dt-cur-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 12px; padding: 4px; gap: 4px;
-  position: relative;
-}
-.dt-cur-btn {
-  padding: 10px 0; border-radius: 9px;
-  border: none; background: none;
-  font-family: 'Syne', sans-serif;
-  font-size: 12px; font-weight: 700;
-  cursor: pointer;
-  transition: all .2s;
-  position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.dt-cur-btn.off { color: rgba(255,255,255,.35) }
-.dt-cur-btn.on  { color: #0a0a0a; background: #a3e635; border-radius: 9px; }
-.dt-cur-hint {
-  text-align: center;
-  font-size: 10px; color: rgba(255,255,255,.3);
-  font-family: 'JetBrains Mono', monospace;
-  margin-top: 8px;
-}
+.dt-unit-note { margin:0 0 14px;color:rgba(255,255,255,.32);font:10px 'JetBrains Mono',monospace;text-align:center; }
 
 /* ── METHOD TABS ── */
 .dt-methods {
@@ -184,10 +160,9 @@ const CSS = `
 
 /* ── DUAL INPUT ── */
 .dt-inputs { padding: 4px 0; display: flex; flex-direction: column; gap: 12px }
-.dt-input-row {
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: end; gap: 8px;
-}
+.dt-input-row { display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:end;gap:8px;width:100%;min-width:0; }
+.dt-field { min-width:0; }
+.dt-field-box { min-width:0; }
 @media(max-width:480px) {
   .dt-input-row { grid-template-columns: 1fr; gap: 0 }
   .dt-arrow-sep  { display: none !important }
@@ -513,19 +488,19 @@ function useRate() {
 }
 
 // ── Dual Input ────────────────────────────────────────────────────────────────
-function DualInput({ currency, rate, onNairaChange }) {
+function DualInput({ rate, onNairaChange }) {
   const [left,    setLeft]    = useState("");
   const [right,   setRight]   = useState("");
   const [activeQ, setActiveQ] = useState(null);
   const busy = useRef(false);
-  const isEP = currency === "EP";
+  const isEP = true;
 
   useEffect(() => {
     if (!left) { setRight(""); return; }
     const n = parseFloat(left);
     if (!n) return;
     setRight(isEP ? String(nairaToEP(n, rate)) : String(nairaToXEV(n)));
-  }, [currency, rate]); // eslint-disable-line
+  }, [rate]);
 
   const handleLeft = (v) => {
     if (busy.current) return;
@@ -615,7 +590,7 @@ function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, r
       <h2>Payment Sent</h2>
       <p>₦{parseFloat(naira).toLocaleString()} via Paystack<br/>Balance updates after webhook confirmation.</p>
       <div className="dt-done-ref">ref: {result.reference}</div>
-      <div className="dt-done-chip">+{result.credit} {result.label || (currency==="XEV"?"$XEV":"EP")}</div>
+      <div className="dt-done-chip">+{result.credit} EP</div>
       <button className="dt-cta" onClick={()=>{setResult(null);setNaira("");}}>Deposit More</button>
       <button className="dt-ghost" onClick={onBack}>Back to Wallet</button>
     </div>
@@ -625,7 +600,7 @@ function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, r
 
   return (
     <>
-      <DualInput currency={currency} rate={rate} onNairaChange={setNaira}/>
+      <DualInput rate={rate} onNairaChange={setNaira}/>
       <AlertErr msg={error}/>
       <div className="dt-pay-cards">
         {/* Card */}
@@ -661,7 +636,7 @@ function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, r
         <Shield size={14} style={{flexShrink:0,marginTop:2,color:"#a3e635"}}/>
         <div>
           <div className="dt-sec-title">Secured by Paystack · PCI-DSS Level 1</div>
-          <div className="dt-sec-body">{currency} credited automatically after webhook verification. We never store card details.</div>
+          <div className="dt-sec-body">EP is credited after webhook verification. Card details stay with Paystack.</div>
         </div>
       </div>
     </>
@@ -892,20 +867,12 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
 }
 
 // ── ROOT ──────────────────────────────────────────────────────────────────────
-const METHODS = [
-  { id:"pay",     icon:<CreditCard size={16}/>,  label:"Pay"     },
-  { id:"import",  icon:<Wallet size={16}/>,      label:"Import"  },
-  { id:"receive", icon:<TrendingUp size={16}/>,  label:"Receive" },
-];
-
 export default function DepositTab({ setActiveTab, userId: userIdProp, balance, onRefresh }) {
   const { user, profile } = useAuth() || {};
   const resolvedUserId = user?.id || userIdProp || "";
   const resolvedEmail  = profile?.email || user?.email || "";
-  const [method,   setMethod]   = useState("pay");
-  const [currency, setCurrency] = useState("EP");
   const { rate, live } = useRate();
-  const xevBalance = balance?.tokens ?? 0;
+  const epBalance = Math.floor(balance?.points ?? 0);
 
   return (
     <div className="dt-shell">
@@ -918,9 +885,9 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
         </button>
         <div className="dt-header-info">
           <div className="dt-header-title">Add Funds</div>
-          <div className="dt-header-sub">Xeevia Wallet · Secure Deposit</div>
+          <div className="dt-header-sub">Add Engagement Points · Secure Deposit</div>
         </div>
-        <div className="dt-xev-chip">{xevBalance.toLocaleString(undefined,{maximumFractionDigits:4})} XEV</div>
+        <div className="dt-xev-chip">{epBalance.toLocaleString()} EP</div>
       </div>
 
       {/* Session warning */}
@@ -939,43 +906,15 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
           <span className="dt-ticker-hl">₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
           <span className="dt-ticker-sep">·</span>
           <span className="dt-ticker-hl">100 EP</span>
-          <span className="dt-ticker-sep">·</span>
-          <span>₦2.50 = 1 XEV</span>
         </div>
         <span className="dt-ticker-live-tag">{live?"live":"cached"}</span>
       </div>
 
-      {/* Currency toggle */}
-      <div className="dt-cur-wrap">
-        <div className="dt-cur-grid">
-          <button className={`dt-cur-btn ${currency==="EP"?"on":"off"}`} onClick={()=>setCurrency("EP")}>
-            ⚡ EP
-          </button>
-          <button className={`dt-cur-btn ${currency==="XEV"?"on":"off"}`} onClick={()=>setCurrency("XEV")}>
-            ◈ $XEV
-          </button>
-        </div>
-        <div className="dt-cur-hint">
-          {currency==="EP"
-            ? `$1 = 100 EP · ₦${rate.toLocaleString(undefined,{maximumFractionDigits:0})} ≈ 100 EP`
-            : `₦2.50 = 1 $XEV · 10 EP = 1 $XEV`}
-        </div>
-      </div>
-
-      {/* Method tabs */}
-      <div className="dt-methods">
-        {METHODS.map(m => (
-          <button key={m.id} className={`dt-meth${method===m.id?" on":""}`} onClick={()=>setMethod(m.id)}>
-            <span className="dt-meth-icon">{m.icon}</span>
-            <span className="dt-meth-lbl">{m.label}</span>
-          </button>
-        ))}
-      </div>
+      <div className="dt-unit-note">$1 = 100 EP · ₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})} ≈ 100 EP</div>
       <div className="dt-divider"/>
 
-      {method==="pay"     && <PayMode     resolvedUserId={resolvedUserId} resolvedEmail={resolvedEmail} currency={currency} onRefresh={onRefresh} onBack={()=>setActiveTab("overview")} rate={rate}/>}
-      {method==="import"  && <ImportMode  resolvedUserId={resolvedUserId} resolvedEmail={resolvedEmail} currency={currency} onRefresh={onRefresh} onBack={()=>setActiveTab("overview")} rate={rate}/>}
-      {method==="receive" && <ReceiveMode resolvedUserId={resolvedUserId} currency={currency} onRefresh={onRefresh} rate={rate}/>}
+      {/* Token import/receipt is intentionally hidden to keep wallet funding focused on EP. */}
+      <PayMode resolvedUserId={resolvedUserId} resolvedEmail={resolvedEmail} currency="EP" onRefresh={onRefresh} onBack={()=>setActiveTab("overview")} rate={rate}/>
     </div>
   );
 }
