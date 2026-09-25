@@ -17,8 +17,6 @@ import OverviewTab    from "./tabs/OverviewTab";
 import SendTab        from "./tabs/SendTab";
 import DepositTab     from "./tabs/DepositTab";
 import ReceiveTab     from "./tabs/ReceiveTab";
-import SwapTab        from "./tabs/SwapTab";
-import TradeTab       from "./tabs/TradeTab";
 import SettingsTab    from "./tabs/SettingsTab";
 import WithdrawTab    from "./tabs/WithdrawTab";
 import PayWave        from "./paywave/PayWaveWrapper";
@@ -165,16 +163,8 @@ const LAYOUT_CSS = `
   }
   .wv-center::-webkit-scrollbar { display: none; }
 
-  .wv-content-pad {
-    padding: 16px 4% 24px;
-    flex: 1;
-  }
-
-  @media (max-width: 767px) {
-    .wv-content-pad {
-      padding: 10px 12px 80px !important;
-    }
-  }
+  /* Tab sections own their spacing; the shell contributes none. */
+  .wv-content-pad { padding: 0; flex: 1; min-width: 0; }
 
   /* ── Right sidebar ── */
   .wv-sidebar { display: none; }
@@ -276,18 +266,7 @@ const LAYOUT_CSS = `
   .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
   .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
 
-  /* ── Wallet layout fixes ── */
-  .wv-shell {
-    padding-left: 0  !important;
-    padding-right: 0 !important;
-  }
-  .wv-content-pad {
-    padding: 12px 20px 24px !important;
-  }
-  @media (min-width: 1200px) {
-    .wv-content-pad { padding: 14px 24px 28px !important; }
-  }
-  .wv-content-pad > *:first-child { margin-top: 0; }
+  .wv-shell { padding-left: 0 !important; padding-right: 0 !important; }
 `;
 
 // ── Right Sidebar ─────────────────────────────────────────────
@@ -298,14 +277,11 @@ function WalletSidebar() {
     { sym: "ETH",  val: null,    chg: null,        up: true },
     { sym: "BNB",  val: null,    chg: null,        up: true },
     { sym: "USDT", val: "$1.00", chg: "+0.00%",    up: true },
-    { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
   ]);
 
   const [platformStats, setPlatformStats] = useState([
-    { label: "XEV Circulating", val: null, color: "#a3e635" },
     { label: "EP Minted Today", val: null, color: "#22d3ee" },
     { label: "Active Wallets",  val: null, color: "rgba(255,255,255,0.65)" },
-    { label: "24h Volume",      val: null, color: "#d4a847" },
   ]);
 
   const [cryptoStale, setCryptoStale] = useState(true);
@@ -356,7 +332,6 @@ function WalletSidebar() {
         { sym: "ETH",  val: fmtPrice(d.ethereum?.usd),     chg: fmtChg(d.ethereum?.usd_24h_change),     up: (d.ethereum?.usd_24h_change     ?? 0) >= 0 },
         { sym: "BNB",  val: fmtPrice(d.binancecoin?.usd),  chg: fmtChg(d.binancecoin?.usd_24h_change),  up: (d.binancecoin?.usd_24h_change  ?? 0) >= 0 },
         { sym: "USDT", val: fmtPrice(d.tether?.usd) ?? "$1.00", chg: fmtChg(d.tether?.usd_24h_change) ?? "+0.00%", up: true },
-        { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
       ]);
       setCryptoStale(false);
     } catch {
@@ -369,24 +344,16 @@ function WalletSidebar() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      const [walletCountRes, xevSumRes, epTodayRes, volumeRes] = await Promise.allSettled([
+      const [walletCountRes, epTodayRes] = await Promise.allSettled([
         supabase.from("wallets").select("*", { count: "exact", head: true }),
-        supabase.from("wallets").select("xev_tokens"),
         supabase.from("wallet_history")
           .select("amount, metadata")
           .eq("change_type", "credit")
           .gte("created_at", todayStart.toISOString()),
-        supabase.from("wallet_history")
-          .select("amount, metadata")
-          .eq("change_type", "debit")
-          .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
       ]);
 
       const walletCount = walletCountRes.status === "fulfilled"
         ? walletCountRes.value.count ?? 0 : 0;
-
-      const xevCirculating = xevSumRes.status === "fulfilled"
-        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.xev_tokens || 0), 0) : 0;
 
       const epToday = epTodayRes.status === "fulfilled"
         ? (epTodayRes.value.data ?? [])
@@ -398,23 +365,12 @@ function WalletSidebar() {
             .reduce((s, r) => s + (r.amount || 0), 0)
         : 0;
 
-      const volume24h = volumeRes.status === "fulfilled"
-        ? (volumeRes.value.data ?? [])
-            .filter(r => {
-              const m = r.metadata || {};
-              return m.currency === "XEV" || m.currency_type === "XEV";
-            })
-            .reduce((s, r) => s + (r.amount || 0), 0)
-        : 0;
-
       const fmtStat = (n) =>
         n > 0 ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
 
       setPlatformStats([
-        { label: "XEV Circulating", val: fmtStat(xevCirculating), color: "#a3e635" },
         { label: "EP Minted Today", val: fmtStat(epToday),         color: "#22d3ee" },
         { label: "Active Wallets",  val: fmtStat(walletCount),     color: "rgba(255,255,255,0.75)" },
-        { label: "24h Volume",      val: volume24h > 0 ? `$${fmtStat(volume24h * 0.0016)}` : "$0", color: "#d4a847" },
       ]);
     } catch (err) {
       console.warn("[WalletSidebar] platform stats error:", err);
@@ -516,8 +472,8 @@ function WalletSidebar() {
           background: "rgba(34,211,238,0.06)", borderRadius: 8,
           fontSize: 10.5, color: "rgba(255,255,255,0.28)", lineHeight: 1.65,
         }}>
-          EP is <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned, not bought.</strong>{" "}
-          Swap to $XEV or send via PayWave.
+          EP is <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned through activity.</strong>{" "}
+          Send it internally or receive it by sharing your @username.
         </div>
       </div>
 
@@ -560,7 +516,6 @@ const WalletView = ({
   refreshTrigger,
 }) => {
   const { profile } = useAuth();
-  const { activeTrinityLens } = useTrinitylens();
   const showPayWave = isNigerianUser(profile);
 
   const shellRef = useRef(null);           // ← for useMobileTop
@@ -680,8 +635,8 @@ const WalletView = ({
   }, [userId]);
 
   const handleTabChange = (tab) => {
-    if (activeTrinityLens === "gaming" && ["swap", "trade", "paywave", "receive"].includes(tab)) {
-      setWalletNotice("This wallet feature is coming soon for Gaming mode.");
+    if (["swap", "trade"].includes(tab)) {
+      setWalletNotice("Token swap and trading are hidden to keep Wallet focused on EP.");
       return;
     }
     if (tab === "paywave") {
@@ -734,8 +689,7 @@ const WalletView = ({
             {activeTab === "send"      && <SendTab      {...sharedProps} />}
             {activeTab === "deposit"   && <DepositTab   {...sharedProps} />}
             {activeTab === "receive"   && <ReceiveTab   {...sharedProps} />}
-            {activeTab === "swap"      && <SwapTab      {...sharedProps} />}
-            {activeTab === "trade"     && <TradeTab     {...sharedProps} />}
+            {/* Swap/trade UI intentionally hidden: Wallet focuses on EP. */}
             {activeTab === "settings"  && <SettingsTab  {...sharedProps} />}
             {activeTab === "withdraw"  && (
               <WithdrawTab

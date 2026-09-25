@@ -2,8 +2,8 @@
 // ════════════════════════════════════════════════════════════════
 //  LAYOUT FIX:
 //    Action buttons redesigned into 2 clean rows:
-//      Row 1 (primary):   Send · Deposit · Receive · Withdraw
-//      Row 2 (secondary): Swap · Trade · [PayWave] · Settings
+//      Row 1 (primary):   Send · Receive · Deposit · Withdraw
+//      Row 2 (secondary): [PayWave] · Settings
 //    The "More" expand panel is removed — all actions are always
 //    visible. On narrow screens both rows wrap gracefully because
 //    each button is flex-based with a minimum width, not a rigid grid.
@@ -26,16 +26,12 @@
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import useTrinitylens from "../../../hooks/useTrinitylens";
 import {
   ArrowUpRight,
   Download,
   ArrowDownLeft,
-  TrendingUp,
-  Repeat,
   Settings,
   Wifi,
-  Coins,
   Zap,
   ChevronRight,
   Flame,
@@ -43,7 +39,6 @@ import {
   ArrowUpToLine,
 } from "lucide-react";
 import BalanceCard from "../components/BalanceCard";
-import { useCurrency } from "../../../contexts/CurrencyContext";
 import ProfilePreview from "../../Shared/ProfilePreview";
 import { supabase } from "../../../services/config/supabase";
 
@@ -399,7 +394,7 @@ const CSS = `
     width: 100%;
   }
 
-  /* ── Asset cards ─────────────────────────────────────────────── */
+  /* ── EP balance card ────────────────────────────────────────── */
   .ov-asset-card{display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:15px;margin-bottom:8px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);transition:background .18s;position:relative;overflow:visible;}
   .ov-asset-card:hover{background:rgba(255,255,255,0.04);}
   .ov-asset-card.xev{border-color:rgba(163,230,53,0.12);background:rgba(163,230,53,0.03);}
@@ -556,52 +551,34 @@ export default function OverviewTab({
   showPayWave,
   currentUser,
 }) {
-  const { activeTrinityLens } = useTrinitylens();
   const [hideBalance, setHide] = useState(false);
-  const { format } = useCurrency();
 
-  const xev = balance?.tokens ?? 0;
   // Always floor EP to integer — single source of truth.
   const ep = Math.floor(balance?.points ?? 0);
 
-  const prevXEV = useRef(xev);
   const prevEP = useRef(ep);
-  const [xevDelta, setXevDelta] = useState(0);
   const [epDelta, setEpDelta] = useState(0);
 
   useEffect(() => {
     if (!loading) {
-      const dx = xev - prevXEV.current;
       const de = ep - prevEP.current;
-      if (dx !== 0) setXevDelta(dx);
       if (de !== 0) setEpDelta(de);
-      prevXEV.current = xev;
       prevEP.current = ep;
     }
-  }, [xev, ep, loading]);
+  }, [ep, loading]);
 
   // ── Primary action definitions ─────────────────────────────────
   const primaryActions = [
     { icon: ArrowUpRight,  label: "Send",     tab: "send",     variant: "primary"  },
+    { icon: ArrowDownLeft, label: "Receive",  tab: "receive",  variant: "default"  },
     { icon: Download,      label: "Deposit",  tab: "deposit",  variant: "default"  },
     { icon: ArrowUpToLine, label: "Withdraw", tab: "withdraw", variant: "withdraw" },
   ];
 
   // ── Secondary action definitions ───────────────────────────────
   const secondaryActions = [
-    ...(activeTrinityLens === "web3"
-      ? [{ icon: ArrowDownLeft, label: "Crypto Receive", tab: "receive", variant: "default" }]
-      : []),
-    ...(activeTrinityLens === "web3"
-      ? [{ icon: Repeat, label: "Token Swap", tab: "swap", variant: "default" }]
-      : []),
-    ...(activeTrinityLens === "web3"
-      ? [{ icon: TrendingUp, label: "Stake / Trade", tab: "trade", variant: "default" }]
-      : []),
-    ...(showPayWave && activeTrinityLens !== "gaming" && activeTrinityLens !== "web3"
-      ? [{ icon: Wifi, label: "PayWave",  tab: "paywave",  variant: "paywave" }]
-      : []),
-    { icon: Settings,  label: activeTrinityLens === "gaming" ? "Game Assets" : activeTrinityLens === "web3" ? "Signatures" : "Settings", tab: "settings", variant: "default" },
+    ...(showPayWave ? [{ icon: Wifi, label: "PayWave", tab: "paywave", variant: "paywave" }] : []),
+    { icon: Settings, label: "Settings", tab: "settings", variant: "default" },
   ];
 
   const secondaryCols = secondaryActions.length === 3 ? "three-cols" : "";
@@ -632,7 +609,7 @@ export default function OverviewTab({
         ))}
       </div>
 
-      {/* ── Secondary actions: Swap / Trade / [PayWave] / Settings ── */}
+      {/* ── Secondary actions: [PayWave] / Settings ── */}
       <div className={`ov-actions-secondary ${secondaryCols}`}>
         {secondaryActions.map(({ icon, label, tab, variant }) => (
           <ActionBtn
@@ -652,18 +629,6 @@ export default function OverviewTab({
         <span className="ov-section-title">Your Assets</span>
         <div className="ov-section-line" />
       </div>
-
-      <AssetCard
-        type="xev"
-        icon={<Coins size={20} />}
-        name="$XEV Token"
-        desc="Transferable · On-chain"
-        value={xev}
-        fiatLine={loading ? "—" : `≈ ${format(xev, false)}`}
-        loading={loading}
-        delta={xevDelta}
-        currency="$XEV"
-      />
 
       <AssetCard
         type="ep"

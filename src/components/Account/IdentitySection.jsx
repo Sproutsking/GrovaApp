@@ -220,6 +220,7 @@ const CSS = `
   .idGrid { display:grid; grid-template-columns:1fr; gap:8px; }
   @media(min-width:768px) { .idGrid { grid-template-columns:repeat(2, 1fr); } }
   .idCard {
+    --id-divider-left:57px;
     position:relative; overflow:hidden;
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.07);
@@ -255,9 +256,10 @@ const CSS = `
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .idDivider {
-    height:1px; width:100%;
+    position:absolute; left:var(--id-divider-left); right:12px; top:50%;
+    height:1px; width:auto;
     background:rgba(255,255,255,.08);
-    margin:4px 0;
+    margin:0;
   }
   .idStatusRow { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; min-width:0; min-height:17px; }
   .idLiveDot {
@@ -276,10 +278,10 @@ const CSS = `
      Fixed width so Link / Reconnect / Unlink / Soon all read as the same
      control, and never inflate to fill the card on small screens. */
   .idBtn {
-    width:76px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
-    padding:8px 6px; border-radius:10px; border:1px solid rgba(255,255,255,.14);
+    width:max-content; min-width:0; max-width:100%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+    padding:4px 6px; min-height:22px; box-sizing:border-box; border-radius:8px; border:1px solid rgba(255,255,255,.14);
     background:rgba(255,255,255,.07); color:#f5f5f5;
-    font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;
+    font-size:10px; line-height:1.15; font-weight:700; cursor:pointer; white-space:nowrap;
     font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
   }
   .idBtn:hover:not(:disabled) { background:rgba(255,255,255,.12); }
@@ -289,15 +291,15 @@ const CSS = `
   .idBtn.btnDisconnect { border-color:rgba(239,68,68,.28); color:#fbb0b0; }
   .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
-    width:76px; flex-shrink:0; text-align:center;
-    padding:6px 6px; border-radius:9px; font-size:9.5px; font-weight:800;
+    width:max-content; min-width:0; flex-shrink:0; text-align:center;
+    padding:4px 6px; border-radius:8px; font-size:9px; font-weight:800;
     background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
   .idAccountBtn {
-    grid-column:3; grid-row:2; justify-self:end; min-width:76px; max-width:120px;
+    grid-column:3; grid-row:2; justify-self:end; min-width:0; max-width:120px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;
-    padding:5px 7px; border-radius:8px; border:1px solid rgba(132,204,22,.22);
+    padding:3px 6px; border-radius:7px; border:1px solid rgba(132,204,22,.22);
     background:rgba(132,204,22,.06); color:#b9df8c; font:600 9px inherit;
     text-decoration:none;
   }
@@ -404,10 +406,10 @@ const CSS = `
 
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
-    .idCard { grid-template-columns:30px minmax(0,1fr) auto; padding:9px 10px; column-gap:9px; }
+    .idCard { --id-divider-left:49px; grid-template-columns:30px minmax(0,1fr) auto; padding:8px 9px; column-gap:8px; }
     .idIcon { width:30px; height:30px; font-size:12px; border-radius:8px; }
-    .idBtn, .idSoonBadge { width:64px; padding:6px 5px; font-size:10px; }
-    .idAccountBtn { min-width:64px; max-width:92px; padding:4px 5px; font-size:8.5px; }
+    .idBtn, .idSoonBadge { padding:4px 6px; font-size:9px; }
+    .idAccountBtn { max-width:92px; padding:3px 5px; font-size:8.5px; }
   }
 `;
 

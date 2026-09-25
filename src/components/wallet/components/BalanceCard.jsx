@@ -2,10 +2,8 @@
 // Compact: card ~100px + stats strip ~46px = ~146px total. Currency-aware.
 // Tap the fiat value to open currency picker.
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Eye, EyeOff, Zap } from "lucide-react";
-import { useCurrency } from "../../../contexts/CurrencyContext";
-import CurrencyPicker from "./CurrencyPicker";
 
 /* count-up animation */
 function useCountUp(target, ms = 900) {
@@ -29,16 +27,9 @@ function useCountUp(target, ms = 900) {
 export default function BalanceCard({ balance, loading, hideBalance, onToggleHide, username = "you" }) {
   const cardRef  = useRef(null);
   const sheenRef = useRef(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  const { format, getCurrencyObj, currency } = useCurrency();
-
-  const xev = balance?.tokens ?? 0;
-  const ep  = balance?.points ?? 0;
-
-  const displayXev = useCountUp(mounted && !loading ? xev : 0, 900);
-  const displayEp  = useCountUp(mounted && !loading ? ep  : 0, 1100);
+  const ep = Math.floor(balance?.points ?? 0);
+  const displayEp = useCountUp(mounted && !loading ? ep : 0, 900);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 150);
@@ -75,14 +66,10 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
     };
   }, []);
 
-  const fmt = (n) => n.toLocaleString("en");
-
-  const epDisplay = ep >= 1000 ? `${(ep / 1000).toFixed(1)}K` : fmt(ep);
+  const epDisplay = displayEp >= 1000 ? `${(displayEp / 1000).toFixed(1)}K` : displayEp.toLocaleString("en");
 
   return (
     <>
-      <CurrencyPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
-
       <style>{`
         @keyframes holoShift {
           0% { background-position: 200% 0; }
@@ -188,16 +175,15 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
           gap: 14,
         }}>
 
-          {/* LEFT — X logo + live */}
+          {/* LEFT — EP mark + live */}
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5, flexShrink:0 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 8,
               background: "linear-gradient(135deg,rgba(132,204,22,0.18),rgba(132,204,22,0.05))",
               border: "1px solid rgba(132,204,22,0.26)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "Bebas Neue,sans-serif",
-              fontSize: 17, color: "#a3e635", letterSpacing: "0.04em",
-            }}>X</div>
+              color: "#a3e635",
+            }}><Zap size={17} /></div>
             <div style={{ display:"flex", alignItems:"center", gap:3 }}>
               <div style={{ width:4, height:4, borderRadius:"50%", background:"#84cc16", animation:"livePulse 1.8s ease-in-out infinite" }} />
               <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, color:"rgba(132,204,22,0.45)", letterSpacing:"0.14em" }}>LIVE</span>
@@ -207,7 +193,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
           {/* CENTER — balance */}
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.26em", color:"rgba(132,204,22,0.45)", textTransform:"uppercase", marginBottom:4 }}>
-              Total Balance
+              Engagement Points
             </div>
 
             {/* number + ticker */}
@@ -216,53 +202,23 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
                 <div style={{ height:36, width:130, borderRadius:5, background:"linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%)", backgroundSize:"200% 100%", animation:"skelShim 1.4s infinite" }} />
               ) : (
                 <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:38, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.16)" }}>
-                  {hideBalance ? "••••••" : fmt(displayXev)}
+                  {hideBalance ? "••••••" : epDisplay}
                 </span>
               )}
               <span style={{
                 fontFamily:"JetBrains Mono,monospace", fontSize:9,
-                color:"rgba(201,162,39,0.82)", letterSpacing:"0.1em",
-                padding:"2px 6px", borderRadius:3,
-                border:"1px solid rgba(201,162,39,0.2)",
-                background:"rgba(201,162,39,0.05)",
+                color:"rgba(163,230,53,0.9)", letterSpacing:"0.1em",
+                padding:"3px 7px", borderRadius:4,
+                border:"1px solid rgba(163,230,53,0.22)",
+                background:"rgba(163,230,53,0.06)",
                 marginBottom:5, flexShrink:0,
-              }}>$XEV</span>
+              }}>EP</span>
             </div>
-
-            {/* fiat — tappable to change currency */}
-            <button className="fiat-btn" onClick={() => setPickerOpen(true)} title="Change currency">
-              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"rgba(255,255,255,0.28)", letterSpacing:"0.04em" }}>
-                ≈ {hideBalance ? "••••" : format(displayXev, true)} {currency}
-              </span>
-              <span style={{ fontSize:8, color:"rgba(132,204,22,0.4)" }}>▾</span>
-            </button>
+            <span style={{ fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"rgba(255,255,255,.27)" }}>Internal Xeevia balance</span>
           </div>
 
-          {/* RIGHT — chip + EP + eye */}
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"space-between", gap:8, flexShrink:0, alignSelf:"stretch" }}>
-            {/* gold chip */}
-            <div style={{
-              width:26, height:20, borderRadius:4,
-              background:"linear-gradient(135deg,#c9a227 0%,#8b6914 50%,#d4b045 100%)",
-              position:"relative", overflow:"hidden",
-              boxShadow:"0 1px 6px rgba(201,162,39,0.32)",
-              flexShrink:0,
-            }}>
-              <div style={{ position:"absolute", inset:"3px", borderRadius:2, border:"1px solid rgba(255,255,255,0.16)", background:"linear-gradient(135deg,rgba(255,255,255,0.09),transparent)" }} />
-            </div>
-
-            {/* EP */}
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, letterSpacing:"0.16em", color:"rgba(255,255,255,0.18)", textTransform:"uppercase", marginBottom:2 }}>EP</div>
-              <div style={{ display:"flex", alignItems:"center", gap:3, justifyContent:"flex-end" }}>
-                <Zap size={8} color="rgba(255,255,255,0.22)" />
-                <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:11, color:"rgba(255,255,255,0.42)" }}>
-                  {hideBalance ? "••••" : (loading ? "—" : epDisplay)}
-                </span>
-              </div>
-            </div>
-
-            {/* eye toggle */}
+          {/* RIGHT — visibility control */}
+          <div style={{ display:"flex",alignItems:"center",flexShrink:0 }}>
             <button
               onClick={onToggleHide}
               style={{
@@ -281,7 +237,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         </div>
       </div>
 
-      {/* ── STATS STRIP ── */}
+      {/* ── EP context strip ── */}
       <div style={{
         margin: "8px 18px 0",
         display: "grid",
@@ -293,11 +249,11 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         overflow: "hidden",
         animation: "cardIn 0.4s 0.09s cubic-bezier(0.34,1.56,0.64,1) both",
       }}>
-        <StatCol label="XEV Value"   value={loading || hideBalance ? "—" : format(xev, true)} color="#d4b045" sub={currency} />
+        <StatCol label="EP Balance" value={loading || hideBalance ? "—" : epDisplay} color="#a3e635" sub="Earned points" />
         <div style={{ background:"rgba(255,255,255,0.05)", margin:"2px 0" }} />
-        <StatCol label="EP Balance"  value={loading || hideBalance ? "—" : epDisplay}          color="#a3e635" sub="Earned pts" />
+        <StatCol label="Transfer" value="Internal" color="#a3e635" sub="@username" />
         <div style={{ background:"rgba(255,255,255,0.05)", margin:"2px 0" }} />
-        <StatCol label="Network"     value="Chain"                                             color="#fff"    sub="Active" />
+        <StatCol label="Unit" value="EP" color="#fff" sub="Xeevia" />
       </div>
     </>
   );
