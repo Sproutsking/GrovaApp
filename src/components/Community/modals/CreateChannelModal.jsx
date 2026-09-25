@@ -250,7 +250,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId, initialCategory = 
         .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:24px;cursor:pointer;flex-shrink:0;}
         .channel-icon-picker-btn{height:40px;border:1px solid rgba(156,255,0,.25);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;display:flex;align-items:center;gap:5px;padding:0 10px;cursor:pointer;white-space:nowrap;}
         .channel-icon-picker{position:fixed;left:0;top:0;z-index:100002;}
-        @media(max-width:768px){.channel-modal-overlay{inset:0;padding:0;align-items:stretch}.channel-modal{width:100%;height:100dvh;max-height:none;border-radius:0}.channel-modal-body{padding:14px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
+        @media(max-width:768px){.channel-modal-overlay{inset:0;padding:0;align-items:stretch}.channel-modal{width:100%;height:100dvh;max-height:none;border-radius:0;border:none}.channel-modal-header{padding:10px 12px}.channel-modal-body{padding:10px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
         .modal-overlay {
           position: fixed;
           top: 57px;

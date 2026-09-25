@@ -264,7 +264,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           right: 0;
           bottom: 0;
           left: 0;
-          background: rgba(5, 7, 10, 0.66);
+          background: rgba(5, 7, 10, 0.94);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           z-index: 1000;
@@ -282,16 +282,16 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         .create-modal {
           width: 100%;
-          max-width: 600px;
+          max-width: none;
           height: calc(100vh - 57px);
           background: rgba(10, 12, 16, 0.97);
-          border-left: 1.5px solid rgba(156,255,0,0.18);
+          border-left: none;
           overflow-y: auto;
           overflow-x: hidden;
           animation: modalSlideIn 0.35s cubic-bezier(.34,1.56,.64,1);
           scrollbar-width: thin;
           scrollbar-color: rgba(156,255,0,0.2) transparent;
-          box-shadow: -18px 0 60px rgba(0, 0, 0, 0.6), 0 0 60px rgba(156,255,0,0.08);
+          box-shadow: none;
           display: flex;
           flex-direction: column;
         }
@@ -311,20 +311,18 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         @media (max-width: 768px) {
           .modal-overlay {
-            top: 47px;
-            bottom: 56px;
-            justify-content: center;
-            align-items: flex-end;
+            inset: 0;
+            justify-content: stretch;
+            align-items: stretch;
             padding: 0;
           }
           .create-modal {
             width: 100%;
-            height: calc(100vh - 103px);
-            max-height: calc(100vh - 103px);
-            border: 1.5px solid rgba(156,255,0,0.18);
-            border-radius: 20px 20px 0 0;
-            border-bottom: none;
-            box-shadow: 0 -18px 60px rgba(0,0,0,0.45), 0 0 60px rgba(156,255,0,0.08);
+            height: 100dvh;
+            max-height: 100dvh;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
             max-width: 100%;
             animation: modalSlideUp 0.35s cubic-bezier(.34,1.56,.64,1);
           }
@@ -343,9 +341,10 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         @media (max-width: 480px) {
           .create-modal {
-            max-height: calc(100vh - 50px);
-            border-radius: 18px 18px 0 0;
+            max-height: 100dvh;
           }
+          .cc-body { padding: 12px; gap: 12px; }
+          .modal-head { padding: 8px 12px; }
         }
 
         .modal-head {
@@ -416,7 +415,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         }
 
         .cc-body {
-          padding: 20px;
+          padding: 16px 20px 24px;
           display: flex;
           flex-direction: column;
           gap: 16px;

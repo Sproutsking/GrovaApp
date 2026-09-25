@@ -134,7 +134,7 @@ const CommunityMenu = ({
   }, [show, community]);
 
   useEffect(() => {
-    if (!show || window.innerWidth > 768) return undefined;
+    if (!show) return undefined;
     document.body.classList.add("community-menu-fullscreen");
     return () => document.body.classList.remove("community-menu-fullscreen");
   }, [show]);
@@ -369,28 +369,26 @@ const CommunityMenu = ({
       />
 
       <style>{`
-        /* Keep the desktop menu below the root header. Mobile uses the full viewport. */
         .cm-overlay{
           position:fixed;
-          top:0;
+          inset:0;
           left:0;right:0;bottom:0;
           background:var(--modal-overlay);
           backdrop-filter:blur(4px);
           z-index:10000;
           animation:overlayIn .25s ease;
         }
-        @media(min-width:769px){
-          .cm-overlay{top:57px;}
-        }
+        body.community-menu-fullscreen .mh-header,
+        body.community-menu-fullscreen .mbn{display:none !important}
         @keyframes overlayIn{from{opacity:0}to{opacity:1}}
 
         .cm-sidebar{
           position:absolute;
           top:0;right:0;bottom:0;
-          width:100%;max-width:400px;
+          width:100%;max-width:none;
           background:var(--panel-strong);
-          border-left:1.5px solid var(--surface-border);
-          box-shadow:-8px 0 32px var(--shadow),0 0 60px var(--accent-glow);
+          border-left:none;
+          box-shadow:none;
           display:flex;flex-direction:column;overflow:hidden;
           animation:slideInR .35s cubic-bezier(.4,0,.2,1);
         }
@@ -490,9 +488,10 @@ const CommunityMenu = ({
         }
 
         @media(max-width:768px){
-          body.community-menu-fullscreen .mh-header,
-          body.community-menu-fullscreen .mbn{display:none !important}
           .cm-sidebar{max-width:100%;border-left:none;animation:slideUpMobile .3s cubic-bezier(.4,0,.2,1)}
+          .cm-header{padding:8px 12px}
+          .cm-section{padding:8px}
+          .community-help-shell{padding:12px 10px 18px}
           @keyframes slideUpMobile{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         }
       `}</style>

@@ -200,38 +200,6 @@ export async function getLiveNGNPerUSD() {
   if (cached) return cached;
 
   try {
-    const paystackKey =
-      process.env.PAYSTACK_SECRET_KEY ||
-      process.env.REACT_APP_PAYSTACK_SECRET_KEY ||
-      process.env.EXPO_PUBLIC_PAYSTACK_SECRET_KEY;
-    if (paystackKey) {
-      const res = await fetch('https://api.paystack.co/bank/exchange_rates', {
-        headers: { Authorization: `Bearer ${paystackKey}` },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const rates = json?.data || [];
-        const entry = rates.find(
-          (r) =>
-            (r.base_currency === 'USD' && r.currency === 'NGN') ||
-            (r.base_currency === 'NGN' && r.currency === 'USD'),
-        );
-        if (entry) {
-          let rate;
-          if (entry.base_currency === 'USD') {
-            rate = Number(entry.buy_rate ?? entry.rate);
-          } else {
-            rate = 1 / Number(entry.buy_rate ?? entry.rate);
-          }
-          if (rate > 0) { _setFxCache(rate); return rate; }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[epEconomyService] Paystack FX fetch failed:', err?.message);
-  }
-
-  try {
     const res = await fetch('https://open.er-api.com/v6/latest/USD');
     if (res.ok) {
       const json = await res.json();

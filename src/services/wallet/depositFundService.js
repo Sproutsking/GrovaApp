@@ -336,11 +336,9 @@ export async function depositPaystackOpen({
   const { reference, creditAmount, amountKobo, paystackKey: serverKey } = initResult;
   if (!reference) throw new Error("Server did not return a reference");
 
-  // ── 4. Resolve Paystack public key ────────────────────────────────────────
-  //       Priority: edge function response → local env fallback
-  //       If neither exists, surface a clear actionable error.
-  const PAYSTACK_KEY = serverKey || process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
-
+  // ── 4. Resolve the public key returned by the server ─────────────────────
+  // Never bake payment configuration into the frontend bundle.
+  const PAYSTACK_KEY = serverKey;
 
   if (!PAYSTACK_KEY) {
     // Include server response to help diagnose misconfiguration without
@@ -348,7 +346,7 @@ export async function depositPaystackOpen({
     const debug = { serverKeyPresent: !!serverKey, initResultSummary: { reference, amountKobo, creditAmount } };
     console.error("[depositPaystackOpen] Missing Paystack public key", debug);
     throw new Error(
-      "Paystack key unavailable. Ensure your edge function (deposit-paystack-init) returns `paystackKey` (Deno.env.get(\"PAYSTACK_PUBLIC_KEY\") or REACT_APP_PAYSTACK_PUBLIC_KEY). " +
+      "Paystack key unavailable. Ensure the deposit edge function returns `paystackKey`. " +
       "Server response: " + JSON.stringify(debug)
     );
   }

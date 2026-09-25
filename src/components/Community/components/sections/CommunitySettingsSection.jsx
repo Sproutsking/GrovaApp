@@ -499,7 +499,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .settings-header {
-          padding: 20px;
+          padding: 14px 18px;
           border-bottom: 2px solid rgba(156, 255, 0, 0.1);
           background: linear-gradient(
             180deg,
@@ -521,7 +521,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .settings-form {
-          padding: 20px;
+          padding: 16px 18px 24px;
         }
 
         .setting-group {
@@ -990,6 +990,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         @media (max-width: 768px) {
+          .settings-header { padding: 10px 12px; }
+          .settings-form { padding: 12px 10px 18px; }
+          .setting-group { margin-bottom: 20px; }
           .theme-grid {
             grid-template-columns: 1fr;
           }
