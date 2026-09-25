@@ -166,6 +166,9 @@ export default function TeamSection({ adminData, teamMgmt }) {
 
   const handleSaveEdit = async () => {
     try {
+      if (editMember?.user_id === adminData?.user_id) {
+        throw new Error("You cannot change your own admin role or permissions while signed in.");
+      }
       await updatePermissions(editMember.id, editMember.permissions);
       if (isSuper) await updateRole(editMember.id, editMember.role);
       setEditMember(null);
