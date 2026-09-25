@@ -435,6 +435,31 @@ export default function AuthProvider({ children }) {
   // ── Admin role loader ─────────────────────────────────────────────────────
   const fetchAdminRole = useCallback(async (userId) => {
     if (!userId) return null;
+
+    const buildAdminInfo = (role, permissions = []) => {
+      if (!role) return null;
+      const roleInfo = ADMIN_ROLE_MAP[role] ?? {
+        label: role,
+        level: 50,
+        color: "#94a3b8",
+      };
+      return {
+        id: userId,
+        role,
+        roleLabel: roleInfo.label,
+        roleLevel: roleInfo.level,
+        roleColor: roleInfo.color,
+        permissions,
+        isCEO: role === "ceo_owner",
+        isSuperAdmin: role === "super_admin" || role === "ceo_owner",
+      };
+    };
+
+    // This SECURITY DEFINER RPC bypasses client-side admin_team RLS while
+    // still resolving only the role belonging to auth.uid().
+    const { data: rpcRole, error: rpcError } = await supabase.rpc("current_admin_role");
+    if (!rpcError && rpcRole) return buildAdminInfo(rpcRole);
+
     const { data, error } = await supabase
       .from("admin_team")
       .select("role, permissions, status")
@@ -443,27 +468,12 @@ export default function AuthProvider({ children }) {
       .maybeSingle();
     if (error) {
       if (process.env.NODE_ENV === "development") {
-        console.warn("[AuthContext] Admin membership lookup failed:", error.message);
+        console.warn("[AuthContext] Admin membership lookup failed:", rpcError?.message || error.message);
       }
       return null;
     }
 
-    if (!data) return null;
-    const roleInfo = ADMIN_ROLE_MAP[data.role] ?? {
-      label: data.role,
-      level: 50,
-      color: "#94a3b8",
-    };
-    return {
-      id: userId,
-      role: data.role,
-      roleLabel: roleInfo.label,
-      roleLevel: roleInfo.level,
-      roleColor: roleInfo.color,
-      permissions: data.permissions || [],
-      isCEO: data.role === "ceo_owner",
-      isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
-    };
+    return buildAdminInfo(data?.role, data?.permissions || []);
   }, []);
 
   // Resolve admin membership as soon as the auth session is known. Admin access
