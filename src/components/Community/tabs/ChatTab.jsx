@@ -209,17 +209,6 @@ const ChatTab = ({
     return unsub;
   }, [community?.id, userId]);
 
-  useEffect(() => {
-    if (community && userId) {
-      communityService.markOnline(community.id, userId, currentUser?.username || "");
-    }
-    return () => {
-      if (community && userId) {
-        communityService.markOffline(community.id, userId);
-      }
-    };
-  }, [community?.id, userId]);
-
   const scrollToBottom = (behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };

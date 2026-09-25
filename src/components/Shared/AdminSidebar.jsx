@@ -104,6 +104,7 @@ const STYLES = `
 
   .xv-nav-btn {
     width: 100%;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 11px;
@@ -171,6 +172,7 @@ const STYLES = `
 
   .xv-menu-btn {
     width: 100%;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     gap: 11px;
@@ -201,6 +203,9 @@ const STYLES = `
 
   .xv-admin-btn {
     width: 100%;
+    flex: 0 0 auto;
+    min-height: 58px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 11px;
@@ -213,6 +218,7 @@ const STYLES = `
     overflow: hidden;
     transition: background 0.2s, box-shadow 0.2s, border-color 0.2s, transform 0.2s;
     text-align: left;
+    white-space: nowrap;
     font-family: 'Syne', sans-serif;
     background: #050706;
     border: 1px solid color-mix(in srgb, var(--role-color, var(--surface-border)) 22%, transparent);

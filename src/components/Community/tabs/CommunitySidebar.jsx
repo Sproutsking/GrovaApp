@@ -42,6 +42,11 @@ const CommunitySidebar = ({
           title="Discover Communities"
         >
           <Home size={20} />
+          {communityUnreadService.getTotalCount() > 0 && (
+            <span className="community-discover-badge" aria-label={`${communityUnreadService.getTotalCount()} community updates`}>
+              {communityUnreadService.getTotalCount() > 99 ? "99+" : communityUnreadService.getTotalCount()}
+            </span>
+          )}
         </div>
 
         <div className="community-divider"></div>
@@ -69,11 +74,6 @@ const CommunitySidebar = ({
                     : "none",
                 }}
               />
-              {communityUnreadService.getCommunityCount(community.id) > 0 && (
-                <span className="community-unread-badge">
-                  {communityUnreadService.getCommunityCount(community.id) > 99 ? "99+" : communityUnreadService.getCommunityCount(community.id)}
-                </span>
-              )}
             </div>
           ))}
         </div>
@@ -232,6 +232,25 @@ const CommunitySidebar = ({
           color: var(--accent);
           border: 2px solid var(--accent);
           box-shadow: inset 0 1px 0 rgba(156, 255, 0, 0.2), 0 0 12px rgba(156, 255, 0, 0.18);
+        }
+
+        .community-discover-badge {
+          position: absolute;
+          top: -6px;
+          right: -7px;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: #ef4444;
+          border: 2px solid var(--bg);
+          color: #fff;
+          font: 800 9px/1 Arial, sans-serif;
+          box-shadow: 0 0 0 1px rgba(239,68,68,.22), 0 4px 10px rgba(0,0,0,.35);
+          pointer-events: none;
         }
 
         /* Community icon wrapper — the CommunityAvatar handles its own

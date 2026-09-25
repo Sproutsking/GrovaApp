@@ -146,6 +146,36 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     return () => { if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current); };
   }, [userId]);
 
+  // Presence belongs to the selected community surface, including mobile
+  // channels. ChatTab previously owned this, which left active members at zero
+  // while browsing channels or immediately after creating a community.
+  useEffect(() => {
+    const communityId = selectedCommunity?.id;
+    if (!communityId || !userId) return undefined;
+
+    let disposed = false;
+    const refreshCounts = async () => {
+      try {
+        const fresh = await communityService.fetchCommunityDetails(communityId);
+        if (disposed || !fresh) return;
+        setSelectedCommunity((current) => current?.id === communityId ? fresh : current);
+        setMyCommunities((current) => current.map((item) => item.id === communityId ? { ...item, ...fresh } : item));
+        setAllCommunities((current) => current.map((item) => item.id === communityId ? { ...item, ...fresh } : item));
+      } catch {}
+    };
+
+    communityService.markOnline(communityId, userId, currentUser?.username || "");
+    const initialRefresh = setTimeout(refreshCounts, 250);
+    const refreshInterval = setInterval(refreshCounts, 10000);
+
+    return () => {
+      disposed = true;
+      clearTimeout(initialRefresh);
+      clearInterval(refreshInterval);
+      communityService.markOffline(communityId, userId).catch(() => {});
+    };
+  }, [selectedCommunity?.id, userId, currentUser?.username]);
+
   const checkPendingInvite = () => {
     const code = new URLSearchParams(window.location.search).get("invite");
     if (code) {

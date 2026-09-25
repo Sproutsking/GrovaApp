@@ -1,6 +1,6 @@
 // src/components/Shared/Sidebar.jsx
 import React, { useState } from "react";
-import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid } from "lucide-react";
+import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid, UserCircle } from "lucide-react";
 import Logo from "./Assets/Logo.png";
 import ServicesModalRouter from "./ServicesModalRouter";
 
@@ -44,6 +44,14 @@ const navItems = [
     color: "var(--brand-success)",
     bg: "var(--brand-success-bg)",
     glow: "var(--brand-success-shadow)",
+  },
+  {
+    id: "account",
+    icon: UserCircle,
+    label: "Account",
+    color: "var(--brand-purple)",
+    bg: "var(--brand-purple-bg)",
+    glow: "var(--brand-purple-shadow)",
   },
   {
     id: "menu",
