@@ -140,7 +140,7 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
   );
 };
 
-const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed", previewOnly = false }) => {
+const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed", previewOnly = false, previewPosition = "after-text" }) => {
   if (typeof children !== "string") return children;
 
   const parts = children.split(URL_PATTERN);
@@ -154,8 +154,9 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
       .filter((part) => /^https?:\/\//i.test(part))
       .map((part) => part.replace(TRAILING_PUNCTUATION, ""))
     : [];
-  return (
-    <span className={`xeevia-linkified-text${className ? ` ${className}` : ""}`}>
+
+  const renderTextParts = () => (
+    <>
       {parts.map((part, index) => {
         if (!/^https?:\/\//i.test(part)) return <React.Fragment key={index}>{part}</React.Fragment>;
 
@@ -164,11 +165,32 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
         const url = trailing ? part.slice(0, -trailing.length) : part;
         return <LinkSegment key={index} url={url} trailing={trailing} onNavigate={onNavigate} displayMode="string" />;
       })}
+    </>
+  );
+
+  const renderPreviewCards = () => (
+    <>
       {previewUrls.map((url) => (
         <span key={`preview-${url}`} className="xeevia-link-preview-line">
           <LinkSegment url={url} trailing="" onNavigate={onNavigate} displayMode="embed" />
         </span>
       ))}
+    </>
+  );
+
+  return (
+    <span className={`xeevia-linkified-text${className ? ` ${className}` : ""}`}>
+      {previewPosition === "before-text" ? (
+        <>
+          {renderPreviewCards()}
+          {renderTextParts()}
+        </>
+      ) : (
+        <>
+          {renderTextParts()}
+          {renderPreviewCards()}
+        </>
+      )}
       <style>{`.xeevia-link-preview-line{display:block;width:100%;margin-top:10px;clear:both}.xeevia-link-preview-wrap{display:block;width:100%;max-width:100%;min-width:0}.xeevia-link-card{display:flex;align-items:center;gap:9px;width:min(100%,420px);max-width:100%;min-width:0;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(163,230,53,.4);border-left:3px solid #a3e635;border-radius:9px;background:rgba(0,0,0,.28);color:#f4f7ee;text-decoration:none;overflow:hidden}.xeevia-link-icon{width:28px;height:28px;flex:0 0 28px;border-radius:7px;background:rgba(255,255,255,.08)}.xeevia-link-open{margin-left:auto;flex:0 0 auto}.xeevia-link-preview-wrap + .xeevia-link-preview-wrap{margin-top:8px}@media(max-width:768px){.xeevia-link-card{width:90%;margin-left:0}.xeevia-link-preview-line{margin-top:12px}}`}</style>
     </span>
   );
