@@ -3,16 +3,6 @@
 // Xeevia Wallet — main shell
 //
 // FIXES in this version:
-//  • .wv-shell now reads the shared --layout-left / --layout-right
-//    custom properties (defined once in global.css) instead of its
-//    own calc(300px + 4%) guess. That guess didn't match the app's
-//    real .sidebar width in every breakpoint and drifted out of sync
-//    with CommunityView's own separate guess — that drift is what
-//    was producing the big dead gap to the left of the wallet panel.
-//    The old @media (768–1099px) override that hardcoded
-//    --sidebar-collapsed-w is removed: global.css already redefines
-//    --layout-left for that same tablet range, so this file no
-//    longer needs its own copy of that logic.
 //  • useMobileTop() hook measures the real fixed-header height at
 //    runtime and sets --wv-top-offset / --wv-bottom-offset on :root
 //    so the wallet shell is NEVER hidden behind the mobile header.
@@ -128,16 +118,14 @@ function useMobileTop(shellRef) {
 // ─────────────────────────────────────────────────────────────────────────────
 const LAYOUT_CSS = `
   /* ─────────────────────────────────────────────────────────────
-     Shell — desktop reads the shared --layout-left / --layout-right
-     offsets from global.css (falls back to the old formula only if
-     those vars somehow aren't defined yet); mobile uses the
+     Shell — desktop default uses fixed px; mobile uses the
      measured CSS vars so we NEVER overlap the top/bottom bars.
   ───────────────────────────────────────────────────────────── */
   .wv-shell {
     position: fixed;
     top: 58px;
-    left: var(--layout-left, calc(300px + 4vw));
-    right: var(--layout-right, 4vw);
+    left: calc(300px + 4%);
+    right: 4%;
     bottom: 0;
     z-index: 49;
     display: flex;
@@ -158,11 +146,11 @@ const LAYOUT_CSS = `
     }
   }
 
-  /* Tablet (768–1099px): no longer needs its own override — global.css
-     already redefines --layout-left/--layout-right for the 769–1024px
-     collapsed-sidebar range, and .wv-shell above reads that same
-     variable, so it collapses in step with every other panel
-     automatically instead of carrying a second, separate guess here. */
+  @media (min-width: 768px) and (max-width: 1099px) {
+    .wv-shell {
+      left: var(--sidebar-collapsed-w, 72px);
+    }
+  }
 
   .wv-center {
     flex: 1;
