@@ -362,10 +362,15 @@ const VirtualFeed = React.memo(({
 
   const renderStart = Math.max(0, anchorIndex - RENDER_RADIUS);
   const renderEnd   = Math.min(items.length - 1, anchorIndex + RENDER_RADIUS);
+  const visibleItems = useMemo(
+    () => items.slice(renderStart, renderEnd + 1),
+    [items, renderStart, renderEnd],
+  );
 
   return (
     <div className="vf-list">
-      {items.map((item, index) => {
+      {visibleItems.map((item, offset) => {
+        const index = renderStart + offset;
         const pipeType = injections.get(index);
         return (
           <React.Fragment key={item.id}>
@@ -395,7 +400,7 @@ const VirtualFeed = React.memo(({
         );
       })}
       <style>{`
-        .vf-list{display:flex;flex-direction:column;position:relative;}
+        .vf-list{display:flex;flex-direction:column;position:relative;contain:layout paint;}
         .vf-item{contain:layout style;margin-bottom:2px;}
       `}</style>
     </div>

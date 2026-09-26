@@ -312,12 +312,14 @@ img, video {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: contain;
   overscroll-behavior-x: none;
   touch-action: pan-y;
   scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 80px;
+  will-change: scroll-position;
+  transform: translateZ(0);
 }
 
 .main-content-desktop > * {
@@ -381,12 +383,14 @@ img, video {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: contain;
   overscroll-behavior-x: none;
   touch-action: pan-y;
   scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 8px;
+  will-change: scroll-position;
+  transform: translateZ(0);
 }
 
 .main-content-mobile > * {
