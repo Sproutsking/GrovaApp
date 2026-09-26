@@ -26,7 +26,7 @@ import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import { AppLoader } from "../Shared/UnifiedLoader";
-import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package } from "lucide-react";
+import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package, Globe } from "lucide-react";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -126,12 +126,25 @@ const CSS = `
     letter-spacing: 0.2px;
   }
 
+  .xv-auth-mark-wrap {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(168,230,61,0.18), rgba(10, 10, 10, 0.9));
+    border: 1px solid rgba(168,230,61,0.28);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 18px rgba(168,230,61,0.12);
+    overflow: hidden;
+  }
+
   .xv-auth-mark {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, #a8e63d, #d8ff84);
-    box-shadow: 0 0 14px rgba(168,230,61,0.8);
+    width: 18px;
+    height: 18px;
+    object-fit: cover;
+    display: block;
+    border-radius: 6px;
   }
 
   .xv-auth-status {
@@ -214,6 +227,41 @@ const CSS = `
   .xv-auth-email:hover {
     color: #d7ff8d;
     border-color: rgba(168,230,61,0.75);
+  }
+
+  .xv-auth-soon {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(5px);
+    z-index: 50;
+  }
+
+  .xv-auth-soon-card {
+    background: rgba(17, 19, 17, 0.96);
+    border: 1px solid rgba(168,230,61,0.2);
+    border-radius: 18px;
+    padding: 22px 28px;
+    min-width: min(86vw, 280px);
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 24px rgba(168,230,61,0.08);
+  }
+
+  .xv-auth-soon-card h3 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: #f0f8eb;
+    letter-spacing: -0.06em;
+  }
+
+  .xv-auth-soon-card p {
+    margin: 0;
+    color: rgba(222,233,222,0.72);
+    font-size: 14px;
+    line-height: 1.7;
   }
 
   .xv-auth-legal {
@@ -409,23 +457,65 @@ const CSS = `
 
   /* ─────────────────── MOBILE ─────────────────── */
   @media (max-width:768px) {
-    .xv-left  { display:none !important; }
-    .xv-right {
-      flex:1 1 100% !important;
-      padding:0 !important;
-      align-items:center !important;
-      justify-content:center !important;
-      border-left:none !important;
-      min-height:100dvh;
+    .xv-auth-card {
+      width: min(96vw, 560px);
+      min-height: auto;
+      border-radius: 20px;
+      box-shadow: 0 0 0 1px rgba(168,230,61,0.07), 0 18px 50px rgba(0,0,0,0.42);
     }
-    .xv-right-inner {
-      width:100% !important;
-      max-width:100% !important;
-      padding:24px 24px !important;
-      display:flex !important;
-      flex-direction:column !important;
-      justify-content:center !important;
-      align-items:center !important;
+
+    .xv-auth-card::before {
+      inset: 10px;
+      border-radius: 14px;
+    }
+
+    .xv-auth-panel {
+      width: 100%;
+      padding: 18px 14px 18px;
+    }
+
+    .xv-auth-topbar {
+      margin-bottom: 18px;
+      font-size: 9px;
+      letter-spacing: 1.1px;
+    }
+
+    .xv-auth-mark-wrap {
+      width: 21px;
+      height: 21px;
+    }
+
+    .xv-auth-mark {
+      width: 15px;
+      height: 15px;
+    }
+
+    .xv-auth-heading {
+      letter-spacing: 0.12em;
+      font-size: clamp(18px, 5vw, 24px);
+    }
+
+    .xv-auth-subcopy {
+      margin: 12px 0 18px;
+      font-size: 13px;
+    }
+
+    .xv-auth-btn-stack {
+      gap: 8px;
+    }
+
+    .xv-auth-divider {
+      margin: 18px 0 14px;
+      font-size: 11px;
+    }
+
+    .xv-auth-email {
+      font-size: 14px;
+    }
+
+    .xv-auth-legal {
+      margin-top: 16px;
+      font-size: 11px;
     }
   }
 
@@ -1475,6 +1565,7 @@ function LoginView() {
   const [status, setStatus]   = useState("idle");
   const [provider, setProvider] = useState(null);
   const [errMsg, setErrMsg]   = useState("");
+  const [comingSoon, setComingSoon] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -1607,6 +1698,15 @@ function LoginView() {
         />
       </div>
 
+      {comingSoon && (
+        <div className="xv-auth-soon" role="alert" aria-live="polite" onClick={() => setComingSoon(false)}>
+          <div className="xv-auth-soon-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Coming soon</h3>
+            <p>Email sign-in is being prepared for launch.</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Inline error ── */}
       {errMsg && status === "idle" && (
         <div
@@ -1653,7 +1753,14 @@ function LoginView() {
 
       <div className="xv-auth-divider"><span>or</span></div>
 
-      <a className="xv-auth-email" href="/auth/email" onClick={(e) => e.preventDefault()}>
+      <a
+        className="xv-auth-email"
+        href="/auth/email"
+        onClick={(e) => {
+          e.preventDefault();
+          setComingSoon(true);
+        }}
+      >
         Continue with email →
       </a>
 
@@ -1687,12 +1794,14 @@ export default function AuthWall({ paywall = false }) {
         <div className="xv-auth-panel">
           <div className="xv-auth-topbar">
             <div className="xv-auth-brand">
-              <span className="xv-auth-mark" aria-hidden="true" />
+              <span className="xv-auth-mark-wrap" aria-hidden="true">
+                <img src="/logo192.png" alt="Xeevia logo" className="xv-auth-mark" />
+              </span>
               <span>Xeevia</span>
             </div>
             <div className="xv-auth-status">
               <span>Global</span>
-              <span className="xv-auth-status-dot" aria-hidden="true" />
+              <Globe size={14} strokeWidth={1.8} style={{ opacity: 0.9 }} aria-hidden="true" />
             </div>
           </div>
 
