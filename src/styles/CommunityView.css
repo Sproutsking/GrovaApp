@@ -342,8 +342,10 @@ body.community-fullscreen {
 
 @media (max-width: 1024px) and (min-width: 769px) {
   .community-view {
-    /* Sidebar is collapsed to ~200px on tablet */
-    left: calc(6% + 5px + 200px);
+    /* Tablet collapse is handled in global.css via --sidebar-w and
+       --edge-left, so this panel should follow that single source of
+       truth instead of its own stale calc() guess. */
+    left: var(--edge-left);
   }
 
   .channels-bar { height: 52px; padding: 0 12px; }

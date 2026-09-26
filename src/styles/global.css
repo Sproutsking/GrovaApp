@@ -902,7 +902,7 @@ img, video {
 @media (max-width: 1024px) and (min-width: 769px) {
   .sidebar          { width: 260px; }
   .trending-sidebar { width: 260px; }
-  .main-content-desktop { left: calc(260px + 3vw); right: calc(260px + 3vw); }
+  .main-content-desktop { left: var(--layout-left); right: var(--layout-right); }
 }
 
 /* ==========================================================================
