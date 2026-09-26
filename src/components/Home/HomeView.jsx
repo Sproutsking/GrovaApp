@@ -66,6 +66,7 @@ import FullScreenPost      from "./FullScreenPost";
 import FullScreenPostView  from "./FullScreenPostView";
 import FullScreenReels     from "./FullScreenReels";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
+import UpdatesView         from "../Messages/UpdatesView";
 import { walletService }   from "../../services/wallet/walletService";
 import { verifyWithdrawalPin } from "../../services/wallet/withdrawServiceV2";
 
@@ -386,6 +387,7 @@ const HomeView = ({
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
   const [readingStory, setReadingStory] = useState(null);
+  const [statusOverlayOpen, setStatusOverlayOpen] = useState(false);
 
   const feedTabRef     = useRef(null);
   const reelTabRef     = useRef(null);
@@ -925,7 +927,7 @@ const HomeView = ({
           </div>
         )}
 
-        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => {}} />
+        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => setStatusOverlayOpen(true)} />
         <FilterChip filter={feedFilter} onClear={onClearFilter} />
 
         {filterLoading && (
@@ -1054,6 +1056,37 @@ const HomeView = ({
           </div>
         )}
       </div>
+
+      {statusOverlayOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(4,4,4,0.96)" }}>
+          <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
+            <UpdatesView currentUser={resolvedUser} userId={resolvedUser?.id} onOpenDM={() => setStatusOverlayOpen(false)} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusOverlayOpen(false)}
+            style={{
+              position: "absolute",
+              top: 18,
+              right: 18,
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              zIndex: 2,
+            }}
+            aria-label="Close status updates"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       {/* ── Modals ── */}
       {modals.fullscreenPost && (

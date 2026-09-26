@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import statusUpdateService from "../../services/messages/statusUpdateService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
@@ -143,7 +143,7 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
 
   return (
     <div style={{
-      padding: "12px 12px 4px",
+      padding: "8px 12px 2px",
       background: "rgba(6,8,10,0.24)",
       borderBottom: "1px solid rgba(255,255,255,0.04)",
     }}>
@@ -153,7 +153,7 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
           alignItems: "center",
           gap: 12,
           overflowX: "auto",
-          padding: "4px 2px 8px",
+          padding: "2px 2px 4px",
           scrollbarWidth: "none",
         }}
       >
@@ -182,10 +182,6 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
             );
           })
         )}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#e5f7bf", fontSize: 12, fontWeight: 700, paddingLeft: 4 }}>
-        <Sparkles size={12} />
-        Status updates
       </div>
     </div>
   );
