@@ -15,11 +15,29 @@
 // push notification system. This is the PRIMARY notification delivery method.
 // ============================================================================
 
+function hasMeaningfulEnv(value) {
+  if (typeof value !== "string") return false;
+  const cleaned = value.trim();
+  if (!cleaned) return false;
+  const lowered = cleaned.toLowerCase();
+  return ![
+    "placeholder",
+    "replace_me",
+    "your_firebase",
+    "your-project-id",
+    "example",
+    "test",
+    "dummy",
+    "changeme",
+    "<add-your"
+  ].some((token) => lowered.includes(token));
+}
+
 const FIREBASE_CONFIG = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyCf4bVpTLj14f16fLPP1dgFAhFrO_cvWZQ",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "xeevia-app",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "871294046900",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:871294046900:web:6e237c3dc4814f842cbde1",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "",
 };
 
 const VAPID_KEY = process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY || "";
@@ -163,9 +181,15 @@ async function _ensureInitialized(userId = null) {
   installFirebaseDebug(userId);
   if (!isSupported()) return false;
 
-  if (!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.projectId) {
+  const hasFirebaseKey = hasMeaningfulEnv(FIREBASE_CONFIG.apiKey);
+  const hasFirebaseProject = hasMeaningfulEnv(FIREBASE_CONFIG.projectId);
+  const hasFirebaseSenderId = hasMeaningfulEnv(FIREBASE_CONFIG.messagingSenderId);
+  const hasFirebaseAppId = hasMeaningfulEnv(FIREBASE_CONFIG.appId);
+  const hasFirebaseVapid = hasMeaningfulEnv(VAPID_KEY);
+
+  if (!hasFirebaseKey || !hasFirebaseProject || !hasFirebaseSenderId || !hasFirebaseAppId || !hasFirebaseVapid) {
     console.warn(
-      "[Firebase] Missing REACT_APP_FIREBASE_* config; skipping initialization"
+      "[Firebase] Missing or placeholder REACT_APP_FIREBASE_* or REACT_APP_FIREBASE_MESSAGING_VAPID_KEY config; skipping initialization"
     );
     return false;
   }

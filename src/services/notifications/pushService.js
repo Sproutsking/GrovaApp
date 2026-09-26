@@ -16,13 +16,32 @@ import {
   unsubscribe as unsubscribeFirebase,
 } from "./firebaseService";
 
+function hasMeaningfulEnv(value) {
+  if (typeof value !== "string") return false;
+  const cleaned = value.trim();
+  if (!cleaned) return false;
+  const lowered = cleaned.toLowerCase();
+  return ![
+    "placeholder",
+    "replace_me",
+    "your_firebase",
+    "your-project-id",
+    "example",
+    "test",
+    "dummy",
+    "changeme",
+    "<add-your"
+  ].some((token) => lowered.includes(token));
+}
+
 // ── Firebase config check ───────────────────────────────────────────────────
 function isFirebaseConfigured() {
   return Boolean(
-    (process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyCf4bVpTLj14f16fLPP1dgFAhFrO_cvWZQ") &&
-    (process.env.REACT_APP_FIREBASE_PROJECT_ID || "xeevia-app") &&
-    (process.env.REACT_APP_FIREBASE_SENDER_ID || "871294046900") &&
-    (process.env.REACT_APP_FIREBASE_APP_ID || "1:871294046900:web:6e237c3dc4814f842cbde1")
+    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_API_KEY) &&
+    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_PROJECT_ID) &&
+    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_SENDER_ID) &&
+    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_APP_ID) &&
+    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY)
   );
 }
 
