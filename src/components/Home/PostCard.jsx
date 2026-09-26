@@ -825,7 +825,7 @@ const PostCard = ({
               <div className="gvp-tcs"><CardPostDisplay post={post} /></div>
               {post.card_caption && (
                 <div className="gvp-text" style={{ padding:"6px 14px 0" }}>
-                  <ParsedText text={post.card_caption} displayMode={linkDisplayMode} />
+                  <ParsedText text={post.card_caption} displayMode={linkDisplayMode} previewPosition="before-text" />
                 </div>
               )}
             </>

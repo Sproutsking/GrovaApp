@@ -135,7 +135,7 @@ const FullScreenPostView = ({
         {isTextCard && (
           <div className="fspv-card-post">
             <CardPostDisplay post={post} />
-            {post.card_caption && <ParsedText text={post.card_caption} />}
+            {post.card_caption && <ParsedText text={post.card_caption} previewPosition="before-text" />}
           </div>
         )}
         {!isTextCard && post.video_ids?.[0] && (
