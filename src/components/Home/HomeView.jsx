@@ -1063,24 +1063,23 @@ const HomeView = ({
             position: "fixed",
             inset: 0,
             zIndex: 99999,
-            background: "rgba(2, 4, 5, 0.9)",
+            background: "rgba(2, 4, 5, 0.96)",
             backdropFilter: "blur(12px)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "24px",
+            alignItems: "stretch",
+            justifyContent: "stretch",
           }}
         >
           <div
             style={{
               position: "relative",
-              width: "min(1220px, 94vw)",
-              height: "min(90vh, 900px)",
-              borderRadius: "28px",
+              width: "100vw",
+              height: "100vh",
+              borderRadius: 0,
               overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "none",
               background: "#0c0f10",
-              boxShadow: "0 36px 100px rgba(0,0,0,0.75)",
+              boxShadow: "none",
             }}
           >
             <div style={{

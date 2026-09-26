@@ -41,7 +41,6 @@
   --radius-md: 14px;
   --radius-lg: 18px;
 }
-
 .theme-light .wv-shell,
 .theme-light .wallet-shell {
   --br1: rgba(15,23,42,0.07);
@@ -50,7 +49,6 @@
   --t3: rgba(15,23,42,0.35);
   --t4: rgba(15,23,42,0.18);
 }
-
 /* ── WALLET SHELL ── */
 .wallet-shell,
 .wv-shell {
@@ -58,16 +56,13 @@
   color: var(--text);
   background: var(--black);
 }
-
 /* ── VIEW ENTER ANIMATION ── */
 .view-enter {
   animation: viewIn 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
 }
-
 @keyframes viewIn {
-  from { opacity: 0; transform: translateY(10px); }
+from { opacity: 0; transform: translateY(10px); }
 }
-
 /* ── VIEW HEADER ── */
 .view-header {
   display: flex;
@@ -76,8 +71,7 @@
   padding: 10px 20px 22px;
   padding-top: 4px;
 }
-
-.view-title {
+:is(.wv-shell, .wallet-shell) .view-title {
   font-size: 20px;
   font-weight: 800;
   color: var(--text);
@@ -85,14 +79,12 @@
   font-family: 'Syne', sans-serif;
   letter-spacing: -0.3px;
 }
-
-.view-subtitle {
+:is(.wv-shell, .wallet-shell) .view-subtitle {
   font-size: 12px;
   color: var(--t3);
   margin-top: 2px;
   font-family: var(--font-mono);
 }
-
 /* ── BACK BUTTON ── */
 .back-btn {
   width: 38px; height: 38px;
@@ -107,14 +99,12 @@
   flex-shrink: 0;
   transition: all 0.18s;
 }
-
-.back-btn:hover {
+:is(.wv-shell, .wallet-shell) .back-btn:hover {
   background: rgba(163,230,53,0.1);
   border-color: rgba(163,230,53,0.3);
   color: var(--lime);
   transform: translateX(-1px);
 }
-
 /* ── FORM BODY ── */
 .form-body {
   padding: 0 20px;
@@ -122,10 +112,8 @@
   flex-direction: column;
   gap: 4px;
 }
-
-.field-group { margin-bottom: 16px; }
-
-.field-label {
+:is(.wv-shell, .wallet-shell) .field-group { margin-bottom: 16px; }
+:is(.wv-shell, .wallet-shell) .field-label {
   display: block;
   font-size: 10.5px;
   font-weight: 700;
@@ -135,8 +123,7 @@
   margin-bottom: 8px;
   font-family: var(--font-mono);
 }
-
-.field-input {
+:is(.wv-shell, .wallet-shell) .field-input {
   width: 100%;
   padding: 13px 15px;
   background: var(--b2);
@@ -149,22 +136,18 @@
   transition: border-color 0.18s, box-shadow 0.18s;
   box-sizing: border-box;
 }
-
-.field-input::placeholder { color: rgba(255,255,255,0.2); }
-
-.field-input:focus {
+:is(.wv-shell, .wallet-shell) .field-input::placeholder { color: rgba(255,255,255,0.2); }
+:is(.wv-shell, .wallet-shell) .field-input:focus {
   border-color: rgba(163,230,53,0.5);
   box-shadow: 0 0 0 3px var(--accent-shadow);
   background: rgba(163,230,53,0.03);
 }
-
-.field-hint {
+:is(.wv-shell, .wallet-shell) .field-hint {
   font-size: 11px;
   color: var(--t3);
   margin-top: 6px;
   font-family: var(--font-mono);
 }
-
 /* ── AMOUNT FIELD ── */
 .amount-field {
   background: var(--b2);
@@ -173,13 +156,11 @@
   padding: 14px 16px 10px;
   transition: border-color 0.18s, box-shadow 0.18s;
 }
-
-.amount-field:focus-within {
+:is(.wv-shell, .wallet-shell) .amount-field:focus-within {
   border-color: rgba(163,230,53,0.45);
   box-shadow: 0 0 0 3px var(--accent-shadow);
 }
-
-.amount-input-big {
+:is(.wv-shell, .wallet-shell) .amount-input-big {
   width: 100%;
   background: transparent;
   border: none;
@@ -190,33 +171,26 @@
   font-family: var(--font-mono);
   letter-spacing: -0.04em;
 }
-
-.amount-input-big::placeholder { color: rgba(255,255,255,0.15); }
-
-.amount-ticker-row {
+:is(.wv-shell, .wallet-shell) .amount-input-big::placeholder { color: rgba(255,255,255,0.15); }
+:is(.wv-shell, .wallet-shell) .amount-ticker-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 4px;
 }
-
-.amount-ticker {
+:is(.wv-shell, .wallet-shell) .amount-ticker {
   font-size: 11px;
   font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
 }
-
-.amount-fiat-display {
+:is(.wv-shell, .wallet-shell) .amount-fiat-display {
   font-size: 11px;
   color: var(--t3);
   font-family: var(--font-mono);
 }
-
 /* ── BUTTONS ── */
-.btn-primary,
-.btn-xev,
-.btn-lime {
+.btn-primary, :is(.wv-shell, .wallet-shell) .btn-xev, :is(.wv-shell, .wallet-shell) .btn-lime {
   width: calc(100% - 40px);
   margin: 0 20px 10px;
   padding: 14px 20px;
@@ -236,25 +210,18 @@
   transition: filter 0.18s, transform 0.15s, box-shadow 0.18s;
   box-shadow: 0 3px 20px var(--accent-shadow);
 }
-
-.btn-primary:hover:not(:disabled),
-.btn-xev:hover:not(:disabled),
-.btn-lime:hover:not(:disabled) {
+:is(.wv-shell, .wallet-shell) .btn-primary:hover:not(:disabled), :is(.wv-shell, .wallet-shell) .btn-xev:hover:not(:disabled), :is(.wv-shell, .wallet-shell) .btn-lime:hover:not(:disabled) {
   filter: brightness(1.1);
   transform: translateY(-2px);
   box-shadow: 0 6px 28px var(--accent-shadow);
 }
-
-.btn-primary:disabled,
-.btn-xev:disabled,
-.btn-lime:disabled {
+:is(.wv-shell, .wallet-shell) .btn-primary:disabled, :is(.wv-shell, .wallet-shell) .btn-xev:disabled, :is(.wv-shell, .wallet-shell) .btn-lime:disabled {
   opacity: 0.35;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
-
-.btn-ghost {
+:is(.wv-shell, .wallet-shell) .btn-ghost {
   width: calc(100% - 40px);
   margin: 0 20px 10px;
   padding: 12px 20px;
@@ -272,13 +239,11 @@
   gap: 7px;
   transition: all 0.18s;
 }
-
-.btn-ghost:hover {
+:is(.wv-shell, .wallet-shell) .btn-ghost:hover {
   background: var(--surface);
   border-color: var(--surface-border);
   color: rgba(255,255,255,0.75);
 }
-
 /* ── SUMMARY CARD ── */
 .summary-card {
   margin: 0 20px 14px;
@@ -287,8 +252,7 @@
   border-radius: var(--radius-md);
   padding: 14px 16px;
 }
-
-.summary-card-title {
+:is(.wv-shell, .wallet-shell) .summary-card-title {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -297,8 +261,7 @@
   margin-bottom: 12px;
   font-family: var(--font-mono);
 }
-
-.summary-row {
+:is(.wv-shell, .wallet-shell) .summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -307,12 +270,10 @@
   color: var(--t2);
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-
-.summary-row:last-child { border-bottom: none; }
-.summary-row.total { padding-top: 10px; }
-.summary-row strong { color: var(--text); font-weight: 700; }
-.summary-divider { height: 1px; background: var(--surface); margin: 4px 0; }
-
+:is(.wv-shell, .wallet-shell) .summary-row:last-child { border-bottom: none; }
+:is(.wv-shell, .wallet-shell) .summary-row.total { padding-top: 10px; }
+:is(.wv-shell, .wallet-shell) .summary-row strong { color: var(--text); font-weight: 700; }
+:is(.wv-shell, .wallet-shell) .summary-divider { height: 1px; background: var(--surface); margin: 4px 0; }
 /* ── EP BURN NOTICE ── */
 .ep-burn-notice {
   display: flex;
@@ -328,7 +289,6 @@
   font-weight: 500;
   line-height: 1.5;
 }
-
 /* ── INFO BOX ── */
 .info-box {
   display: flex;
@@ -342,11 +302,9 @@
   font-size: 12px;
   line-height: 1.6;
 }
-
-.info-box svg { flex-shrink: 0; margin-top: 1px; color: var(--ep); }
-.info-box h4 { font-size: 13px; font-weight: 700; color: var(--ep); margin: 0 0 3px; }
-.info-box p  { margin: 0; color: var(--t2); }
-
+:is(.wv-shell, .wallet-shell) .info-box svg { flex-shrink: 0; margin-top: 1px; color: var(--ep); }
+:is(.wv-shell, .wallet-shell) .info-box h4 { font-size: 13px; font-weight: 700; color: var(--ep); margin: 0 0 3px; }
+:is(.wv-shell, .wallet-shell) .info-box p { margin: 0; color: var(--t2); }
 /* ── ADDRESS CARD ── */
 .address-card {
   margin: 0 20px 14px;
@@ -355,8 +313,7 @@
   border-radius: var(--radius-md);
   padding: 14px 16px;
 }
-
-.address-label-sm {
+:is(.wv-shell, .wallet-shell) .address-label-sm {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -365,14 +322,12 @@
   margin-bottom: 10px;
   font-family: var(--font-mono);
 }
-
-.address-row {
+:is(.wv-shell, .wallet-shell) .address-row {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-
-.address-text {
+:is(.wv-shell, .wallet-shell) .address-text {
   font-family: var(--font-mono);
   font-size: 12.5px;
   color: rgba(255,255,255,0.65);
@@ -380,8 +335,7 @@
   line-height: 1.6;
   flex: 1;
 }
-
-.copy-btn {
+:is(.wv-shell, .wallet-shell) .copy-btn {
   width: 34px; height: 34px;
   border-radius: 9px;
   background: var(--surface);
@@ -394,19 +348,16 @@
   flex-shrink: 0;
   transition: all 0.18s;
 }
-
-.copy-btn:hover {
+:is(.wv-shell, .wallet-shell) .copy-btn:hover {
   background: rgba(163,230,53,0.1);
   border-color: rgba(163,230,53,0.3);
   color: var(--lime);
 }
-
-.copy-btn.copied {
+:is(.wv-shell, .wallet-shell) .copy-btn.copied {
   background: rgba(34,197,94,0.1);
   border-color: rgba(34,197,94,0.3);
   color: #22c55e;
 }
-
 /* ── QR SECTION ── */
 .qr-section {
   display: flex;
@@ -415,8 +366,7 @@
   padding: 24px 20px 20px;
   gap: 12px;
 }
-
-.qr-frame {
+:is(.wv-shell, .wallet-shell) .qr-frame {
   width: 140px; height: 140px;
   background: var(--b2);
   border: 1px solid var(--surface-border);
@@ -426,13 +376,11 @@
   justify-content: center;
   box-shadow: 0 4px 20px var(--shadow);
 }
-
-.qr-label {
+:is(.wv-shell, .wallet-shell) .qr-label {
   font-size: 12px;
   color: var(--t3);
   font-family: var(--font-mono);
 }
-
 /* ── SETTINGS ── */
 .settings-list {
   padding: 0 20px;
@@ -440,8 +388,7 @@
   flex-direction: column;
   gap: 2px;
 }
-
-.settings-group-title {
+:is(.wv-shell, .wallet-shell) .settings-group-title {
   font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -450,8 +397,7 @@
   padding: 14px 4px 6px;
   font-family: var(--font-mono);
 }
-
-.settings-item {
+:is(.wv-shell, .wallet-shell) .settings-item {
   display: flex;
   align-items: center;
   gap: 13px;
@@ -466,13 +412,11 @@
   font-family: var(--font-body);
   margin-bottom: 4px;
 }
-
-.settings-item:hover {
+:is(.wv-shell, .wallet-shell) .settings-item:hover {
   background: rgba(163,230,53,0.05);
   border-color: rgba(163,230,53,0.2);
 }
-
-.settings-item-icon {
+:is(.wv-shell, .wallet-shell) .settings-item-icon {
   width: 34px; height: 34px;
   border-radius: 9px;
   background: var(--surface);
@@ -484,30 +428,24 @@
   flex-shrink: 0;
   transition: all 0.18s;
 }
-
-.settings-item:hover .settings-item-icon {
+:is(.wv-shell, .wallet-shell) .settings-item:hover .settings-item-icon {
   background: rgba(163,230,53,0.1);
   border-color: rgba(163,230,53,0.25);
   color: var(--lime);
 }
-
-.settings-item-info { flex: 1; min-width: 0; }
-
-.settings-item-title {
+:is(.wv-shell, .wallet-shell) .settings-item-info { flex: 1; min-width: 0; }
+:is(.wv-shell, .wallet-shell) .settings-item-title {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--t2);
   transition: color 0.18s;
 }
-
-.settings-item:hover .settings-item-title { color: var(--text); }
-
-.settings-item-sub {
+:is(.wv-shell, .wallet-shell) .settings-item:hover .settings-item-title { color: var(--text); }
+:is(.wv-shell, .wallet-shell) .settings-item-sub {
   font-size: 11px;
   color: var(--t3);
   margin-top: 2px;
 }
-
 /* ── SWAP ── */
 .swap-container {
   padding: 0 20px;
@@ -516,20 +454,17 @@
   gap: 10px;
   margin-bottom: 16px;
 }
-
-.swap-box {
+:is(.wv-shell, .wallet-shell) .swap-box {
   background: var(--b2);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   transition: border-color 0.18s;
 }
-
-.swap-box:focus-within {
+:is(.wv-shell, .wallet-shell) .swap-box:focus-within {
   border-color: rgba(163,230,53,0.35);
 }
-
-.swap-box-label {
+:is(.wv-shell, .wallet-shell) .swap-box-label {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -538,14 +473,12 @@
   margin-bottom: 10px;
   font-family: var(--font-mono);
 }
-
-.swap-row {
+:is(.wv-shell, .wallet-shell) .swap-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
-.swap-amount-input {
+:is(.wv-shell, .wallet-shell) .swap-amount-input {
   flex: 1;
   background: transparent;
   border: none;
@@ -556,10 +489,8 @@
   font-family: var(--font-mono);
   letter-spacing: -0.04em;
 }
-
-.swap-amount-input::placeholder { color: rgba(255,255,255,0.12); }
-
-.token-pill {
+:is(.wv-shell, .wallet-shell) .swap-amount-input::placeholder { color: rgba(255,255,255,0.12); }
+:is(.wv-shell, .wallet-shell) .token-pill {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -570,26 +501,22 @@
   font-family: var(--font-mono);
   flex-shrink: 0;
 }
-
-.token-pill.xev {
+:is(.wv-shell, .wallet-shell) .token-pill.xev {
   background: rgba(163,230,53,0.12);
   border: 1px solid rgba(163,230,53,0.3);
   color: var(--lime);
 }
-
-.token-pill.ep {
+:is(.wv-shell, .wallet-shell) .token-pill.ep {
   background: rgba(34,211,238,0.1);
   border: 1px solid rgba(34,211,238,0.28);
   color: var(--ep);
 }
-
-.swap-divider {
+:is(.wv-shell, .wallet-shell) .swap-divider {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
-.swap-switch-btn {
+:is(.wv-shell, .wallet-shell) .swap-switch-btn {
   width: 38px; height: 38px;
   border-radius: 50%;
   background: var(--surface);
@@ -601,15 +528,13 @@
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-.swap-switch-btn:hover {
+:is(.wv-shell, .wallet-shell) .swap-switch-btn:hover {
   background: rgba(163,230,53,0.12);
   border-color: rgba(163,230,53,0.35);
   color: var(--lime);
   transform: rotate(180deg) scale(1.08);
 }
-
-.swap-rate-info {
+:is(.wv-shell, .wallet-shell) .swap-rate-info {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -621,10 +546,8 @@
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: var(--radius-xs);
 }
-
-.swap-rate-info svg { flex-shrink: 0; }
-.swap-rate-info .highlight { color: var(--lime); font-weight: 700; }
-
+:is(.wv-shell, .wallet-shell) .swap-rate-info svg { flex-shrink: 0; }
+:is(.wv-shell, .wallet-shell) .swap-rate-info .highlight { color: var(--lime); font-weight: 700; }
 /* ── BALANCE CARD ── */
 .balance-card {
   margin: 0 0 16px;
@@ -635,16 +558,14 @@
   position: relative;
   overflow: hidden;
 }
-
-.balance-card::before {
+:is(.wv-shell, .wallet-shell) .balance-card::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(163,230,53,0.6), transparent);
 }
-
-.balance-total {
+:is(.wv-shell, .wallet-shell) .balance-total {
   font-size: 42px;
   font-weight: 800;
   color: var(--text);
@@ -653,22 +574,19 @@
   line-height: 1;
   margin-bottom: 4px;
 }
-
-.balance-token {
+:is(.wv-shell, .wallet-shell) .balance-token {
   font-size: 16px;
   font-weight: 700;
   color: var(--lime);
   font-family: var(--font-mono);
   margin-bottom: 8px;
 }
-
-.balance-fiat {
+:is(.wv-shell, .wallet-shell) .balance-fiat {
   font-size: 13px;
   color: var(--t3);
   font-family: var(--font-mono);
 }
-
-.balance-eye-btn {
+:is(.wv-shell, .wallet-shell) .balance-eye-btn {
   position: absolute;
   top: 16px; right: 16px;
   width: 32px; height: 32px;
@@ -682,12 +600,10 @@
   cursor: pointer;
   transition: all 0.18s;
 }
-
-.balance-eye-btn:hover {
+:is(.wv-shell, .wallet-shell) .balance-eye-btn:hover {
   background: rgba(163,230,53,0.1);
   color: var(--lime);
 }
-
 /* ── LIVE BADGE ── */
 .live-badge {
   display: inline-flex;
@@ -704,15 +620,13 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-
-.live-badge-dot {
+:is(.wv-shell, .wallet-shell) .live-badge-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
   background: #ef4444;
   animation: livePulse 1.6s ease-in-out infinite;
 }
-
 @keyframes livePulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+0%, 100% { opacity: 1; }
+50% { opacity: 0.3; }
 }
