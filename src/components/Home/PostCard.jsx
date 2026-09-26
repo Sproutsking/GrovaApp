@@ -51,6 +51,7 @@ import ProfilePreview     from "../Shared/ProfilePreview";
 import ReactionPanel      from "../Shared/ReactionPanel";
 import ActionMenu         from "../Shared/ActionMenu";
 import ParsedText         from "../Shared/ParsedText";
+import LinkifiedText, { getExternalUrls } from "../Shared/LinkifiedText";
 import EditPostModal      from "../Modals/EditPostModal";
 import ShareModal         from "../Modals/ShareModal";
 import CardPostDisplay    from "../MediaUploader/CardPostDisplay";
@@ -767,6 +768,24 @@ const PostCard = ({
 
   // fetchPriority based on feed position
   const imgPriority = feedIndex === 0 ? "high" : feedIndex <= 3 ? "high" : "auto";
+  const mediaPreviewUrls = hasMedia && (linkDisplayMode === "embed") ? getExternalUrls(post.content || "") : [];
+
+  const renderMediaCaption = () => (
+    <div className="gvp-caption-stack">
+      {mediaPreviewUrls.map((url) => (
+        <div key={`media-preview-${url}`} className="gvp-link-preview-block">
+          <LinkifiedText displayMode="embed" previewOnly>{url}</LinkifiedText>
+        </div>
+      ))}
+      <div className="gvp-text gvp-cap">
+        <ParsedText
+          text={post.content}
+          displayMode={linkDisplayMode}
+          showEmbeddedPreview={false}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -908,7 +927,7 @@ const PostCard = ({
               {post.content && (
                 <div className={`gvp-cap-wrap${capExp ? " expanded" : ""}`}>
                   <div ref={capRef} className={`gvp-text gvp-cap${!capExp && capClamp ? " gvp-cap-clamp" : ""}`}>
-                    <ParsedText text={post.content} displayMode={linkDisplayMode} previewPosition="before-text" />
+                    {renderMediaCaption()}
                   </div>
                   {(capClamp || capExp) && (
                     <button

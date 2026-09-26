@@ -16,6 +16,7 @@ import ReactionPanel  from "../Shared/ReactionPanel";
 import CommentModal   from "../Modals/CommentModal";
 import ShareModal     from "../Modals/ShareModal";
 import ParsedText     from "../Shared/ParsedText";
+import LinkifiedText, { getExternalUrls } from "../Shared/LinkifiedText";
 import CardPostDisplay from "../MediaUploader/CardPostDisplay";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
@@ -163,7 +164,16 @@ const FullScreenPostView = ({
           </div>
         )}
 
-        {!isTextCard && <ParsedText text={post.content} previewPosition="before-text" />}
+        {!isTextCard && (
+          <div className="fspv-caption-stack">
+            {getExternalUrls(post.content || "").map((url) => (
+              <div key={`fspv-preview-${url}`} className="fspv-link-preview-block">
+                <LinkifiedText displayMode="embed" previewOnly>{url}</LinkifiedText>
+              </div>
+            ))}
+            <ParsedText text={post.content} showEmbeddedPreview={false} />
+          </div>
+        )}
       </div>
 
       <div className="fspv-footer">

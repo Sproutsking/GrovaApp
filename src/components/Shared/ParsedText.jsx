@@ -8,7 +8,7 @@ import LinkifiedText, { isInternalXeeviaUrl } from './LinkifiedText';
 /**
  * ParsedText Component - Renders text with clickable hashtags and mentions
  */
-const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'embed', className = '', previewPosition = 'after-text' }) => {
+const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'embed', className = '', previewPosition = 'after-text', showEmbeddedPreview = true }) => {
   if (!text) return null;
 
   const parseText = (text) => {
@@ -68,9 +68,9 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
     ? parts.filter((part) => part.type === "url").map((part) => part.content)
     : [];
 
-  const renderPreviewCards = () => previewUrls.map((url) => (
+  const renderPreviewCards = () => showEmbeddedPreview ? previewUrls.map((url) => (
     <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed" previewOnly>{url}</LinkifiedText>
-  ));
+  )) : null;
 
   const renderTextParts = () => (
     <>
