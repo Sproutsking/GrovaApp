@@ -127,24 +127,26 @@ const CSS = `
   }
 
   .xv-auth-mark-wrap {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(168,230,61,0.18), rgba(10, 10, 10, 0.9));
-    border: 1px solid rgba(168,230,61,0.28);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 18px rgba(168,230,61,0.12);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(212,255,118,0.28), rgba(10, 10, 10, 0.9));
+    border: 1px solid rgba(168,230,61,0.45);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px rgba(168,230,61,0.2);
     overflow: hidden;
+    padding: 2px;
   }
 
   .xv-auth-mark {
-    width: 18px;
-    height: 18px;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: 6px;
+    border-radius: 8px;
+    filter: drop-shadow(0 0 10px rgba(168,230,61,0.25));
   }
 
   .xv-auth-status {
@@ -216,17 +218,44 @@ const CSS = `
 
   .xv-auth-email {
     margin-top: 14px;
-    font-size: 16px;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 18px;
+    font-size: 15px;
     font-weight: 600;
-    color: rgba(255,255,255,0.82);
+    color: rgba(255,255,255,0.9);
     text-decoration: none;
-    border-bottom: 1px solid rgba(168,230,61,0.35);
-    transition: color .2s ease, border-color .2s ease;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(17,18,17,0.92), rgba(10,12,10,0.94));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 22px rgba(0,0,0,0.2);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
   }
 
   .xv-auth-email:hover {
+    color: #ecffd9;
+    border-color: rgba(168,230,61,0.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 26px rgba(168,230,61,0.08);
+    transform: translateY(-1px);
+  }
+
+  .xv-auth-email strong {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .xv-auth-email-badge {
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(168,230,61,0.12);
+    border: 1px solid rgba(168,230,61,0.25);
     color: #d7ff8d;
-    border-color: rgba(168,230,61,0.75);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 
   .xv-auth-soon {
@@ -235,33 +264,71 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.58);
-    backdrop-filter: blur(5px);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
     z-index: 50;
   }
 
   .xv-auth-soon-card {
-    background: rgba(17, 19, 17, 0.96);
-    border: 1px solid rgba(168,230,61,0.2);
-    border-radius: 18px;
-    padding: 22px 28px;
-    min-width: min(86vw, 280px);
+    position: relative;
+    background: linear-gradient(180deg, rgba(17,19,17,0.98), rgba(11,14,11,0.98));
+    border: 1px solid rgba(168,230,61,0.24);
+    border-radius: 20px;
+    padding: 26px 30px 22px;
+    min-width: min(88vw, 320px);
     text-align: center;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 24px rgba(168,230,61,0.08);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 22px 52px rgba(0,0,0,0.52), 0 0 30px rgba(168,230,61,0.08);
+  }
+
+  .xv-auth-soon-card::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    pointer-events: none;
+  }
+
+  .xv-auth-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(168,230,61,0.08);
+    border: 1px solid rgba(168,230,61,0.28);
+    color: #d6ff78;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 9px;
+    margin-bottom: 14px;
   }
 
   .xv-auth-soon-card h3 {
     margin: 0 0 8px;
-    font-size: 24px;
+    font-size: clamp(26px, 4vw, 32px);
     color: #f0f8eb;
     letter-spacing: -0.06em;
   }
 
   .xv-auth-soon-card p {
     margin: 0;
-    color: rgba(222,233,222,0.72);
+    color: rgba(222,233,222,0.76);
     font-size: 14px;
     line-height: 1.7;
+  }
+
+  .xv-auth-soon-card button {
+    margin-top: 18px;
+    width: 100%;
+    border: 1px solid rgba(168,230,61,0.28);
+    background: rgba(168,230,61,0.08);
+    color: #eafbd6;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .xv-auth-legal {
@@ -1701,8 +1768,10 @@ function LoginView() {
       {comingSoon && (
         <div className="xv-auth-soon" role="alert" aria-live="polite" onClick={() => setComingSoon(false)}>
           <div className="xv-auth-soon-card" onClick={(e) => e.stopPropagation()}>
+            <div className="xv-auth-soon-badge">Early access</div>
             <h3>Coming soon</h3>
             <p>Email sign-in is being prepared for launch.</p>
+            <button type="button" onClick={() => setComingSoon(false)}>Close</button>
           </div>
         </div>
       )}
@@ -1761,7 +1830,8 @@ function LoginView() {
           setComingSoon(true);
         }}
       >
-        Continue with email →
+        <strong>Continue with email</strong>
+        <span className="xv-auth-email-badge">Soon</span>
       </a>
 
       <div className="xv-auth-legal">
