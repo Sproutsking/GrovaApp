@@ -1058,33 +1058,64 @@ const HomeView = ({
       </div>
 
       {statusOverlayOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(4,4,4,0.96)" }}>
-          <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
-            <UpdatesView currentUser={resolvedUser} userId={resolvedUser?.id} onOpenDM={() => setStatusOverlayOpen(false)} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setStatusOverlayOpen(false)}
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            background: "rgba(2, 4, 5, 0.9)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <div
             style={{
-              position: "absolute",
-              top: 18,
-              right: 18,
-              width: 42,
-              height: 42,
-              borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.08)",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              zIndex: 2,
+              position: "relative",
+              width: "min(1220px, 94vw)",
+              height: "min(90vh, 900px)",
+              borderRadius: "28px",
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "#0c0f10",
+              boxShadow: "0 36px 100px rgba(0,0,0,0.75)",
             }}
-            aria-label="Close status updates"
           >
-            <X size={18} />
-          </button>
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0))",
+              pointerEvents: "none",
+            }} />
+            <div style={{ position: "absolute", inset: 0, overflowY: "auto" }}>
+              <UpdatesView currentUser={resolvedUser} userId={resolvedUser?.id} onOpenDM={() => setStatusOverlayOpen(false)} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatusOverlayOpen(false)}
+              style={{
+                position: "absolute",
+                top: 18,
+                right: 18,
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                zIndex: 3,
+              }}
+              aria-label="Close status updates"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
       )}
 

@@ -827,13 +827,31 @@ const CSS = `
 
 /* ── Responsive ── */
 @media(min-width:769px){
-  .dmh-panel{left:auto;right:0;width:420px;height:100vh;border-left:1px solid rgba(132,204,22,.12);box-shadow:-24px 0 72px rgba(0,0,0,.7);animation:dmhSlide .28s cubic-bezier(.22,1,.36,1);}
-  @keyframes dmhSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  .dmh-panel{
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:min(1280px, 94vw);
+    height:min(90vh, 900px);
+    border-radius:28px;
+    border:1px solid rgba(255,255,255,.08);
+    overflow:hidden;
+    box-shadow:0 36px 120px rgba(0,0,0,.78);
+    background:#0c0f10;
+    animation:dmhSlide .28s cubic-bezier(.22,1,.36,1);
+  }
+
+  @keyframes dmhSlide{from{opacity:0;transform:translate(-50%,-46%)}to{opacity:1;transform:translate(-50%,-50%)}}
+
   .dmh-rail{display:flex;}
   .dmh-bnav{display:none!important;}
   .dmh-screen{position:absolute;inset:0;}
   .dmh-hdr-x{display:none;}
   .dmh-hdr-title{text-align:left;}
+  .dmh-list-wrap{border-left:1px solid rgba(255,255,255,.04);}
+  .dmh-body{position:relative;}
+  .dmh-tab-body{min-height:0;}
 }
 `;
 
