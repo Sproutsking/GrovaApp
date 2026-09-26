@@ -42,7 +42,7 @@ import NewsTab          from "./NewsTab";
 import ReelsTab         from "./ReelsTab";
 import StoryTab         from "./StoryTab";
 import CultureTab       from "./CultureTab";
-import LiveStreamersRow from "../Stream/LiveStreamersRow";
+import StatusUpdatesStrip from "../Home/StatusUpdatesStrip";
 
 import postService     from "../../services/home/postService";
 import reelService     from "../../services/home/reelService";
@@ -925,7 +925,7 @@ const HomeView = ({
           </div>
         )}
 
-        <LiveStreamersRow variant="home" onJoin={onJoinStream} currentUser={resolvedUser} />
+        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => {}} />
         <FilterChip filter={feedFilter} onClear={onClearFilter} />
 
         {filterLoading && (

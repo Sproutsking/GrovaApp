@@ -236,8 +236,8 @@ const CommunitySidebar = ({
 
         .community-rail-unread-badge {
           position: absolute;
-          top: 0;
-          right: -6px;
+          right: 2px;
+          bottom: 2px;
           min-width: 19px;
           height: 19px;
           padding: 0 5px;
