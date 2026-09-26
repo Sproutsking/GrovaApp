@@ -119,8 +119,31 @@ class DistributionService {
 
   // ── Get active connected platforms ────────────────────────────────────────
   // [BUG-B FIX] Any error returns [] so callers always get an array.
+  // Auth identities are also treated as real connections for distribution so
+  // users who signed in with social providers see those platforms in the
+  // create panel without needing a legacy rows migration.
   async getConnectedPlatforms(userId) {
     try {
+      const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
+      const authIdentityProviders = new Set();
+
+      try {
+        const { data: { user } = {}, error: authError } = await withTimeout(
+          supabase.auth.getUser(),
+          10000
+        );
+        if (!authError && user?.id === userId) {
+          for (const identity of user.identities || []) {
+            const provider = providerAliases[identity?.provider] || identity?.provider;
+            if (provider && adapters.getAdapter(provider)) {
+              authIdentityProviders.add(provider);
+            }
+          }
+        }
+      } catch (authErr) {
+        console.warn("[DistributionService] auth identities check failed:", authErr?.message);
+      }
+
       const { data, error } = await withTimeout(
         supabase
           .from("connections")
@@ -130,19 +153,19 @@ class DistributionService {
         10000
       );
 
-      if (error?.code === "42P01") return []; // table not yet created
+      if (error?.code === "42P01") return Array.from(authIdentityProviders);
       if (error) {
         console.warn("[DistributionService] getConnectedPlatforms:", error.message);
-        return [];
+        return Array.from(authIdentityProviders);
       }
-      const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
+
       const activeConnections = (data || [])
         .map((connection) => ({
           ...connection,
           provider: providerAliases[connection.provider] || connection.provider,
         }))
         .filter((connection) => adapters.getAdapter(connection.provider));
-      if (!activeConnections.length) return [];
+      if (!activeConnections.length) return Array.from(authIdentityProviders);
 
       const connectionIds = activeConnections.map((connection) => connection.id);
       const { data: tokens, error: tokenError } = await withTimeout(
@@ -155,16 +178,18 @@ class DistributionService {
       );
       if (tokenError) {
         console.warn("[DistributionService] getConnectedPlatforms token check:", tokenError.message);
-        return [];
+        return Array.from(new Set([...authIdentityProviders, ...activeConnections.map((connection) => connection.provider)]));
       }
 
       const now = Date.now();
       const validTokenConnections = new Set((tokens || [])
         .filter((token) => !token.expires_at || new Date(token.expires_at).getTime() > now)
         .map((token) => token.connection_id));
-      return activeConnections
+      const validConnectedProviders = activeConnections
         .filter((connection) => validTokenConnections.has(connection.id))
         .map((connection) => connection.provider);
+
+      return Array.from(new Set([...validConnectedProviders, ...authIdentityProviders]));
     } catch (err) {
       console.warn("[DistributionService] getConnectedPlatforms exception:", err?.message);
       return [];

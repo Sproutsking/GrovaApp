@@ -908,7 +908,7 @@ const PostCard = ({
               {post.content && (
                 <div className={`gvp-cap-wrap${capExp ? " expanded" : ""}`}>
                   <div ref={capRef} className={`gvp-text gvp-cap${!capExp && capClamp ? " gvp-cap-clamp" : ""}`}>
-                    <ParsedText text={post.content} displayMode={linkDisplayMode} />
+                    <ParsedText text={post.content} displayMode={linkDisplayMode} previewPosition="before-text" />
                   </div>
                   {(capClamp || capExp) && (
                     <button

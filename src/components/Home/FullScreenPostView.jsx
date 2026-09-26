@@ -163,7 +163,7 @@ const FullScreenPostView = ({
           </div>
         )}
 
-        {!isTextCard && <ParsedText text={post.content} />}
+        {!isTextCard && <ParsedText text={post.content} previewPosition="before-text" />}
       </div>
 
       <div className="fspv-footer">

@@ -83,6 +83,23 @@ describe("LinkifiedText", () => {
     expect(screen.getByText("Then keep reading.")).toBeTruthy();
   });
 
+  it("renders media preview cards before the caption text when the layout is media-first", () => {
+    const { container } = render(
+      <ParsedText
+        displayMode="embed"
+        previewPosition="before-text"
+        text="Check this out https://preeb.cloud/about and keep reading."
+      />,
+    );
+
+    const links = screen.getAllByRole("link");
+    expect(links[0].textContent).toContain("preeb.cloud link");
+    expect(container.textContent.indexOf("preeb.cloud link")).toBeLessThan(
+      container.textContent.indexOf("Check this out")
+    );
+    expect(screen.getByText("and keep reading.")).toBeTruthy();
+  });
+
   it("shows previews by default for external links", () => {
     render(<LinkifiedText>Visit https://preeb.cloud/about</LinkifiedText>);
     expect(screen.getAllByRole("link")).toHaveLength(2);

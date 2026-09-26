@@ -8,7 +8,7 @@ import LinkifiedText, { isInternalXeeviaUrl } from './LinkifiedText';
 /**
  * ParsedText Component - Renders text with clickable hashtags and mentions
  */
-const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'embed', className = '' }) => {
+const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'embed', className = '', previewPosition = 'after-text' }) => {
   if (!text) return null;
 
   const parseText = (text) => {
@@ -68,8 +68,12 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
     ? parts.filter((part) => part.type === "url").map((part) => part.content)
     : [];
 
-  return (
-    <span className={className}>
+  const renderPreviewCards = () => previewUrls.map((url) => (
+    <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed" previewOnly>{url}</LinkifiedText>
+  ));
+
+  const renderTextParts = () => (
+    <>
       {parts.map((part, index) => {
         if (part.type === 'url') {
           return <LinkifiedText key={`url-${index}`} onNavigate={onNavigate} displayMode="string">{part.content}</LinkifiedText>;
@@ -103,9 +107,22 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayM
           return <span key={`text-${index}`}>{part.content}</span>;
         }
       })}
-      {previewUrls.map((url) => (
-        <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed" previewOnly>{url}</LinkifiedText>
-      ))}
+    </>
+  );
+
+  return (
+    <span className={className}>
+      {previewPosition === 'before-text' ? (
+        <>
+          {renderPreviewCards()}
+          {renderTextParts()}
+        </>
+      ) : (
+        <>
+          {renderTextParts()}
+          {renderPreviewCards()}
+        </>
+      )}
     </span>
   );
 };
