@@ -12,9 +12,9 @@ const WRAPPER_CSS = `
 
   .pw-layout {
     position:fixed;
-    top:58px;
-    left:calc(6% + 5px + 280px);
-    right:4%;
+    top:56px;
+    left:var(--layout-left, calc(var(--sidebar-w) + var(--layout-gutter, 4vw)));
+    right:var(--layout-right, calc(var(--trending-w) + var(--layout-gutter, 4vw)));
     bottom:0;
     z-index:49;
     display:flex;
@@ -23,7 +23,7 @@ const WRAPPER_CSS = `
     overflow:hidden;
   }
   @media (min-width:768px) and (max-width:1099px) {
-    .pw-layout { left:var(--sidebar-collapsed-w,72px); }
+    .pw-layout { left: var(--layout-left, 260px); right: 0; }
   }
   @media (max-width:768px) {
     .pw-layout {

@@ -135,6 +135,37 @@ html *::-webkit-scrollbar {
   --shadow-soft: rgba(0,0,0,0.22);
   --elite-rank-2-bg: linear-gradient(135deg, #d1d5db, #9ca3af);
   --elite-rank-3-bg: linear-gradient(135deg, #f97316, #ea580c);
+
+  /* ────────────────────────────────────────────────────────────────
+     LAYOUT OFFSETS — single source of truth.
+     Sidebar is 300px, trending sidebar is 340px, gutter is 4vw on
+     each side (matches the actual .sidebar / .trending-sidebar rules
+     below). ANY fixed-position panel that needs to sit "to the right
+     of the left sidebar" or "to the left of the trending sidebar"
+     reads these two variables instead of recalculating its own
+     width + gutter guess. This is what CommunityView.css and
+     WalletView.jsx should now use for their shell's left/right.
+     ──────────────────────────────────────────────────────────────── */
+  --sidebar-w: 300px;
+  --trending-w: 340px;
+  --layout-gutter: 4vw;
+  --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
+  --layout-right: calc(var(--trending-w) + var(--layout-gutter));
+
+  /* ────────────────────────────────────────────────────────────────
+     EDGE-TO-EDGE OFFSET — for panels that must open flush against
+     the sidebar with NO gutter and run to the screen edge with NO
+     reserved trending-sidebar space (Community, Wallet). This is
+     deliberately separate from --layout-left/--layout-right above:
+     those two exist to give .main-content-desktop and
+     .trending-sidebar breathing room, which is exactly what
+     full-bleed panels must NOT have. --edge-left is defined purely
+     off --sidebar-w (no +gutter term), so it inherits the tablet
+     collapse and the 1440px clamp automatically wherever
+     --sidebar-w changes, with no per-breakpoint duplication needed
+     in this file or in CommunityView.css / WalletView.jsx.
+     ──────────────────────────────────────────────────────────────── */
+  --edge-left: var(--sidebar-w);
 }
 
 .theme-dark {
@@ -307,8 +338,8 @@ img, video {
   position: fixed;
   top: 56px;
   bottom: 0;
-  left:  calc(300px + 4vw);
-  right: calc(340px + 4vw);
+  left:  var(--layout-left);
+  right: var(--layout-right);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -428,9 +459,25 @@ img, video {
     right: calc((100vw - 1440px) / 2);
   }
 
+  /* Re-derive the shared offsets for the clamped canvas so every
+     consumer (main-content-desktop, CommunityView, WalletView) stays
+     in sync above 1440px too — this is the piece that used to only
+     patch .main-content-desktop/.trending-sidebar/.sidebar directly
+     and silently left CommunityView.css / WalletView.jsx pointed at
+     the un-clamped calc(), which was the other half of the drift. */
+  :root {
+    --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + 28px);
+    --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + 28px);
+    /* Full-bleed panels clamp with the sidebar itself (which moves to
+       calc((100vw - 1440px) / 2) below), not with the +28px gutter
+       main-content-desktop gets — so they stay glued to its right
+       edge instead of floating a gutter's width away from it. */
+    --edge-left: calc((100vw - 1440px) / 2 + var(--sidebar-w));
+  }
+
   .main-content-desktop {
-    left: calc((100vw - 1440px) / 2 + 300px + 28px);
-    right: calc((100vw - 1440px) / 2 + 340px + 28px);
+    left: var(--layout-left);
+    right: var(--layout-right);
   }
 
   .trending-sidebar {

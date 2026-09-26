@@ -118,14 +118,23 @@ function useMobileTop(shellRef) {
 // ─────────────────────────────────────────────────────────────────────────────
 const LAYOUT_CSS = `
   /* ─────────────────────────────────────────────────────────────
-     Shell — desktop default uses fixed px; mobile uses the
-     measured CSS vars so we NEVER overlap the top/bottom bars.
+     Shell — desktop opens flush against the sidebar with no gutter
+     and runs fully to the right screen edge, top to bottom, right
+     under the header with no gap. --edge-left carries no gutter
+     (unlike --layout-left, which is for main-content-desktop and
+     deliberately leaves breathing room) and right is a hard 0, not
+     --layout-right, since Wallet has no reason to reserve space for
+     the trending sidebar it doesn't sit next to. Top is 56px to
+     match .desktop-header's actual height exactly — it was 58px
+     before, which left a 2px sliver of empty space under the header.
+     Mobile uses the measured CSS vars so we NEVER overlap the
+     top/bottom bars.
   ───────────────────────────────────────────────────────────── */
   .wv-shell {
     position: fixed;
-    top: 58px;
-    left: calc(300px + 4%);
-    right: 4%;
+    top: 56px;
+    left: var(--edge-left, 300px);
+    right: 0;
     bottom: 0;
     z-index: 49;
     display: flex;
@@ -146,11 +155,11 @@ const LAYOUT_CSS = `
     }
   }
 
-  @media (min-width: 768px) and (max-width: 1099px) {
-    .wv-shell {
-      left: var(--sidebar-collapsed-w, 72px);
-    }
-  }
+  /* Tablet (769–1024px): no override needed here — --edge-left is
+     defined purely off --sidebar-w in global.css, so when that
+     media query collapses --sidebar-w to 260px, .wv-shell picks it
+     up automatically. Same single-source-of-truth guarantee as
+     CommunityView.css. */
 
   .wv-center {
     flex: 1;

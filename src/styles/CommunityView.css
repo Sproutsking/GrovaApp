@@ -16,10 +16,14 @@
 
 .community-view {
   position: fixed;
-  /* Below app header */
+  /* Below app header — flush, no gap */
   top: 56px;
-  /* Right of sidebar — mirrors sidebar's left + width */
-  left: calc(6% + 5px + 280px);
+  /* Flush against the sidebar's right edge — --edge-left carries NO
+     gutter (unlike --layout-left, which is for main-content-desktop
+     and deliberately leaves breathing room). Community opens full
+     right after the nav sidebar with nothing in between. */
+  left: var(--edge-left);
+  /* Full to the screen edge — no reserved trending-sidebar space. */
   right: 0;
   bottom: 0;
   z-index: 10;           /* below sidebar and modals */
