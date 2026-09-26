@@ -318,6 +318,7 @@ const MainApp = memo(() => {
   // DM panel state
   const [showMessages,   setShowMessages]   = useState(false);
   const [dmTargetUserId, setDmTargetUserId] = useState(null);
+  const [dmInitialTab,   setDmInitialTab]   = useState("chats");
   const [giftRecipient,  setGiftRecipient]  = useState(null);
 
   // Active call overlay
@@ -847,7 +848,12 @@ const MainApp = memo(() => {
   const handleTabChange = useCallback((newTab) => {
     if (newTab === "support")       { setShowSupport(true);       return; }
     if (newTab === "notifications") { setShowNotifications(true); return; }
-    if (newTab === "messages")      { setShowMessages(true);      return; }
+    if (newTab === "messages")      {
+      setShowMessages(true);
+      setDmInitialTab("chats");
+      setDmTargetUserId(null);
+      return;
+    }
     if (newTab === "trending") {
       if (isMobile) {
         setActiveTab("search");
@@ -886,7 +892,22 @@ const MainApp = memo(() => {
     setMountedTabs((p) => new Set([...p, "home"]));
   }, []);
 
-  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode, onNavigate: handleTabChange };
+  const handleOpenStatusFeed = useCallback(() => {
+    setShowMessages(true);
+    setDmInitialTab("updates");
+    setDmTargetUserId(null);
+  }, []);
+
+  const viewProps    = {
+    currentUser,
+    userId: user.id,
+    refreshTrigger,
+    deepLinkTarget,
+    themeMode,
+    setThemeMode,
+    onNavigate: handleTabChange,
+    onOpenDMUpdates: handleOpenStatusFeed,
+  };
   const showTrending = ["home", "search", "create", "account", "sports"].includes(activeTab);
 
   // ── Tab content ──────────────────────────────────────────────────────────
@@ -1311,8 +1332,9 @@ const MainApp = memo(() => {
         <Suspense fallback={null}>
           <DMMessagesView
             currentUser={currentUserNorm}
-            onClose={() => { setShowMessages(false); setDmTargetUserId(null); }}
+            onClose={() => { setShowMessages(false); setDmTargetUserId(null); setDmInitialTab("chats"); }}
             initialOtherUserId={dmTargetUserId}
+            initialTab={dmInitialTab}
             onNavigate={handleNotificationNavigate}
           />
         </Suspense>

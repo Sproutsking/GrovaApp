@@ -197,7 +197,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN DMMessagesView
 // ════════════════════════════════════════════════════════════════════════════
-const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }) => {
+const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, initialTab = "chats" }) => {
   const [tab,           setTab]           = useState("chats");
   const [view,          setView]          = useState("list");
   const [selectedConv,  setSelectedConv]  = useState(null);
@@ -228,6 +228,15 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }
   const initialized = useRef(false);
   const unsubList   = useRef(null);
   const notifyCh    = useRef(null);
+
+  useEffect(() => {
+    if (!initialTab) return;
+    setTab(initialTab);
+    setView("list");
+    setSelectedConv(null);
+    setActiveGroup(null);
+    setActiveCall(null);
+  }, [initialTab]);
 
   const uid   = currentUser?.id       || "";
   const uName = currentUser?.fullName || currentUser?.full_name || currentUser?.name || "User";

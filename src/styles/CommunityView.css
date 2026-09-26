@@ -8,6 +8,17 @@
    - On mobile:  position:fixed, fills viewport minus
      header (56px top) and bottom nav (56px bottom).
    - NOTHING outside this file is touched.
+
+   FIX (this version): .community-view used to compute its
+   own "sidebar width + gutter" guess — calc(6% + 5px + 280px) —
+   which didn't match the app's real .sidebar (300px, global.css)
+   or the offset WalletView's .wv-shell used (300px + 4%). Those
+   three independent guesses drifted apart at different viewport
+   widths, which is what produced the big dead gap between the
+   left nav and this panel. Now .community-view reads
+   var(--layout-left), the single shared offset defined once in
+   global.css (and kept in sync with the tablet-collapsed sidebar
+   there too), so it always lines up with everything else.
    ============================================ */
 
 /* ============================================
@@ -18,8 +29,10 @@
   position: fixed;
   /* Below app header */
   top: 56px;
-  /* Right of sidebar — mirrors sidebar's left + width */
-  left: calc(6% + 5px + 280px);
+  /* Right of sidebar — reads the shared offset from global.css so this
+     always matches .main-content-desktop and .wv-shell instead of
+     carrying its own separate guess. */
+  left: var(--layout-left);
   right: 0;
   bottom: 0;
   z-index: 10;           /* below sidebar and modals */
@@ -338,8 +351,11 @@ body.community-fullscreen {
 
 @media (max-width: 1024px) and (min-width: 769px) {
   .community-view {
-    /* Sidebar is collapsed to ~200px on tablet */
-    left: calc(6% + 5px + 200px);
+    /* Sidebar is collapsed to ~260px on tablet — this now tracks
+       global.css's tablet redefinition of --layout-left instead of
+       carrying its own separate 200px guess, so it can't drift out
+       of sync again. */
+    left: var(--layout-left);
   }
 
   .channels-bar { height: 52px; padding: 0 12px; }

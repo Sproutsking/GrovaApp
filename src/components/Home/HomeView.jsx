@@ -361,6 +361,7 @@ const HomeView = ({
   activeHomeTab,
   setActiveHomeTab,
   onNavigate,
+  onOpenDMUpdates,
 }) => {
   // [ULTRA-5] Pre-seed from SWR synchronously — frame 0 shows stale content
   const [posts,     setPosts]     = useState(() => swrVal("posts")   || readHomeCache("posts")   || []);
@@ -927,7 +928,7 @@ const HomeView = ({
           </div>
         )}
 
-        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => setStatusOverlayOpen(true)} />
+        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => onOpenDMUpdates?.()} />
         <FilterChip filter={feedFilter} onClear={onClearFilter} />
 
         {filterLoading && (

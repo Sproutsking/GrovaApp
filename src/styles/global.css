@@ -51,6 +51,10 @@ html *::-webkit-scrollbar {
 
 :root {
   color-scheme: dark;
+  --sidebar-w: 300px;
+  --trending-w: 340px;
+  --layout-left: calc(var(--sidebar-w) + 4vw);
+  --layout-right: calc(var(--trending-w) + 4vw);
   --bg: #000000;
   --bg-strong: #070707;
   --surface: rgba(255,255,255,0.04);
@@ -307,8 +311,8 @@ img, video {
   position: fixed;
   top: 56px;
   bottom: 0;
-  left:  calc(300px + 4vw);
-  right: calc(340px + 4vw);
+  left: var(--layout-left);
+  right: var(--layout-right);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -341,7 +345,7 @@ img, video {
   top: 56px;
   right: 4vw;
   bottom: 0;
-  width: 340px;
+  width: var(--trending-w);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
@@ -408,7 +412,7 @@ img, video {
   left: 0;
   top: 56px;
   bottom: 0;
-  width: 300px;
+  width: var(--sidebar-w);
   background: var(--bg);
   border-right: 1px solid var(--border);
   z-index: 50;
@@ -853,9 +857,15 @@ img, video {
    ========================================================================== */
 
 @media (max-width: 1024px) and (min-width: 769px) {
-  .sidebar          { width: 260px; }
-  .trending-sidebar { width: 260px; }
-  .main-content-desktop { left: calc(260px + 3vw); right: calc(260px + 3vw); }
+  :root {
+    --sidebar-w: 260px;
+    --trending-w: 260px;
+    --layout-left: calc(var(--sidebar-w) + 3vw);
+    --layout-right: calc(var(--trending-w) + 3vw);
+  }
+  .sidebar          { width: var(--sidebar-w); }
+  .trending-sidebar { width: var(--trending-w); }
+  .main-content-desktop { left: var(--layout-left); right: var(--layout-right); }
 }
 
 /* ==========================================================================
