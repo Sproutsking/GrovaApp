@@ -146,16 +146,26 @@ export function unregister() {
   navigator.serviceWorker
     .getRegistrations()
     .then((registrations) => {
-      registrations.forEach((reg) => {
+      const promises = registrations.map((reg) =>
         reg.unregister().then((success) => {
           if (success) console.log("[SWReg] Unregistered:", reg.scope);
-        });
-      });
+          return success;
+        }).catch(() => false),
+      );
+
+      return Promise.all(promises);
+    })
+    .then(() => {
       if ("caches" in window) {
-        caches.keys().then((keys) => keys
-          .filter((key) => key.startsWith("xeevia-"))
-          .forEach((key) => caches.delete(key)));
+        return caches.keys().then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key.startsWith("xeevia-") || key.startsWith("cloudinary-"))
+              .map((key) => caches.delete(key)),
+          ),
+        );
       }
+      return null;
     })
     .catch((err) => console.warn("[SWReg] unregister error:", err));
 }
