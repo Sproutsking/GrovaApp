@@ -588,17 +588,17 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
   const isDetail = view === "chat" || view === "call" || view === "group";
   const tabTitle = { chats: "Messages", updates: "Updates", calls: "Calls" }[tab];
 
-  const canShowChat = (
-    view === "chat" &&
-    selectedConv !== null &&
-    typeof selectedConv === "object" &&
-    typeof selectedConv.id === "string" &&
-    selectedConv.id.length > 0 &&
-    selectedConv.otherUser !== null &&
-    typeof selectedConv.otherUser === "object" &&
-    typeof selectedConv.otherUser.id === "string" &&
-    selectedConv.otherUser.id.length > 0
-  );
+  const canShowChat = view === "group"
+    ? Boolean(activeGroup?.id)
+    : view === "chat" &&
+      selectedConv !== null &&
+      typeof selectedConv === "object" &&
+      typeof selectedConv.id === "string" &&
+      selectedConv.id.length > 0 &&
+      selectedConv.otherUser !== null &&
+      typeof selectedConv.otherUser === "object" &&
+      typeof selectedConv.otherUser.id === "string" &&
+      selectedConv.otherUser.id.length > 0;
 
   return (
     <>
@@ -619,7 +619,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
         )}
 
         {/* Desktop sidebar rail */}
-        {(!isDetail || view === "chat") && (
+        {(!isDetail || view === "chat" || view === "group") && (
           <nav className="dmh-rail">
             <div className="dmh-rail-logo"><div className="dmh-rail-dot"/></div>
             {NAV.map(({ id, label, Icon }) => {
@@ -687,7 +687,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 
           {/* Active call */}
           {view === "call" && activeCall && (
-            <div className="dmh-screen">
+            <div className="dmh-screen dmh-chat-screen">
               <ActiveCall call={activeCall} onEnd={endCall} currentUser={norm}/>
             </div>
           )}
@@ -714,7 +714,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 
           {/* Group chat */}
           {view === "group" && activeGroup?.id && (
-            <div className="dmh-screen">
+            <div className="dmh-screen dmh-chat-screen">
               <GroupChatView
                 group={activeGroup}
                 currentUser={norm}

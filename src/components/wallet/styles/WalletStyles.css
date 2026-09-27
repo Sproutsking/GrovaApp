@@ -21,12 +21,13 @@
   --warning:   #f59e0b;
 
   --black:     var(--panel);
+  --surface-border: rgba(148,163,184,0.42);
   --b1:        var(--panel-strong);
   --b2:        var(--surface);
   --b3:        var(--surface-strong);
   --br1:       var(--surface-border);
-  --br2:       rgba(132,204,22,0.28);
-  --br3:       rgba(132,204,22,0.4);
+  --br2:       rgba(132,204,22,0.36);
+  --br3:       rgba(132,204,22,0.5);
 
   --text:      var(--text);
   --t2:        var(--text-secondary);
@@ -43,9 +44,10 @@
 }
 .theme-light .wv-shell,
 .theme-light .wallet-shell {
+  --surface-border: rgba(71,85,105,0.4);
   --br1: var(--surface-border);
-  --br2: rgba(74,105,49,0.3);
-  --br3: rgba(74,105,49,0.42);
+  --br2: rgba(74,105,49,0.4);
+  --br3: rgba(74,105,49,0.52);
   --t3: rgba(15,23,42,0.35);
   --t4: rgba(15,23,42,0.18);
 }

@@ -293,7 +293,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-root {
           flex: 1;
           overflow-y: auto;
-          padding: 10px 12px 20px;
+          padding: 12px clamp(16px, 2vw, 28px) 24px;
           position: relative;
           background: var(--bg);
           color: var(--text);
@@ -368,7 +368,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         /* Grid */
         .disc-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
           gap: 10px;
           position: relative;
           z-index: 1;
@@ -492,7 +492,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-empty p { color: var(--text-secondary); font-size: 12px; margin: 0; }
 
         @media (max-width: 768px) {
-          .disc-root { padding: 7px 9px 20px; }
+          .disc-root { padding: 8px 12px 20px; }
           .disc-grid { grid-template-columns: 1fr; gap: 8px; }
         }
         @media (max-width: 360px) {

@@ -5,6 +5,10 @@
 /* ── Card shell ──────────────────────────────────────────────────────────────── */
 .xv-reel-card {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   background: #080808;
   border-radius: 20px;
   overflow: hidden;
@@ -48,7 +52,9 @@
   position: relative;
   width: 100%;
   aspect-ratio: 9 / 14;
-  height: 70vh;
+  height: auto;
+  max-height: min(78svh, 900px);
+  min-height: 0;
   background: var(--bg-strong);
   cursor: pointer;
   overflow: hidden;
@@ -544,8 +550,7 @@
   }
 
   .xv-reel-video-wrap {
-    aspect-ratio: 9 / 16;
-    max-height: 82vh;
+    max-height: min(82svh, 900px);
     height: auto;
   }
 

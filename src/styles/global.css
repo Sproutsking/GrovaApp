@@ -136,21 +136,13 @@ html *::-webkit-scrollbar {
   --elite-rank-2-bg: linear-gradient(135deg, #d1d5db, #9ca3af);
   --elite-rank-3-bg: linear-gradient(135deg, #f97316, #ea580c);
 
-  /* ────────────────────────────────────────────────────────────────
-     LAYOUT OFFSETS — single source of truth.
-     Sidebar is 300px, trending sidebar is 340px, gutter is 4vw on
-     each side (matches the actual .sidebar / .trending-sidebar rules
-     below). ANY fixed-position panel that needs to sit "to the right
-     of the left sidebar" or "to the left of the trending sidebar"
-     reads these two variables instead of recalculating its own
-     width + gutter guess. This is what CommunityView.css and
-     WalletView.jsx should now use for their shell's left/right.
-     ──────────────────────────────────────────────────────────────── */
-  --sidebar-w: 300px;
-  --trending-w: 340px;
-  --layout-gutter: 4vw;
+  /* One bounded desktop frame with fluid, capped side columns. */
+  --app-frame-left: 0px;
+  --sidebar-w: clamp(220px, 23vw, 300px);
+  --trending-w: 0px;
+  --layout-gutter: clamp(16px, 2vw, 28px);
   --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
-  --layout-right: calc(var(--trending-w) + var(--layout-gutter));
+  --layout-right: max(0px, calc(100vw - var(--sidebar-w) - var(--layout-gutter) - 800px));
 
   /* ────────────────────────────────────────────────────────────────
     Shared left edge for overlays that should begin where Home's
@@ -274,7 +266,7 @@ img, video {
 
 .desktop-header {
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: 0; left: var(--app-frame-left); right: var(--app-frame-left);
   height: 56px;
   background: var(--surface-strong);
   backdrop-filter: blur(24px);
@@ -319,7 +311,7 @@ img, video {
 .desktop-layout {
   position: fixed;
   top: 56px;
-  left: 0; right: 0; bottom: 0;
+  left: var(--app-frame-left); right: var(--app-frame-left); bottom: 0;
   background: var(--bg);
   overflow: hidden;
 }
@@ -333,6 +325,7 @@ img, video {
   bottom: 0;
   left:  var(--layout-left);
   right: var(--layout-right);
+  min-width: min(520px, calc(100vw - var(--layout-left) - var(--layout-right)));
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -362,9 +355,9 @@ img, video {
 .trending-sidebar {
   position: fixed;
   top: 56px;
-  right: 4vw;
+  right: var(--app-frame-left);
   bottom: 0;
-  width: 340px;
+  width: var(--trending-w);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
@@ -428,52 +421,30 @@ img, video {
 
 .sidebar {
   position: fixed;
-  left: 0;
+  left: var(--app-frame-left);
   top: 56px;
   bottom: 0;
-  width: 300px;
+  width: var(--sidebar-w);
   background: var(--bg);
   border-right: 1px solid var(--border);
   z-index: 50;
   overflow-y: auto;
 }
 
-/* Keep the desktop product canvas readable on large monitors. The app itself
-   stays centered instead of stretching across an iMac-sized viewport. */
-@media (min-width: 1440px) {
-  .desktop-header {
-    left: calc((100vw - 1440px) / 2);
-    right: calc((100vw - 1440px) / 2);
-  }
-
-  .desktop-layout {
-    left: calc((100vw - 1440px) / 2);
-    right: calc((100vw - 1440px) / 2);
-  }
-
-  /* Re-derive the shared offsets for the clamped canvas so every
-     consumer (main-content-desktop, CommunityView, WalletView) stays
-     in sync above 1440px too — this is the piece that used to only
-     patch .main-content-desktop/.trending-sidebar/.sidebar directly
-     and silently left CommunityView.css / WalletView.jsx pointed at
-     the un-clamped calc(), which was the other half of the drift. */
+@media (min-width: 1200px) and (max-width: 1439px) {
   :root {
+    --trending-w: clamp(240px, 22vw, 320px);
+    --layout-right: calc(var(--trending-w) + var(--layout-gutter));
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --app-frame-left: calc((100vw - 1440px) / 2);
+    --sidebar-w: 300px;
+    --trending-w: 320px;
     --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + 28px);
     --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + 28px);
-     --edge-left: var(--layout-left);
-  }
-
-  .main-content-desktop {
-    left: var(--layout-left);
-    right: var(--layout-right);
-  }
-
-  .trending-sidebar {
-    right: calc((100vw - 1440px) / 2 + 28px);
-  }
-
-  .sidebar {
-    left: calc((100vw - 1440px) / 2);
   }
 }
 
@@ -556,6 +527,8 @@ img, video {
 .home-tabs {
   position: sticky; top: 0;
   display: flex; gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
   background: var(--bg);
   border-bottom: 1px solid var(--accent-border);
   z-index: 50;
@@ -563,10 +536,14 @@ img, video {
   max-width: 680px;
   width: 100%;
 }
+.home-tabs::-webkit-scrollbar { display: none; }
 
 .home-tab {
-  flex: 1; padding: 12px 24px;
+  flex: 1 0 auto;
+  min-width: max-content;
+  padding: 12px 16px;
   font-weight: 600;
+  white-space: nowrap;
   border: 1px solid var(--surface-border);
   background: var(--surface);
   color: var(--text-secondary); cursor: pointer;
@@ -887,24 +864,13 @@ img, video {
    26. TABLET
    ========================================================================== */
 
-@media (max-width: 1024px) and (min-width: 769px) {
-  .sidebar          { width: 260px; }
-  .trending-sidebar { width: 260px; }
-  .main-content-desktop { left: var(--layout-left); right: var(--layout-right); }
-}
+@media (max-width: 1199px) and (min-width: 769px) {
+  :root {
+    --trending-w: 0px;
+    --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
+    --layout-right: max(0px, calc(100vw - var(--sidebar-w) - var(--layout-gutter) - 800px));
+    --edge-left: var(--layout-left);
+  }
 
-/* ==========================================================================
-   27. ULTRA-WIDE
-   ========================================================================== */
-
-@media (min-width: 1920px) {
-  .desktop-layout { max-width: 1800px; margin: 0 auto; }
-}
-
-/* ── Community chat ── */
-@media (max-width: 768px) {
-  body.community-chat-open .mbn { display: none !important; }
-  body.community-chat-open .community-view,
-  body.community-chat-open .community-content,
-  body.community-chat-open .chat-tab { height: 92dvh; max-height: 92dvh; }
+  .trending-sidebar { display: none; }
 }

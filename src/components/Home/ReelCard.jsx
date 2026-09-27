@@ -474,6 +474,7 @@ const ReelCard = ({
         <div
           ref={containerRef}
           className="xv-reel-video-wrap"
+          style={{ aspectRatio: videoAspectRatio }}
           onClick={handleVideoClick}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}

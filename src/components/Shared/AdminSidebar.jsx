@@ -23,7 +23,7 @@ const STYLES = `
     position: fixed;
     z-index: 99999;
     font-family: 'Syne', sans-serif;
-    left: 4%;
+    left: var(--app-frame-left, 0px);
     bottom: 0;
     width: min(300px, calc(100vw - 28px));
     box-shadow: 14px 0 44px rgba(0,0,0,0.2), inset -1px 0 rgba(255,255,255,0.035);

@@ -427,7 +427,7 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
 
   const {
     playing, isLoading, videoError, duration, bufferedProgress, showControls,
-    playedPct, progressBarRef, formatTime, getObjectFit, togglePlay,
+    playedPct, aspectRatio, progressBarRef, formatTime, getObjectFit, togglePlay,
     handleLoadStart, handleLoadedMetadata, handleTimeUpdate, handleProgress,
     handleError: hookError, handleEnded, handleProgressClick,
     handleProgressMouseDown, touchHandlers, mouseHandlers, currentTime,
@@ -447,6 +447,7 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
   return (
     <div
       className="gvp-rv-wrap"
+      style={{ "--gvp-ratio": `${aspectRatio}` }}
       {...touchHandlers}
       {...mouseHandlers}
       onClick={(e) => {
@@ -828,7 +829,7 @@ const PostCard = ({
                 className="gvp-media-wrap"
                 onTouchStart={onTS}
                 onTouchMove={onTM}
-                onTouchEnd={(e) => { onTE(); dtap(e); }}
+                onTouchEnd={onTE}
               >
                 <div className="gvp-cinematic" />
 
@@ -949,7 +950,7 @@ const PostCard = ({
 // ════════════════════════════════════════════════════════════════════════════════
 const CSS = `
 /* ── Card shell ── */
-.gvp-card{position:relative;background:#080808;border-radius:20px;overflow:hidden;border:1px solid var(--surface-border);transition:none;box-shadow:0 8px 32px rgba(0,0,0,.45);margin-bottom:10px;contain:layout style;}
+.gvp-card{position:relative;width:100%;min-width:0;max-width:100%;box-sizing:border-box;background:#080808;border-radius:20px;overflow:hidden;border:1px solid var(--surface-border);transition:none;box-shadow:0 8px 32px rgba(0,0,0,.45);margin-bottom:10px;contain:layout style;}
 @keyframes gvpShimmer{0%{background-position:-200% center}100%{background-position:200% center}}
 .gvp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(132,204,22,0) 15%,rgba(163,230,53,.95) 40%,#d4f576 50%,rgba(163,230,53,.95) 60%,rgba(132,204,22,0) 85%,transparent 100%);background-size:200% 100%;opacity:0;z-index:20;pointer-events:none;transition:opacity .3s ease;}
 .gvp-card.gvp-hovered::before{opacity:0;animation:none;}
@@ -984,7 +985,7 @@ const CSS = `
 .gvp-expand-inline{padding:0;align-self:flex-start;}
 
 /* ── Media wrapper ── */
-.gvp-media-wrap{position:relative;margin-top:4px;overflow:hidden;}
+.gvp-media-wrap{position:relative;width:100%;min-width:0;max-width:100%;margin-top:4px;overflow:hidden;}
 .gvp-slide{display:none;width:100%;}
 .gvp-slide.show{display:block;}
 .gvp-cinematic{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0%,transparent 16%,transparent 60%,rgba(0,0,0,.42) 78%,rgba(0,0,0,.8) 100%);}
@@ -993,8 +994,8 @@ const CSS = `
 .gvp-media-cat span:last-child{font-size:10px;font-weight:800;letter-spacing:.07em;line-height:1;}
 
 /* ── Image box + skeleton ── */
-.gvp-img-box{width:100%;background:#0a0a0a;line-height:0;overflow:hidden;position:relative;min-height:180px;display:flex;align-items:center;justify-content:center;}
-.gvp-img{display:block;width:100%;height:auto;max-height:75vh;object-fit:contain;background:transparent;cursor:zoom-in;position:relative;z-index:1;}
+.gvp-img-box{width:100%;min-width:0;max-width:100%;background:#0a0a0a;line-height:0;overflow:hidden;position:relative;min-height:180px;display:flex;align-items:center;justify-content:center;}
+.gvp-img{display:block;width:100%;height:auto;max-height:min(78svh,960px);object-fit:contain;background:transparent;cursor:zoom-in;position:relative;z-index:1;}
 @keyframes gvpSkPulse{0%,100%{opacity:.45}50%{opacity:.15}}
 .gvp-img-skeleton{position:absolute;inset:0;background:linear-gradient(135deg,#111 0%,#181818 50%,#111 100%);background-size:200% 200%;animation:gvpSkPulse 1.4s ease-in-out infinite;border-radius:inherit;z-index:0;}
 .gvp-err{min-height:140px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.02);color:rgba(255,255,255,.28);font-size:13px;gap:8px;border-radius:inherit;}
@@ -1019,7 +1020,7 @@ const CSS = `
 .gvp-lightbox-img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;}
 
 /* ══ Video (gvp-rv-*) ══ */
-.gvp-rv-wrap{position:relative!important;width:100%!important;aspect-ratio:9/14!important;height:70vh!important;background:#000!important;cursor:pointer!important;overflow:hidden!important;display:block!important;}
+.gvp-rv-wrap{position:relative!important;width:100%!important;min-width:0!important;max-width:100%!important;aspect-ratio:var(--gvp-ratio,9/16)!important;height:auto!important;max-height:min(78svh,900px)!important;min-height:0!important;background:#000!important;cursor:pointer!important;overflow:hidden!important;display:block!important;}
 .gvp-rv-video{position:absolute!important;top:0!important;left:0!important;width:100%!important;height:100%!important;display:block!important;background:#000!important;}
 .gvp-rv-cinematic{position:absolute!important;inset:0!important;background:linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 18%,transparent 55%,rgba(0,0,0,.5) 78%,rgba(0,0,0,.88) 100%)!important;pointer-events:none!important;z-index:2!important;}
 .gvp-rv-loading{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;z-index:10!important;}
@@ -1056,8 +1057,8 @@ const CSS = `
   .gvp-header{padding:8px 12px 5px;gap:4px;}
   .gvp-follow-btn span{display:none;}
   .gvp-follow-btn{padding:5px 7px;border-radius:50%;width:30px;height:30px;justify-content:center;}
-  .gvp-media-wrap{width:100vw;position:relative;left:50%;transform:translateX(-50%);margin-top:4px;border-radius:0;}
-  .gvp-img{max-height:80svh;cursor:default;}
+  .gvp-media-wrap{width:100%;position:relative;left:auto;transform:none;margin-top:4px;border-radius:0;}
+  .gvp-img{max-height:min(82svh,960px);cursor:default;}
   .gvp-nav{display:none;}
   .gvp-text{padding:0 12px;font-size:13.5px;}
   .gvp-cap{padding:0 12px;}
@@ -1066,7 +1067,7 @@ const CSS = `
   .gvp-lightbox-content{max-width:100vw;max-height:100vh;}
   .gvp-lightbox-img{max-width:100vw;max-height:100vh;border-radius:0;}
   .gvp-lightbox-close{top:18px;right:18px;}
-  .gvp-rv-wrap{aspect-ratio:9/16!important;max-height:82svh!important;height:auto!important;}
+  .gvp-rv-wrap{max-height:min(82svh,900px)!important;height:auto!important;}
   .gvp-rv-play-ring{width:52px!important;height:52px!important;}
   .gvp-rv-icon-btn{width:34px!important;height:34px!important;}
   .gvp-rv-time-badge{font-size:9px!important;padding:2px 5px!important;}

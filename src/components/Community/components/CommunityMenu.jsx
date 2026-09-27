@@ -418,7 +418,7 @@ const CommunityMenu = ({
         .cm-content::-webkit-scrollbar{width:5px}
         .cm-content::-webkit-scrollbar-thumb{background:var(--accent-bg-strong);border-radius:3px}
 
-        .cm-section{padding:10px}
+        .cm-section{padding:12px 24px}
         .cm-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
         .cm-stat{padding:14px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;display:flex;align-items:center;gap:10px;transition:all .25s}
         .cm-stat:hover{border-color:var(--accent-border);transform:translateY(-1px)}

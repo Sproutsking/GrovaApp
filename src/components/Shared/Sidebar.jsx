@@ -276,10 +276,10 @@ const Sidebar = ({
 
         .sidebar {
           position: fixed;
-          left: 4%;
+          left: var(--app-frame-left, 0px);
           top: 56px;
           bottom: 0;
-          width: 300px;
+          width: var(--sidebar-w, 300px);
           overflow: hidden;
           background:
             linear-gradient(155deg, rgba(255,255,255,0.035), transparent 24%),

@@ -99,6 +99,12 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   // This prevents the root header/bottom nav from disappearing by default on
   // mobile when the user is elsewhere in the app.
   useEffect(() => {
+    if (!isMobile) return undefined;
+    document.body.classList.add("community-layout-active");
+    return () => document.body.classList.remove("community-layout-active");
+  }, [isMobile]);
+
+  useEffect(() => {
     if (!isMobile) {
       document.body.classList.remove("community-fullscreen");
       return undefined;

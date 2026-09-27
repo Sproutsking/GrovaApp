@@ -23,8 +23,8 @@
      and deliberately leaves breathing room). Community opens full
      right after the nav sidebar with nothing in between. */
   left: var(--edge-left);
-  /* Full to the screen edge — no reserved trending-sidebar space. */
-  right: 0;
+  /* Full to the centered app-frame edge, without reserving Trending space. */
+  right: var(--app-frame-left, 0px);
   bottom: 0;
   z-index: 10;           /* below sidebar and modals */
 
@@ -39,6 +39,10 @@ body.community-fullscreen {
 }
 
 @media (max-width: 768px) {
+  body.community-layout-active .main-content-mobile {
+    transform: none;
+  }
+
   body.community-fullscreen .mh-header,
   body.community-fullscreen .mbn {
     display: none !important;

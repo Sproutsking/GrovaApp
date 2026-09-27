@@ -134,7 +134,7 @@ const LAYOUT_CSS = `
     position: fixed;
     top: 56px;
     left: var(--edge-left, 300px);
-    right: 0;
+    right: var(--app-frame-left, 0px);
     bottom: 0;
     z-index: 49;
     display: flex;
@@ -199,13 +199,13 @@ const LAYOUT_CSS = `
     border-radius: 13px;
     padding: 13px 14px;
     margin-bottom: 14px;
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
     background: rgba(255,255,255,0.025);
     flex-shrink: 0;
   }
-  .wvs-card.lime { border-color: rgba(132,204,22,0.18);  background: rgba(132,204,22,0.03); }
-  .wvs-card.gold { border-color: rgba(212,168,71,0.18);  background: rgba(212,168,71,0.03); }
-  .wvs-card.cyan { border-color: rgba(34,211,238,0.16);  background: rgba(34,211,238,0.03); }
+  .wvs-card.lime { border-color: rgba(132,204,22,0.3);  background: rgba(132,204,22,0.03); }
+  .wvs-card.gold { border-color: rgba(212,168,71,0.3);  background: rgba(212,168,71,0.03); }
+  .wvs-card.cyan { border-color: rgba(34,211,238,0.28);  background: rgba(34,211,238,0.03); }
 
   .wvs-title {
     font-size: 11px;

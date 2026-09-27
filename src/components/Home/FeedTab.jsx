@@ -413,8 +413,8 @@ const VirtualFeed = React.memo(({
         return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
       })}
       <style>{`
-        .vf-list{--vf-item-gap:14px;display:flex;flex-direction:column;position:relative;contain:layout paint;}
-        .vf-item,.vf-placeholder{margin-bottom:var(--vf-item-gap);}
+        .vf-list{--vf-item-gap:14px;display:flex;flex-direction:column;position:relative;contain:layout paint;width:100%;min-width:0;}
+        .vf-item,.vf-placeholder{width:100%;min-width:0;max-width:100%;margin-bottom:var(--vf-item-gap);}
         .vf-item{contain:layout style;}
         .vf-placeholder{position:relative;overflow:hidden;}
         .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}

@@ -35,21 +35,21 @@ export const GLOBAL_STYLES = `
     --s1:           rgba(255,255,255,0.028);
     --s2:           rgba(255,255,255,0.048);
     --s3:           rgba(255,255,255,0.072);
-    --b1:           rgba(255,255,255,0.055);
-    --b2:           rgba(255,255,255,0.09);
-    --b3:           rgba(255,255,255,0.14);
+    --b1:           rgba(255,255,255,0.12);
+    --b2:           rgba(255,255,255,0.18);
+    --b3:           rgba(255,255,255,0.24);
 
     /* Brand */
     --lime:         #a3e635;
     --lime-d:       #84cc16;
     --lime-b:       #c8f564;
     --lime-glow:    rgba(163,230,53,0.12);
-    --lime-ring:    rgba(163,230,53,0.22);
+    --lime-ring:    rgba(163,230,53,0.34);
 
     /* Accent */
     --gold:         #d4a847;
     --gold-d:       rgba(212,168,71,0.1);
-    --gold-ring:    rgba(212,168,71,0.24);
+    --gold-ring:    rgba(212,168,71,0.34);
 
     /* Text */
     --t1:           #eef2ec;
