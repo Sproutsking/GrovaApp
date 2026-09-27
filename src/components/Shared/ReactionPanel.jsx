@@ -34,6 +34,7 @@ import LikeModel from '../../models/LikeModel';
 import CommentModal from '../Modals/CommentModal';
 import ShareModal from '../Modals/ShareModal';
 import SaveFolderModal from '../Modals/SaveFolderModal';
+import LikeBurst from './LikeBurst';
 import { supabase } from '../../services/config/supabase';
 import {
   processEngagement,
@@ -139,11 +140,24 @@ const ReactionPanel = ({
   const [epError,        setEpError]        = useState(null);
   const [isLiking,       setIsLiking]       = useState(false);
   const [isSaving,       setIsSaving]       = useState(false);
+  const [likeBurst,      setLikeBurst]      = useState(null);
 
   const likeRef     = useRef(null);
   const saveRef     = useRef(null);
   const epErrTimer  = useRef(null);
   const viewCleanup = useRef(null);
+  const likeBurstId = useRef(0);
+
+  const burstLike = useCallback((event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const hasPointer = Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (event.clientX !== 0 || event.clientY !== 0);
+    likeBurstId.current += 1;
+    setLikeBurst({
+      id: likeBurstId.current,
+      x: hasPointer ? event.clientX : rect.left + rect.width / 2,
+      y: hasPointer ? event.clientY : rect.top + rect.height / 2,
+    });
+  }, []);
 
   // ── Mount: resolve liked/saved, start view timer ──────────────────────────
   useEffect(() => {
@@ -197,6 +211,7 @@ const ReactionPanel = ({
 
     // ── Unlike: no EP cost, just remove the like ─────────────────────────
     if (liked) {
+      burstLike(e);
       setLiked(false);
       setLikeCount(c => Math.max(0, c - 1));
 
@@ -219,6 +234,7 @@ const ReactionPanel = ({
     }
 
     // Optimistic UI
+    burstLike(e);
     setLiked(true);
     setLikeCount(c => c + 1);
 
@@ -252,7 +268,7 @@ const ReactionPanel = ({
     }
 
     setIsLiking(false);
-  }, [currentUser?.id, liked, isLiking, content, showEpError]);
+  }, [currentUser?.id, liked, isLiking, content, showEpError, burstLike]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // COMMENT
@@ -374,6 +390,7 @@ const ReactionPanel = ({
           {epError}
         </div>
       )}
+      {likeBurst && <LikeBurst key={likeBurst.id} x={likeBurst.x} y={likeBurst.y} onDone={() => setLikeBurst(null)} />}
 
       <div
         className={[

@@ -276,6 +276,8 @@ const CSS = `
   .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
   .ov-section-title{font-size:10.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
   .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);} .ov-section-title:empty{display:none;}
+  .ov-overview{width:100%;min-height:100%;padding:12px 20px 32px;box-sizing:border-box;}
+  @media(max-width:767px){.ov-overview{padding:10px 14px 28px;}}
 
   /* ── Action rows ─────────────────────────────────────────────── */
   /* Row 1: 4 primary actions always in one line */
@@ -584,7 +586,7 @@ export default function OverviewTab({
   const secondaryCols = secondaryActions.length === 3 ? "three-cols" : "";
 
   return (
-    <div className="view-enter">
+    <div className="view-enter ov-overview">
       <style>{CSS}</style>
 
       <BalanceCard

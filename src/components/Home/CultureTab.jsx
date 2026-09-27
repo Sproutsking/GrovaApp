@@ -58,7 +58,6 @@ const CultureTab = React.forwardRef(({
   onAuthorClick,
   onActionMenu,
   onComment,
-  isActive = false,
 }, ref) => {
   const [selectedCategory, setSelectedCategory] = useState("trending");
   const [content, setContent] = useState([]);
@@ -70,9 +69,8 @@ const CultureTab = React.forwardRef(({
 
   // ── Load culture content for a category ────────────────────────────────────
   useEffect(() => {
-    if (!isActive) return;
     loadCultureContent(selectedCategory, 0);
-  }, [selectedCategory, isActive]);
+  }, [selectedCategory]);
 
   const loadCultureContent = useCallback(async (category, off) => {
     setLoading(true);

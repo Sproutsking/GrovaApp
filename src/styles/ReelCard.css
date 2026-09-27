@@ -8,7 +8,7 @@
   background: #080808;
   border-radius: 20px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--surface-border);
   transition: none;
   box-shadow: 0 0 0 0 rgba(132, 204, 22, 0),
     0 8px 32px var(--shadow);
@@ -17,7 +17,7 @@
 /* Hovered state neutralized to prevent card movement in feeds */
 .xv-reel-card.hovered {
   transform: none;
-  border-color: rgba(255,255,255,0.09);
+  border-color: var(--surface-border);
   box-shadow: 0 0 0 0 rgba(132, 204, 22, 0),
     0 8px 32px var(--shadow);
 }

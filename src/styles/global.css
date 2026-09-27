@@ -55,19 +55,19 @@ html *::-webkit-scrollbar {
   --bg-strong: #070707;
   --surface: rgba(255,255,255,0.04);
   --surface-strong: rgba(255,255,255,0.05);
-  --surface-border: rgba(255,255,255,0.08);
+  --surface-border: rgba(132,204,22,0.2);
   --surface-elevated: #111111;
   --surface-muted: rgba(255,255,255,0.03);
   --panel: #111111;
   --panel-strong: #0b0b0b;
   --panel-soft: rgba(255,255,255,0.06);
   --input-bg: #0f0f0f;
-  --input-border: rgba(255,255,255,0.1);
+  --input-border: rgba(132,204,22,0.2);
   --input-border-focus: rgba(132,204,22,0.45);
   --text: #f5f5f5;
   --text-secondary: #a3a3a3;
   --text-muted: #6b7280;
-  --border: #1a1a1a;
+  --border: #29351f;
   --accent: #84cc16;
   --accent-strong: #65a30d;
   --accent-gradient: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
@@ -90,11 +90,11 @@ html *::-webkit-scrollbar {
   --surface-highlight-strong: rgba(255,255,255,0.05);
   --surface-overlay: rgba(255,255,255,0.04);
   --glass: rgba(15,23,42,0.75);
-  --glass-border: rgba(255,255,255,0.18);
+  --glass-border: rgba(132,204,22,0.22);
   --overlay: rgba(0,0,0,0.95);
   --overlay-secondary: rgba(0,0,0,0.18);
   --modal-overlay: rgba(0,0,0,0.85);
-  --deck-border: rgba(148,163,184,0.15);
+  --deck-border: rgba(132,204,22,0.2);
   --home-tab-active-bg: linear-gradient(136deg, rgba(0,0,0,0.2), #65a30d, rgba(0,0,0,0.2));
   --danger: #ff4444;
   --danger-bg: rgba(255,68,68,0.15);
@@ -153,19 +153,12 @@ html *::-webkit-scrollbar {
   --layout-right: calc(var(--trending-w) + var(--layout-gutter));
 
   /* ────────────────────────────────────────────────────────────────
-     EDGE-TO-EDGE OFFSET — for panels that must open flush against
-     the sidebar with NO gutter and run to the screen edge with NO
-     reserved trending-sidebar space (Community, Wallet). This is
-     deliberately separate from --layout-left/--layout-right above:
-     those two exist to give .main-content-desktop and
-     .trending-sidebar breathing room, which is exactly what
-     full-bleed panels must NOT have. --edge-left is defined purely
-     off --sidebar-w (no +gutter term), so it inherits the tablet
-     collapse and the 1440px clamp automatically wherever
-     --sidebar-w changes, with no per-breakpoint duplication needed
-     in this file or in CommunityView.css / WalletView.jsx.
+    Shared left edge for overlays that should begin where Home's
+    main content begins. Keeping this tied to --layout-left makes
+    Community and Wallet match the rendered navigation/content
+    spacing at every desktop breakpoint.
      ──────────────────────────────────────────────────────────────── */
-  --edge-left: var(--sidebar-w);
+  --edge-left: var(--layout-left);
 }
 
 .theme-dark {
@@ -178,19 +171,19 @@ html *::-webkit-scrollbar {
   --bg-strong: #ffffff;
   --surface: rgba(15,23,42,0.04);
   --surface-strong: rgba(15,23,42,0.06);
-  --surface-border: rgba(148,163,184,0.22);
+  --surface-border: rgba(74,105,49,0.26);
   --surface-elevated: #ffffff;
   --surface-muted: rgba(15,23,42,0.03);
   --panel: #ffffff;
   --panel-strong: #f8fafc;
   --panel-soft: rgba(15,23,42,0.06);
   --input-bg: #ffffff;
-  --input-border: rgba(15,23,42,0.1);
+  --input-border: rgba(74,105,49,0.24);
   --input-border-focus: rgba(22,163,74,0.45);
   --text: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --border: #e2e8f0;
+  --border: #d5dfcc;
   --accent: #16a34a;
   --accent-strong: #15803d;
   --accent-gradient: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
@@ -213,11 +206,11 @@ html *::-webkit-scrollbar {
   --surface-highlight: rgba(15,23,42,0.02);
   --surface-highlight-strong: rgba(15,23,42,0.05);
   --glass: rgba(255,255,255,0.78);
-  --glass-border: rgba(15,23,42,0.1);
+  --glass-border: rgba(74,105,49,0.22);
   --overlay: rgba(255,255,255,0.96);
   --overlay-secondary: rgba(0,0,0,0.08);
   --modal-overlay: rgba(0,0,0,0.85);
-  --deck-border: rgba(148,163,184,0.15);
+  --deck-border: rgba(74,105,49,0.22);
   --home-tab-active-bg: linear-gradient(136deg, rgba(15,23,42,0.08), #65a30d, rgba(15,23,42,0.08));
   --danger: #ff4444;
   --danger-bg: rgba(255,68,68,0.15);
@@ -350,7 +343,6 @@ img, video {
   background: var(--bg);
   padding-bottom: 80px;
   will-change: scroll-position;
-  transform: translateZ(0);
 }
 
 .main-content-desktop > * {
@@ -468,11 +460,7 @@ img, video {
   :root {
     --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + 28px);
     --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + 28px);
-    /* Full-bleed panels clamp with the sidebar itself (which moves to
-       calc((100vw - 1440px) / 2) below), not with the +28px gutter
-       main-content-desktop gets — so they stay glued to its right
-       edge instead of floating a gutter's width away from it. */
-    --edge-left: calc((100vw - 1440px) / 2 + var(--sidebar-w));
+     --edge-left: var(--layout-left);
   }
 
   .main-content-desktop {

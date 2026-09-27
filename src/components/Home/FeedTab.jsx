@@ -52,9 +52,9 @@ const IS_MID  = _ect === "3g";
 const IS_FAST = !IS_SLOW && !IS_MID;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_SLOW ? 8 : IS_MID ? 12 : 18;
-const PRELOAD_WINDOW = IS_SLOW ? 4 : IS_MID ? 6 : 8;
-const VIDEO_PRELOAD_W = IS_SLOW ? 1 : IS_MID ? 2 : 3;
+const RENDER_RADIUS  = IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const PRELOAD_WINDOW = IS_SLOW ? 12 : IS_MID ? 20 : 30;
+const VIDEO_PRELOAD_W = IS_SLOW ? 2 : IS_MID ? 3 : 4;
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
@@ -62,14 +62,11 @@ const IMG_Q = IS_SLOW ? "auto:low" : "auto:good";
 
 // [ARCH-2] Three-tier preload engine
 const TIER = { CRITICAL: 0, URGENT: 1, BATCH: 2 };
-const _SLOTS = {
-  [TIER.CRITICAL]: IS_FAST ? 12 : IS_MID ? 6 : 3,
-  [TIER.URGENT]:   IS_FAST ?  8 : IS_MID ? 4 : 2,
-  [TIER.BATCH]:    IS_FAST ?  4 : IS_MID ? 2 : 1,
-};
 const _queues  = { [TIER.CRITICAL]: [], [TIER.URGENT]: [], [TIER.BATCH]: [] };
 const _done    = new Set();
+const _queued  = new Set();
 const _flying  = { [TIER.CRITICAL]: 0, [TIER.URGENT]: 0, [TIER.BATCH]: 0 };
+const _maxFlying = IS_SLOW ? 2 : IS_MID ? 4 : 6;
 const _headSet = new Set();
 let   _idleHandle = null;
 
@@ -99,7 +96,10 @@ function preloadPost(post, tier = TIER.BATCH) {
     post.image_ids.filter(Boolean).forEach(id => {
       try {
         const url = mediaUrlService.getImageUrl(id, { width: IMG_W, quality: IMG_Q, format: "auto" });
-        if (url && !_done.has(url)) _queues[tier2].push(url);
+        if (url && !_done.has(url) && !_queued.has(url)) {
+          _queued.add(url);
+          _queues[tier2].push(url);
+        }
       } catch {}
     });
   }
@@ -108,16 +108,33 @@ function preloadPost(post, tier = TIER.BATCH) {
 
 function _drain() {
   if (_idleHandle) return;
-  _idleHandle = requestIdleCallback(() => {
+  const schedule = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 80));
+  _idleHandle = schedule(() => {
     _idleHandle = null;
-    for (const t of [TIER.CRITICAL, TIER.URGENT, TIER.BATCH]) {
-      while (_flying[t] < _SLOTS[t] && _queues[t].length) {
-        const url = _queues[t].shift();
-        _flying[t]++;
-        _preloadImg(url).then(() => { _flying[t]--; _drain(); }).catch(() => { _flying[t]--; _drain(); });
-      }
+    while (Object.values(_flying).reduce((sum, count) => sum + count, 0) < _maxFlying) {
+      const tier = [TIER.CRITICAL, TIER.URGENT, TIER.BATCH].find((priority) => _queues[priority].length);
+      if (tier === undefined) break;
+      const url = _queues[tier].shift();
+      _flying[tier]++;
+      _preloadImg(url)
+        .then(() => _done.add(url))
+        .finally(() => {
+          _queued.delete(url);
+          _flying[tier]--;
+          _drain();
+        });
     }
-  }, { timeout: 2000 });
+  }, { timeout: 700 });
+}
+
+function preloadPreview(item, tier = TIER.BATCH) {
+  if (!item) return;
+  if (item.type === "reel") {
+    if (item.thumbnail_id) preloadPost({ image_ids: [item.thumbnail_id] }, tier);
+    return;
+  }
+  const firstImage = item.image_ids?.find(Boolean);
+  if (firstImage) preloadPost({ image_ids: [firstImage] }, tier);
 }
 
 // ─── Cloudinary cloud name ────────────────────────────────────────────────────
@@ -155,7 +172,7 @@ function estimateItemHeight(item) {
   if ((item.image_ids?.length || 0) > 0) return 560;
   if ((item.video_ids?.length || 0) > 0) return 540;
   if (item.is_text_card) return 320;
-  return 200;
+  return Math.min(580, 220 + Math.ceil((item.content?.length || 0) / 80) * 22);
 }
 
 // ─── NewPostBanner ────────────────────────────────────────────────────────────
@@ -209,16 +226,16 @@ const VideoPreloadRunway = React.memo(({ items, anchorIndex }) => {
 VideoPreloadRunway.displayName = "VideoPreloadRunway";
 
 // ─── Placeholder ──────────────────────────────────────────────────────────────
-const Placeholder = React.memo(({ height, item }) => (
-  <div aria-hidden="true" style={{
+const Placeholder = React.memo(({ height, item, index, placeholderRef }) => (
+  <div ref={placeholderRef} data-vfidx={index} data-vfkey={`${item.type}:${item.id}`} className="vf-placeholder" aria-hidden="true" style={{
     width:        "100%",
-    height:       Math.max(height || 0, estimateItemHeight(item)),
+    height:       Math.max(120, height || estimateItemHeight(item)),
     flexShrink:   0,
-    contain:      "strict",
+    contain:      "layout paint style",
     background:   getPlaceholderGradient(item),
-    borderRadius: 20,
-    marginBottom: 10,
-    border:       "1px solid rgba(255,255,255,0.04)",
+    borderRadius: 12,
+    marginBottom: 2,
+    border:       "1px solid var(--surface-border)",
   }} />
 ));
 Placeholder.displayName = "Placeholder";
@@ -313,29 +330,31 @@ const ScrollFAB = () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const VirtualFeed = React.memo(({
   items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen, onProfileClick,
-  onAnchorChange, onPipelineNavigate, injections,
+  onAnchorChange, onPipelineNavigate, injections, isLoadingMore,
 }) => {
   const [anchorIndex, setAnchorIndex] = useState(0);
   const heightMap  = useRef({});
   const wrapperMap = useRef({});
   const ioRef      = useRef(null);
   const roMap      = useRef({});
+  const refCallbacks = useRef(new Map());
 
   useEffect(() => { onAnchorChange?.(anchorIndex); }, [anchorIndex, onAnchorChange]);
 
-  const ROOT_MARGIN = IS_SLOW ? "800px 0px 800px 0px"
-                    : IS_MID  ? "500px 0px 500px 0px"
-                    :           "300px 0px 300px 0px";
+  const ROOT_MARGIN = IS_SLOW ? "1000px 0px 1000px 0px"
+                    : IS_MID  ? "800px 0px 800px 0px"
+                    :           "600px 0px 600px 0px";
 
   useEffect(() => {
     ioRef.current?.disconnect();
     ioRef.current = new IntersectionObserver(entries => {
-      let best = null, bestTop = Infinity;
+      let best = null, bestDistance = Infinity;
       for (const e of entries) {
         if (!e.isIntersecting) continue;
         const top = e.boundingClientRect.top;
         const idx = Number(e.target.dataset.vfidx);
-        if (!isNaN(idx) && top < bestTop) { bestTop = top; best = idx; }
+        const distance = Math.abs(top);
+        if (!isNaN(idx) && distance < bestDistance) { bestDistance = distance; best = idx; }
       }
       if (best !== null) setAnchorIndex(prev => Math.abs(prev - best) >= 1 ? best : prev);
     }, { rootMargin: ROOT_MARGIN, threshold: 0 });
@@ -345,63 +364,62 @@ const VirtualFeed = React.memo(({
 
   useEffect(() => () => Object.values(roMap.current).forEach(ro => ro.disconnect()), []);
 
-  const makeRef = useCallback((index) => (el) => {
-    roMap.current[index]?.disconnect();
-    delete roMap.current[index];
-    wrapperMap.current[index] = el;
-    if (!el) return;
-    el.dataset.vfidx = index;
-    ioRef.current?.observe(el);
-    const ro = new ResizeObserver(([e]) => {
-      const h = Math.round(e.contentRect.height);
-      if (h > 0) heightMap.current[index] = h;
-    });
-    ro.observe(el);
-    roMap.current[index] = ro;
+  const makeRef = useCallback((index) => {
+    if (refCallbacks.current.has(index)) return refCallbacks.current.get(index);
+    const callback = (el) => {
+      roMap.current[index]?.disconnect();
+      delete roMap.current[index];
+      wrapperMap.current[index] = el;
+      if (!el) return;
+      el.dataset.vfidx = index;
+      ioRef.current?.observe(el);
+      const ro = new ResizeObserver(([entry]) => {
+        const height = Math.round(entry.contentRect.height);
+        if (height > 0) heightMap.current[el.dataset.vfkey] = height;
+      });
+      ro.observe(el);
+      roMap.current[index] = ro;
+    };
+    refCallbacks.current.set(index, callback);
+    return callback;
   }, []);
 
   const renderStart = Math.max(0, anchorIndex - RENDER_RADIUS);
   const renderEnd   = Math.min(items.length - 1, anchorIndex + RENDER_RADIUS);
-  const visibleItems = useMemo(
-    () => items.slice(renderStart, renderEnd + 1),
-    [items, renderStart, renderEnd],
-  );
-
   return (
     <div className="vf-list">
-      {visibleItems.map((item, offset) => {
-        const index = renderStart + offset;
+      {items.map((item, index) => {
+        const key = `${item.type}:${item.id}`;
+        if (index < renderStart || index > renderEnd) {
+          const injectedHeight = injections.get(index) ? 220 : 0;
+          const height = (heightMap.current[key] || estimateItemHeight(item) + injectedHeight) + 2;
+          return <Placeholder key={key} index={index} item={item} height={height} placeholderRef={makeRef(index)} />;
+        }
+
         const pipeType = injections.get(index);
         return (
-          <React.Fragment key={item.id}>
-            {pipeType && (
-              <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />
+          <div key={key} ref={makeRef(index)} className="vf-item" data-vfkey={key}>
+            {pipeType && <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />}
+            {item.type === "reel" ? (
+              <ReelCard reel={item} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} onComment={onComment} onOpenFullScreen={onOpenFullScreen} onProfileClick={onProfileClick} index={index} />
+            ) : (
+              <PostCard post={item} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} onComment={onComment} onOpenFullScreen={onOpenFullScreen} onProfileClick={onProfileClick} feedIndex={index} />
             )}
-            <div ref={makeRef(index)} className="vf-item">
-              {item.type === "reel" ? (
-                <ReelCard
-                  reel={item} currentUser={currentUser}
-                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                  onComment={onComment} onOpenFullScreen={onOpenFullScreen}
-                  onProfileClick={onProfileClick}
-                  index={index}
-                />
-              ) : (
-                <PostCard
-                  post={item} currentUser={currentUser}
-                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                  onComment={onComment} onOpenFullScreen={onOpenFullScreen}
-                  onProfileClick={onProfileClick}
-                  feedIndex={index}
-                />
-              )}
-            </div>
-          </React.Fragment>
+          </div>
         );
+      })}
+      {isLoadingMore && Array.from({ length: 4 }, (_, index) => {
+        const source = items[items.length - 1] || { type: "post", id: "loading", content: "" };
+        const item = { ...source, id: `loading-${index}` };
+        return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
       })}
       <style>{`
         .vf-list{display:flex;flex-direction:column;position:relative;contain:layout paint;}
         .vf-item{contain:layout style;margin-bottom:2px;}
+        .vf-placeholder{position:relative;overflow:hidden;}
+        .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}
+        @keyframes vf-placeholder-shimmer{to{background-position-x:-220%;}}
+        @media(prefers-reduced-motion:reduce){.vf-placeholder::after{animation:none;}}
       `}</style>
     </div>
   );
@@ -465,12 +483,12 @@ const FeedTab = React.forwardRef(function FeedTab(
     }
   }, [setActiveHomeTab]);
 
-  // Preload first 26 at mount
+  // Warm the first screen and the upcoming preview runway.
   useLayoutEffect(() => {
     if (!localItems.length) return;
-    preloadPost(localItems[0], TIER.CRITICAL);
-    for (let i = 1; i < 18 && i < localItems.length; i++) {
-      preloadPost(localItems[i], i < 8 ? TIER.CRITICAL : TIER.URGENT);
+    preloadPreview(localItems[0], TIER.CRITICAL);
+    for (let i = 1; i < Math.min(PRELOAD_WINDOW, localItems.length); i++) {
+      preloadPreview(localItems[i], i < 8 ? TIER.CRITICAL : TIER.URGENT);
     }
     lastBatchLen.current = localItems.length;
   }, []);
@@ -481,7 +499,7 @@ const FeedTab = React.forwardRef(function FeedTab(
     if (localItems.length <= prev) return;
     for (let i = prev; i < localItems.length && i < prev + 24; i++) {
       const tier = i - prev < 8 ? TIER.URGENT : TIER.BATCH;
-      preloadPost(localItems[i], tier);
+      preloadPreview(localItems[i], tier);
     }
     lastBatchLen.current = localItems.length;
     fortyFired.current   = false;
@@ -493,21 +511,18 @@ const FeedTab = React.forwardRef(function FeedTab(
     if (!localItems.length) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      const start = Math.max(0, anchorIndex - 20);
+      const start = anchorIndex;
       const end   = Math.min(localItems.length - 1, anchorIndex + PRELOAD_WINDOW);
       for (let i = start; i <= end; i++) {
         const item = localItems[i];
         if (!item) continue;
         if (item.type === "post" && item.image_ids?.length) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPost(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
+          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
         }
         if (item.type === "reel" && item.thumbnail_id) {
           const dist = Math.abs(i - anchorIndex);
-          const url = mediaUrlService.getImageUrl(item.thumbnail_id, { width: IMG_W, quality: IMG_Q, format: "webp" });
-          if (url) {
-            preloadPost({ image_ids: [item.thumbnail_id] }, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
-          }
+          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
         }
       }
       const visible = localItems[anchorIndex];
@@ -535,12 +550,12 @@ const FeedTab = React.forwardRef(function FeedTab(
     prependPost: (p) => {
       if (isActive) {
         setLocalItems(prev => prev.some(x => x.id === p.id) ? prev : [{ ...p, type: "post" }, ...prev]);
-        preloadPost(p, TIER.CRITICAL);
+        preloadPreview(p, TIER.CRITICAL);
       } else {
         if (!pendingRef.current.some(x => x.id === p.id)) {
           pendingRef.current = [{ ...p, type: "post" }, ...pendingRef.current];
           setPendingCount(pendingRef.current.length);
-          preloadPost(p, TIER.URGENT);
+          preloadPreview(p, TIER.URGENT);
         }
       }
     },
@@ -571,6 +586,7 @@ const FeedTab = React.forwardRef(function FeedTab(
         onAnchorChange={setAnchorIndex}
         onPipelineNavigate={handlePipelineNavigate}
         injections={injections}
+        isLoadingMore={isLoadingMore && hasMore}
       />
       <VideoPreloadRunway items={localItems} anchorIndex={anchorIndex} />
       {!hasMore && <EndOfFeed />}

@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import LikeModel from "../../models/LikeModel";
 import SaveModel from "../../models/SaveModel";
 import { supabase } from "../../services/config/supabase";
+import LikeBurst from "./LikeBurst";
 
 const EP_COSTS = { like: 2, comment: 4, share: 10 };
 
@@ -35,6 +36,16 @@ const FullScreenReactionPanel = ({
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(content.likes || 0);
   const [epError, setEpError] = useState(null);
+  const [likeBurst, setLikeBurst] = useState(null);
+  const [isLiking, setIsLiking] = useState(false);
+  const burstId = React.useRef(0);
+
+  const burstLike = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const hasPointer = Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (event.clientX !== 0 || event.clientY !== 0);
+    burstId.current += 1;
+    setLikeBurst({ id: burstId.current, x: hasPointer ? event.clientX : rect.left + rect.width / 2, y: hasPointer ? event.clientY : rect.top + rect.height / 2 });
+  };
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -54,9 +65,11 @@ const FullScreenReactionPanel = ({
 
   const handleLike = async (e) => {
     e.stopPropagation();
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isLiking) return;
+    setIsLiking(true);
 
     if (liked) {
+      burstLike(e);
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
       LikeModel.toggleLike(content.type, content.id, currentUser.id).catch(
@@ -65,6 +78,7 @@ const FullScreenReactionPanel = ({
           setLikeCount((c) => c + 1);
         },
       );
+      setIsLiking(false);
       return;
     }
 
@@ -75,9 +89,11 @@ const FullScreenReactionPanel = ({
     );
     if (!ok) {
       showEpError(`Need ${EP_COSTS.like} EP to like`);
+      setIsLiking(false);
       return;
     }
 
+    burstLike(e);
     setLiked(true);
     setLikeCount((c) => c + 1);
     if (content.user_id && content.user_id !== currentUser.id) {
@@ -88,6 +104,7 @@ const FullScreenReactionPanel = ({
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
     });
+    setIsLiking(false);
   };
 
   const handleSave = async (e) => {
@@ -128,6 +145,7 @@ const FullScreenReactionPanel = ({
           ⚡ {epError}
         </div>
       )}
+      {likeBurst && <LikeBurst key={likeBurst.id} x={likeBurst.x} y={likeBurst.y} onDone={() => setLikeBurst(null)} />}
       <div className="fullscreen-reactions">
         <div className="fs-action-wrapper">
           <button

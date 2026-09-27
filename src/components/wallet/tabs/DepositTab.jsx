@@ -68,15 +68,19 @@ const CSS = `
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0 16px;
-  border-bottom: 1px solid rgba(255,255,255,.05);
-  margin-bottom: 8px;
+  min-height: 72px;
+  padding: 12px 16px;
+  border: 1px solid rgba(163,230,53,.16);
+  border-radius: 14px;
+  background: linear-gradient(110deg,rgba(163,230,53,.075),rgba(255,255,255,.025) 58%,rgba(255,255,255,.012));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+  margin: 10px 16px 14px;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(7,8,10,.97);
   backdrop-filter: blur(20px);
 }
+.dt-header::before{content:"";position:absolute;top:12px;bottom:12px;left:0;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#bef264,#65a30d);box-shadow:0 0 14px rgba(163,230,53,.25);}
 .dt-back {
   width: 34px; height: 34px;
   border-radius: 10px;
@@ -88,8 +92,9 @@ const CSS = `
 }
 .dt-back:hover { border-color: rgba(163,230,53,.4); color: #a3e635; }
 .dt-header-info { flex: 1 }
-.dt-header-title { font-size: 14px; font-weight: 800; color: rgba(255,255,255,.9); letter-spacing: -.2px }
+.dt-header-title { font-size: 16px; font-weight: 800; color: rgba(255,255,255,.94); letter-spacing: 0 }
 .dt-header-sub   { font-size: 10px; color: rgba(255,255,255,.3); font-family: 'JetBrains Mono', monospace; margin-top: 1px }
+.dt-header-info{position:relative;min-width:0}
 .dt-xev-chip {
   padding: 6px 13px; border-radius: 8px;
   background: rgba(163,230,53,.08);

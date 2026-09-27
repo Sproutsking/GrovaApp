@@ -743,7 +743,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
         .xpl-reels-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
 
-        .xpl-evidence-card { background:rgba(132,204,22,.04); border:1px solid rgba(132,204,22,.12); border-radius:12px; padding:14px; margin-bottom:12px; }
+        .xpl-evidence-card { background:rgba(132,204,22,.04); border:1px solid rgba(132,204,22,.24); border-radius:12px; padding:14px; margin-bottom:12px; }
         .xpl-evidence-card-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
         .xpl-evidence-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; font-size:12px; color:#999; }
         .xpl-evidence-card-title strong { display:block; font-size:15px; color:#fff; margin-bottom:4px; }
@@ -757,7 +757,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
         /* User Context Panel */
         .xpl-user-ctx { background:rgba(132,204,22,.02); border:1px solid rgba(132,204,22,.2); border-radius:12px; margin-bottom:24px; overflow:hidden; }
-        .xpl-ctx-identity { display:flex; align-items:center; gap:14px; padding:16px; cursor:pointer; transition:background .15s; border-bottom:1px solid rgba(132,204,22,.1); }
+        .xpl-ctx-identity { display:flex; align-items:center; gap:14px; padding:16px; cursor:pointer; transition:background .15s; border-bottom:1px solid rgba(132,204,22,.2); }
         .xpl-ctx-identity:hover { background:rgba(132,204,22,.04); }
         .xpl-ctx-avatar { width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden; background:linear-gradient(135deg,#84cc16,#65a30d); display:flex; align-items:center; justify-content:center; color:#000; font-weight:800; font-size:20px; border:2px solid rgba(132,204,22,.4); }
         .xpl-ctx-avatar img { width:100%; height:100%; object-fit:cover; }
@@ -768,7 +768,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-ctx-stats { display:flex; flex-direction:column; gap:4px; text-align:right; flex-shrink:0; }
         .xpl-ctx-stat { font-size:11px; color:#666; }
         .xpl-ctx-stat span { color:#84cc16; font-weight:700; font-size:13px; margin-right:3px; }
-        .xpl-ctx-tabs { display:flex; border-bottom:1px solid rgba(132,204,22,.1); background:rgba(0,0,0,.3); }
+        .xpl-ctx-tabs { display:flex; border-bottom:1px solid rgba(132,204,22,.2); background:rgba(0,0,0,.3); }
         .xpl-ctx-tab { flex:1; padding:10px; background:transparent; border:none; color:#666; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
         .xpl-ctx-tab:hover  { color:#fff; }
         .xpl-ctx-tab.active { color:#84cc16; border-bottom:2px solid #84cc16; }

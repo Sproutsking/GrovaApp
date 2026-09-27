@@ -12,7 +12,7 @@ html.theme-light .post-card,
 [data-theme="light"] .post-card,
 [data-light-theme="true"] .post-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid var(--surface-border) !important;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   border-radius: 20px;
 }
@@ -23,7 +23,7 @@ html.theme-light .gvp-card:hover,
 html.theme-light .post-card:hover,
 [data-theme="light"] .post-card:hover,
 [data-light-theme="true"] .post-card:hover {
-  border-color: #d1d5db !important;
+  border-color: var(--surface-border) !important;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
   transform: none !important;
 }

@@ -319,6 +319,8 @@ const MainApp = memo(() => {
   const [showMessages,   setShowMessages]   = useState(false);
   const [dmTargetUserId, setDmTargetUserId] = useState(null);
   const [dmInitialTab,   setDmInitialTab]   = useState("chats");
+  const [dmInitialStatusId, setDmInitialStatusId] = useState(null);
+  const [dmCreateStatusOnOpen, setDmCreateStatusOnOpen] = useState(false);
   const [giftRecipient,  setGiftRecipient]  = useState(null);
 
   // Active call overlay
@@ -892,10 +894,12 @@ const MainApp = memo(() => {
     setMountedTabs((p) => new Set([...p, "home"]));
   }, []);
 
-  const handleOpenStatusFeed = useCallback(() => {
+  const handleOpenStatusFeed = useCallback((item) => {
     setShowMessages(true);
     setDmInitialTab("updates");
     setDmTargetUserId(null);
+    setDmInitialStatusId(item?.latest?.id || null);
+    setDmCreateStatusOnOpen(Boolean(item?.isMe && !item?.statuses?.length));
   }, []);
 
   const viewProps    = {
@@ -1332,9 +1336,17 @@ const MainApp = memo(() => {
         <Suspense fallback={null}>
           <DMMessagesView
             currentUser={currentUserNorm}
-            onClose={() => { setShowMessages(false); setDmTargetUserId(null); setDmInitialTab("chats"); }}
+            onClose={() => {
+              setShowMessages(false);
+              setDmTargetUserId(null);
+              setDmInitialTab("chats");
+              setDmInitialStatusId(null);
+              setDmCreateStatusOnOpen(false);
+            }}
             initialOtherUserId={dmTargetUserId}
             initialTab={dmInitialTab}
+            initialStatusId={dmInitialStatusId}
+            openCreateStatus={dmCreateStatusOnOpen}
             onNavigate={handleNotificationNavigate}
           />
         </Suspense>

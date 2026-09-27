@@ -197,7 +197,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN DMMessagesView
 // ════════════════════════════════════════════════════════════════════════════
-const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, initialTab = "chats" }) => {
+const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, initialTab = "chats", initialStatusId, openCreateStatus }) => {
   const [tab,           setTab]           = useState("chats");
   const [view,          setView]          = useState("list");
   const [selectedConv,  setSelectedConv]  = useState(null);
@@ -207,6 +207,9 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
   const [showSearch,    setShowSearch]    = useState(false);
   const [showCreateGrp, setShowCreateGrp] = useState(false);
   const [incomingCall,  setIncomingCall]  = useState(null);
+  const [listPaneWidth, setListPaneWidth] = useState(360);
+  const [resizingPane, setResizingPane] = useState(false);
+  const dmhBodyRef = useRef(null);
 
   // ── [BADGE-1][BADGE-2][BADGE-3] Three independent badge counters ──────────
   const [chatsBadge,   setChatsBadge]   = useState(0);
@@ -224,6 +227,24 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
   useEffect(() => { activeGroupRef.current = activeGroup; }, [activeGroup]);
   useEffect(() => { activeConvRef.current  = selectedConv; }, [selectedConv]);
   useEffect(() => { activeCallRef.current  = activeCall; }, [activeCall]);
+
+  useEffect(() => {
+    if (!resizingPane) return undefined;
+    const resize = (event) => {
+      const bounds = dmhBodyRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setListPaneWidth(Math.max(260, Math.min(520, window.innerWidth * 0.46, event.clientX - bounds.left)));
+    };
+    const stop = () => setResizingPane(false);
+    window.addEventListener("pointermove", resize);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      window.removeEventListener("pointermove", resize);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [resizingPane]);
 
   const initialized = useRef(false);
   const unsubList   = useRef(null);
@@ -598,7 +619,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
         )}
 
         {/* Desktop sidebar rail */}
-        {!isDetail && (
+        {(!isDetail || view === "chat") && (
           <nav className="dmh-rail">
             <div className="dmh-rail-logo"><div className="dmh-rail-dot"/></div>
             {NAV.map(({ id, label, Icon }) => {
@@ -614,13 +635,56 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
               );
             })}
             <div style={{ flex: 1 }}/>
-            <button className="dmh-rail-btn dmh-rail-close" onClick={onClose}>
+            <button className="dmh-rail-btn dmh-rail-close" onClick={onClose} aria-label="Close messages" title="Close messages">
               <IClose/><span className="dmh-rail-lbl">Close</span>
             </button>
           </nav>
         )}
 
-        <div className={`dmh-body${isDetail ? " dmh-full" : ""}`}>
+        <div ref={dmhBodyRef} className={`dmh-body${isDetail ? " dmh-full" : ""}${canShowChat ? " dmh-split-open" : ""}${resizingPane ? " dmh-resizing" : ""}`}>
+          {canShowChat && (
+            <>
+              <div className="dmh-desktop-list" style={{ width: listPaneWidth }}>
+                <div className="dmh-chat-list-head">
+                  <span>Messages</span>
+                  <button className="dmh-hdr-btn" onClick={handlePlus} title="New message" aria-label="New message"><IPlus/></button>
+                </div>
+                <div className="dmh-tab-body">
+                  <ConversationList
+                    currentUserId={uid}
+                    onSelect={openChat}
+                    onSelectGroup={openGroupChat}
+                    onNewChat={() => setShowSearch(true)}
+                    onClose={onClose}
+                    loading={loading}
+                    activeConversationId={selectedConv?.id}
+                    activeGroupId={activeGroup?.id}
+                    hideHeader
+                  />
+                </div>
+              </div>
+              <div
+                className="dmh-split-divider"
+                role="separator"
+                aria-label="Resize conversation list"
+                aria-orientation="vertical"
+                aria-valuemin={260}
+                aria-valuemax={520}
+                aria-valuenow={Math.round(listPaneWidth)}
+                tabIndex={0}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  setResizingPane(true);
+                }}
+                onDoubleClick={() => setListPaneWidth(360)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") setListPaneWidth((width) => Math.max(260, width - 16));
+                  if (event.key === "ArrowRight") setListPaneWidth((width) => Math.min(520, width + 16));
+                }}
+              />
+            </>
+          )}
+
           {/* Active call */}
           {view === "call" && activeCall && (
             <div className="dmh-screen">
@@ -630,7 +694,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 
           {/* DM chat */}
           {canShowChat && (
-            <div className="dmh-screen">
+            <div className="dmh-screen dmh-chat-screen">
               <ChatView
                 key={selectedConv.id}
                 conversation={selectedConv}
@@ -695,6 +759,8 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
                     userId={uid}
                     onOpenDM={handleStoryReply}
                     onStatusReplyThumbnail={handleStatusReplyWithThumbnail}
+                    initialStatusId={initialStatusId}
+                    openCreateStatus={openCreateStatus}
                   />
                 </div>
                 <div style={{ display: tab === "calls" ? "block" : "none", height: "100%" }}>
@@ -734,7 +800,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 };
 
 const CSS = `
-.dmh-bd{position:fixed;inset:0;z-index:9990;background:transparent;}
+.dmh-bd{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.64);backdrop-filter:blur(5px);}
 .dmh-panel{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:row;background:#000;overflow:hidden;}
 
 /* ── Rail ── */
@@ -781,8 +847,12 @@ const CSS = `
   100%{transform:scale(1) rotate(0deg);opacity:1}
 }
 
-.dmh-rail-close{color:#333;}.dmh-rail-close:hover{color:#84cc16;background:rgba(132,204,22,.07)!important;}
+.dmh-rail-close{color:#fb7185;background:rgba(244,63,94,.09);border:1px solid rgba(244,63,94,.22);min-height:54px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}.dmh-rail-close:hover{color:#fff;background:rgba(244,63,94,.2)!important;border-color:rgba(251,113,133,.5);box-shadow:0 0 18px rgba(244,63,94,.14);}
 .dmh-body{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
+.dmh-desktop-list{display:none;flex:0 0 auto;min-width:260px;max-width:46vw;height:100%;overflow:hidden;background:#080a0b;border-right:1px solid rgba(255,255,255,.06);}
+.dmh-chat-list-head{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.06);color:#f5f7f2;font-size:15px;font-weight:800;flex-shrink:0;}
+.dmh-split-divider{display:none;}
+.dmh-resizing,.dmh-resizing *{cursor:col-resize!important;user-select:none!important;}
 .dmh-full{flex:1;}
 .dmh-screen{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;overflow:hidden;}
 .dmh-list-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden;}
@@ -838,13 +908,14 @@ const CSS = `
 @media(min-width:769px){
   .dmh-panel{
     position:fixed;
-    inset:0;
-    width:100vw;
-    height:100vh;
-    border-radius:0;
-    border:none;
+    inset:50% auto auto 50%;
+    width:min(1560px,calc(100vw - 32px));
+    height:min(960px,calc(100vh - 32px));
+    transform:translate(-50%,-50%);
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.1);
     overflow:hidden;
-    box-shadow:none;
+    box-shadow:0 32px 100px rgba(0,0,0,.7);
     background:#0c0f10;
     animation:dmhSlide .28s cubic-bezier(.22,1,.36,1);
   }
@@ -854,12 +925,19 @@ const CSS = `
   .dmh-rail{display:flex;}
   .dmh-bnav{display:none!important;}
   .dmh-screen{position:absolute;inset:0;}
+  .dmh-split-open{flex-direction:row;}
+  .dmh-desktop-list{display:flex;flex-direction:column;}
+  .dmh-split-divider{display:block;position:relative;flex:0 0 8px;cursor:col-resize;touch-action:none;background:rgba(255,255,255,.018);border-right:1px solid rgba(255,255,255,.035);border-left:1px solid rgba(0,0,0,.6);z-index:11;}
+  .dmh-split-divider::after{content:'';position:absolute;top:50%;left:2px;transform:translateY(-50%);width:2px;height:36px;border-radius:2px;background:rgba(163,230,53,.28);transition:background .15s,height .15s;}
+  .dmh-split-divider:hover::after,.dmh-split-divider:focus-visible::after{height:52px;background:#a3e635;}
+  .dmh-chat-screen{position:relative;inset:auto;flex:1;height:100%;min-width:0;}
   .dmh-hdr-x{display:none;}
   .dmh-hdr-title{text-align:left;}
   .dmh-list-wrap{border-left:1px solid rgba(255,255,255,.04);}
   .dmh-body{position:relative;}
   .dmh-tab-body{min-height:0;}
 }
+@media(max-width:768px){.dmh-bd{backdrop-filter:none;}.dmh-panel{border-radius:0;}}
 `;
 
 export default DMMessagesView;

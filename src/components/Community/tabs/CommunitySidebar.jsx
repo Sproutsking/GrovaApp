@@ -177,7 +177,7 @@ const CommunitySidebar = ({
           align-items: center;
           gap: 10px;
           width: 100%;
-          padding: 0 12px;
+          padding: 0 2px;
         }
 
         .community-icon {

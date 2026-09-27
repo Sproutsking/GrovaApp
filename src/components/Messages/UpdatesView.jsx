@@ -1072,7 +1072,7 @@ ContactRow.displayName = "ContactRow";
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN UpdatesView
 // ══════════════════════════════════════════════════════════════════════════════
-const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
+const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreateStatus }) => {
   const [myStatuses,  setMyStatuses]  = useState([]);
   const [feedGroups,  setFeedGroups]  = useState([]);
   const [likedIds,    setLikedIds]    = useState(new Set());
@@ -1085,6 +1085,7 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
 
   const seenRef  = useRef(new Set());
   const mountRef = useRef(true);
+  const handledInitialIntentRef = useRef(null);
 
   const loadTier = useCallback(async () => {
     try {
@@ -1290,6 +1291,25 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
     setViewer({ groupIdx, storyIdx: orderedIndex >= 0 ? orderedIndex : 0 });
   };
 
+  useEffect(() => {
+    if (loading) return;
+    const intent = initialStatusId ? `status:${initialStatusId}` : openCreateStatus ? "create" : null;
+    if (!intent) {
+      handledInitialIntentRef.current = null;
+      return;
+    }
+    if (handledInitialIntentRef.current === intent) return;
+    handledInitialIntentRef.current = intent;
+    if (openCreateStatus) {
+      setShowAdd(true);
+      return;
+    }
+    const groupIndex = allGroups.findIndex((group) => group.statuses?.some((status) => status.id === initialStatusId));
+    if (groupIndex < 0) return;
+    const storyIndex = allGroups[groupIndex].statuses.findIndex((status) => status.id === initialStatusId);
+    if (storyIndex >= 0) openViewer(groupIndex, storyIndex);
+  }, [loading, initialStatusId, openCreateStatus, allGroups]);
+
   const atLimit      = myStatuses.length >= tierInfo.limit;
   const unseenGroups = feedGroups.filter((g) => g.hasUnseen);
   const seenGroups   = feedGroups.filter((g) => !g.hasUnseen);
@@ -1438,7 +1458,11 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
         <AddStatusModal
           currentUser={currentUser}
           onClose={()=>setShowAdd(false)}
-          onAdded={()=>{loadStatuses();setLiveNewDot(false);}}
+          onAdded={()=>{
+            loadStatuses();
+            setLiveNewDot(false);
+            window.dispatchEvent(new Event("status-updates:changed"));
+          }}
           tierLimit={tierInfo.limit}
           currentCount={myStatuses.length}
         />

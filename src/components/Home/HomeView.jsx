@@ -1,3 +1,4 @@
+  <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={(item) => onOpenDMUpdates?.(item)} />
 // src/components/Home/HomeView.jsx — v27 ULTRA-INSTANT MOUNT
 //
 // ═══════════════════════════════════════════════════════════════════════════
@@ -441,85 +442,101 @@ const HomeView = ({
 
   // ── [ULTRA-2] initializeHome — ONE parallel round trip ───────────────────
   const initializeHome = async () => {
-    // Phase 1: serve SWR cache immediately (synchronous — already in state)
     const cp = swrVal("posts");
     const cr = swrVal("reels");
     const cs = swrVal("stories");
     const cn = swrVal("news");
     if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
 
+    const now = Date.now();
+    tabFetchedAt.current = { feed:now, stories:now, news:now, culture:0 };
+
+    const userTask = authService.getCurrentUser().then((user) => {
+      if (!mountedRef.current) return null;
+      if (user) { setCurrentUser(user); currentUserRef.current = user; }
+      setupRealtime(user);
+      return user;
+    }).catch(() => null);
+
+    const storiesTask = storyService.getStories({ limit: 20 }).then((data) => {
+      if (!mountedRef.current) return;
+      const safeStories = Array.isArray(data) ? data : [];
+      preloadStoryAssets(safeStories);
+      swrSet("stories", safeStories);
+      writeHomeCache("stories", safeStories);
+      setStories(safeStories);
+      tabFetchedAt.current.stories = Date.now();
+    }).catch(() => {});
+
+    const newsTask = newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }).then((data) => {
+      if (!mountedRef.current) return;
+      const safeNews = Array.isArray(data) ? data : [];
+      preloadNewsAssets(safeNews);
+      swrSet("news", safeNews);
+      writeHomeCache("news", safeNews);
+      setNewsPosts(safeNews);
+      newsOffRef.current = NEWS_PAGE;
+      hasMoreNewsRef.current = safeNews.length === NEWS_PAGE;
+      setHasMoreNews(safeNews.length === NEWS_PAGE);
+      tabFetchedAt.current.news = Date.now();
+    }).catch(() => {});
+
     try {
-      const [userResult, postsResult, reelsResult, storiesResult, newsResult] = await Promise.allSettled([
-        authService.getCurrentUser(),
+      const [postsResult, reelsResult] = await Promise.allSettled([
         postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE),
         reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }),
-        storyService.getStories({ limit: 20 }),
-        newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }),
       ]);
-
-      const user = userResult.status === "fulfilled" ? userResult.value : null;
-      const sourceResults = [postsResult, reelsResult, storiesResult, newsResult];
-      if (sourceResults.every((result) => result.status === "rejected")) {
-        throw new Error("We could not connect to Xeevia. Check your connection and try again.");
-      }
-      const postsData = postsResult.status === "fulfilled" ? postsResult.value : [];
-      const reelsData = reelsResult.status === "fulfilled" ? reelsResult.value : [];
-      const storiesData = storiesResult.status === "fulfilled" ? storiesResult.value : [];
-      const newsData = newsResult.status === "fulfilled" ? newsResult.value : [];
-
       if (!mountedRef.current) return;
 
-      if (user) { setCurrentUser(user); currentUserRef.current = user; }
+      const safePosts = postsResult.status === "fulfilled" && Array.isArray(postsResult.value)
+        ? postsResult.value
+        : cp || readHomeCache("posts") || [];
+      const safeReels = reelsResult.status === "fulfilled" && Array.isArray(reelsResult.value)
+        ? reelsResult.value
+        : cr || readHomeCache("reels") || [];
 
-      const safePosts   = Array.isArray(postsData)   ? postsData   : [];
-      const safeReels   = Array.isArray(reelsData)   ? reelsData   : [];
-      const safeStories = Array.isArray(storiesData) ? storiesData : [];
-      const safeNews    = Array.isArray(newsData)    ? newsData    : [];
+      if (postsResult.status === "rejected" && reelsResult.status === "rejected" && !safePosts.length && !safeReels.length) {
+        throw new Error("We could not connect to Xeevia. Check your connection and try again.");
+      }
 
-      // [ULTRA-6] Preload images BEFORE setState (paint synchronization)
       preloadFirstPaintImages(safePosts);
       preloadReelThumbs(safeReels, 0);
-      preloadStoryAssets(safeStories);
-      preloadNewsAssets(safeNews);
+      swrSet("posts", safePosts);
+      swrSet("reels", safeReels);
+      writeHomeCache("posts", safePosts);
+      writeHomeCache("reels", safeReels);
+      tabFetchedAt.current.feed = Date.now();
 
-      swrSet("posts",   safePosts);
-      swrSet("reels",   safeReels);
-      swrSet("stories", safeStories);
-      swrSet("news",    safeNews);
-      writeHomeCache("posts",   safePosts);
-      writeHomeCache("reels",   safeReels);
-      writeHomeCache("stories", safeStories);
-      writeHomeCache("news",    safeNews);
-
-      const now = Date.now();
-      tabFetchedAt.current = { feed:now, stories:now, news:now, culture:now };
-
-      // Single setState batch — no double render
       startTransition(() => {
         if (!mountedRef.current) return;
         setPosts(safePosts);
         setReels(safeReels);
-        setStories(safeStories);
-        setNewsPosts(safeNews);
+        setStories(cs || readHomeCache("stories") || []);
+        setNewsPosts(cn || readHomeCache("news") || []);
         setShowSkeleton(false);
 
-        postsOffRef.current   = POSTS_PAGE;
-        reelsOffRef.current   = REELS_PAGE;
-        newsOffRef.current    = NEWS_PAGE;
-        hasMorePostsRef.current = safePosts.length   === POSTS_PAGE;
-        hasMoreReelsRef.current = safeReels.length   === REELS_PAGE;
-        hasMoreNewsRef.current  = safeNews.length    === NEWS_PAGE;
+        postsOffRef.current = POSTS_PAGE;
+        reelsOffRef.current = REELS_PAGE;
+        newsOffRef.current = NEWS_PAGE;
+        hasMorePostsRef.current = safePosts.length === POSTS_PAGE;
+        hasMoreReelsRef.current = safeReels.length === REELS_PAGE;
+        hasMoreNewsRef.current = (cn || []).length === NEWS_PAGE;
         setHasMorePosts(safePosts.length === POSTS_PAGE);
         setHasMoreReels(safeReels.length === REELS_PAGE);
-        setHasMoreNews(safeNews.length   === NEWS_PAGE);
+        setHasMoreNews((cn || []).length === NEWS_PAGE);
       });
 
       hasLoaded.current = true;
-      setupRealtime(user);
+      void userTask;
+      void storiesTask;
+      void newsTask;
     } catch (err) {
       if (!mountedRef.current) return;
       if (!hasLoaded.current) setError(err.message || "Failed to load content");
       setShowSkeleton(false);
+      void userTask;
+      void storiesTask;
+      void newsTask;
     }
   };
 
@@ -1051,7 +1068,6 @@ const HomeView = ({
                 onAuthorClick={handleAuthorClick}
                 onActionMenu={handleActionMenu}
                 onComment={handleComment}
-                isActive={currentTab==="culture"}
               />
             </div>
           </div>

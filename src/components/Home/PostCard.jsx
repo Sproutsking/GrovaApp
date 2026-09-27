@@ -34,7 +34,7 @@
 //   outside viewport      → preload="none"   (PostTab VideoPreloadRunway
 //                            already fetched metadata before card mounted)
 //
-// Everything else — video player, follow, like, double-tap love burst,
+// Everything else — video player, follow, like,
 // lightbox, action menus, edit/share modals — is preserved from v4.
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -193,33 +193,6 @@ function prefetchImage(url) {
   img.fetchPriority = "low";
   img.src = url;
 }
-
-// ─── Double-tap ───────────────────────────────────────────────────────────────
-function useDoubleTap(cb, delay = 350) {
-  const last = useRef(0);
-  return useCallback((e) => {
-    const now = Date.now();
-    const t   = e.touches?.[0] || e.changedTouches?.[0];
-    const x   = t?.clientX ?? e.clientX;
-    const y   = t?.clientY ?? e.clientY;
-    if (now - last.current < delay) { cb({ x, y }); last.current = 0; }
-    else last.current = now;
-  }, [cb, delay]);
-}
-
-// ─── Love burst ───────────────────────────────────────────────────────────────
-const LoveBurst = ({ x, y, onDone }) => {
-  useEffect(() => { const t = setTimeout(onDone, 900); return () => clearTimeout(t); }, [onDone]);
-  return ReactDOM.createPortal(
-    <div style={{ position:"fixed", left:x, top:y, zIndex:99999, pointerEvents:"none", transform:"translate(-50%,-50%)" }}>
-      <div className="gvp-lv-big">❤️</div>
-      {["❤️","❤️","💖","❤️","💖","❤️"].map((h, i) => (
-        <div key={i} className="gvp-lv-sat" style={{ "--angle":`${[270,315,0,45,90,225][i]}deg` }}>{h}</div>
-      ))}
-    </div>,
-    document.body,
-  );
-};
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 const ImageLightbox = ({ imageUrl, onClose }) => {
@@ -587,7 +560,6 @@ const PostCard = ({
   const [txtOver,    setTxtOver]    = useState(false);
   const [capClamp,   setCapClamp]   = useState(false);
   const [inVP,       setInVP]       = useState(feedIndex === 0);
-  const [burst,      setBurst]      = useState(null);
   const [isHovered,  setIsHovered]  = useState(false);
   const contRef = useRef(null);
   const txtRef  = useRef(null);
@@ -722,15 +694,6 @@ const PostCard = ({
     return () => { if (contRef.current) obs.unobserve(contRef.current); }; // eslint-disable-line
   }, []);
 
-  const fireBurst = useCallback(({ x, y }) => {
-    setBurst({ x, y, id: Date.now() });
-    if (currentUser?.id) window.dispatchEvent(new CustomEvent("grova:quicklike", {
-      detail: { contentId:post.id, contentType:"post", userId:currentUser.id },
-    }));
-  }, [post.id, currentUser?.id]);
-
-  const dtap = useDoubleTap(fireBurst);
-
   const handleMuteToggle = (e) => {
     e?.stopPropagation();
     const next = !muted;
@@ -829,8 +792,6 @@ const PostCard = ({
         {/* ── BODY ── */}
         <div
           className="gvp-body"
-          onTouchEnd={dtap}
-          onDoubleClick={dtap}
           onClick={(e) => {
             // Only trigger fullscreen if click is not on interactive element
             if (!e.target.closest("button") && !e.target.closest("a") && onOpenFullScreen) {
@@ -952,8 +913,6 @@ const PostCard = ({
       </div>
 
       {/* ── PORTALS ── */}
-      {burst && <LoveBurst key={burst.id} x={burst.x} y={burst.y} onDone={() => setBurst(null)} />}
-
       {menuOpen && (
         <ActionMenu
           position={menuPos} isOwnPost={isOwn} content={post} contentType="post"
@@ -989,20 +948,14 @@ const PostCard = ({
 // CSS — gvp-* namespace, complete
 // ════════════════════════════════════════════════════════════════════════════════
 const CSS = `
-/* ── Love burst ── */
-@keyframes gvpLvBig{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}40%{opacity:1;transform:translate(-50%,-50%) scale(1.4)}70%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.3)}}
-@keyframes gvpLvSat{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(0) scale(.3)}30%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(-55px) scale(.9)}}
-.gvp-lv-big{position:absolute;font-size:72px;line-height:1;animation:gvpLvBig .85s cubic-bezier(.34,1.2,.64,1) both;filter:drop-shadow(0 4px 16px rgba(239,68,68,.7));pointer-events:none;user-select:none;transform:translate(-50%,-50%);}
-.gvp-lv-sat{position:absolute;font-size:26px;line-height:1;animation:gvpLvSat .8s ease-out both;pointer-events:none;user-select:none;transform:translate(-50%,-50%);}
-
 /* ── Card shell ── */
-.gvp-card{position:relative;background:#080808;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);transition:none;box-shadow:0 8px 32px rgba(0,0,0,.45);margin-bottom:10px;contain:layout style;}
+.gvp-card{position:relative;background:#080808;border-radius:20px;overflow:hidden;border:1px solid var(--surface-border);transition:none;box-shadow:0 8px 32px rgba(0,0,0,.45);margin-bottom:10px;contain:layout style;}
 @keyframes gvpShimmer{0%{background-position:-200% center}100%{background-position:200% center}}
 .gvp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(132,204,22,0) 15%,rgba(163,230,53,.95) 40%,#d4f576 50%,rgba(163,230,53,.95) 60%,rgba(132,204,22,0) 85%,transparent 100%);background-size:200% 100%;opacity:0;z-index:20;pointer-events:none;transition:opacity .3s ease;}
 .gvp-card.gvp-hovered::before{opacity:0;animation:none;}
 .gvp-card::after{content:'';position:absolute;inset:0;border-radius:20px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(132,204,22,0);transition:box-shadow .3s ease;}
 .gvp-card.gvp-hovered::after{box-shadow:inset 0 0 0 1px rgba(132,204,22,0);}
-.gvp-card.gvp-hovered{transform:none;border-color:rgba(255,255,255,0.07);box-shadow:0 8px 32px rgba(0,0,0,.45);}
+.gvp-card.gvp-hovered{transform:none;border-color:var(--surface-border);box-shadow:0 8px 32px rgba(0,0,0,.45);}
 
 /* ── Header ── */
 .gvp-header{display:flex;align-items:center;gap:6px;padding:12px 12px 8px;}

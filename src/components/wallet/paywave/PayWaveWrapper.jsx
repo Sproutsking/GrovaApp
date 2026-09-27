@@ -14,7 +14,7 @@ const WRAPPER_CSS = `
     position:fixed;
     top:56px;
     left:var(--layout-left, calc(var(--sidebar-w) + var(--layout-gutter, 4vw)));
-    right:var(--layout-right, calc(var(--trending-w) + var(--layout-gutter, 4vw)));
+    right:0;
     bottom:0;
     z-index:49;
     display:flex;
