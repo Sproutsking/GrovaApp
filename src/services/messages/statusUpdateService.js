@@ -117,6 +117,12 @@ const SELECT_FULL = `
   )
 `;
 
+function isOptionalStatusColumnError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("schema cache") ||
+    ((message.includes("column") || message.includes("music") || message.includes("media_type")) && message.includes("does not exist"));
+}
+
 // ── Atomic counter ────────────────────────────────────────────────────────────
 async function atomicIncrement(table, id, column, delta = 1) {
   try {
@@ -331,7 +337,7 @@ class StatusUpdateService {
         }
         data = d;
       } catch (err) {
-        if (err?.message?.includes("music") || err?.message?.includes("schema cache")) {
+        if (isOptionalStatusColumnError(err)) {
           _musicColExists = false;
           const { data: d2, error: e2 } = await supabase
             .from("status_updates")
@@ -391,6 +397,44 @@ class StatusUpdateService {
       cache.set(key, result, CACHE_TTL);
       return result;
     } catch { return []; }
+  }
+
+  async loadForUsers(userIds = []) {
+    const ids = [...new Set((userIds || []).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const pageSize = 200;
+    const results = [];
+    for (let offset = 0; offset < 1000; offset += pageSize) {
+      let page;
+      try {
+        const { data, error } = await supabase
+          .from("status_updates")
+          .select(SELECT_FULL)
+          .in("user_id", ids)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        page = data || [];
+      } catch (error) {
+        if (!isOptionalStatusColumnError(error)) return results;
+        _musicColExists = false;
+        const { data, error: fallbackError } = await supabase
+          .from("status_updates")
+          .select(SELECT_BASE)
+          .in("user_id", ids)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (fallbackError) return results;
+        page = (data || []).map((status) => ({ ...status, media_type: status.image_id ? "image" : "text", music: null, music_url: null }));
+      }
+
+      results.push(...page);
+      if (page.length < pageSize) break;
+    }
+    return results;
   }
 
   async loadMyLikes(userId, statusIds) {

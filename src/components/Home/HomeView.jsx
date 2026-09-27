@@ -944,7 +944,7 @@ const HomeView = ({
           </div>
         )}
 
-        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={() => onOpenDMUpdates?.()} />
+        <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={(item) => onOpenDMUpdates?.(item)} />
         <FilterChip filter={feedFilter} onClear={onClearFilter} />
 
         {filterLoading && (

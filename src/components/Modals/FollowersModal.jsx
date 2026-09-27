@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { X, UserPlus, Users, Search, Crown, Shield, CheckCircle2, UserMinus, UserCheck } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import followService from "../../services/social/followService";
 
 const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "followers" }) => {
   const [tab, setTab] = useState(defaultTab);
@@ -15,6 +16,8 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [followingBack, setFollowingBack] = useState({});
+  const [followBusy, setFollowBusy] = useState({});
+  const [followErrors, setFollowErrors] = useState({});
 
   useEffect(() => {
     if (currentUser?.id) loadData();
@@ -82,6 +85,31 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
       });
     }catch(e){}
   },[filtered]);
+
+  const toggleFollow = async (user) => {
+    if (!currentUser?.id || !user?.id || user.id === currentUser.id || followBusy[user.id]) return;
+    const shouldFollow = tab === "followers" && !followingBack[user.id];
+    setFollowBusy((state) => ({ ...state, [user.id]: true }));
+    setFollowErrors((state) => ({ ...state, [user.id]: null }));
+    try {
+      const result = shouldFollow
+        ? await followService.followUser(currentUser.id, user.id)
+        : await followService.unfollowUser(currentUser.id, user.id);
+      if (result?.success === false) throw new Error(result.error || "Follow update failed");
+
+      setFollowingBack((state) => ({ ...state, [user.id]: shouldFollow }));
+      setFollowing((state) => shouldFollow
+        ? state.some((item) => item.id === user.id) ? state : [...state, user]
+        : state.filter((item) => item.id !== user.id));
+    } catch (error) {
+      const message = /insufficient ep/i.test(error?.message || "")
+        ? "Following costs 2 EP. Add EP and try again."
+        : error?.message || "Could not update follow. Try again.";
+      setFollowErrors((state) => ({ ...state, [user.id]: message }));
+    } finally {
+      setFollowBusy((state) => ({ ...state, [user.id]: false }));
+    }
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -231,13 +259,14 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
                     <div className="fm-time">{formatDate(user.followed_at)}</div>
                   </div>
                   {tab === "followers" && !isFollowingBack && (
-                    <button className="fm-follow-btn follow"><UserPlus size={12} /> Follow</button>
+                    <button className="fm-follow-btn follow" onClick={() => toggleFollow(user)} disabled={followBusy[user.id]} title={followErrors[user.id] || "Follow · costs 2 EP"}>
+                      {followBusy[user.id] ? "…" : <><UserPlus size={12} />{followErrors[user.id] ? "Retry" : "Follow"}</>}
+                    </button>
                   )}
-                  {tab === "followers" && isFollowingBack && (
-                    <button className="fm-follow-btn following"><UserCheck size={12} /> Following</button>
-                  )}
-                  {tab === "following" && (
-                    <button className="fm-follow-btn following"><UserMinus size={12} /> Following</button>
+                  {(tab === "following" || isFollowingBack) && (
+                    <button className="fm-follow-btn following" onClick={() => toggleFollow(user)} disabled={followBusy[user.id]} title="Unfollow">
+                      {followBusy[user.id] ? "…" : <><UserMinus size={12} />Following</>}
+                    </button>
                   )}
                 </div>
               );

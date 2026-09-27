@@ -1,5 +1,6 @@
 // src/components/Shared/AdminSidebar.jsx
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import ServicesModalRouter from "./ServicesModalRouter";
 
 // ─────────────────────────────────────────────
@@ -20,13 +21,27 @@ const STYLES = `
     display: flex;
     flex-direction: column;
     position: fixed;
-    z-index: 50;
+    z-index: 99999;
     font-family: 'Syne', sans-serif;
     left: 4%;
     bottom: 0;
-    width: 300px;
+    width: min(300px, calc(100vw - 28px));
     box-shadow: 14px 0 44px rgba(0,0,0,0.2), inset -1px 0 rgba(255,255,255,0.035);
   }
+
+  .xv-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(0,0,0,.56);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: xv-backdrop-in .18s ease both;
+  }
+  @keyframes xv-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 
   .xv-accent-bar {
     height: 3px;
@@ -82,8 +97,9 @@ const STYLES = `
   .xv-nav {
     flex: 1;
     padding: 8px 10px 14px;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    align-content: start;
     gap: 5px;
     overflow-y: auto;
     scrollbar-width: none;
@@ -104,6 +120,7 @@ const STYLES = `
 
   .xv-nav-btn {
     width: 100%;
+    min-width: 0;
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -127,7 +144,7 @@ const STYLES = `
       background: #090d0a;
     color: var(--text);
     border-color: color-mix(in srgb, var(--item-border, var(--accent-border)) 68%, white 32%);
-    transform: translateX(2px);
+    transform: translateY(-1px);
     box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px color-mix(in srgb, var(--item-border, var(--accent)) 24%, transparent), 0 8px 22px rgba(0,0,0,0.16);
   }
   .xv-nav-btn--active { font-weight: 700; }
@@ -172,6 +189,7 @@ const STYLES = `
 
   .xv-menu-btn {
     width: 100%;
+    min-width: 0;
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -192,6 +210,7 @@ const STYLES = `
   .xv-nav-divider {
     height: 1px;
       margin: 5px 0;
+    grid-column: 1 / -1;
     background: rgba(255,255,255,0.08);
     border-radius: 999px;
   }
@@ -203,6 +222,8 @@ const STYLES = `
 
   .xv-admin-btn {
     width: 100%;
+    grid-column: 1 / -1;
+    min-width: 0;
     flex: 0 0 auto;
     min-height: 58px;
     box-sizing: border-box;
@@ -218,7 +239,7 @@ const STYLES = `
     overflow: hidden;
     transition: background 0.2s, box-shadow 0.2s, border-color 0.2s, transform 0.2s;
     text-align: left;
-    white-space: nowrap;
+    white-space: normal;
     font-family: 'Syne', sans-serif;
     background: #050706;
     border: 1px solid color-mix(in srgb, var(--role-color, var(--surface-border)) 22%, transparent);
@@ -255,7 +276,7 @@ const STYLES = `
     animation: xv-admin-sweep 0.9s ease-out;
   }
   @keyframes xv-admin-sweep { to { left: 122%; } }
-  .xv-admin-btn-label { flex: 1; }
+  .xv-admin-btn-label { flex: 1; min-width: 0; line-height: 1.2; }
   .xv-chevron { width: 14px; height: 14px; opacity: 0.7; }
 
   .xv-footer {
@@ -537,10 +558,17 @@ export default function AdminSidebar({
   const initials = (adminData?.full_name || adminData?.email || "A").charAt(0).toUpperCase();
 
   return (
-    <>
+    ReactDOM.createPortal(<>
+      <button
+        type="button"
+        className="xv-sidebar-backdrop"
+        aria-label="Close admin navigation"
+        onClick={() => setSidebarOpen(false)}
+      />
       <aside
         className="xv-sidebar"
         style={{ top: headerHeight, height: `calc(100vh - ${headerHeight}px)` }}
+        aria-label="Admin navigation"
       >
         {/* Top accent bar — role color */}
         <div
@@ -592,7 +620,10 @@ export default function AdminSidebar({
                     : "rgba(192,192,192,0.18)",
                   color: isActive ? role.color : undefined,
                 }}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setSidebarOpen?.(false);
+                }}
                 onMouseEnter={() => setHovered(item.id)}
                 onMouseLeave={() => setHovered(null)}
               >
@@ -700,6 +731,6 @@ export default function AdminSidebar({
           onOpenAdsCentre={onOpenAdsCentre}
         />
       )}
-    </>
+    </>, document.body)
   );
 }

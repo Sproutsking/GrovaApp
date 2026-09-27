@@ -378,7 +378,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-card {
           position: relative; overflow: hidden;
           border-radius: 14px;
-          background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--panel) 100%);
+          background: #000;
           border: 1.5px solid var(--surface-border);
           transition: border-color .28s, transform .28s, box-shadow .28s;
           animation: cardIn .36s ease backwards;

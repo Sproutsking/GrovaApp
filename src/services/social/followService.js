@@ -14,6 +14,11 @@ import FollowModel   from "../../models/FollowModel";
 import { supabase }  from "../config/supabase";
 import pushService   from "../notifications/pushService";
 
+function reportFollowFailure(message) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("xeevia:follow-error", { detail: { message } }));
+}
+
 // ── Push helper — never throws ────────────────────────────────────────────────
 async function _sendFollowPush(followerId, followingId) {
   try {
@@ -63,16 +68,21 @@ class FollowService {
     try {
       const result = await FollowModel.followUser(followerId, followingId);
       if (!result.success) {
-        const msg = String(result.message || "").toLowerCase();
+        const failureReason = result.error || result.message || "Failed to follow user";
+        const msg = String(failureReason).toLowerCase();
         if (msg.includes("already") || msg.includes("duplicate") || result.code === "23505") {
           return { success: true, alreadyFollowing: true };
         }
-        console.warn("[FollowService] followUser non-success:", result.message);
-        return { success: false, error: result.message };
+        console.warn("[FollowService] followUser non-success:", failureReason);
+        reportFollowFailure(failureReason);
+        return { ...result, success: false, error: failureReason };
       }
 
-      // [PUSH-1] Fire push after confirmed success — never awaited
-      _sendFollowPush(followerId, followingId);
+      if (!result.already_following && !result.alreadyFollowing) {
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("xeevia:follows-changed", { detail: { followerId, followingId, following: true } }));
+        // [PUSH-1] Fire push after confirmed success — never awaited
+        _sendFollowPush(followerId, followingId);
+      }
 
       return result;
     } catch (err) {
@@ -88,7 +98,9 @@ class FollowService {
         return { success: true, alreadyFollowing: true };
       }
       console.error("[FollowService] followUser error:", err);
-      return { success: false, error: err?.message || "Failed to follow user" };
+      const error = err?.message || "Failed to follow user";
+      reportFollowFailure(error);
+      return { success: false, error };
     }
   }
 
@@ -104,6 +116,7 @@ class FollowService {
         console.warn("[FollowService] unfollowUser non-success:", result.message);
         return { success: false, error: result.message };
       }
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("xeevia:follows-changed", { detail: { followerId, followingId, following: false } }));
       return result;
     } catch (err) {
       const msg = String(err?.message || err || "").toLowerCase();

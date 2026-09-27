@@ -234,7 +234,6 @@ const Placeholder = React.memo(({ height, item, index, placeholderRef }) => (
     contain:      "layout paint style",
     background:   getPlaceholderGradient(item),
     borderRadius: 12,
-    marginBottom: 2,
     border:       "1px solid var(--surface-border)",
   }} />
 ));
@@ -392,7 +391,7 @@ const VirtualFeed = React.memo(({
         const key = `${item.type}:${item.id}`;
         if (index < renderStart || index > renderEnd) {
           const injectedHeight = injections.get(index) ? 220 : 0;
-          const height = (heightMap.current[key] || estimateItemHeight(item) + injectedHeight) + 2;
+          const height = heightMap.current[key] || estimateItemHeight(item) + injectedHeight;
           return <Placeholder key={key} index={index} item={item} height={height} placeholderRef={makeRef(index)} />;
         }
 
@@ -414,11 +413,13 @@ const VirtualFeed = React.memo(({
         return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
       })}
       <style>{`
-        .vf-list{display:flex;flex-direction:column;position:relative;contain:layout paint;}
-        .vf-item{contain:layout style;margin-bottom:2px;}
+        .vf-list{--vf-item-gap:14px;display:flex;flex-direction:column;position:relative;contain:layout paint;}
+        .vf-item,.vf-placeholder{margin-bottom:var(--vf-item-gap);}
+        .vf-item{contain:layout style;}
         .vf-placeholder{position:relative;overflow:hidden;}
         .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}
         @keyframes vf-placeholder-shimmer{to{background-position-x:-220%;}}
+        @media(max-width:768px){.vf-list{--vf-item-gap:2px;}}
         @media(prefers-reduced-motion:reduce){.vf-placeholder::after{animation:none;}}
       `}</style>
     </div>

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import { supabase } from "../../services/config/supabase";
+import followService from "../../services/social/followService";
 
 // ============================================================================
 // NotificationSidebar — v4
@@ -162,22 +163,22 @@ function timeAgo(ts) {
 // ── Follow-back hook ──────────────────────────────────────────────────────────
 function useFollowBack(actorId, currentUserId) {
   const [state, setState] = useState("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const follow = useCallback(async (e) => {
     e.stopPropagation();
-    if (!actorId || !currentUserId || state !== "idle") return;
+    if (!actorId || !currentUserId || !["idle", "error"].includes(state)) return;
     setState("loading");
+    setErrorMessage("");
     try {
-      const { error } = await supabase
-        .from("follows")
-        .insert({ follower_id: currentUserId, following_id: actorId });
-      if (error && error.code !== "23505") throw error;
+      const result = await followService.followUser(currentUserId, actorId);
+      if (result?.success === false) throw new Error(result.error || "Follow failed");
       setState("done");
-    } catch {
+    } catch (error) {
+      setErrorMessage(/insufficient ep/i.test(error?.message || "") ? "Following costs 2 EP" : "Could not follow. Retry.");
       setState("error");
-      setTimeout(() => setState("idle"), 2000);
     }
   }, [actorId, currentUserId, state]);
-  return { state, follow };
+  return { state, follow, errorMessage };
 }
 
 // ── Action buttons (v3, unchanged) ───────────────────────────────────────────
@@ -186,7 +187,7 @@ const ActionButtons = memo(({ notif, onNavigate, currentUserId }) => {
   const label   = contentLabel(notif);
   const actorId = notif.actor?.id;
   const { type } = notif;
-  const { state: followState, follow } = useFollowBack(type === "follow" ? actorId : null, currentUserId);
+  const { state: followState, follow, errorMessage: followError } = useFollowBack(type === "follow" ? actorId : null, currentUserId);
 
   const handleViewContent = useCallback((e) => {
     e.stopPropagation();
@@ -202,8 +203,9 @@ const ActionButtons = memo(({ notif, onNavigate, currentUserId }) => {
     <div className="ni__actions">
       <button
         className={`ni__btn ni__btn--primary${followState==="done"?" ni__btn--done":""}`}
-        onClick={followState==="idle" ? follow : undefined}
+        onClick={["idle", "error"].includes(followState) ? follow : undefined}
         disabled={followState==="loading" || followState==="done"}
+        title={followError || "Follow back · costs 2 EP"}
       >
         {followState==="loading" ? "…" : followState==="done" ? "Following ✓" : followState==="error" ? "Retry" : "Follow Back"}
       </button>

@@ -422,6 +422,20 @@ export const ToastProvider = ({ children }) => {
     [],
   );
 
+  useEffect(() => {
+    const handleFollowError = (event) => {
+      const reason = event.detail?.message || "Follow action could not be completed.";
+      const insufficient = /insufficient ep/i.test(reason);
+      showToast({
+        type: "error",
+        message: insufficient ? "Not enough EP to follow" : "Follow action failed",
+        description: insufficient ? "Following costs 2 EP. Add EP to your wallet and try again." : reason,
+      });
+    };
+    window.addEventListener("xeevia:follow-error", handleFollowError);
+    return () => window.removeEventListener("xeevia:follow-error", handleFollowError);
+  }, [showToast]);
+
   const hideToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
