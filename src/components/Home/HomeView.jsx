@@ -1,4 +1,3 @@
-  <StatusUpdatesStrip currentUser={resolvedUser} onOpenStatus={(item) => onOpenDMUpdates?.(item)} />
 // src/components/Home/HomeView.jsx — v27 ULTRA-INSTANT MOUNT
 //
 // ═══════════════════════════════════════════════════════════════════════════
