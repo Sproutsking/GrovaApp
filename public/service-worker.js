@@ -27,10 +27,13 @@
 //   handler, _focusOrOpen) preserved exactly.
 // ============================================================================
 
-const CACHE_NAME = "xeevia-v2026-sw14";
+// Force a fresh service-worker install when the app UI has been updated.
+// This is the cache-busting step that prevents stale browsers from continuing to
+// serve the old shell after a layout fix has already been pushed.
+const CACHE_NAME = "xeevia-v2026-sw16";
 const CLOUDINARY_CACHE = "xeevia-cloudinary-v1";
 const CLOUDINARY_DOMAINS = ["res.cloudinary.com"];
-const SW_VERSION = "xeevia-1.0.14";
+const SW_VERSION = "xeevia-1.0.16";
 const DB_NAME = "xeevia-sw-db";
 const DB_VERSION = 1;
 const STORE_NAME = "pending-payloads";

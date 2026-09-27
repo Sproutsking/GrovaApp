@@ -739,6 +739,12 @@ if (process.env.NODE_ENV === "development" || (isLocalhost && !process.env.REACT
       if (lastShown && Date.now() - Number(lastShown) < 60_000) return;
       sessionStorage.setItem("xv_update_shown", String(Date.now()));
 
+      if (registration?.waiting) {
+        try {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        } catch (_) {}
+      }
+
       if (typeof window.__xvShowUpdate === "function") {
         window.__xvShowUpdate();
         return;
