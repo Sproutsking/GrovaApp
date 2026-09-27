@@ -628,7 +628,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .trending-sidebar::-webkit-scrollbar       { width:3px; }
         .trending-sidebar::-webkit-scrollbar-track { background:transparent; }
         .trending-sidebar::-webkit-scrollbar-thumb { background:var(--accent-border); border-radius:2px; }
-        @media(max-width:1100px){ .trending-sidebar { width:256px; min-width:256px; } }
+        @media(max-width:1100px){ .trending-sidebar { width:var(--trending-w); min-width:var(--trending-w); } }
         @media(max-width:768px) { .trending-sidebar:not(.trending-mobile-fullscreen){ display:none !important; } }
         .trending-mobile-fullscreen { position:fixed !important; inset:0 !important; z-index:10000 !important; background: var(--bg) !important; overflow-y:auto !important; animation:slideUp .28s cubic-bezier(.34,1.1,.64,1); }
         @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -644,7 +644,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .mob-hdr-title svg { color: var(--accent); }
         .mob-close {
           width:34px; height:34px; border-radius:50%;
-          background: var(--surface);
+          background: #030303;
           border:1px solid var(--surface-border);
           color: var(--text-secondary); display:flex; align-items:center; justify-content:center; cursor:pointer;
         }
@@ -682,7 +682,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           border:1px solid var(--surface-border);
           cursor:pointer; transition:all .2s;
         }
-        .streamer-row:hover { background: var(--surface-strong); border-color: var(--accent-border); transform:translateX(2px); }
+        .streamer-row:hover { background: #080808; border-color: var(--accent-border); transform:translateX(2px); }
         .streamer-rank { width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .streamer-avatar { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:var(--surface-strong); display:flex; align-items:center; justify-content:center; color: var(--text); font-weight:900; font-size:12px; overflow:hidden; border:1.5px solid var(--surface-border); }
         .streamer-avatar img { width:100%; height:100%; object-fit:cover; }
@@ -725,12 +725,12 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-section:last-child { margin-bottom:0; }
         .tag-row {
           display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
-          background: var(--surface);
+          background: #030303;
           border:1px solid var(--surface-border);
           cursor:pointer; transition:all .2s;
         }
-        .tag-row:hover { background: var(--surface-strong); border-color: var(--accent-border); transform:translateX(2px); }
-        .tag-num { width:24px; height:24px; border-radius:7px; background: var(--surface-strong); color: var(--text-secondary); font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .tag-row:hover { background: #080808; border-color: var(--accent-border); transform:translateX(2px); }
+        .tag-num { width:24px; height:24px; border-radius:7px; background: #0a0a0a; color: var(--text-secondary); font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .tag-num.hot { background:var(--danger-bg); color:var(--danger); }
         .tag-body { flex:1; min-width:0; }
         .tag-name { font-size:12px; font-weight:700; color: var(--text); display:block; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
@@ -739,20 +739,20 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .tag-meta svg { opacity:.7; }
         .hot-chip { font-size:9px; font-weight:800; padding:1px 5px; background:var(--danger-bg); color:var(--danger); border-radius:4px; }
         .dot { color: var(--text-secondary); }
-        .tag-drill-btn { width:26px; height:26px; border-radius:7px; flex-shrink:0; background: var(--surface); border:1px solid var(--surface-border); color: var(--text-secondary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
+        .tag-drill-btn { width:26px; height:26px; border-radius:7px; flex-shrink:0; background: #030303; border:1px solid var(--surface-border); color: var(--text-secondary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
         .tag-row:hover .tag-drill-btn { background: var(--accent-bg-soft); border-color: var(--accent-border); color: var(--accent); }
 
         /* ── CREATOR ROWS ── */
         .creator-list { display:flex; flex-direction:column; gap:5px; }
         .creator-row {
           display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
-          background: var(--surface);
+          background: #030303;
           border:1px solid var(--surface-border);
           cursor:pointer; transition:all .2s;
         }
-        .creator-row:hover { background:var(--surface-strong); border-color:var(--accent-border); transform:translateY(-2px); box-shadow:0 6px 18px var(--shadow-soft); }
+        .creator-row:hover { background:#080808; border-color:var(--accent-border); transform:translateY(-2px); box-shadow:0 6px 18px var(--shadow-soft); }
         .creator-row.top-tier { border-color:var(--brand-warning-border); }
-        .creator-row.top-tier:hover { border-color:var(--brand-warning-border-strong); background:var(--brand-warning-bg); }
+        .creator-row.top-tier:hover { border-color:var(--brand-warning-border-strong); background:#080808; }
         .creator-rank { width:22px; height:22px; border-radius:6px; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .creator-avatar-wrap { position:relative; flex-shrink:0; }
         .creator-avatar { width:32px; height:32px; border-radius:50%; background:var(--accent-gradient); display:flex; align-items:center; justify-content:center; color:var(--accent-contrast); font-weight:900; font-size:13px; overflow:hidden; border:2px solid var(--accent-border); }
@@ -806,9 +806,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .nav-hint { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:4px; background:var(--accent-bg-soft); border:1px solid var(--accent-border); border-radius:9px; font-size:10.5px; color:var(--accent); font-weight:600; }
 
         /* ── POST PREVIEW CARDS ── */
-        .pp-card { display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background: var(--surface); border:1px solid var(--surface-border); cursor:pointer; text-align:left; width:100%; transition:all .2s; animation:ppIn .22s ease both; }
+        .pp-card { display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background: #030303; border:1px solid var(--surface-border); cursor:pointer; text-align:left; width:100%; transition:all .2s; animation:ppIn .22s ease both; }
         @keyframes ppIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        .pp-card:hover { background: var(--surface-strong); border-color: var(--accent-border); transform:translateX(3px); }
+        .pp-card:hover { background: #080808; border-color: var(--accent-border); transform:translateX(3px); }
         .pp-thumb { width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background: var(--surface-strong); position:relative; }
         .pp-thumb img { width:100%; height:100%; object-fit:cover; }
         .pp-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:var(--overlay-secondary); }

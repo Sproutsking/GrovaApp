@@ -199,15 +199,13 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
 export const getExternalUrls = (text = "") => String(text).match(URL_PATTERN)?.map((url) => url.replace(TRAILING_PUNCTUATION, "")).filter((url) => !isInternalXeeviaUrl(url)) || [];
 
 export const SharedContentMessage = ({ children, onNavigate, isMine = false, showSender = true, senderDisplayName }) => {
-  const shared = parseSharedContent(children);
-  if (!shared) return <LinkifiedText onNavigate={onNavigate}>{children}</LinkifiedText>;
-
-  const target = getSharedTarget(shared.url);
-  const path = target.path;
-  const displayType = normalizeContentType(target.type || shared.contentType || "link");
-  const prettyType = displayType === "profile" ? "profile" : displayType;
-  const senderLabel = senderDisplayName || (isMine ? "You" : (shared.senderName || "Someone"));
   const [preview, setPreview] = useState(null);
+  const shared = parseSharedContent(children);
+  const target = shared ? getSharedTarget(shared.url) : null;
+  const path = target?.path || "";
+  const displayType = target ? normalizeContentType(target.type || shared.contentType || "link") : "link";
+  const prettyType = displayType === "profile" ? "profile" : displayType;
+  const senderLabel = senderDisplayName || (isMine ? "You" : (shared?.senderName || "Someone"));
 
   useEffect(() => {
     if (displayType !== "post") return undefined;
@@ -223,6 +221,8 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
     }).catch(() => {});
     return () => { active = false; };
   }, [displayType, path]);
+
+  if (!shared) return <LinkifiedText onNavigate={onNavigate}>{children}</LinkifiedText>;
 
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 7, maxWidth: "100%", minWidth: 0 }}>

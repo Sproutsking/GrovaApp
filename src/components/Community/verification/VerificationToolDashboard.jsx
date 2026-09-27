@@ -97,7 +97,7 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
     setSaving(true);
     try {
       await onSave(nextConfig);
-      setSelectedMode(null);
+      selectMode(null);
     } catch (saveError) {
       setError(saveError.message || "Could not save verification setup.");
     } finally {

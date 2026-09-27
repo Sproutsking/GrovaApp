@@ -27,6 +27,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   lazy,
@@ -292,6 +293,7 @@ const MainApp = memo(() => {
   const [userBalance,        setUserBalance]        = useState({ tokens: 0, points: 0 });
   const [profileData,        setProfileData]        = useState(null);
   const [activeTab,          setActiveTab]          = useState("home");
+  const [hasRoomForTrending, setHasRoomForTrending] = useState(true);
   const [overlayTab,         setOverlayTab]         = useState(null);
   const [isMobile,           setIsMobile]           = useState(checkMobile);
   const [sidebarOpen,        setSidebarOpen]        = useState(true);
@@ -912,7 +914,61 @@ const MainApp = memo(() => {
     onNavigate: handleTabChange,
     onOpenDMUpdates: handleOpenStatusFeed,
   };
-  const showTrending = ["home", "search", "create", "account", "sports"].includes(activeTab);
+  const wantsTrendingSidebar = ["home", "search", "create", "account", "sports"].includes(activeTab);
+
+  useLayoutEffect(() => {
+    const measureTrendingFit = () => {
+      if (isMobile) {
+        setHasRoomForTrending(false);
+        return;
+      }
+
+      const nav = document.querySelector(".sidebar, .xv-sidebar");
+      const main = document.querySelector(".main-content-desktop");
+      const frame = document.querySelector(".desktop-layout");
+      const trending = document.querySelector(".trending-sidebar");
+      if (!nav || !main || !frame) {
+        setHasRoomForTrending(false);
+        return;
+      }
+      if (!trending) return;
+
+      const navRect = nav.getBoundingClientRect();
+      const mainRect = main.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
+      const rootStyle = window.getComputedStyle(document.documentElement);
+      const measuredRailWidth = trending.getBoundingClientRect().width;
+      const railWidth = measuredRailWidth || parseFloat(rootStyle.getPropertyValue("--trending-w")) || 0;
+      const rightGutter = parseFloat(rootStyle.getPropertyValue("--layout-gutter")) || 0;
+      const minFeedWidth = parseFloat(rootStyle.getPropertyValue("--main-content-min-w")) || 520;
+      const feedLeft = Math.max(mainRect.left, navRect.right);
+      const availableFeedWidth = frameRect.right - railWidth - rightGutter - feedLeft;
+
+      setHasRoomForTrending(railWidth > 0 && availableFeedWidth >= minFeedWidth);
+    };
+
+    measureTrendingFit();
+    window.addEventListener("resize", measureTrendingFit);
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(measureTrendingFit);
+    const mountObserver = typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(measureTrendingFit);
+    mountObserver?.observe(document.body, { childList: true, subtree: true });
+    [".sidebar, .xv-sidebar", ".main-content-desktop", ".desktop-layout", ".trending-sidebar"]
+      .map((selector) => document.querySelector(selector))
+      .filter(Boolean)
+      .forEach((element) => observer?.observe(element));
+
+    return () => {
+      window.removeEventListener("resize", measureTrendingFit);
+      observer?.disconnect();
+      mountObserver?.disconnect();
+    };
+  }, [isMobile, wantsTrendingSidebar]);
+
+  const showTrending = wantsTrendingSidebar && hasRoomForTrending;
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
@@ -1135,8 +1191,6 @@ const MainApp = memo(() => {
           <AdminSidebar
             activeTab={activeTab}
             setActiveTab={handleTabChange}
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
             onSignOut={handleSignOut}
             user={user}
             adminData={adminData}
@@ -1248,12 +1302,12 @@ const MainApp = memo(() => {
       {renderSidebar()}
 
       {!isMobile && (
-        <div className="desktop-layout">
+        <div className={`desktop-layout${wantsTrendingSidebar && !showTrending ? " desktop-layout--without-trending" : ""}`}>
           {sidebarOpen && <div className="left-sidebar-placeholder" />}
           <main ref={containerRef} className="main-content-desktop">
             {renderContent()}
           </main>
-          {showTrending && (
+          {wantsTrendingSidebar && (
             <Suspense fallback={null}>
               <TrendingSidebar
                 currentUser={currentUser}

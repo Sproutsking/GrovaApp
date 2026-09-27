@@ -138,11 +138,13 @@ html *::-webkit-scrollbar {
 
   /* One bounded desktop frame with fluid, capped side columns. */
   --app-frame-left: 0px;
-  --sidebar-w: clamp(220px, 23vw, 300px);
+  --sidebar-w: clamp(220px, 26vw, 320px);
   --trending-w: 0px;
-  --layout-gutter: clamp(16px, 2vw, 28px);
+  --layout-gutter: 0px;
+  --main-content-min-w: 520px;
+  --main-content-max-w: 800px;
   --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
-  --layout-right: max(0px, calc(100vw - var(--sidebar-w) - var(--layout-gutter) - 800px));
+  --layout-right: max(0px, calc(100vw - var(--layout-left) - var(--main-content-max-w)));
 
   /* ────────────────────────────────────────────────────────────────
     Shared left edge for overlays that should begin where Home's
@@ -325,7 +327,7 @@ img, video {
   bottom: 0;
   left:  var(--layout-left);
   right: var(--layout-right);
-  min-width: min(520px, calc(100vw - var(--layout-left) - var(--layout-right)));
+  min-width: min(var(--main-content-min-w), calc(100vw - var(--layout-left) - var(--layout-right)));
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -365,6 +367,15 @@ img, video {
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   z-index: 50;
+}
+
+.desktop-layout--without-trending {
+  --trending-w: 0px;
+  --layout-right: max(0px, calc(100vw - var(--layout-left) - var(--main-content-max-w)));
+}
+
+.desktop-layout--without-trending .trending-sidebar {
+  display: none !important;
 }
 
 /* ==========================================================================
@@ -433,7 +444,7 @@ img, video {
 
 @media (min-width: 1200px) and (max-width: 1439px) {
   :root {
-    --trending-w: clamp(240px, 22vw, 320px);
+    --trending-w: var(--sidebar-w);
     --layout-right: calc(var(--trending-w) + var(--layout-gutter));
   }
 }
@@ -441,10 +452,10 @@ img, video {
 @media (min-width: 1440px) {
   :root {
     --app-frame-left: calc((100vw - 1440px) / 2);
-    --sidebar-w: 300px;
+    --sidebar-w: 320px;
     --trending-w: 320px;
-    --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + 28px);
-    --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + 28px);
+    --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + var(--layout-gutter));
+    --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + var(--layout-gutter));
   }
 }
 
@@ -866,11 +877,9 @@ img, video {
 
 @media (max-width: 1199px) and (min-width: 769px) {
   :root {
-    --trending-w: 0px;
+    --trending-w: var(--sidebar-w);
     --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
-    --layout-right: max(0px, calc(100vw - var(--sidebar-w) - var(--layout-gutter) - 800px));
+    --layout-right: calc(var(--trending-w) + var(--layout-gutter));
     --edge-left: var(--layout-left);
   }
-
-  .trending-sidebar { display: none; }
 }

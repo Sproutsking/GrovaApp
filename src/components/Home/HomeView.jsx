@@ -1067,6 +1067,7 @@ const HomeView = ({
                 onAuthorClick={handleAuthorClick}
                 onActionMenu={handleActionMenu}
                 onComment={handleComment}
+                isActive={currentTab === "culture"}
               />
             </div>
           </div>

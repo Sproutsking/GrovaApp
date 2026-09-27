@@ -58,6 +58,7 @@ const CultureTab = React.forwardRef(({
   onAuthorClick,
   onActionMenu,
   onComment,
+  isActive = false,
 }, ref) => {
   const [selectedCategory, setSelectedCategory] = useState("trending");
   const [content, setContent] = useState([]);

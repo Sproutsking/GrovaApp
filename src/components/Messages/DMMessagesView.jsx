@@ -693,7 +693,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
           )}
 
           {/* DM chat */}
-          {canShowChat && (
+          {view === "chat" && canShowChat && (
             <div className="dmh-screen dmh-chat-screen">
               <ChatView
                 key={selectedConv.id}
@@ -908,14 +908,14 @@ const CSS = `
 @media(min-width:769px){
   .dmh-panel{
     position:fixed;
-    inset:50% auto auto 50%;
-    width:min(1560px,calc(100vw - 32px));
-    height:min(960px,calc(100vh - 32px));
-    transform:translate(-50%,-50%);
-    border-radius:14px;
-    border:1px solid rgba(255,255,255,.1);
+    inset:0;
+    width:100vw;
+    height:100vh;
+    transform:none;
+    border-radius:0;
+    border:0;
     overflow:hidden;
-    box-shadow:0 32px 100px rgba(0,0,0,.7);
+    box-shadow:none;
     background:#0c0f10;
     animation:dmhSlide .28s cubic-bezier(.22,1,.36,1);
   }

@@ -2,6 +2,7 @@
 // FIXED: menu-overlay top offset = 47px mobile / 57px desktop
 // Community icon supports image URLs. Stats show real online count.
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import {
   X, Users, Link2, Settings, LogOut, Crown, ChevronRight,
   ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette, Wrench,
@@ -36,7 +37,7 @@ const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) =
         </div>
       </div>
       <style>{`
-        .conf-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:20000;display:flex;align-items:center;justify-content:center;animation:cfadeIn .2s ease}
+        .conf-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:100003;display:flex;align-items:center;justify-content:center;animation:cfadeIn .2s ease}
         @keyframes cfadeIn{from{opacity:0}to{opacity:1}}
         .conf-dialog{background:rgba(15,15,15,.98);border:2px solid rgba(156,255,0,.25);border-radius:16px;padding:24px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:cslideUp .3s cubic-bezier(.4,0,.2,1)}
         @keyframes cslideUp{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -195,7 +196,7 @@ const CommunityMenu = ({
     : countValue(community.online_count));
 
   return (
-    <>
+    ReactDOM.createPortal((<>
       {/* FIXED: top offset 47px mobile / 57px desktop to clear app header */}
       <div className="cm-overlay" onClick={onClose}>
         <div className="cm-sidebar" onClick={(e) => e.stopPropagation()}>
@@ -260,7 +261,7 @@ const CommunityMenu = ({
                   </div>
                 </div>
 
-                <div className="cm-section">
+                <div className="cm-section cm-action-grid">
                   {[
                     { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true },
                     { label:"Help & Setup", desc:"Learn settings, channels, and categories", icon:<Star size={16}/>, gradient:"linear-gradient(135deg,#f9d423,#ff4e50)", onClick:()=>setMenuView("help"), arrow:true },
@@ -375,7 +376,7 @@ const CommunityMenu = ({
           left:0;right:0;bottom:0;
           background:var(--modal-overlay);
           backdrop-filter:blur(4px);
-          z-index:10000;
+          z-index:100001;
           animation:overlayIn .25s ease;
         }
         body.community-menu-fullscreen .mh-header,
@@ -385,7 +386,7 @@ const CommunityMenu = ({
         .cm-sidebar{
           position:absolute;
           top:0;right:0;bottom:0;
-          width:100%;max-width:none;
+          left:0;right:0;width:100%;max-width:1440px;margin-inline:auto;
           background:var(--panel-strong);
           border-left:none;
           box-shadow:none;
@@ -418,14 +419,16 @@ const CommunityMenu = ({
         .cm-content::-webkit-scrollbar{width:5px}
         .cm-content::-webkit-scrollbar-thumb{background:var(--accent-bg-strong);border-radius:3px}
 
-        .cm-section{padding:12px 24px}
+        .cm-section{padding:12px clamp(20px, 3vw, 48px)}
+        .cm-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px;align-content:start}
         .cm-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
         .cm-stat{padding:14px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;display:flex;align-items:center;gap:10px;transition:all .25s}
         .cm-stat:hover{border-color:var(--accent-border);transform:translateY(-1px)}
         .cm-stat-val{font-size:18px;font-weight:900;color:var(--accent)}
         .cm-stat-lbl{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px}
 
-        .cm-item{display:flex;align-items:center;gap:10px;padding:13px 12px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);margin-bottom:6px}
+        .cm-item{display:flex;align-items:center;gap:10px;padding:13px 12px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);margin-bottom:6px;min-width:0}
+        .cm-action-grid .cm-item{margin-bottom:0;min-height:68px}
         .cm-item:hover{background:var(--surface-strong);border-color:var(--accent-border);transform:translateX(5px)}
         .cm-item.danger:hover{border-color:var(--danger-border);background:var(--danger-bg)}
         .cm-item-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
@@ -490,12 +493,13 @@ const CommunityMenu = ({
         @media(max-width:768px){
           .cm-sidebar{max-width:100%;border-left:none;animation:slideUpMobile .3s cubic-bezier(.4,0,.2,1)}
           .cm-header{padding:8px 12px}
-          .cm-section{padding:8px}
+          .cm-section{padding:8px 12px}
+          .cm-action-grid{grid-template-columns:minmax(0,1fr)}
           .community-help-shell{padding:12px 10px 18px}
           @keyframes slideUpMobile{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         }
       `}</style>
-    </>
+    </>), document.body)
   );
 };
 

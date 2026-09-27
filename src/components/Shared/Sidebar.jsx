@@ -190,7 +190,7 @@ const Sidebar = ({
                       ? "rgba(205,205,205,0.42)"
                       : "rgba(192,192,192,0.18)",
                     ...(isActive ? {
-                      background: "linear-gradient(135deg, #0b100d, #040705 72%)",
+                      background: "#030303",
                       borderColor: "rgba(205,205,205,0.42)",
                       color: item.color,
                     } : {}),
@@ -281,10 +281,7 @@ const Sidebar = ({
           bottom: 0;
           width: var(--sidebar-w, 300px);
           overflow: hidden;
-          background:
-            linear-gradient(155deg, rgba(255,255,255,0.035), transparent 24%),
-            radial-gradient(ellipse 90% 36% at 48% 0%, var(--accent-bg-soft), transparent 72%),
-            var(--bg);
+          background: #000;
           border-left: 1px solid var(--surface-border);
           border-right: 1px solid var(--surface-border);
           font-family: "Manrope", sans-serif;
@@ -302,7 +299,7 @@ const Sidebar = ({
           background-size: 28px 28px, 28px 28px, auto;
           overflow: hidden;
           pointer-events: none;
-          opacity: 0.42;
+          display: none;
           mask-image: linear-gradient(to bottom, black, rgba(0,0,0,0.82) 52%, transparent 100%);
         }
         .ambient-orb {
@@ -342,8 +339,8 @@ const Sidebar = ({
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: linear-gradient(180deg, rgba(14,18,14,0.74), rgba(8,10,9,0.92));
-          backdrop-filter: blur(24px) saturate(180%);
+          background: #000;
+          backdrop-filter: none;
           border-right: 1px solid var(--surface-border);
           z-index: 1;
         }
@@ -491,7 +488,7 @@ const Sidebar = ({
           align-items: center;
           gap: 11px;
           padding: 12px 13px;
-          background: linear-gradient(135deg, #080b09, #030504 72%);
+          background: #030303;
           border: 1px solid rgba(192,192,192,0.18);
           border-radius: 12px;
           color: var(--text-secondary);
@@ -513,7 +510,7 @@ const Sidebar = ({
         }
         .nav-item:hover:not(.nav-item-active) {
           border-color: rgba(205,205,205,0.42);
-          background: linear-gradient(135deg, #0b100d, #040705 72%);
+          background: #080808;
           transform: translateX(2px);
           box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(205,205,205,0.1), 0 8px 22px rgba(0,0,0,0.16);
         }

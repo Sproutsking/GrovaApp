@@ -10,12 +10,7 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    background:
-      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px),
-      radial-gradient(ellipse 100% 34% at 50% 0%, rgba(156,255,0,0.12), transparent 72%),
-      var(--bg);
-    background-size: 30px 30px, 30px 30px, auto, auto;
+    background: #000;
     border-left: 1px solid var(--surface-border);
     border-right: 1px solid var(--surface-border);
     display: flex;
@@ -25,23 +20,9 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
     left: var(--app-frame-left, 0px);
     bottom: 0;
-    width: min(300px, calc(100vw - 28px));
+    width: var(--sidebar-w, 300px);
     box-shadow: 14px 0 44px rgba(0,0,0,0.2), inset -1px 0 rgba(255,255,255,0.035);
   }
-
-  .xv-sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 99998;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    background: rgba(0,0,0,.56);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    animation: xv-backdrop-in .18s ease both;
-  }
-  @keyframes xv-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 
   .xv-accent-bar {
     height: 3px;
@@ -98,7 +79,7 @@ const STYLES = `
     flex: 1;
     padding: 8px 10px 14px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: 5px;
     overflow-y: auto;
@@ -127,7 +108,7 @@ const STYLES = `
     gap: 11px;
       padding: 11px 13px;
       border-radius: 12px;
-      background: #050706;
+      background: #030303;
       border: 1px solid var(--item-border, var(--surface-border));
     color: var(--text-secondary);
     font-size: 13.5px;
@@ -141,7 +122,7 @@ const STYLES = `
     box-shadow: inset 0 1px rgba(255,255,255,0.035), 0 5px 14px rgba(0,0,0,0.08);
   }
   .xv-nav-btn:hover {
-      background: #090d0a;
+      background: #080808;
     color: var(--text);
     border-color: color-mix(in srgb, var(--item-border, var(--accent-border)) 68%, white 32%);
     transform: translateY(-1px);
@@ -196,7 +177,7 @@ const STYLES = `
     gap: 11px;
       padding: 11px 13px;
       border-radius: 12px;
-      background: #050706;
+      background: #030303;
       border: 1px solid color-mix(in srgb, var(--text-secondary) 42%, transparent);
     color: var(--text-secondary);
     font-size: 14px;
@@ -241,7 +222,7 @@ const STYLES = `
     text-align: left;
     white-space: normal;
     font-family: 'Syne', sans-serif;
-    background: #050706;
+    background: #030303;
     border: 1px solid color-mix(in srgb, var(--role-color, var(--surface-border)) 22%, transparent);
     color: var(--text);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
@@ -515,8 +496,6 @@ function ChevronRightIcon() {
 export default function AdminSidebar({
   activeTab,
   setActiveTab,
-  sidebarOpen,
-  setSidebarOpen,
   onSignOut,
   user,
   adminData,
@@ -552,19 +531,10 @@ export default function AdminSidebar({
     return () => tag.remove();
   }, []);
 
-  if (!sidebarOpen) return null;
-
   const role     = ROLE_CONFIG[adminData?.role] ?? ROLE_CONFIG.a_admin;
   const initials = (adminData?.full_name || adminData?.email || "A").charAt(0).toUpperCase();
-
   return (
     ReactDOM.createPortal(<>
-      <button
-        type="button"
-        className="xv-sidebar-backdrop"
-        aria-label="Close admin navigation"
-        onClick={() => setSidebarOpen(false)}
-      />
       <aside
         className="xv-sidebar"
         style={{ top: headerHeight, height: `calc(100vh - ${headerHeight}px)` }}
@@ -622,7 +592,6 @@ export default function AdminSidebar({
                 }}
                 onClick={() => {
                   setActiveTab(item.id);
-                  setSidebarOpen?.(false);
                 }}
                 onMouseEnter={() => setHovered(item.id)}
                 onMouseLeave={() => setHovered(null)}
