@@ -66,8 +66,10 @@ const CommentItem = ({
 
     setLiked(true);
     setLikeCount((c) => c + 1);
+    let persistedLike = false;
     try {
-      await LikeModel.toggleLike("comment", comment.id, currentUser.id);
+      await LikeModel.toggleLike("comment", comment.id, currentUser.id, { notify: false });
+      persistedLike = true;
       const result = await processEngagement({
         actorId: currentUser.id,
         contentType: "comment",
@@ -76,6 +78,15 @@ const CommentItem = ({
       });
       if (!result.success && !result.selfEngagement) throw new Error(result.error || "Comment like settlement failed");
     } catch (error) {
+      if (persistedLike) {
+        try {
+          await LikeModel.toggleLike("comment", comment.id, currentUser.id, { notify: false });
+        } catch (rollbackError) {
+          setLiked(true);
+          showErr(rollbackError?.message || "Comment like could not be rolled back. Refresh to sync.");
+          return;
+        }
+      }
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
       showErr(error?.message || "Comment like failed");

@@ -548,7 +548,10 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
       ? Object.entries(msg.reactions).reduce((result, [emoji, value]) => {
           if (emoji === "_users") return result;
           const count = typeof value === "number" ? value : value?.count;
-          if (count > 0) result[emoji] = { count, users: [] };
+          if (count > 0) result[emoji] = {
+            count,
+            users: msg.reactions?._users?.[uid] === emoji ? [uid] : [],
+          };
           return result;
         }, {})
       : {},
@@ -596,6 +599,11 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
           return [...prev,msg];
         });
         if (isAtBottom.current) setTimeout(()=>scrollToBottom("smooth"),80);
+      },
+      onMessageUpdate: msg => {
+        setMessages(previous => previous.map(message => message.id === msg.id
+          ? { ...message, ...msg, user: message.user || msg.user }
+          : message));
       },
       onTyping:({userId,userName,typing:isTy})=>{
         if (String(userId)===uid) return;
@@ -647,15 +655,35 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
     } finally {setSending(false);}
   };
 
-  const handleReact=useCallback((msgId,emoji)=>{
-    setMessages(prev=>prev.map(m=>{
-      if(m.id!==msgId&&m._tempId!==msgId)return m;
-      const r={...(m.reactions||{})};const users={...(r._users||{})};const prev_=users[uid];
-      if(prev_===emoji){delete users[uid];r[emoji]=Math.max(0,(r[emoji]||1)-1);if(!r[emoji])delete r[emoji];}
-      else{if(prev_){r[prev_]=Math.max(0,(r[prev_]||1)-1);if(!r[prev_])delete r[prev_];}r[emoji]=(r[emoji]||0)+1;users[uid]=emoji;}
-      return{...m,reactions:{...r,_users:users}};
-    }));
-  },[uid]);
+  const handleReact=useCallback(async(msgId,emoji)=>{
+    const message = messages.find((item)=>item.id===msgId||item._tempId===msgId);
+    if (!message || message._optimistic || !uid) return;
+    const previous = message.reactions || {};
+    const users = { ...(previous._users || {}) };
+    const priorEmoji = users[uid];
+    const next = { ...previous, _users: users };
+    if (priorEmoji === emoji) {
+      delete users[uid];
+      next[emoji] = Math.max(0, Number(next[emoji] || 1) - 1);
+      if (!next[emoji]) delete next[emoji];
+    } else {
+      if (priorEmoji) {
+        next[priorEmoji] = Math.max(0, Number(next[priorEmoji] || 1) - 1);
+        if (!next[priorEmoji]) delete next[priorEmoji];
+      }
+      next[emoji] = Number(next[emoji] || 0) + 1;
+      users[uid] = emoji;
+    }
+
+    setMessages((items)=>items.map((item)=>item.id===msgId?{...item,reactions:next}:item));
+    try {
+      const persisted = await groupDMService.toggleReaction(msgId, emoji);
+      setMessages((items)=>items.map((item)=>item.id===msgId?{...item,reactions:persisted}:item));
+    } catch (error) {
+      setMessages((items)=>items.map((item)=>item.id===msgId?{...item,reactions:previous}:item));
+      console.warn("[GroupChat] reaction failed:", error?.message);
+    }
+  },[messages,uid]);
 
   // Delete group (admin only)
   const handleDelete=async()=>{

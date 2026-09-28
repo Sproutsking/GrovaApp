@@ -39,7 +39,6 @@ import { supabase } from '../../services/config/supabase';
 import {
   processEngagement,
   canAffordEngagement,
-  getEPBalance,
   invalidateEPCache,
   EP_COSTS,
   getDistributionBreakdown,
@@ -216,6 +215,9 @@ const ReactionPanel = ({
       setLikeCount(c => Math.max(0, c - 1));
 
       LikeModel.toggleLike(content.type, content.id, currentUser.id)
+        .then(result => {
+          if (typeof result?.newCount === 'number') setLikeCount(result.newCount);
+        })
         .catch(() => {
           // Rollback
           setLiked(true);
@@ -233,41 +235,56 @@ const ReactionPanel = ({
       return;
     }
 
-    // Optimistic UI
+    // Show the response immediately, but persist before settling EP.
     burstLike(e);
     setLiked(true);
     setLikeCount(c => c + 1);
 
-    // Run EP deduction + DB like-toggle in parallel for maximum speed
-    const [epResult, likeErr] = await Promise.all([
-      processEngagement({
+    let persistedLike = false;
+    try {
+      const likeResult = await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+      persistedLike = likeResult.liked;
+
+      const epResult = await processEngagement({
         actorId:        currentUser.id,
         contentType:    content.type,
         contentId:      content.id,
         engagementType: 'like',
-      }),
-      LikeModel.toggleLike(content.type, content.id, currentUser.id)
-        .then(() => null)
-        .catch(err => err),
-    ]);
+      });
 
-    const epFailed   = !epResult.success && !epResult.selfEngagement;
-    const likeFailed = likeErr !== null;
+      if (!epResult.success && !epResult.selfEngagement) {
+        await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+        persistedLike = false;
+        setLiked(false);
+        setLikeCount(c => Math.max(0, c - 1));
+        invalidateEPCache(currentUser.id);
+        showEpError(epResult.error ?? `Need ${EP_COSTS.like} EP to like.`);
+        return;
+      }
 
-    if (epFailed || likeFailed) {
-      // Full rollback
+      if (typeof likeResult.newCount === 'number') setLikeCount(likeResult.newCount);
+    } catch (error) {
+      if (persistedLike) {
+        try {
+          const rollback = await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+          setLiked(false);
+          if (typeof rollback.newCount === 'number') setLikeCount(rollback.newCount);
+          invalidateEPCache(currentUser.id);
+          showEpError(error?.message || 'Like failed. Please try again.');
+          return;
+        } catch {
+          setLiked(true);
+          showEpError('The like was saved, but could not be rolled back. Refresh to sync.');
+          return;
+        }
+      }
       setLiked(false);
       setLikeCount(c => Math.max(0, c - 1));
+      showEpError(error?.message || 'Like failed. Please try again.');
       invalidateEPCache(currentUser.id);
-
-      if (epFailed) {
-        showEpError(epResult.error ?? `Need ${EP_COSTS.like} EP to like.`);
-      } else {
-        showEpError('Like failed. Please try again.');
-      }
+    } finally {
+      setIsLiking(false);
     }
-
-    setIsLiking(false);
   }, [currentUser?.id, liked, isLiking, content, showEpError, burstLike]);
 
   // ══════════════════════════════════════════════════════════════════════════

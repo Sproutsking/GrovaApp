@@ -31,101 +31,78 @@ async function _getContentOwner(table, contentId) {
 class LikeModel {
   constructor() {
     this.likeCache      = new Map();
-    this.pendingUpdates = new Map();
   }
 
   // [PUSH-1] toggleLike sends push to content owner on like
-  async toggleLike(contentType, contentId, userId) {
+  async toggleLike(contentType, contentId, userId, { notify = true } = {}) {
     try {
-      if (!userId) throw new Error("User must be logged in to like");
+      if (!userId || !contentId) throw new Error("User and content are required to like");
 
       const table        = this.getLikeTable(contentType);
       const contentField = this.getContentField(contentType);
       const cacheKey     = `${contentType}-${contentId}-${userId}`;
 
-      let existingLike = this.likeCache.get(cacheKey);
-      if (existingLike === undefined) {
-        const { data } = await supabase
-          .from(table).select("id")
-          .eq(contentField, contentId).eq("user_id", userId).maybeSingle();
-        existingLike = data;
-        this.likeCache.set(cacheKey, existingLike);
-      }
-
+      const { data: existingLike, error: lookupError } = await supabase
+        .from(table).select("id")
+        .eq(contentField, contentId).eq("user_id", userId).maybeSingle();
+      if (lookupError) throw lookupError;
       const wasLiked = !!existingLike;
       const newLiked = !wasLiked;
 
-      this.likeCache.set(cacheKey, newLiked ? { id: "pending" } : null);
+      if (newLiked) {
+        const { data, error } = await supabase
+          .from(table)
+          .insert({ [contentField]: contentId, user_id: userId, created_at: new Date().toISOString() })
+          .select("id").single();
+        if (error) throw error;
+        this.likeCache.set(cacheKey, data);
+        try { await this.incrementLikeCount(contentType, contentId); }
+        catch (counterError) { console.warn("[LikeModel] like count update failed:", counterError?.message); }
 
-      this.queueUpdate(async () => {
-        if (newLiked) {
-          const { data, error } = await supabase
-            .from(table)
-            .insert({ [contentField]: contentId, user_id: userId, created_at: new Date().toISOString() })
-            .select("id").single();
+        if (notify) {
+          const contentTable = this.getContentTable(contentType);
+          const ownerId = await _getContentOwner(contentTable, contentId);
+          if (ownerId && ownerId !== userId) {
+            const { data: liker } = await supabase
+              .from("profiles").select("full_name, username").eq("id", userId).single();
+            const likerName = liker?.full_name || liker?.username || "Someone";
+            const contentPath = contentType === "post"
+              ? `/post/${contentId}`
+              : contentType === "reel"
+              ? `/reel/${contentId}`
+              : `/story/${contentId}`;
 
-          if (!error) {
-            this.likeCache.set(cacheKey, data);
-            this.incrementLikeCount(contentType, contentId);
-
-            // [PUSH-1] Push to content owner after successful DB insert
-            const contentTable = this.getContentTable(contentType);
-            const ownerId = await _getContentOwner(contentTable, contentId);
-
-            if (ownerId && ownerId !== userId) {
-              const { data: liker } = await supabase
-                .from("profiles").select("full_name, username").eq("id", userId).single();
-              const likerName = liker?.full_name || liker?.username || "Someone";
-              const contentPath = contentType === "post"
-                ? `/post/${contentId}`
-                : contentType === "reel"
-                ? `/reel/${contentId}`
-                : `/story/${contentId}`;
-
-              _sendPush({
-                recipientUserId: ownerId,
-                actorUserId:     userId,
-                type:            "like",
-                title:           "New like",
-                message:         `${likerName} liked your ${contentType}`,
-                entityId:        contentId,
-                metadata: {
-                  notification_id: `like_${contentType}_${contentId}_${userId}`,
-                  actorName:       likerName,
-                  url:             contentPath,
-                },
-              });
-            }
+            _sendPush({
+              recipientUserId: ownerId,
+              actorUserId:     userId,
+              type:            "like",
+              title:           "New like",
+              message:         `${likerName} liked your ${contentType}`,
+              entityId:        contentId,
+              metadata: {
+                notification_id: `like_${contentType}_${contentId}_${userId}`,
+                actorName:       likerName,
+                url:             contentPath,
+              },
+            });
           }
-        } else {
-          await supabase
-            .from(table).delete()
-            .eq(contentField, contentId).eq("user_id", userId);
-          this.decrementLikeCount(contentType, contentId);
         }
-      });
+      } else {
+        const { error } = await supabase
+          .from(table).delete()
+          .eq(contentField, contentId).eq("user_id", userId);
+        if (error) throw error;
+        this.likeCache.set(cacheKey, null);
+        try { await this.decrementLikeCount(contentType, contentId); }
+        catch (counterError) { console.warn("[LikeModel] unlike count update failed:", counterError?.message); }
+      }
 
-      const currentCount = await this.getUpdatedLikeCount(contentType, contentId);
-      const newCount = newLiked
-        ? currentCount + 1
-        : Math.max(0, currentCount - 1);
+      const newCount = await this.getUpdatedLikeCount(contentType, contentId).catch(() => null);
 
       return { liked: newLiked, newCount, success: true };
     } catch (error) {
       throw handleError(error, "Toggle like failed");
     }
-  }
-
-  queueUpdate(updateFn) {
-    const id = Date.now() + Math.random();
-    this.pendingUpdates.set(id, updateFn);
-    setTimeout(async () => {
-      const fn = this.pendingUpdates.get(id);
-      if (fn) {
-        try { await fn(); } catch (err) { console.error("Background like update failed:", err); }
-        this.pendingUpdates.delete(id);
-      }
-    }, 0);
   }
 
   async likeContent(table, contentField, contentId, userId, contentType) {
@@ -144,17 +121,20 @@ class LikeModel {
 
   async incrementLikeCount(contentType, contentId) {
     const table = this.getContentTable(contentType);
-    await supabase.rpc("increment_likes", { table_name: table, content_id: contentId });
+    const { error } = await supabase.rpc("increment_likes", { table_name: table, content_id: contentId });
+    if (error) throw error;
   }
 
   async decrementLikeCount(contentType, contentId) {
     const table = this.getContentTable(contentType);
-    await supabase.rpc("decrement_likes", { table_name: table, content_id: contentId });
+    const { error } = await supabase.rpc("decrement_likes", { table_name: table, content_id: contentId });
+    if (error) throw error;
   }
 
   async getUpdatedLikeCount(contentType, contentId) {
     const table = this.getContentTable(contentType);
-    const { data } = await supabase.from(table).select("likes").eq("id", contentId).single();
+    const { data, error } = await supabase.from(table).select("likes").eq("id", contentId).single();
+    if (error) throw error;
     return data?.likes || 0;
   }
 

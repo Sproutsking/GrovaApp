@@ -579,6 +579,16 @@ class GroupDMService {
     this._emit(`message_deleted:${groupId}`, { messageId });
   }
 
+  async toggleReaction(messageId, emoji) {
+    if (!messageId || !emoji) throw new Error("Message and reaction are required");
+    const { data, error } = await supabase.rpc("toggle_group_message_reaction", {
+      p_message_id: messageId,
+      p_emoji: emoji,
+    });
+    if (error) throw error;
+    return data || {};
+  }
+
   sendTyping(groupId, isTyping, userName) {
     const ch = this._msgChannels.get(groupId);
     ch?.send({
@@ -749,6 +759,19 @@ class GroupDMService {
         };
         callbacks.onMessage?.(msg);
         this._emit(`msgs:${groupId}`, { type: "db_insert", message: msg });
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "group_messages",
+        filter: `group_id=eq.${groupId}`,
+      }, ({ new: row }) => {
+        if (!row?.id) return;
+        const msg = {
+          ...row,
+          channel_id: row.group_id || groupId,
+          sender_id: row.user_id,
+        };
+        callbacks.onMessageUpdate?.(msg);
+        this._emit(`msgs:${groupId}`, { type: "db_update", message: msg });
       })
       .subscribe((status) => {
         console.log("[GroupDM] msg channel", groupId, status);

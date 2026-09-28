@@ -4,27 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import LikeModel from "../../models/LikeModel";
 import SaveModel from "../../models/SaveModel";
-import { supabase } from "../../services/config/supabase";
+import { invalidateEPCache, processEngagement } from "../../services/economy/epEconomyService";
 import LikeBurst from "./LikeBurst";
 
 const EP_COSTS = { like: 2, comment: 4, share: 10 };
-
-async function deductEP(userId, amount, reason) {
-  const { data } = await supabase.rpc("deduct_ep", {
-    p_user_id: userId,
-    p_amount: amount,
-    p_reason: reason,
-  });
-  return !!data;
-}
-
-async function awardEP(userId, amount, reason) {
-  await supabase.rpc("award_ep", {
-    p_user_id: userId,
-    p_amount: amount,
-    p_reason: reason,
-  });
-}
 
 const FullScreenReactionPanel = ({
   content,
@@ -72,39 +55,63 @@ const FullScreenReactionPanel = ({
       burstLike(e);
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
-      LikeModel.toggleLike(content.type, content.id, currentUser.id).catch(
-        () => {
+      try {
+        const result = await LikeModel.toggleLike(content.type, content.id, currentUser.id);
+        if (typeof result.newCount === "number") setLikeCount(result.newCount);
+      } catch {
           setLiked(true);
           setLikeCount((c) => c + 1);
-        },
-      );
-      setIsLiking(false);
-      return;
-    }
-
-    const ok = await deductEP(
-      currentUser.id,
-      EP_COSTS.like,
-      `like_${content.type}`,
-    );
-    if (!ok) {
-      showEpError(`Need ${EP_COSTS.like} EP to like`);
-      setIsLiking(false);
+      } finally {
+        setIsLiking(false);
+      }
       return;
     }
 
     burstLike(e);
     setLiked(true);
     setLikeCount((c) => c + 1);
-    if (content.user_id && content.user_id !== currentUser.id) {
-      const net = EP_COSTS.like * 0.82;
-      awardEP(content.user_id, net, "received_like");
-    }
-    LikeModel.toggleLike(content.type, content.id, currentUser.id).catch(() => {
+    let persistedLike = false;
+    try {
+      const likeResult = await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+      persistedLike = likeResult.liked;
+      const epResult = await processEngagement({
+        actorId: currentUser.id,
+        contentType: content.type,
+        contentId: content.id,
+        engagementType: "like",
+      });
+      if (!epResult.success && !epResult.selfEngagement) {
+        await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+        persistedLike = false;
+        setLiked(false);
+        setLikeCount((c) => Math.max(0, c - 1));
+        invalidateEPCache(currentUser.id);
+        showEpError(epResult.error || `Need ${EP_COSTS.like} EP to like`);
+        return;
+      }
+      if (typeof likeResult.newCount === "number") setLikeCount(likeResult.newCount);
+    } catch (error) {
+      if (persistedLike) {
+        try {
+          const rollback = await LikeModel.toggleLike(content.type, content.id, currentUser.id, { notify: false });
+          setLiked(false);
+          if (typeof rollback.newCount === "number") setLikeCount(rollback.newCount);
+          invalidateEPCache(currentUser.id);
+          showEpError(error?.message || "Like failed. Please try again.");
+          return;
+        } catch {
+          setLiked(true);
+          showEpError("The like was saved, but could not be rolled back. Refresh to sync.");
+          return;
+        }
+      }
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
-    });
-    setIsLiking(false);
+      invalidateEPCache(currentUser.id);
+      showEpError(error?.message || "Like failed. Please try again.");
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const handleSave = async (e) => {
