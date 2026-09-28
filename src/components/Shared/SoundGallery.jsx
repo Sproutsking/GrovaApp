@@ -47,6 +47,7 @@ import React, {
   memo,
   useMemo,
 } from "react";
+import { Music2, RefreshCw } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 
 // ── R2 config ─────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ function buildSelect(schema) {
 // ── URL resolution: R2 primary, DB columns fallback ─────────────────────────
 // Priority: DB explicit URL → R2 constructed from name → Supabase storage
 // Even if url ends up null, the song still shows — just unplayable (dimmed).
-function resolveAudioUrl(row, schema) {
+function resolveAudioUrl(row, schema, r2Base = R2_BASE) {
   // 1. Explicit full URL stored in DB (most reliable)
   if (schema.file_url  && row.file_url  && row.file_url.startsWith("http"))  return row.file_url;
   if (schema.audio_url && row.audio_url && row.audio_url.startsWith("http")) return row.audio_url;
@@ -130,15 +131,17 @@ function resolveAudioUrl(row, schema) {
   if (schema.sound_url && row.sound_url && row.sound_url.startsWith("http")) return row.sound_url;
 
   // 2. R2 constructed from name (primary path for most setups)
-  if (HAS_R2 && row.name) {
-    const raw   = row.name.trim();
+  const storagePath = schema.storage_path && row.storage_path ? row.storage_path.trim() : "";
+  const base = String(r2Base || "").replace(/\/$/, "");
+  if (base.startsWith("http") && (storagePath || row.name)) {
+    const raw   = storagePath || row.name.trim();
     // Already has audio extension — use as-is
     const hasExt = /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(raw);
     // Preserve path separators but encode spaces and special chars
     const fname = hasExt ? raw : `${raw}.mp3`;
     // Don't double-encode if name already contains %
     const encoded = fname.includes("%") ? fname : fname.split("/").map(encodeURIComponent).join("/");
-    return `${R2_BASE}/${encoded}`;
+    return `${base}/${encoded}`;
   }
 
   // 3. Supabase Storage fallback
@@ -152,6 +155,17 @@ function resolveAudioUrl(row, schema) {
   }
 
   return null; // shown but unplayable
+}
+
+export function resolveCatalogAudioUrl(row, r2Base = R2_BASE) {
+  const directUrl = [row?.url, row?.file_url, row?.audio_url, row?.public_url, row?.sound_url]
+    .find((value) => typeof value === "string" && /^https?:\/\//i.test(value));
+  if (directUrl) return directUrl;
+
+  const schema = Object.fromEntries(
+    Object.keys(_schemaCache).map((column) => [column, Boolean(row?.[column])]),
+  );
+  return resolveAudioUrl({ ...row, audio_url: row?.audio_url || row?.url }, schema, r2Base);
 }
 
 // ── String helpers ────────────────────────────────────────────────────────────
@@ -190,17 +204,31 @@ function songColor(name = "") {
 // ── Audio singleton for list preview ─────────────────────────────────────────
 const _listAudio = typeof Audio !== "undefined" ? new Audio() : null;
 let   _listOnEnded = null;
+let   _listOnError = null;
 
-function playListSong(url, onEnd) {
+function playListSong(url, onEnd, onError) {
   if (!_listAudio || !url) return;
   _listAudio.pause();
   if (_listOnEnded) { _listAudio.removeEventListener("ended", _listOnEnded); }
+  if (_listOnError) { _listAudio.removeEventListener("error", _listOnError); }
   _listAudio.src = url;
   _listAudio.currentTime = 0;
   _listAudio.volume = 0.85;
-  _listOnEnded = onEnd;
-  _listAudio.addEventListener("ended", _listOnEnded, { once: true });
-  _listAudio.play().catch(() => onEnd?.());
+  let finished = false;
+  const finish = (callback) => {
+    if (finished) return;
+    finished = true;
+    _listAudio.removeEventListener("ended", _listOnEnded);
+    _listAudio.removeEventListener("error", _listOnError);
+    _listOnEnded = null;
+    _listOnError = null;
+    callback?.();
+  };
+  _listOnEnded = () => finish(onEnd);
+  _listOnError = () => finish(onError);
+  _listAudio.addEventListener("ended", _listOnEnded);
+  _listAudio.addEventListener("error", _listOnError);
+  _listAudio.play().catch(() => finish(onError));
 }
 
 function stopListAudio() {
@@ -208,6 +236,7 @@ function stopListAudio() {
   _listAudio.pause();
   _listAudio.src = "";
   if (_listOnEnded) { _listAudio.removeEventListener("ended", _listOnEnded); _listOnEnded = null; }
+  if (_listOnError) { _listAudio.removeEventListener("error", _listOnError); _listOnError = null; }
 }
 
 // ── Duration cache ────────────────────────────────────────────────────────────
@@ -220,6 +249,56 @@ function cacheDuration(url, id, cb) {
   a.src = url;
   a.onloadedmetadata = () => { _durCache[id] = a.duration || 0; cb(_durCache[id]); a.src = ""; };
   a.onerror = () => { _durCache[id] = 0; };
+}
+
+export function probeAudioTrack(url, AudioCtor = typeof Audio === "undefined" ? null : Audio) {
+  if (!url || !AudioCtor) return Promise.resolve({ available: false, duration: 0 });
+
+  return new Promise((resolve) => {
+    const audio = new AudioCtor();
+    let settled = false;
+    let timeout;
+    const finish = (available, duration = 0) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.pause?.();
+      audio.removeAttribute?.("src");
+      audio.src = "";
+      audio.load?.();
+      resolve({ available, duration });
+    };
+
+    timeout = setTimeout(() => finish(false), 5000);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const duration = Number(audio.duration);
+      finish(duration > 0 || duration === Infinity, duration);
+    };
+    audio.onerror = () => finish(false);
+    audio.src = url;
+    audio.load?.();
+  });
+}
+
+async function keepPlayableTracks(tracks) {
+  const results = new Array(tracks.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < tracks.length) {
+      const index = nextIndex++;
+      results[index] = await probeAudioTrack(tracks[index].url);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(8, tracks.length) }, worker));
+  return tracks.flatMap((track, index) => {
+    const result = results[index];
+    if (!result?.available) return [];
+    if (result.duration > 0 && Number.isFinite(result.duration)) _durCache[track.id] = result.duration;
+    return [{ ...track, duration: track.duration || _durCache[track.id] || result.duration || null }];
+  });
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -379,6 +458,7 @@ const SoundDetailPanel = memo(({ song, contextLabel, onConfirm, onCancel }) => {
   const [songVol,  setSongVol]  = useState(1.0);
   const [videoVol, setVideoVol] = useState(0.3);
   const [playing,  setPlaying]  = useState(false);
+  const [playbackError, setPlaybackError] = useState("");
   const [dur,      setDur]      = useState(_durCache[song.id] || 0);
   const audioRef = useRef(null);
 
@@ -402,8 +482,9 @@ const SoundDetailPanel = memo(({ song, contextLabel, onConfirm, onCancel }) => {
     if (playing) { audioRef.current.pause(); setPlaying(false); }
     else {
       audioRef.current.currentTime = startSec;
-      audioRef.current.play().catch(() => setPlaying(false));
-      setPlaying(true);
+      audioRef.current.play()
+        .then(() => { setPlaying(true); setPlaybackError(""); })
+        .catch(() => { setPlaying(false); setPlaybackError("Preview could not be loaded. Check the audio file URL and access settings."); });
     }
   }, [playing, startSec]);
 
@@ -446,6 +527,7 @@ const SoundDetailPanel = memo(({ song, contextLabel, onConfirm, onCancel }) => {
           )}
         </button>
       </div>
+      {playbackError && <div className="sg4-audio-alert" role="alert">{playbackError}</div>}
 
       {/* Trim */}
       {dur > 0 && (
@@ -548,8 +630,10 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
   const [songs,      setSongs]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
+  const [libraryUnavailable, setLibraryUnavailable] = useState(false);
   const [search,     setSearch]     = useState("");
   const [playingId,  setPlayingId]  = useState(null);
+  const [playbackError, setPlaybackError] = useState("");
   const [detailSong, setDetailSong] = useState(null);
   const [activeTab,  setActiveTab]  = useState("All");
   const [isMobile,   setIsMobile]   = useState(window.innerWidth < 769);
@@ -582,14 +666,18 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
   const loadSongs = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLibraryUnavailable(false);
     try {
       // Resolve server-side secrets through the Edge Function; never bundle them into React.
       const { data: serverCatalog, error: serverError } = await supabase.functions.invoke("sound-library", { method: "GET" });
       if (!serverError && Array.isArray(serverCatalog?.sounds)) {
-        setSongs(serverCatalog.sounds);
-        serverCatalog.sounds.slice(0, 12).forEach((song) => {
-          if (song.url && _durCache[song.id] === undefined) cacheDuration(song.url, song.id, () => {});
-        });
+        const resolved = serverCatalog.sounds.map((song) => ({
+          ...song,
+          url: resolveCatalogAudioUrl(song),
+        }));
+        const playable = await keepPlayableTracks(resolved);
+        setSongs(playable);
+        setLibraryUnavailable(resolved.length > 0 && playable.length === 0);
         return;
       }
 
@@ -632,11 +720,13 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
         console.warn("[SoundGallery] sounds table appears empty — add rows with a 'name' column matching your R2 filenames");
       }
 
-      setSongs(resolved);
+      const playable = await keepPlayableTracks(resolved);
+      setSongs(playable);
+      setLibraryUnavailable(resolved.length > 0 && playable.length === 0);
 
       // Eagerly cache durations for first 12 playable songs
       let preloaded = 0;
-      for (const s of resolved) {
+      for (const s of playable) {
         if (preloaded >= 12) break;
         if (s.url && _durCache[s.id] === undefined) {
           cacheDuration(s.url, s.id, () => {});
@@ -656,8 +746,12 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
   const handleListPlay = useCallback((song) => {
     if (!song.url) return;
     if (playingId === song.id) { stopListAudio(); setPlayingId(null); return; }
+    setPlaybackError("");
     setPlayingId(song.id);
-    playListSong(song.url, () => setPlayingId(null));
+    playListSong(song.url, () => setPlayingId(null), () => {
+      setPlayingId(null);
+      setPlaybackError(`Could not play “${extractTitle(song.name)}”. Check the audio file URL and public access.`);
+    });
   }, [playingId]);
 
   const filtered = useMemo(() => {
@@ -672,6 +766,7 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
   }, [songs, search, activeTab]);
 
   const trending = useMemo(() => songs.filter(s => s.trending || s.uses > 5).slice(0, 8), [songs]);
+  const unavailableCount = useMemo(() => songs.filter((song) => !song.url).length, [songs]);
   const contextLabel = { status: "Status", post: "Post", reel: "Reel" }[context] || "Content";
 
   // Drag-to-dismiss (mobile)
@@ -726,9 +821,15 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
       )}
 
       <div className={`sg4-list${compact ? " compact" : ""}`}>
+        {playbackError && <div className="sg4-audio-alert" role="alert">{playbackError}</div>}
+        {!loading && !error && unavailableCount > 0 && (
+          <div className="sg4-audio-alert" role="status">
+            {unavailableCount} {unavailableCount === 1 ? "track has" : "tracks have"} no playable URL. Add an audio URL/storage path to the catalog or ensure the filename exists in the configured public audio library.
+          </div>
+        )}
         {loading && <Skeleton />}
-        {!loading && error && <ErrorState msg={error} onRetry={loadSongs} />}
-        {!loading && !error && songs.length === 0 && <EmptyState />}
+        {!loading && error && <ErrorState onRetry={loadSongs} />}
+        {!loading && !error && songs.length === 0 && <EmptyState unavailable={libraryUnavailable} onRetry={loadSongs} />}
         {!loading && !error && songs.length > 0 && (
           <>
             {!search.trim() && activeTab === "All" && trending.length > 0 && (
@@ -794,8 +895,9 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
                 <div className="sg4-hdr-title">Sound Library</div>
                 <div className="sg4-hdr-sub">
                 {loading ? "Loading…" :
+                 error || libraryUnavailable ? "Unavailable" :
                  songs.length > 0 ? `${songs.length} tracks · ${contextLabel}` :
-                 HAS_R2 ? `R2 ready · add DB rows` : "⚠ R2 not configured"}
+                 "No tracks available"}
               </div>
               </div>
             </div>
@@ -839,6 +941,7 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
               <div className="sg4-hdr-title">Sound Library</div>
               <div className="sg4-hdr-sub">
                 {loading ? "Loading…" :
+                 libraryUnavailable ? "Unavailable" :
                  songs.length > 0 ? `${songs.length} tracks` : "No tracks available"}
               </div>
             </div>
@@ -877,8 +980,14 @@ const SoundGalleryModal = memo(({ context, onSelect, onClose }) => {
           <div className="sg4-list-wrap">
             <div className="sg4-list">
               {loading && <Skeleton />}
-              {!loading && error && <ErrorState msg={error} onRetry={loadSongs} />}
-              {!loading && !error && songs.length === 0 && <EmptyState />}
+              {!loading && error && <ErrorState onRetry={loadSongs} />}
+              {!loading && !error && songs.length === 0 && <EmptyState unavailable={libraryUnavailable} onRetry={loadSongs} />}
+              {playbackError && <div className="sg4-audio-alert" role="alert">{playbackError}</div>}
+              {!loading && !error && unavailableCount > 0 && (
+                <div className="sg4-audio-alert" role="status">
+                  {unavailableCount} {unavailableCount === 1 ? "track has" : "tracks have"} no playable URL. Add an audio URL/storage path to the catalog or ensure the filename exists in the configured public audio library.
+                </div>
+              )}
               {!loading && !error && songs.length > 0 && (
                 <>
                   {!search.trim() && activeTab === "All" && trending.length > 0 && (
@@ -938,41 +1047,23 @@ const Skeleton = () => (
   </div>
 );
 
-const ErrorState = ({ msg, onRetry }) => (
+const ErrorState = ({ onRetry }) => (
   <div className="sg4-center">
-    <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>⚠️</div>
-    <p style={{ color: "rgba(255,255,255,.4)", textAlign: "center", fontSize: 13, maxWidth: 260, lineHeight: 1.6, margin: 0 }}>{msg}</p>
-    <button className="sg4-retry" onClick={onRetry}>Try Again</button>
+    <Music2 size={22} aria-hidden="true" style={{ color: "#a3e635" }} />
+    <p style={{ color: "rgba(255,255,255,.78)", textAlign: "center", fontSize: 14, fontWeight: 650, maxWidth: 280, lineHeight: 1.5, margin: "8px 0 0" }}>Can’t connect to the sound library right now</p>
+    <p style={{ color: "rgba(255,255,255,.42)", textAlign: "center", fontSize: 12, maxWidth: 270, lineHeight: 1.6, margin: 0 }}>Please try again in a moment.</p>
+    <button className="sg4-retry" onClick={onRetry}><RefreshCw size={13} /> Try again</button>
   </div>
 );
 
-// R2 setup banner — shown when env var is missing
-const R2Banner = () => !HAS_R2 ? (
-  <div style={{
-    margin: "0 16px 10px",
-    padding: "10px 14px",
-    background: "rgba(245,158,11,.07)",
-    border: "1px solid rgba(245,158,11,.22)",
-    borderRadius: 14,
-    flexShrink: 0,
-  }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-      <span style={{ fontSize: 14 }}>⚠️</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b" }}>R2 not configured</span>
-    </div>
-    <p style={{ fontSize: 11, color: "rgba(255,255,255,.38)", margin: 0, lineHeight: 1.6 }}>
-      Add <code style={{ color: "#84cc16", background: "rgba(132,204,22,.1)", padding: "1px 4px", borderRadius: 3, fontSize: 10 }}>REACT_APP_R2_PUBLIC_URL=https://pub-xxx.r2.dev</code> to your <code style={{ color: "#84cc16" }}>.env</code> and restart.
-    </p>
-  </div>
-) : null;
-
-const EmptyState = () => (
+const EmptyState = ({ unavailable = false, onRetry }) => (
   <div className="sg4-center">
-    <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(132,204,22,.08)", border: "1px solid rgba(132,204,22,.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎵</div>
-    <p style={{ color: "rgba(255,255,255,.5)", fontSize: 15, fontWeight: 700, textAlign: "center", margin: 0 }}>No sounds found</p>
+    <Music2 size={22} aria-hidden="true" style={{ color: "rgba(163,230,53,.8)" }} />
+    <p style={{ color: "rgba(255,255,255,.78)", fontSize: 14, fontWeight: 650, textAlign: "center", margin: "8px 0 0" }}>{unavailable ? "No playable tracks right now" : "No tracks available yet"}</p>
     <p style={{ color: "rgba(255,255,255,.25)", fontSize: 12, textAlign: "center", maxWidth: 280, lineHeight: 1.7, margin: 0 }}>
-      The sound catalog is empty. Add audio tracks to the configured library and try again.
+      {unavailable ? "The library couldn’t reach its audio files. Please try again shortly." : "New sounds will appear here when they’re added to the library."}
     </p>
+    {unavailable && <button className="sg4-retry" onClick={onRetry}><RefreshCw size={13} /> Try again</button>}
   </div>
 );
 
@@ -1067,7 +1158,7 @@ export default SoundGalleryModal;
 const CSS = `
 @keyframes sg4bars  { from{transform:scaleY(.2)} to{transform:scaleY(1)} }
 @keyframes sg4up    { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-@keyframes sg4popin { from{transform:scale(.95) translateY(12px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+@keyframes sg4popin { from{transform:translate(-50%,-50%) scale(.96);opacity:0} to{transform:translate(-50%,-50%) scale(1);opacity:1} }
 @keyframes sg4pulse { 0%,100%{opacity:.5} 50%{opacity:.12} }
 @keyframes sg4fdIn  { from{opacity:0} to{opacity:1} }
 @keyframes sg4shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
@@ -1088,7 +1179,8 @@ const CSS = `
   border:1px solid rgba(132,204,22,.16);
   border-bottom:none;
   border-radius:24px 24px 0 0;
-  max-height:92vh;
+  max-height:94dvh;
+  padding-bottom:env(safe-area-inset-bottom,0px);
   display:flex; flex-direction:column; overflow:hidden;
   animation:sg4up .32s cubic-bezier(.34,1.4,.64,1) both;
   box-shadow:0 -24px 80px rgba(0,0,0,.95), 0 -1px 0 rgba(132,204,22,.08);
@@ -1097,10 +1189,12 @@ const CSS = `
 /* ─── DESKTOP POPUP ───────────────────────────────────────────────────────── */
 .sg4-popup {
   position:fixed;
-  bottom:96px; right:24px;
+  top:50%; left:50%; right:auto; bottom:auto;
   z-index:100010;
-  width:480px;
-  max-height:72vh;
+  width:min(720px,calc(100vw - 48px));
+  height:min(760px,calc(100dvh - 48px));
+  max-height:calc(100dvh - 48px);
+  transform:translate(-50%,-50%);
   background:linear-gradient(180deg,#0f0f0f 0%,#080808 100%);
   border:1px solid rgba(132,204,22,.2);
   border-radius:24px;
@@ -1110,6 +1204,21 @@ const CSS = `
     0 0 0 1px rgba(132,204,22,.05),
     0 -1px 0 rgba(132,204,22,.12) inset;
   animation:sg4popin .28s cubic-bezier(.34,1.2,.64,1) both;
+}
+
+@media (max-width:900px) and (min-width:769px) {
+  .sg4-popup { width:min(640px,calc(100vw - 32px)); height:min(700px,calc(100dvh - 32px)); max-height:calc(100dvh - 32px); }
+}
+
+.sg4-audio-alert {
+  margin:8px 14px;
+  padding:9px 11px;
+  border:1px solid rgba(245,158,11,.22);
+  border-radius:10px;
+  background:rgba(245,158,11,.07);
+  color:#d6b36b;
+  font-size:11px;
+  line-height:1.5;
 }
 
 /* Handle */

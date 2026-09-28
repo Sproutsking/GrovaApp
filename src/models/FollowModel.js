@@ -32,6 +32,9 @@ class FollowModel {
   // [PUSH-1] Sends push to the user being followed
   static async followUser(followerId, followingId) {
     try {
+      if (!followerId || !followingId || followerId === followingId) {
+        return { success: false, error: "Invalid follow target" };
+      }
       const { data, error } = await supabase.rpc("process_follow", {
         p_following_id: followingId,
       });

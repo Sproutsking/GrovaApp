@@ -280,15 +280,10 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
 
   return (
     <div style={{
-      padding: "9px 16px 5px",
+      padding: "5px 16px 5px",
       background: "linear-gradient(90deg,rgba(132,204,22,.035),rgba(6,8,10,.3) 36%,rgba(34,211,238,.025))",
       borderBottom: "1px solid var(--surface-border)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 2px 7px", color: "rgba(255,255,255,.42)", fontSize: 9, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase" }}>
-        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#a3e635", boxShadow: "0 0 8px rgba(163,230,53,.7)" }} />
-        Status
-        <span style={{ flex: 1, height: 1, background: "linear-gradient(90deg,rgba(255,255,255,.1),transparent)" }} />
-      </div>
       <div
         style={{
           display: "flex",

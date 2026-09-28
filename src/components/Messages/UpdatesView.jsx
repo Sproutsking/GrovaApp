@@ -377,9 +377,19 @@ const StoryMedia = memo(({ story, mediaUrl, isVid, muted, paused, onProgress, on
   }
   return (
     <div style={{ width:"100%", height:fullH?"100%":300, minHeight:200, background:story.bg||"linear-gradient(145deg,#0d1117,#1a2332)", display:"flex", alignItems:"center", justifyContent:"center", padding:32, boxSizing:"border-box" }}>
-      <p style={{ fontSize:story.text?.length>100?18:story.text?.length>50?22:28, fontWeight:800, color:story.text_color||"#fff", textAlign:"center", lineHeight:1.4, margin:0, wordBreak:"break-word", textShadow:"0 2px 16px rgba(0,0,0,.5)" }}>
-        {story.text}
-      </p>
+      {story.music && !story.text ? (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,maxWidth:420,textAlign:"center"}}>
+          <div style={{width:88,height:88,borderRadius:24,display:"grid",placeItems:"center",background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.28)",color:"#84cc16",boxShadow:"0 12px 36px rgba(0,0,0,.28)"}}><Ic.Music/></div>
+          <div>
+            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,.55)",textTransform:"uppercase",marginBottom:8}}>Now playing</div>
+            <div style={{fontSize:24,fontWeight:800,color:story.text_color||"#fff",lineHeight:1.25,overflowWrap:"anywhere"}}>{cleanSoundName(story.music)}</div>
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontSize:story.text?.length>100?18:story.text?.length>50?22:28, fontWeight:800, color:story.text_color||"#fff", textAlign:"center", lineHeight:1.4, margin:0, wordBreak:"break-word", textShadow:"0 2px 16px rgba(0,0,0,.5)" }}>
+          {story.text}
+        </p>
+      )}
     </div>
   );
 });
@@ -396,6 +406,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
   const [muted, setMuted]     = useState(() => {
     try { return localStorage.getItem(`uv_muted_${userId}`) !== "false"; } catch { return true; }
   });
+  const [soundError, setSoundError] = useState(false);
   const [showRep, setShowRep] = useState(false);
   const [repTxt, setRepTxt]   = useState("");
   const [sending, setSending] = useState(false);
@@ -439,19 +450,22 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
     if (!url) {
       soundRef.current?.pause();
       soundRef.current = null;
+      setSoundError(Boolean(story?.music));
       return undefined;
     }
     const audio = new Audio(url);
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = 1;
+    audio.onerror = () => setSoundError(true);
     soundRef.current = audio;
+    setSoundError(false);
     return () => {
       audio.pause();
       audio.src = "";
       if (soundRef.current === audio) soundRef.current = null;
     };
-  }, [story?.id, story?.music]);
+  }, [story?.id, story?.music, story?.music_url]);
 
   useEffect(() => {
     const audio = soundRef.current;
@@ -460,8 +474,8 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
       audio.pause();
       return;
     }
-    audio.play().catch(() => {});
-  }, [paused, muted, story?.id]);
+    audio.play().then(() => setSoundError(false)).catch(() => setSoundError(true));
+  }, [paused, muted, story?.id, story?.music, story?.music_url]);
 
   useEffect(() => {
     if (!story) return;
@@ -569,11 +583,12 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           <Ic.Music/><span style={{fontSize:11,color:"#84cc16",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(story.music)}</span>
         </div>
       )}
-      {isVid && (
-        <button onClick={()=>setMutePreference(!muted)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
+      {(isVid || story.music) && (
+        <button onClick={()=>setMutePreference(!muted)} title={muted ? "Turn sound on" : "Mute sound"} aria-label={muted ? "Turn sound on" : "Mute sound"} style={{width:34,height:34,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
           {muted?<Ic.SoundOff/>:<Ic.SoundOn/>}
         </button>
       )}
+      {soundError && story.music && <div role="status" style={{position:"absolute",left:16,right:16,bottom:70,padding:"8px 12px",borderRadius:10,background:"rgba(0,0,0,.78)",border:"1px solid rgba(245,158,11,.25)",color:"#f3c66d",fontSize:12,textAlign:"center"}}>This song could not be played. Check that its library file is reachable.</div>}
     </div>
   );
 
@@ -739,12 +754,15 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
   const atLimit  = currentCount >= tierLimit;
   const charPct  = Math.min((text.length/CHAR_MAX)*100, 100);
   const bgSlice  = GRADIENTS.slice(bgPage*5, bgPage*5+5);
-  const canNext  = !!media || text.trim().length > 0;
+  const canNext  = !!media || text.trim().length > 0 || !!sound;
   const expAt    = new Date(Date.now() + dur*3_600_000);
 
   const openSound = useCallback(() => {
     if (!gallery) return; // defensive guard
-    gallery.openGallery("status", (s) => setSound(s));
+    gallery.openGallery("status", (s) => {
+      setSound(s);
+      setStep("compose");
+    });
   }, [gallery]);
 
   const handleFile = useCallback((f) => {
@@ -1528,7 +1546,7 @@ const MODAL_CSS = `
   @keyframes uvSpin { to{transform:rotate(360deg)} }
 
   .as-ov     { position:fixed; inset:0; z-index:20001; background:rgba(0,0,0,.82); display:flex; align-items:flex-end; backdrop-filter:blur(6px); }
-  .as-sheet  { width:100%; max-height:93vh; background:#080808; border:1px solid rgba(132,204,22,.12); border-radius:22px 22px 0 0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; animation:asMUp .3s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none; }
+  .as-sheet  { width:100%; max-height:93dvh; background:#080808; border:1px solid rgba(132,204,22,.12); border-radius:22px 22px 0 0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; animation:asMUp .3s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none; padding-bottom:env(safe-area-inset-bottom,0px); }
   .as-sheet::-webkit-scrollbar { display:none; }
   .as-pill   { width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,.1); margin:12px auto 0; flex-shrink:0; }
 
@@ -1596,4 +1614,15 @@ const MODAL_CSS = `
   .as-share-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(132,204,22,.35); }
   .as-share-btn.as-saving,.as-share-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
   .as-spinner { width:16px; height:16px; border:2px solid rgba(0,0,0,.2); border-top-color:#000; border-radius:50%; animation:uvSpin .7s linear infinite; display:inline-block; }
+
+  @media (min-width:769px) {
+    .as-ov { align-items:center; justify-content:center; padding:24px; }
+    .as-sheet { width:min(680px, calc(100vw - 48px)); max-height:calc(100dvh - 48px); height:auto; border-radius:20px; box-shadow:0 32px 100px rgba(0,0,0,.72),0 0 0 1px rgba(132,204,22,.04); animation:asCenterIn .24s cubic-bezier(.22,1,.36,1); }
+    @keyframes asCenterIn { from{opacity:0;transform:translateY(12px) scale(.985)} to{opacity:1;transform:translateY(0) scale(1)} }
+  }
+
+  @media (max-width:480px) {
+    .as-sheet { max-height:calc(100dvh - env(safe-area-inset-top,0px)); border-radius:18px 18px 0 0; }
+    .as-pick-grid,.as-inp-wrap { padding-left:14px; padding-right:14px; }
+  }
 `;

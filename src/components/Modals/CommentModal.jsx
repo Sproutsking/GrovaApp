@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import CommentModel from "../../models/CommentModel";
 import LikeModel from "../../models/LikeModel";
+import LikeBurst from "../Shared/LikeBurst";
 import { processEngagement } from "../../services/economy/epEconomyService";
 
 const EP_COSTS = { comment: 4, comment_like: 0.5, reply: 2 };
@@ -34,7 +35,9 @@ const CommentItem = ({
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(comment.likes || 0);
   const [epErr, setEpErr] = useState(null);
+  const [likeBurst, setLikeBurst] = useState(null);
   const errTimer = useRef(null);
+  const likeBurstId = useRef(0);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -51,8 +54,16 @@ const CommentItem = ({
     errTimer.current = setTimeout(() => setEpErr(null), 2500);
   };
 
-  const handleLikeComment = async () => {
+  const handleLikeComment = async (event) => {
     if (!currentUser?.id) return;
+    const rect = event.currentTarget?.getBoundingClientRect?.();
+    const hasPointer = Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (event.clientX !== 0 || event.clientY !== 0);
+    likeBurstId.current += 1;
+    setLikeBurst({
+      id: likeBurstId.current,
+      x: hasPointer ? event.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+      y: hasPointer ? event.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+    });
 
     if (liked) {
       setLiked(false);
@@ -98,6 +109,7 @@ const CommentItem = ({
 
   return (
     <div className="comment-thread" style={{ marginLeft: `${level * 18}px` }}>
+      {likeBurst && <LikeBurst key={likeBurst.id} x={likeBurst.x} y={likeBurst.y} onDone={() => setLikeBurst(null)} />}
       {epErr && <div className="ci-ep-err">⚡ {epErr}</div>}
       <div className="comment-item">
         <button

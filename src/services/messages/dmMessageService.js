@@ -56,6 +56,13 @@ class DMMessageService {
 
   async loadConversations() {
     try {
+      let hiddenSince = new Map();
+      const { data: hiddenRows, error: hiddenError } = await supabase
+        .from("hidden_conversations")
+        .select("conversation_id, hidden_at")
+        .eq("user_id", this.userId);
+      if (!hiddenError) hiddenSince = new Map((hiddenRows || []).map((row) => [row.conversation_id, row.hidden_at]));
+
       const { data, error } = await supabase
         .from("conversations")
         .select(
@@ -74,30 +81,35 @@ class DMMessageService {
         (data || []).map(async (conv) => {
           const otherUser =
             conv.user1_id === this.userId ? conv.user2 : conv.user1;
+          const hiddenAt = hiddenSince.get(conv.id);
+          let messagesQuery = supabase
+            .from("messages")
+            .select("*")
+            .eq("conversation_id", conv.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (hiddenAt) messagesQuery = messagesQuery.gt("created_at", hiddenAt);
           const [{ data: lastMsg }, { data: unreadData }] = await Promise.all([
-            supabase
-              .from("messages")
-              .select("*")
-              .eq("conversation_id", conv.id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
+            messagesQuery.maybeSingle(),
             supabase.rpc("get_conversation_unread_count", {
               p_conversation_id: conv.id,
               p_user_id: this.userId,
             }),
           ]);
+          if (hiddenAt && !lastMsg) return null;
           return {
             ...conv,
             otherUser,
             lastMessage: lastMsg,
             unreadCount: unreadData || 0,
+            hiddenAt: hiddenAt || null,
           };
         }),
       );
 
-      conversationState.initConversations(enriched);
-      return enriched;
+      const visible = enriched.filter(Boolean);
+      conversationState.initConversations(visible);
+      return visible;
     } catch (error) {
       console.error("❌ [DM] Load conversations error:", error);
       return [];
@@ -236,6 +248,18 @@ class DMMessageService {
     if (error) throw error;
     if (data !== true) throw new Error("You can only delete your own direct messages.");
     return true;
+  }
+
+  async hideConversationForUser(conversationId, userId = this.userId) {
+    if (!conversationId || !userId) throw new Error("Conversation and user are required");
+    const hiddenAt = new Date().toISOString();
+    const { error } = await supabase.from("hidden_conversations").upsert(
+      { conversation_id: conversationId, user_id: userId, hidden_at: hiddenAt },
+      { onConflict: "user_id,conversation_id" },
+    );
+    if (error) throw error;
+    conversationState.removeConversation(conversationId);
+    return hiddenAt;
   }
 
   async addReaction(messageId, userId, emoji) {

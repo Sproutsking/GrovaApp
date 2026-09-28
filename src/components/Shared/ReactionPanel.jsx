@@ -147,14 +147,12 @@ const ReactionPanel = ({
   const viewCleanup = useRef(null);
   const likeBurstId = useRef(0);
 
-  const burstLike = useCallback((event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const hasPointer = Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (event.clientX !== 0 || event.clientY !== 0);
+  const burstLike = useCallback(({ x, y }) => {
     likeBurstId.current += 1;
     setLikeBurst({
       id: likeBurstId.current,
-      x: hasPointer ? event.clientX : rect.left + rect.width / 2,
-      y: hasPointer ? event.clientY : rect.top + rect.height / 2,
+      x,
+      y,
     });
   }, []);
 
@@ -206,11 +204,17 @@ const ReactionPanel = ({
   const handleLike = useCallback(async (e) => {
     e.stopPropagation();
     if (!currentUser?.id || isLiking) return;
+    const rect = e.currentTarget?.getBoundingClientRect?.();
+    const hasPointer = Number.isFinite(e.clientX) && Number.isFinite(e.clientY) && (e.clientX !== 0 || e.clientY !== 0);
+    const burstPosition = {
+      x: hasPointer ? e.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+      y: hasPointer ? e.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+    };
     setIsLiking(true);
 
     // ── Unlike: no EP cost, just remove the like ─────────────────────────
     if (liked) {
-      burstLike(e);
+      burstLike(burstPosition);
       setLiked(false);
       setLikeCount(c => Math.max(0, c - 1));
 
@@ -236,7 +240,7 @@ const ReactionPanel = ({
     }
 
     // Show the response immediately, but persist before settling EP.
-    burstLike(e);
+    burstLike(burstPosition);
     setLiked(true);
     setLikeCount(c => c + 1);
 

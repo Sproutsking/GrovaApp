@@ -40,6 +40,14 @@ class ConversationStateManager {
     }
   }
 
+  removeConversation(conversationId) {
+    this.state.conversations.delete(conversationId);
+    this.state.unreadByConversation.delete(conversationId);
+    this.state.messagesByConversation.delete(conversationId);
+    if (this.state.activeConversationId === conversationId) this.state.activeConversationId = null;
+    this.emit();
+  }
+
   // ── MESSAGES ───────────────────────────────────────────────────────────────
 
   initMessages(conversationId, messages) {

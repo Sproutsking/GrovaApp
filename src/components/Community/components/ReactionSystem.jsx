@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { Smile } from "lucide-react";
 import EmojiPanel from "./EmojiPanel";
@@ -79,8 +79,29 @@ export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {
  */
 export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef }) => {
   const [burst, setBurst] = useState(null);
+  const [pulseKeys, setPulseKeys] = useState({});
   const barRef = useRef(null);
   const burstIdRef = useRef(0);
+  const previousCountsRef = useRef(null);
+
+  useEffect(() => {
+    const counts = Object.fromEntries(
+      Object.entries(reactions).map(([emoji, reaction]) => [emoji, Number(reaction?.count) || 0]),
+    );
+    const previousCounts = previousCountsRef.current;
+    previousCountsRef.current = counts;
+    if (!previousCounts) return;
+
+    setPulseKeys((current) => {
+      let next = current;
+      for (const [emoji, count] of Object.entries(counts)) {
+        if (count <= (previousCounts[emoji] || 0)) continue;
+        if (next === current) next = { ...current };
+        next[emoji] = (current[emoji] || 0) + 1;
+      }
+      return next;
+    });
+  }, [reactions]);
 
   const handleClick = useCallback((emoji, e) => {
     e.preventDefault();
@@ -99,8 +120,8 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
         const reacted = data.users?.includes(userId);
         return (
           <button
-            key={emoji}
-            className={`rb-pill ${reacted ? "reacted" : ""} ${isAnnouncement ? "ann-pill" : ""}`}
+            key={`${emoji}-${pulseKeys[emoji] || 0}`}
+            className={`rb-pill ${reacted ? "reacted" : ""} ${pulseKeys[emoji] ? "reaction-added" : ""} ${isAnnouncement ? "ann-pill" : ""}`}
             onClick={(e) => handleClick(emoji, e)}
           >
             <span className="rb-emoji">{emoji}</span>
@@ -173,6 +194,13 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           transform: scale(1.08);
         }
         .rb-pill:active { transform: scale(0.95); }
+
+        .rb-pill.reaction-added { animation: reactionCountPop 0.42s cubic-bezier(0.2,0.9,0.3,1.3); }
+        @keyframes reactionCountPop {
+          0% { transform: scale(0.82); }
+          58% { transform: scale(1.18); }
+          100% { transform: scale(1); }
+        }
 
         .rb-pill.reacted {
           background: rgba(156,255,0,0.18);

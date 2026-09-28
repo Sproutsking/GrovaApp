@@ -145,8 +145,12 @@ CREATE TABLE public.security_events (
   location_data jsonb,
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
+  resolved boolean NOT NULL DEFAULT false,
+  resolved_at timestamp with time zone,
+  resolved_by uuid,
   CONSTRAINT security_events_pkey PRIMARY KEY (id),
-  CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+  CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT security_events_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.rate_limits (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -482,6 +486,9 @@ CREATE TABLE public.sounds (
   category text,
   is_trending boolean DEFAULT false,
   created_at timestamp without time zone DEFAULT now(),
+  audio_url text,
+  storage_path text,
+  duration numeric,
   CONSTRAINT sounds_pkey PRIMARY KEY (id),
   CONSTRAINT sounds_first_used_by_fkey FOREIGN KEY (first_used_by) REFERENCES public.profiles(id)
 );
@@ -551,9 +558,13 @@ CREATE TABLE public.community_channels (
   style jsonb NOT NULL DEFAULT '{}'::jsonb,
   integrations jsonb NOT NULL DEFAULT '{}'::jsonb,
   category text NOT NULL DEFAULT 'Channels'::text,
-  tool_type text CHECK (tool_type IS NULL OR (tool_type = ANY (ARRAY['verification'::text, 'social_updates'::text, 'tickets'::text]))),
+  tool_type text CHECK (tool_type IS NULL OR (tool_type = ANY (ARRAY['verification'::text, 'social_updates'::text, 'tickets'::text, 'welcome'::text, 'moderation'::text]))),
+  is_locked boolean NOT NULL DEFAULT false,
+  notifications_muted boolean NOT NULL DEFAULT false,
+  category_id uuid,
   CONSTRAINT community_channels_pkey PRIMARY KEY (id),
-  CONSTRAINT community_channels_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id)
+  CONSTRAINT community_channels_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
+  CONSTRAINT community_channels_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.community_channel_categories(id)
 );
 CREATE TABLE public.community_messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -662,6 +673,7 @@ CREATE TABLE public.messages (
   updated_at timestamp with time zone DEFAULT now(),
   delivered boolean DEFAULT false,
   reply_to_id uuid,
+  attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
   CONSTRAINT messages_reply_to_id_fkey FOREIGN KEY (reply_to_id) REFERENCES public.messages(id),
   CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
@@ -1242,6 +1254,7 @@ CREATE TABLE public.profile_boosts (
   grant_reason text,
   active_theme_id text,
   theme_selections jsonb DEFAULT '{}'::jsonb,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT profile_boosts_pkey PRIMARY KEY (id),
   CONSTRAINT profile_boosts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT profile_boosts_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id)
@@ -1350,6 +1363,7 @@ CREATE TABLE public.status_updates (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   expires_at timestamp with time zone NOT NULL DEFAULT (now() + '24:00:00'::interval),
   media_type text DEFAULT 'text'::text,
+  music_url text,
   CONSTRAINT status_updates_pkey PRIMARY KEY (id),
   CONSTRAINT status_updates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );

@@ -482,8 +482,6 @@ export async function processEngagement({
   );
 
   try {
-    await walletService.ensureWallet(actorId);
-
     const { data, error } = await supabase.rpc('process_ripple_engagement', {
       p_actor_id:        actorId,
       p_content_type:    contentType,
