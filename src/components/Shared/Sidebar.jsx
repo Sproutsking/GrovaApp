@@ -281,7 +281,7 @@ const Sidebar = ({
           bottom: 0;
           width: var(--sidebar-w, 300px);
           overflow: hidden;
-          background: #000;
+          background: linear-gradient(150deg, #07110b 0%, #050a08 42%, #080a0d 72%, #0b0906 100%);
           border-left: 1px solid var(--surface-border);
           border-right: 1px solid var(--surface-border);
           font-family: "Manrope", sans-serif;
@@ -293,14 +293,16 @@ const Sidebar = ({
           position: absolute;
           inset: 0;
           background:
-            linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px),
-            radial-gradient(ellipse 72% 34% at 50% 0%, var(--accent) 0%, transparent 72%);
-          background-size: 28px 28px, 28px 28px, auto;
+            linear-gradient(132deg, transparent 0 18%, rgba(198,255,0,0.11) 18.08%, transparent 18.22% 57%, rgba(56,189,248,0.075) 57.08%, transparent 57.22%),
+            linear-gradient(42deg, transparent 0 34%, rgba(212,175,55,0.075) 34.08%, transparent 34.22% 78%, rgba(198,255,0,0.055) 78.08%, transparent 78.22%),
+            repeating-linear-gradient(0deg, rgba(198,255,0,0.025) 0 1px, transparent 1px 34px),
+            repeating-linear-gradient(90deg, rgba(56,189,248,0.022) 0 1px, transparent 1px 34px),
+            linear-gradient(150deg, #07110b 0%, #050a08 42%, #080a0d 72%, #0b0906 100%);
+          background-size: auto, auto, 34px 34px, 34px 34px, auto;
           overflow: hidden;
           pointer-events: none;
-          display: none;
-          mask-image: linear-gradient(to bottom, black, rgba(0,0,0,0.82) 52%, transparent 100%);
+          display: block;
+          mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 76%, rgba(0,0,0,0.58) 100%);
         }
         .ambient-orb {
           position: absolute;
@@ -339,8 +341,8 @@ const Sidebar = ({
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: #000;
-          backdrop-filter: none;
+          background: linear-gradient(180deg, rgba(4,8,6,0.52), rgba(2,4,4,0.78));
+          backdrop-filter: blur(12px);
           border-right: 1px solid var(--surface-border);
           z-index: 1;
         }

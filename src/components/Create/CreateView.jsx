@@ -31,6 +31,7 @@ import useDistribution    from "../../hooks/useDistribution";          // [D4]
 import PlatformSelector   from "../Distribution/PlatformSelector";
 import DistributionStatus from "../Distribution/DistributionStatus";
 import useTrinitylens from "../../hooks/useTrinitylens";
+import { useToast } from "../../contexts/ToastContext";
 
 // ── Helper: fire the optimistic publish event ─────────────────────────────────
 const dispatchPublish = (item, type) => {
@@ -58,6 +59,7 @@ const DistributionBlock = ({ label, userId, distribution }) => {
 };
 
 const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
+  const { showToast } = useToast();
   const { activeTrinityLens } = useTrinitylens();
   const [activeTab,       setActiveTab]       = useState("post");
   const [loading,         setLoading]         = useState(false);
@@ -453,17 +455,33 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       window.setTimeout(() => setPublishNotice(""), 3500);
 
       try {
-        await distribution.distributePost(newPost.id);
+        const distributionResult = await distribution.distributePost(newPost.id);
+        if (distributionResult && !distributionResult.success) {
+          const failedPlatforms = (distributionResult.results || [])
+            .filter((result) => !result.ok)
+            .map((result) => result.platform);
+          showToast({
+            type: "error",
+            message: "Post published, but distribution failed",
+            description: failedPlatforms.length
+              ? `Could not publish to: ${failedPlatforms.join(", " )}`
+              : "Check your connected platforms in Account → Identity.",
+          });
+        }
       } catch (distributionError) {
         console.warn("Post created but distribution failed:", distributionError);
-        alert(distributionError.message || "Post published, but distribution failed. Check your connected platforms in Account → Identity.");
+        showToast({
+          type: "error",
+          message: "Post published, but distribution failed",
+          description: distributionError.message || "Check your connected platforms in Account → Identity.",
+        });
       }
 
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm();
     } catch (err) {
       console.error("Failed to publish post:", err);
-      alert(err.message || "Failed to publish post. Please try again.");
+      showToast({ type: "error", message: "Failed to publish post", description: err.message || "Please try again." });
     } finally { setLoading(false); }
   };
 
@@ -505,7 +523,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       clearForm(); setUploadProgress(0);
     } catch (err) {
       console.error("Failed to publish reel:", err);
-      alert(err.message || "Failed to publish reel. Please try again.");
+      showToast({ type: "error", message: "Failed to publish reel", description: err.message || "Please try again." });
     } finally { setLoading(false); }
   };
 
@@ -551,7 +569,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       clearForm();
     } catch (err) {
       console.error("Failed to publish story:", err);
-      alert(err.message || "Failed to publish story. Please try again.");
+      showToast({ type: "error", message: "Failed to publish story", description: err.message || "Please try again." });
     } finally { setLoading(false); }
   };
 
@@ -595,7 +613,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       clearForm(); setUploadProgress(0);
     } catch (err) {
       console.error("Failed to publish culture post:", err);
-      alert(err.message || "Failed to publish culture post. Please try again.");
+      showToast({ type: "error", message: "Failed to publish culture post", description: err.message || "Please try again." });
     } finally { setLoading(false); }
   };
 

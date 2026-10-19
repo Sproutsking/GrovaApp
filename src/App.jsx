@@ -924,47 +924,28 @@ const MainApp = memo(() => {
       }
 
       const nav = document.querySelector(".sidebar, .xv-sidebar");
-      const main = document.querySelector(".main-content-desktop");
       const frame = document.querySelector(".desktop-layout");
-      const trending = document.querySelector(".trending-sidebar");
-      if (!nav || !main || !frame) {
+      if (!nav || !frame) {
         setHasRoomForTrending(false);
         return;
       }
-      if (!trending) return;
 
-      const navRect = nav.getBoundingClientRect();
-      const mainRect = main.getBoundingClientRect();
-      const frameRect = frame.getBoundingClientRect();
+      const navWidth = nav.getBoundingClientRect().width;
+      const frameWidth = frame.getBoundingClientRect().width;
+      const railWidth = navWidth;
       const rootStyle = window.getComputedStyle(document.documentElement);
-      const measuredRailWidth = trending.getBoundingClientRect().width;
-      const railWidth = measuredRailWidth || parseFloat(rootStyle.getPropertyValue("--trending-w")) || 0;
       const rightGutter = parseFloat(rootStyle.getPropertyValue("--layout-gutter")) || 0;
       const minFeedWidth = parseFloat(rootStyle.getPropertyValue("--main-content-min-w")) || 520;
-      const feedLeft = Math.max(mainRect.left, navRect.right);
-      const availableFeedWidth = frameRect.right - railWidth - rightGutter - feedLeft;
+      const availableFeedWidth = frameWidth - navWidth - railWidth - rightGutter * 2;
 
       setHasRoomForTrending(railWidth > 0 && availableFeedWidth >= minFeedWidth);
     };
 
     measureTrendingFit();
     window.addEventListener("resize", measureTrendingFit);
-    const observer = typeof ResizeObserver === "undefined"
-      ? null
-      : new ResizeObserver(measureTrendingFit);
-    const mountObserver = typeof MutationObserver === "undefined"
-      ? null
-      : new MutationObserver(measureTrendingFit);
-    mountObserver?.observe(document.body, { childList: true, subtree: true });
-    [".sidebar, .xv-sidebar", ".main-content-desktop", ".desktop-layout", ".trending-sidebar"]
-      .map((selector) => document.querySelector(selector))
-      .filter(Boolean)
-      .forEach((element) => observer?.observe(element));
 
     return () => {
       window.removeEventListener("resize", measureTrendingFit);
-      observer?.disconnect();
-      mountObserver?.disconnect();
     };
   }, [isMobile, wantsTrendingSidebar]);
 
@@ -1484,6 +1465,7 @@ function AppRouter() {
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
+  const [appReadyGate, setAppReadyGate] = useState(false);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
@@ -1495,6 +1477,19 @@ function AppRouter() {
     }, 10_000);
     return () => clearTimeout(timer);
   }, [loading]);
+
+  useEffect(() => {
+    if (!user || !profile || loading || profileLoading) {
+      setAppReadyGate(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setAppReadyGate(true);
+    }, 2800);
+
+    return () => clearTimeout(timer);
+  }, [user, profile, loading, profileLoading]);
 
   useEffect(() => {
     if (!user || profile) return;
@@ -1548,6 +1543,7 @@ function AppRouter() {
       </div>
     );
   }
+  if (!appReadyGate) return <Splash />;
   return <MainApp />;
 }
 

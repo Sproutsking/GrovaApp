@@ -1,6 +1,46 @@
 // src/components/Shared/UnifiedLoader.jsx - SINGLE LOADER FOR ALL STATES
-import React, { useState, useEffect } from 'react';
-import { Loader, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useId } from 'react';
+import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import Logo from "./Assets/Logo.png";
+
+const LiquidOrbitLoader = ({ scale = 1.5 }) => {
+  const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const filterId = `liquid-goo-${instanceId}`;
+
+  return (
+    <div className="liquid-loader" style={{ "--liquid-k": scale }}>
+      <svg className="liquid-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation={8 * scale} />
+            <feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 22 -9" />
+          </filter>
+        </defs>
+      </svg>
+      <div className="liquid-wrap">
+        <div className="liquid-stage">
+          <div className="liquid-goo" style={{ filter: `url(#${filterId})` }}>
+          <div className="liquid-core" />
+          <div className="liquid-dot liquid-dot-a" />
+          <div className="liquid-dot liquid-dot-b" />
+          <div className="liquid-dot liquid-dot-c" />
+          </div>
+          <div className="liquid-abs liquid-sheen" />
+          <img className="liquid-abs liquid-logo" src={Logo} alt="" />
+        </div>
+      </div>
+      <div className="liquid-word">XEEVI<span>A</span></div>
+    </div>
+  );
+};
+
+const BoxedDotsLoader = ({ compact = false }) => (
+  <div className={`boxed-dots-loader${compact ? " boxed-dots-loader-compact" : ""}`} aria-hidden="true">
+    <span />
+    <span />
+    <span />
+  </div>
+);
 
 /**
  * UNIFIED LOADER SYSTEM
@@ -38,35 +78,31 @@ const UnifiedLoader = ({
   // Sizes for different loader types
   const config = {
     'app-init': {
-      spinner: '64px',
+      scale: 1.5,
       fontSize: '18px',
       padding: '60px',
       showLogo: true,
       fullScreen: true
     },
     'profile': {
-      spinner: '48px',
       fontSize: '16px',
       padding: '60px',
       showLogo: false,
       fullScreen: false
     },
     'section': {
-      spinner: '48px',
       fontSize: '15px',
       padding: '60px',
       showLogo: false,
       fullScreen: false
     },
     'inline': {
-      spinner: '18px',
       fontSize: '14px',
       padding: '0',
       showLogo: false,
       fullScreen: false
     },
     'default': {
-      spinner: '48px',
       fontSize: '16px',
       padding: '40px',
       showLogo: false,
@@ -120,40 +156,15 @@ const UnifiedLoader = ({
     // LOADING STATE
     if (current.showLogo) {
       return (
-        <div className="app-init-scene" aria-hidden="true">
-          <div className="app-init-grid" />
-          <div className="app-init-vignette" />
-          <div className="app-init-core">
-            <div className="app-init-orbit app-init-orbit-a" />
-            <div className="app-init-orbit app-init-orbit-b" />
-            <div className="app-init-orbit app-init-orbit-c" />
-            <div className="app-init-globe">
-              <div className="app-init-latitude app-init-latitude-a" />
-              <div className="app-init-latitude app-init-latitude-b" />
-              <div className="app-init-longitude app-init-longitude-a" />
-              <div className="app-init-longitude app-init-longitude-b" />
-              <i className="app-init-node app-init-node-a" />
-              <i className="app-init-node app-init-node-b" />
-              <i className="app-init-node app-init-node-c" />
-              <i className="app-init-node app-init-node-d" />
-            </div>
-            <div className="app-init-scan" />
-          </div>
-          <div className="app-init-brand">XEEVIA</div>
-          <div className="app-init-rule"><span /> SYSTEM ONLINE <span /></div>
-        </div>
+        <>
+          <LiquidOrbitLoader scale={current.scale} />
+        </>
       );
     }
 
     return (
       <>
-        <div 
-          className="loader-spinner"
-          style={{
-            width: current.spinner,
-            height: current.spinner
-          }}
-        ></div>
+        <BoxedDotsLoader compact={type === "inline"} />
         <div className="loader-message" style={{ fontSize: current.fontSize }}>
           {message}<span className="loader-dots">{dots}</span>
         </div>
@@ -198,16 +209,12 @@ const UnifiedLoader = ({
         .unified-loader.fullscreen {
           position: fixed;
           inset: 0;
-          background: var(--bg);
+          background: #050505;
           z-index: 9999;
         }
 
         .unified-loader.fullscreen::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at 50% 50%, rgba(132, 204, 22, 0.15) 0%, transparent 45%);
-          animation: pulse 3s ease-in-out infinite;
+          content: none;
         }
 
         .unified-loader > * {
@@ -215,18 +222,35 @@ const UnifiedLoader = ({
           z-index: 1;
         }
 
-        .app-init-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#020403;color:#eaffd8}
-        .app-init-grid{position:absolute;inset:-35%;opacity:.28;background-image:linear-gradient(rgba(132,204,22,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(132,204,22,.1) 1px,transparent 1px);background-size:48px 48px;transform:perspective(440px) rotateX(58deg) translateY(24%);transform-origin:center bottom;animation:appInitGrid 9s linear infinite}
-        .app-init-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 0%,rgba(1,3,2,.2) 42%,rgba(0,0,0,.9) 100%)}
-        .app-init-core{position:relative;width:min(330px,76vw);aspect-ratio:1;display:grid;place-items:center;animation:appInitRise .9s cubic-bezier(.16,1,.3,1) both}
-        .app-init-globe{position:relative;width:30%;aspect-ratio:1;border:1px solid rgba(156,255,0,.7);border-radius:50%;background:radial-gradient(circle at 35% 28%,rgba(156,255,0,.2),rgba(4,20,7,.94) 63%,#020503);box-shadow:0 0 0 8px rgba(156,255,0,.035),0 0 32px rgba(156,255,0,.45),inset 0 0 24px rgba(156,255,0,.18);overflow:hidden;animation:appInitPulse 2.8s ease-in-out infinite}
-        .app-init-globe:before,.app-init-globe:after{content:"";position:absolute;inset:13% -10%;border:1px solid rgba(156,255,0,.3);border-radius:50%;transform:rotate(25deg)}.app-init-globe:after{inset:-10% 20%;transform:rotate(-25deg)}
-        .app-init-latitude,.app-init-longitude{position:absolute;border:1px solid rgba(156,255,0,.25);border-radius:50%;pointer-events:none}.app-init-latitude{left:-12%;right:-12%;height:34%;top:33%}.app-init-latitude-b{top:48%;height:15%;opacity:.7}.app-init-longitude{top:-10%;bottom:-10%;width:38%;left:31%}.app-init-longitude-b{left:16%;width:68%;opacity:.65}
-        .app-init-node{position:absolute;width:5px;height:5px;border-radius:50%;background:#c8ff78;box-shadow:0 0 10px #9cff00;animation:appInitNode 1.8s ease-in-out infinite}.app-init-node-a{top:20%;left:25%}.app-init-node-b{top:38%;right:18%;animation-delay:.35s}.app-init-node-c{bottom:22%;left:21%;animation-delay:.7s}.app-init-node-d{bottom:18%;right:30%;animation-delay:1.05s}
-        .app-init-orbit{position:absolute;inset:13%;border:1px solid rgba(156,255,0,.3);border-radius:50%;transform:rotate(62deg);animation:appInitOrbit 4.8s linear infinite}.app-init-orbit:after{content:"";position:absolute;top:-4px;left:50%;width:7px;height:7px;border-radius:50%;background:#b8ff61;box-shadow:0 0 14px #9cff00}.app-init-orbit-b{inset:4%;transform:rotate(-34deg) scaleY(.55);border-color:rgba(56,189,248,.26);animation-duration:7s;animation-direction:reverse}.app-init-orbit-b:after{background:#67e8f9;box-shadow:0 0 14px #38bdf8}.app-init-orbit-c{inset:23%;transform:rotate(8deg) scaleY(.42);border-color:rgba(251,191,36,.3);animation-duration:3.4s}.app-init-orbit-c:after{background:#fde68a;box-shadow:0 0 14px #fbbf24}
-        .app-init-scan{position:absolute;width:70%;height:2px;background:linear-gradient(90deg,transparent,#b7ff65,transparent);box-shadow:0 0 16px rgba(156,255,0,.8);animation:appInitScan 2.6s ease-in-out infinite}.app-init-brand{position:relative;margin-top:-24px;color:#f3ffe9;font-size:clamp(25px,5vw,38px);font-weight:900;letter-spacing:.24em;text-indent:.24em;text-shadow:0 0 22px rgba(156,255,0,.32);animation:appInitBrand .9s .2s ease both}.app-init-rule{position:relative;display:flex;align-items:center;gap:9px;margin-top:12px;color:#84cc16;font-size:8px;font-weight:800;letter-spacing:.3em;animation:appInitBrand .8s .38s ease both}.app-init-rule span{width:24px;height:1px;background:linear-gradient(90deg,transparent,#84cc16)}.app-init-rule span:last-child{background:linear-gradient(90deg,#84cc16,transparent)}
-        @keyframes appInitOrbit{to{transform:rotate(422deg)}}@keyframes appInitGrid{to{background-position:0 48px,48px 0}}@keyframes appInitPulse{0%,100%{transform:scale(.98)}50%{transform:scale(1.04)}}@keyframes appInitNode{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1.35)}}@keyframes appInitScan{0%{transform:translateY(-105px);opacity:0}25%,75%{opacity:1}100%{transform:translateY(105px);opacity:0}}@keyframes appInitRise{from{opacity:0}to{opacity:1}}@keyframes appInitBrand{from{opacity:0;filter:blur(6px)}to{opacity:1;filter:none}}
-        @media(prefers-reduced-motion:reduce){.app-init-grid,.app-init-orbit,.app-init-globe,.app-init-node,.app-init-scan,.app-init-core,.app-init-brand,.app-init-rule{animation:none}}
+        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;background:var(--liquid-bg);color:#fff;}
+        .liquid-defs{position:absolute;width:0;height:0;overflow:hidden;}
+        .liquid-wrap{display:grid;place-items:center;gap:calc(var(--liquid-k)*30px);}
+        .liquid-stage{position:relative;width:calc(var(--liquid-k)*160px);height:calc(var(--liquid-k)*160px);}
+        .liquid-abs{position:absolute;left:50%;top:50%;border-radius:50%;}
+        .liquid-goo{position:absolute;inset:calc(var(--liquid-k)*-14px);}
+        .liquid-core,.liquid-dot{position:absolute;left:50%;top:50%;border-radius:50%;background:#c6ff00;will-change:transform;}
+        .liquid-core{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);animation:liquidCore 3s ease-in-out infinite;}
+        .liquid-dot{width:calc(var(--liquid-k)*26px);height:calc(var(--liquid-k)*26px);margin:calc(var(--liquid-k)*-13px);animation:liquidOrbit 3s cubic-bezier(.6,0,.4,1) infinite;}
+        .liquid-dot-b{animation-delay:-.25s;}
+        .liquid-dot-c{animation-delay:-.5s;background:#d4af37;}
+        .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3s ease-in-out infinite;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),transparent 50%),linear-gradient(170deg,transparent 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
+        .liquid-sheen::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:50%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);transform:translateX(-140%) skewX(-12deg);animation:liquidGlint 3s ease-in-out infinite;}
+        .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:multiply;will-change:transform;animation:liquidLogo 3s ease-in-out infinite;}
+        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc(var(--liquid-k)*18px);line-height:1.2;animation:liquidFade 3s ease-in-out infinite;}
+        .liquid-word span{color:#d4af37;}
+        @keyframes liquidOrbit{0%{transform:rotate(0) translateX(calc(var(--liquid-k)*70px))}50%{transform:rotate(360deg) translateX(0)}100%{transform:rotate(720deg) translateX(calc(var(--liquid-k)*70px))}}
+        @keyframes liquidCore{0%,100%{transform:scale(1);border-radius:50%}50%{transform:scale(1.5);border-radius:30%}}
+        @keyframes liquidLogo{0%,100%{transform:scale(.6667)}50%{transform:scale(1)}}
+        @keyframes liquidFade{0%,100%{opacity:.4}50%{opacity:1}}
+        @keyframes liquidGlint{0%,38%{transform:translateX(-140%) skewX(-12deg)}64%,100%{transform:translateX(280%) skewX(-12deg)}}
+        .boxed-dots-loader{display:flex;align-items:center;justify-content:center;gap:5px;height:24px;}
+        .boxed-dots-loader span{width:9px;height:9px;border-radius:2px;background:var(--accent,#c6ff00);opacity:.4;animation:boxedDot 1s ease-in-out infinite;}
+        .boxed-dots-loader span:nth-child(2){animation-delay:.14s;}
+        .boxed-dots-loader span:nth-child(3){animation-delay:.28s;}
+        .boxed-dots-loader-compact{height:16px;gap:3px;}
+        .boxed-dots-loader-compact span{width:5px;height:5px;}
+        @keyframes boxedDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-5px);opacity:1}}
+        @media(prefers-reduced-motion:reduce){.liquid-core,.liquid-dot,.liquid-sheen,.liquid-sheen::after,.liquid-logo,.liquid-word,.boxed-dots-loader span{animation:none!important}.boxed-dots-loader span{opacity:1}}
 
         .loader-logo {
           font-size: 72px;
@@ -372,7 +396,7 @@ const UnifiedLoader = ({
         }
       `}</style>
 
-      <div className={containerClass}>
+      <div className={containerClass} role="status" aria-label={message}>
         <LoaderContent />
       </div>
     </>

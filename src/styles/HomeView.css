@@ -35,9 +35,11 @@
 /* ── Room ────────────────────────────────────────────────────────────────── */
 .feed-container {
   width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
   padding-top: 10px;
-  padding-left: clamp(4px, 0.6vw, 8px);
-  padding-right: clamp(4px, 0.6vw, 8px);
+  padding-left: 2%;
+  padding-right: 2%;
   padding-bottom: 48px;
 }
 

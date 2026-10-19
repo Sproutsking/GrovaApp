@@ -20,6 +20,7 @@ import ReceiveTab     from "./tabs/ReceiveTab";
 import SettingsTab    from "./tabs/SettingsTab";
 import WithdrawTab    from "./tabs/WithdrawTab";
 import PayWave        from "./paywave/PayWaveWrapper";
+import { RefreshCw, ShieldCheck } from "lucide-react";
 import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
 import { useAuth } from "../Auth/AuthContext";
@@ -61,6 +62,9 @@ const EP_BURN_TABLE = [
   { range: "500–1999",  burn: "5 EP"   },
   { range: "2000+",     burn: "10 EP"  },
 ];
+
+const WALLET_MARKET_TTL = 300_000;
+let walletMarketCache = { data: null, updatedAt: 0 };
 
 // ── useMobileTop ─────────────────────────────────────────────────
 // Measures the tallest fixed/sticky top bar and tallest bottom bar
@@ -143,7 +147,7 @@ const LAYOUT_CSS = `
     overflow: hidden;
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 768px) {
     .wv-shell {
       /* Fall back to the measured header height; default 0 so it's
          not worse than before if the hook hasn't run yet */
@@ -178,79 +182,67 @@ const LAYOUT_CSS = `
   /* ── Right sidebar ── */
   .wv-sidebar { display: none; }
 
-  @media (min-width: 1200px) {
+  @media (min-width: 1120px) {
     .wv-sidebar {
       display: flex;
       flex-direction: column;
-      width: 280px;
+      width: clamp(256px, 24vw, 320px);
       flex-shrink: 0;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 20px 16px;
-      background: rgba(4,5,6,0.97);
-      border-left: 1px solid rgba(255,255,255,0.07);
+      padding: 18px 14px 24px;
+      gap: 18px;
+      background: linear-gradient(180deg, rgba(8,11,8,.99), rgba(5,6,5,.99));
+      border-left: 1px solid rgba(198,255,0,.12);
       scrollbar-width: none;
     }
     .wv-sidebar::-webkit-scrollbar { display: none; }
   }
 
-  /* ── Sidebar cards ── */
-  .wvs-card {
-    border-radius: 13px;
-    padding: 13px 14px;
-    margin-bottom: 14px;
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(255,255,255,0.025);
-    flex-shrink: 0;
-  }
-  .wvs-card.lime { border-color: rgba(132,204,22,0.3);  background: rgba(132,204,22,0.03); }
-  .wvs-card.gold { border-color: rgba(212,168,71,0.3);  background: rgba(212,168,71,0.03); }
-  .wvs-card.cyan { border-color: rgba(34,211,238,0.28);  background: rgba(34,211,238,0.03); }
-
-  .wvs-title {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: rgba(255,255,255,0.35);
-  }
-  .wvs-title.lime { color: rgba(132,204,22,0.75); }
-  .wvs-title.gold { color: rgba(212,168,71,0.7);  }
-  .wvs-title.cyan { color: rgba(34,211,238,0.7);  }
-
-  .wvs-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-  .wvs-row:last-child { border-bottom: none; padding-bottom: 0; }
-
-  .wvs-sym   { font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,0.55); font-family: 'DM Mono', monospace; }
-  .wvs-price { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
-  .wvs-chg   { font-size: 10px;   font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 1px; }
+  .wvs-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .wvs-kicker{font-size:9px;font-weight:800;letter-spacing:.15em;color:rgba(198,255,0,.66);}
+  .wvs-heading{margin-top:5px;color:#f2f5ef;font-size:18px;font-weight:750;}
+  .wvs-secure{display:flex;align-items:center;gap:5px;color:rgba(198,255,0,.74);font-size:9px;font-weight:700;}
+  .wvs-summary{padding:15px;border:1px solid rgba(198,255,0,.2);border-radius:12px;background:radial-gradient(ellipse at 90% 0%,rgba(198,255,0,.09),transparent 58%),linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.012));}
+  .wvs-summary-label{font-size:9px;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.42);}
+  .wvs-summary-balance{display:flex;align-items:baseline;gap:8px;margin-top:8px;color:#f7f9f3;}
+  .wvs-summary-balance strong{font-size:30px;font-weight:750;line-height:1;}
+  .wvs-summary-balance span{color:#c6ff00;font-size:12px;font-weight:800;}
+  .wvs-summary-secondary{display:flex;justify-content:space-between;gap:8px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.45);}
+  .wvs-summary-secondary strong{color:rgba(255,255,255,.8);font-weight:700;}
+  .wvs-section{flex-shrink:0;}
+  .wvs-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .wvs-section-title{color:#e9ede7;font-size:12px;font-weight:750;}
+  .wvs-section-meta{margin-top:3px;color:rgba(255,255,255,.34);font-size:9px;}
+  .wvs-refresh{width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.035);color:rgba(255,255,255,.55);cursor:pointer;}
+  .wvs-refresh:hover:not(:disabled){border-color:rgba(198,255,0,.28);color:#c6ff00;}
+  .wvs-refresh:disabled{opacity:.45;cursor:wait;}
+  .wvs-refreshing{animation:wvsSpin 1s linear infinite;}
+  @keyframes wvsSpin{to{transform:rotate(360deg)}}
+  .wvs-market-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.055);}
+  .wvs-market-row:last-child{border-bottom:0;}
+  .wvs-market-name{display:flex;align-items:center;gap:8px;min-width:0;}
+  .wvs-market-icon{width:25px;height:25px;display:grid;place-items:center;flex-shrink:0;border-radius:8px;background:rgba(255,255,255,.055);color:#c6ff00;font-size:9px;font-weight:800;}
+  .wvs-sym{color:rgba(255,255,255,.72);font-size:11px;font-weight:700;}
+  .wvs-price{color:#f0f2ee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .wvs-chg{font-size:9px;font-weight:700;font-variant-numeric:tabular-nums;}
   .wvs-chg.up   { color: #a3e635; }
   .wvs-chg.down { color: #f87171; }
-  .wvs-chg.flat { color: rgba(255,255,255,0.3); }
-
-  .wvs-stat-label { font-size: 11px; color: rgba(255,255,255,0.42); }
-  .wvs-stat-val   { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
-
-  .wvs-earn-label { font-size: 11px; color: rgba(255,255,255,0.42); }
-  .wvs-earn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #22d3ee; }
-  .wvs-burn-range { font-size: 11px; color: rgba(255,255,255,0.38); font-family: 'DM Mono', monospace; }
-  .wvs-burn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #f87171; }
+  .wvs-chg.flat { color: rgba(255,255,255,0.36); }
+  .wvs-activity-row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:10px;}
+  .wvs-activity-row:last-child{border-bottom:0;}
+  .wvs-activity-label{color:rgba(255,255,255,.5);}
+  .wvs-activity-value{color:#a3e635;font-weight:750;font-variant-numeric:tabular-nums;}
+  .wvs-burn-note{margin-top:10px;padding:9px 10px;border-left:2px solid rgba(212,175,55,.55);background:rgba(212,175,55,.055);color:rgba(255,255,255,.48);font-size:9px;line-height:1.5;}
+  .wvs-burn-details{margin-top:8px;color:rgba(255,255,255,.58);font-size:10px;}
+  .wvs-burn-details summary{width:max-content;color:rgba(212,175,55,.8);cursor:pointer;}
+  .wvs-burn-details[open] summary{margin-bottom:5px;}
 
   @keyframes wvsSkel {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.35; }
   }
-  .wvs-loading { animation: wvsSkel 1.4s ease-in-out infinite; color: rgba(255,255,255,0.18) !important; }
+  .wvs-loading { color: rgba(255,255,255,0.25) !important; }
 
   .wvs-pulse {
     width: 5px; height: 5px; border-radius: 50%;
@@ -262,24 +254,11 @@ const LAYOUT_CSS = `
     50%       { opacity: .3; transform: scale(.6); }
   }
 
-  .wvs-launch {
-    padding: 10px 12px; border-radius: 10px;
-    border: 1px dashed rgba(163,230,53,0.2);
-    background: rgba(163,230,53,0.03);
-    font-size: 11px; line-height: 1.7;
-    color: rgba(255,255,255,0.32);
-    margin-bottom: 14px; flex-shrink: 0; text-align: center;
-  }
-
-  .section-head  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; justify-content: center; }
-  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
-  .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
-
   .wv-shell { padding-left: 0 !important; padding-right: 0 !important; }
 `;
 
 // ── Right Sidebar ─────────────────────────────────────────────
-function WalletSidebar() {
+function WalletSidebar({ balance }) {
   const { activeTrinityLens } = useTrinitylens();
   const [markets, setMarkets] = useState([
     { sym: "BTC",  val: null,    chg: null,        up: true },
@@ -288,12 +267,9 @@ function WalletSidebar() {
     { sym: "USDT", val: "$1.00", chg: "+0.00%",    up: true },
   ]);
 
-  const [platformStats, setPlatformStats] = useState([
-    { label: "EP Minted Today", val: null, color: "#22d3ee" },
-    { label: "Active Wallets",  val: null, color: "rgba(255,255,255,0.65)" },
-  ]);
-
   const [cryptoStale, setCryptoStale] = useState(true);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketUpdatedAt, setMarketUpdatedAt] = useState(walletMarketCache.updatedAt);
   const sidebarMarkets = activeTrinityLens === "gaming"
     ? [
         { sym: "XP", val: "0", chg: "Player XP", up: true },
@@ -326,7 +302,16 @@ function WalletSidebar() {
     return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
   };
 
-  const fetchCrypto = useCallback(async () => {
+  const fetchCrypto = useCallback(async (force = false) => {
+    const cacheIsFresh = walletMarketCache.data && Date.now() - walletMarketCache.updatedAt < WALLET_MARKET_TTL;
+    if (!force && cacheIsFresh) {
+      setMarkets(walletMarketCache.data);
+      setMarketUpdatedAt(walletMarketCache.updatedAt);
+      setCryptoStale(false);
+      return;
+    }
+
+    setMarketLoading(true);
     try {
       const res = await fetch(
         "https://api.coingecko.com/api/v3/simple/price" +
@@ -336,180 +321,149 @@ function WalletSidebar() {
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
-      setMarkets([
+      const nextMarkets = [
         { sym: "BTC",  val: fmtPrice(d.bitcoin?.usd),      chg: fmtChg(d.bitcoin?.usd_24h_change),      up: (d.bitcoin?.usd_24h_change      ?? 0) >= 0 },
         { sym: "ETH",  val: fmtPrice(d.ethereum?.usd),     chg: fmtChg(d.ethereum?.usd_24h_change),     up: (d.ethereum?.usd_24h_change     ?? 0) >= 0 },
         { sym: "BNB",  val: fmtPrice(d.binancecoin?.usd),  chg: fmtChg(d.binancecoin?.usd_24h_change),  up: (d.binancecoin?.usd_24h_change  ?? 0) >= 0 },
         { sym: "USDT", val: fmtPrice(d.tether?.usd) ?? "$1.00", chg: fmtChg(d.tether?.usd_24h_change) ?? "+0.00%", up: true },
-      ]);
+      ];
+      walletMarketCache = { data: nextMarkets, updatedAt: Date.now() };
+      setMarkets(nextMarkets);
+      setMarketUpdatedAt(walletMarketCache.updatedAt);
       setCryptoStale(false);
     } catch {
       setCryptoStale(true);
+    } finally {
+      setMarketLoading(false);
     }
   }, []); // eslint-disable-line
 
-  const fetchPlatformStats = useCallback(async () => {
-    try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const [walletCountRes, epTodayRes] = await Promise.allSettled([
-        supabase.from("wallets").select("*", { count: "exact", head: true }),
-        supabase.from("wallet_history")
-          .select("amount, metadata")
-          .eq("change_type", "credit")
-          .gte("created_at", todayStart.toISOString()),
-      ]);
-
-      const walletCount = walletCountRes.status === "fulfilled"
-        ? walletCountRes.value.count ?? 0 : 0;
-
-      const epToday = epTodayRes.status === "fulfilled"
-        ? (epTodayRes.value.data ?? [])
-            .filter(r => {
-              const m = r.metadata || {};
-              return m.currency === "EP" || m.currency_type === "EP" ||
-                     m.type === "EP" || m.displayCurrency === "EP";
-            })
-            .reduce((s, r) => s + (r.amount || 0), 0)
-        : 0;
-
-      const fmtStat = (n) =>
-        n > 0 ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
-
-      setPlatformStats([
-        { label: "EP Minted Today", val: fmtStat(epToday),         color: "#22d3ee" },
-        { label: "Active Wallets",  val: fmtStat(walletCount),     color: "rgba(255,255,255,0.75)" },
-      ]);
-    } catch (err) {
-      console.warn("[WalletSidebar] platform stats error:", err);
-    }
-  }, []);
-
   useEffect(() => {
-    if (activeTrinityLens !== "gaming") fetchCrypto();
-    fetchPlatformStats();
-    const t = activeTrinityLens === "gaming" ? null : setInterval(fetchCrypto, 60_000);
-    return () => clearInterval(t);
-  }, [activeTrinityLens, fetchCrypto, fetchPlatformStats]);
+    const desktopQuery = window.matchMedia("(min-width: 1120px)");
+    let refreshTimer = null;
+    const syncMarketUpdates = () => {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+      if (desktopQuery.matches && activeTrinityLens !== "gaming") {
+        void fetchCrypto();
+        refreshTimer = setInterval(() => fetchCrypto(), WALLET_MARKET_TTL);
+      }
+    };
+    syncMarketUpdates();
+    desktopQuery.addEventListener("change", syncMarketUpdates);
+    return () => {
+      clearInterval(refreshTimer);
+      desktopQuery.removeEventListener("change", syncMarketUpdates);
+    };
+  }, [activeTrinityLens, fetchCrypto]);
 
   return (
     <>
-      <div className="wvs-launch">
-        🚀 <strong style={{ color: "rgba(163,230,53,0.7)" }}>Xeevia is live.</strong>
-        <br />Market data populates as the platform grows.
-        <br /><span style={{ color: "rgba(255,255,255,0.18)" }}>Token sale coming soon.</span>
-      </div>
+      <header className="wvs-head">
+        <div>
+          <div className="wvs-kicker">WALLET / PULSE</div>
+          <div className="wvs-heading">Your money space</div>
+        </div>
+        <div className="wvs-secure"><ShieldCheck size={13} /> PRIVATE</div>
+      </header>
+
+      <section className="wvs-summary" aria-label="Wallet balance summary">
+        <div className="wvs-summary-label">AVAILABLE BALANCE</div>
+        <div className="wvs-summary-balance">
+          <strong>{Math.floor(Number(balance?.points) || 0).toLocaleString()}</strong>
+          <span>EP</span>
+        </div>
+        <div className="wvs-summary-secondary">
+          <span>Token balance</span>
+          <strong>{Number(balance?.tokens || 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} XEV</strong>
+        </div>
+        {balance?.paywave != null && Number(balance.paywave) > 0 && (
+          <div className="wvs-summary-secondary">
+            <span>PayWave</span>
+            <strong>{Number(balance.paywave).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
+          </div>
+        )}
+      </section>
 
       {modeRail && (
-        <div className="wvs-card lime">
-          <div className="wvs-title lime">{modeRail.title}</div>
+        <section className="wvs-section wvs-mode-strip">
+          <div className="wvs-section-head">
+            <div>
+              <div className="wvs-section-title">{modeRail.title}</div>
+              <div className="wvs-section-meta">Wallet tools for this mode</div>
+            </div>
+          </div>
           {modeRail.rows.map(([label, value]) => (
-            <div className="wvs-row" key={label}>
-              <span className="wvs-stat-label">{label}</span>
-              <span className="wvs-stat-val" style={{ color: "#a3e635" }}>{value}</span>
+            <div className="wvs-activity-row" key={label}>
+              <span className="wvs-activity-label">{label}</span>
+              <span className="wvs-activity-value">{value}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="wvs-section" aria-label="Market watch">
+        <div className="wvs-section-head">
+          <div>
+            <div className="wvs-section-title">Market watch</div>
+            <div className="wvs-section-meta">
+              {marketUpdatedAt
+                ? `Updated ${new Date(marketUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : cryptoStale ? "Public quotes unavailable" : "Public market quotes"}
+            </div>
+          </div>
+          <button className="wvs-refresh" type="button" onClick={() => fetchCrypto(true)} disabled={marketLoading || activeTrinityLens === "gaming"} title="Refresh market quotes" aria-label="Refresh market quotes">
+            <RefreshCw size={13} className={marketLoading ? "wvs-refreshing" : ""} />
+          </button>
+        </div>
+        <div className="wvs-market-list">
+          {sidebarMarkets.map((market) => (
+            <div key={market.sym} className="wvs-market-row">
+              <div className="wvs-market-name">
+                <span className="wvs-market-icon">{market.sym.slice(0, 1)}</span>
+                <span className="wvs-sym">{market.sym}</span>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className={`wvs-price ${market.val == null ? "wvs-loading" : ""}`}>
+                  {market.val ?? "···"}
+                </div>
+                {market.chg != null && (
+                  <div className={`wvs-chg ${market.chg === "Launching" ? "flat" : market.up ? "up" : "down"}`}>
+                    {market.chg}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
-      )}
+      </section>
 
-      <div className="wvs-card lime">
-        <div className="wvs-title lime">
-          <div className="wvs-pulse" />
-          {activeTrinityLens === "gaming" ? "Gaming Markets" : "Crypto Markets"}
-          <span style={{
-            marginLeft: "auto", fontSize: 9, fontFamily: "monospace",
-            color: cryptoStale ? "rgba(248,113,113,0.5)" : "rgba(132,204,22,0.55)",
-            letterSpacing: "0.1em",
-          }}>
-            {cryptoStale ? "STALE" : "LIVE"}
-          </span>
+      <section className="wvs-section" aria-label="EP activity guide">
+        <div className="wvs-section-head">
+          <div>
+            <div className="wvs-section-title">EP activity</div>
+            <div className="wvs-section-meta">Earn through participation</div>
+          </div>
         </div>
-        {sidebarMarkets.map((m) => (
-          <div key={m.sym} className="wvs-row">
-            <span className="wvs-sym">{m.sym}</span>
-            <div style={{ textAlign: "right" }}>
-              <div className={`wvs-price ${m.val == null ? "wvs-loading" : ""}`}
-                style={{ color: m.sym === "$XEV" ? "#a3e635" : "rgba(255,255,255,0.82)" }}>
-                {m.val ?? "···"}
-              </div>
-              {m.chg != null && (
-                <div className={`wvs-chg ${m.chg === "Launching" ? "flat" : m.up ? "up" : "down"}`}>
-                  {m.chg}
-                </div>
-              )}
+        {EP_EARN.map((activity) => (
+          <div key={activity.label} className="wvs-activity-row">
+            <span className="wvs-activity-label">{activity.label}</span>
+            <span className="wvs-activity-value">{activity.val}</span>
+          </div>
+        ))}
+        <div className="wvs-burn-note">
+          Sending EP uses a small tiered burn. Review the amount before confirming a transfer.
+        </div>
+        <details className="wvs-burn-details">
+          <summary>View send tiers</summary>
+          {EP_BURN_TABLE.map((tier) => (
+            <div key={tier.range} className="wvs-activity-row">
+              <span className="wvs-activity-label">{tier.range}</span>
+              <span className="wvs-activity-value">{tier.burn}</span>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="wvs-card gold">
-        <div className="wvs-title gold">
-          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
-          </svg>
-          Platform Stats
-        </div>
-        {platformStats.map((s) => (
-          <div key={s.label} className="wvs-row">
-            <span className="wvs-stat-label">{s.label}</span>
-            <span className={`wvs-stat-val ${s.val == null ? "wvs-loading" : ""}`} style={{ color: s.color }}>
-              {s.val ?? "···"}
-            </span>
-          </div>
-        ))}
-        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", lineHeight: 1.6 }}>
-          Refreshes with every page load
-        </div>
-      </div>
-
-      <div className="wvs-card cyan">
-        <div className="wvs-title cyan">
-          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-          </svg>
-          Earn EP
-        </div>
-        {EP_EARN.map((e) => (
-          <div key={e.label} className="wvs-row">
-            <span className="wvs-earn-label">{e.label}</span>
-            <span className="wvs-earn-val">{e.val}</span>
-          </div>
-        ))}
-        <div style={{
-          marginTop: 10, padding: "8px 10px",
-          background: "rgba(34,211,238,0.06)", borderRadius: 8,
-          fontSize: 10.5, color: "rgba(255,255,255,0.28)", lineHeight: 1.65,
-        }}>
-          EP is <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned through activity.</strong>{" "}
-          Send it internally or receive it by sharing your @username.
-        </div>
-      </div>
-
-      <div className="wvs-card">
-        <div className="wvs-title">
-          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth={2.5}>
-            <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
-          </svg>
-          EP Burn on Send
-        </div>
-        {EP_BURN_TABLE.map((r) => (
-          <div key={r.range} className="wvs-row">
-            <span className="wvs-burn-range">{r.range}</span>
-            <span className="wvs-burn-val">{r.burn}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{
-        padding: "10px 12px", borderRadius: 10,
-        border: "1px dashed rgba(255,255,255,0.07)",
-        fontSize: 11, lineHeight: 1.7, color: "rgba(255,255,255,0.22)",
-        marginBottom: 16, flexShrink: 0, textAlign: "center",
-      }}>
-        🌐 <strong style={{ color: "rgba(132,204,22,0.5)" }}>Xeevia</strong> — where social
-        meets finance. Every like, share and comment builds your wealth.
-      </div>
+          ))}
+        </details>
+      </section>
     </>
   );
 }
@@ -711,7 +665,7 @@ const WalletView = ({
           </div>
         </div>
         <aside className="wv-sidebar">
-          <WalletSidebar />
+          <WalletSidebar balance={balance} />
         </aside>
       </div>
     </CurrencyProvider>

@@ -54,3 +54,42 @@ describe('distributionService.getConnectedPlatforms', () => {
     await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual(['x']);
   });
 });
+
+describe('distributionService._publishToSinglePlatform', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('records a failed connection without calling catch on a Supabase thenable', async () => {
+    const statusQuery = {
+      then: (resolve) => Promise.resolve({ error: null }).then(resolve),
+    };
+    supabase.from.mockImplementation((table) => {
+      if (table === 'connections') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'post_distribution') {
+        return {
+          update: () => ({
+            eq: () => ({ eq: () => statusQuery }),
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(
+      distributionService._publishToSinglePlatform('post-1', 'user-1', {}, 'x'),
+    ).rejects.toThrow('Not connected to x');
+    expect(supabase.from).toHaveBeenCalledWith('post_distribution');
+    expect(statusQuery.catch).toBeUndefined();
+  });
+});

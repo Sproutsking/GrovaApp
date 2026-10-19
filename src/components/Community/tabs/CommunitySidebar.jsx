@@ -116,10 +116,13 @@ const CommunitySidebar = ({
       <style jsx>{`
         .community-sidebar {
           width: 72px;
+          position: relative;
           background:
-            linear-gradient(180deg, rgba(25,32,22,.98) 0%, rgba(11,15,12,.99) 34%, rgba(8,10,10,1) 100%),
-            repeating-linear-gradient(135deg, rgba(156,255,0,.025) 0 1px, transparent 1px 12px);
-          border-right: 2px solid var(--surface-border);
+            radial-gradient(circle at 24% 8%, rgba(156,255,0,0.24), transparent 16%),
+            radial-gradient(circle at 72% 16%, rgba(45,212,191,0.16), transparent 19%),
+            radial-gradient(circle at 50% 96%, rgba(96,165,250,0.12), transparent 30%),
+            linear-gradient(180deg, rgba(14,18,14,0.96) 0%, rgba(8,11,10,0.97) 36%, rgba(4,6,6,1) 100%);
+          border-right: 1px solid rgba(156,255,0,0.18);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -127,7 +130,34 @@ const CommunitySidebar = ({
           gap: 10px;
           overflow-y: auto;
           overflow-x: hidden;
-          box-shadow: inset -1px 0 0 rgba(255,255,255,0.02);
+          box-shadow:
+            inset -1px 0 0 rgba(255,255,255,0.02),
+            inset 18px 0 32px rgba(156,255,0,0.05),
+            0 0 26px rgba(0,0,0,0.6);
+        }
+
+        .community-sidebar::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.06), transparent 16%, transparent 84%, rgba(255,255,255,0.02)),
+            repeating-linear-gradient(135deg, rgba(156,255,0,0.035) 0 1px, transparent 1px 12px),
+            linear-gradient(90deg, transparent 0%, rgba(156,255,0,0.04) 50%, transparent 100%);
+          pointer-events: none;
+        }
+
+        .community-sidebar::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(156,255,0,0.09) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(156,255,0,0.07) 1px, transparent 1px);
+          background-size: 18px 18px;
+          mask-image: radial-gradient(circle at center, black 35%, transparent 100%);
+          opacity: 0.32;
+          pointer-events: none;
         }
 
         .community-sidebar::-webkit-scrollbar {

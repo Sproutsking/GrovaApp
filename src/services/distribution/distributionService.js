@@ -313,14 +313,18 @@ class DistributionService {
       // Update queue status
       if (queueId) {
         const hasFailures = summary.some(s => !s.ok);
-        await supabase
-          .from("distribution_queue")
-          .update({
-            status: hasFailures ? "partial" : "completed",
-            processed_at: new Date().toISOString(),
-          })
-          .eq("id", queueId)
-          .catch(() => {});
+        try {
+          const { error: queueUpdateError } = await supabase
+            .from("distribution_queue")
+            .update({
+              status: hasFailures ? "partial" : "completed",
+              processed_at: new Date().toISOString(),
+            })
+            .eq("id", queueId);
+          if (queueUpdateError) throw queueUpdateError;
+        } catch (queueUpdateError) {
+          console.warn("[Distribution] Queue status update failed:", queueUpdateError?.message);
+        }
       }
 
       console.log("[Distribution] Complete:", summary);
@@ -429,21 +433,24 @@ class DistributionService {
           updated_at: new Date().toISOString(),
         })
         .eq("post_id", postId)
-        .eq("platform", platform)
-        .catch(() => {});
+        .eq("platform", platform);
 
       return { platform, status: "fallback", deepLink };
     } catch (err) {
-      await supabase
-        .from("post_distribution")
-        .update({
-          status: "failed",
-          error_message: err.message,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("post_id", postId)
-        .eq("platform", platform)
-        .catch(() => {});
+      try {
+        const { error: statusUpdateError } = await supabase
+          .from("post_distribution")
+          .update({
+            status: "failed",
+            error_message: err.message,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("post_id", postId)
+          .eq("platform", platform);
+        if (statusUpdateError) throw statusUpdateError;
+      } catch (statusUpdateError) {
+        console.warn("[Distribution] Failed to record platform error:", statusUpdateError?.message);
+      }
 
       throw err;
     }

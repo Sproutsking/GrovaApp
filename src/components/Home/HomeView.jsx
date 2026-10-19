@@ -85,6 +85,9 @@ function swrVal(key)      { return _swr.get(key)?.val || null; }
 
 const HOME_CACHE_PREFIX = "xv_home_cache_v1:";
 const HOME_CACHE_TTL = 120_000;
+function scopedHomeKey(key, userId) {
+  return `${userId || "anonymous"}:${key}`;
+}
 function readHomeCache(key) {
   if (typeof window === "undefined") return null;
   try {
@@ -99,6 +102,17 @@ function readHomeCache(key) {
     return parsed.data || null;
   } catch {
     return null;
+  }
+}
+function homeCacheFresh(key) {
+  if (swrFresh(key)) return true;
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(HOME_CACHE_PREFIX + key);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Boolean(parsed?.ts && Date.now() - parsed.ts < HOME_CACHE_TTL);
+  } catch {
+    return false;
   }
 }
 function writeHomeCache(key, data) {
@@ -364,14 +378,14 @@ const HomeView = ({
   onOpenDMUpdates,
 }) => {
   // [ULTRA-5] Pre-seed from SWR synchronously — frame 0 shows stale content
-  const [posts,     setPosts]     = useState(() => swrVal("posts")   || readHomeCache("posts")   || []);
-  const [newsPosts, setNewsPosts] = useState(() => swrVal("news")    || readHomeCache("news")    || []);
-  const [reels,     setReels]     = useState(() => swrVal("reels")   || readHomeCache("reels")   || []);
-  const [stories,   setStories]   = useState(() => swrVal("stories") || readHomeCache("stories") || []);
+  const [posts,     setPosts]     = useState(() => swrVal(scopedHomeKey("posts", userId))   || readHomeCache(scopedHomeKey("posts", userId))   || []);
+  const [newsPosts, setNewsPosts] = useState(() => swrVal(scopedHomeKey("news", userId))    || readHomeCache(scopedHomeKey("news", userId))    || []);
+  const [reels,     setReels]     = useState(() => swrVal(scopedHomeKey("reels", userId))   || readHomeCache(scopedHomeKey("reels", userId))   || []);
+  const [stories,   setStories]   = useState(() => swrVal(scopedHomeKey("stories", userId)) || readHomeCache(scopedHomeKey("stories", userId)) || []);
   const [currentUser, setCurrentUser] = useState(null);
 
-  const hasCachedFeed = ((swrVal("posts") || readHomeCache("posts") || []).length > 0) ||
-                        ((swrVal("reels") || readHomeCache("reels") || []).length > 0);
+  const hasCachedFeed = ((swrVal(scopedHomeKey("posts", userId)) || readHomeCache(scopedHomeKey("posts", userId)) || []).length > 0) ||
+                        ((swrVal(scopedHomeKey("reels", userId)) || readHomeCache(scopedHomeKey("reels", userId)) || []).length > 0);
   const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedFeed);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
@@ -441,10 +455,14 @@ const HomeView = ({
 
   // ── [ULTRA-2] initializeHome — ONE parallel round trip ───────────────────
   const initializeHome = async () => {
-    const cp = swrVal("posts");
-    const cr = swrVal("reels");
-    const cs = swrVal("stories");
-    const cn = swrVal("news");
+    const postsKey = scopedHomeKey("posts", userId);
+    const reelsKey = scopedHomeKey("reels", userId);
+    const storiesKey = scopedHomeKey("stories", userId);
+    const newsKey = scopedHomeKey("news", userId);
+    const cp = swrVal(postsKey) || readHomeCache(postsKey);
+    const cr = swrVal(reelsKey) || readHomeCache(reelsKey);
+    const cs = swrVal(storiesKey) || readHomeCache(storiesKey);
+    const cn = !newsCategory ? swrVal(newsKey) || readHomeCache(newsKey) : null;
     if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
 
     const now = Date.now();
@@ -457,22 +475,26 @@ const HomeView = ({
       return user;
     }).catch(() => null);
 
-    const storiesTask = storyService.getStories({ limit: 20 }).then((data) => {
+    const storiesTask = homeCacheFresh(storiesKey) ? Promise.resolve() : storyService.getStories({ limit: 20 }).then((data) => {
       if (!mountedRef.current) return;
       const safeStories = Array.isArray(data) ? data : [];
       preloadStoryAssets(safeStories);
-      swrSet("stories", safeStories);
-      writeHomeCache("stories", safeStories);
+      swrSet(storiesKey, safeStories);
+      writeHomeCache(storiesKey, safeStories);
       setStories(safeStories);
       tabFetchedAt.current.stories = Date.now();
     }).catch(() => {});
 
-    const newsTask = newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }).then((data) => {
+    const newsTask = !newsCategory && homeCacheFresh(newsKey)
+      ? Promise.resolve()
+      : newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }).then((data) => {
       if (!mountedRef.current) return;
       const safeNews = Array.isArray(data) ? data : [];
       preloadNewsAssets(safeNews);
-      swrSet("news", safeNews);
-      writeHomeCache("news", safeNews);
+      if (!newsCategory) {
+        swrSet(newsKey, safeNews);
+        writeHomeCache(newsKey, safeNews);
+      }
       setNewsPosts(safeNews);
       newsOffRef.current = NEWS_PAGE;
       hasMoreNewsRef.current = safeNews.length === NEWS_PAGE;
@@ -481,18 +503,24 @@ const HomeView = ({
     }).catch(() => {});
 
     try {
-      const [postsResult, reelsResult] = await Promise.allSettled([
-        postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE),
-        reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }),
-      ]);
+      const feedIsFresh = !modeCategory && homeCacheFresh(postsKey) && homeCacheFresh(reelsKey);
+      const [postsResult, reelsResult] = feedIsFresh
+        ? [
+            { status: "fulfilled", value: cp || [] },
+            { status: "fulfilled", value: cr || [] },
+          ]
+        : await Promise.allSettled([
+            postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE),
+            reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }),
+          ]);
       if (!mountedRef.current) return;
 
       const safePosts = postsResult.status === "fulfilled" && Array.isArray(postsResult.value)
         ? postsResult.value
-        : cp || readHomeCache("posts") || [];
+        : cp || readHomeCache(postsKey) || [];
       const safeReels = reelsResult.status === "fulfilled" && Array.isArray(reelsResult.value)
         ? reelsResult.value
-        : cr || readHomeCache("reels") || [];
+        : cr || readHomeCache(reelsKey) || [];
 
       if (postsResult.status === "rejected" && reelsResult.status === "rejected" && !safePosts.length && !safeReels.length) {
         throw new Error("We could not connect to Xeevia. Check your connection and try again.");
@@ -500,18 +528,20 @@ const HomeView = ({
 
       preloadFirstPaintImages(safePosts);
       preloadReelThumbs(safeReels, 0);
-      swrSet("posts", safePosts);
-      swrSet("reels", safeReels);
-      writeHomeCache("posts", safePosts);
-      writeHomeCache("reels", safeReels);
-      tabFetchedAt.current.feed = Date.now();
+      if (!modeCategory && !feedIsFresh) {
+        swrSet(postsKey, safePosts);
+        swrSet(reelsKey, safeReels);
+        writeHomeCache(postsKey, safePosts);
+        writeHomeCache(reelsKey, safeReels);
+        tabFetchedAt.current.feed = Date.now();
+      }
 
       startTransition(() => {
         if (!mountedRef.current) return;
         setPosts(safePosts);
         setReels(safeReels);
-        setStories(cs || readHomeCache("stories") || []);
-        setNewsPosts(cn || readHomeCache("news") || []);
+        setStories(cs || readHomeCache(storiesKey) || []);
+        setNewsPosts(newsCategory ? [] : (cn || []));
         setShowSkeleton(false);
 
         postsOffRef.current = POSTS_PAGE;
@@ -542,6 +572,10 @@ const HomeView = ({
   // ── Silent tab revalidation ───────────────────────────────────────────────
   const silentRefreshTab = useCallback(async tab => {
     if (!mountedRef.current) return;
+    const postsKey = scopedHomeKey("posts", userId);
+    const reelsKey = scopedHomeKey("reels", userId);
+    const storiesKey = scopedHomeKey("stories", userId);
+    const newsKey = scopedHomeKey("news", userId);
     try {
       switch (tab) {
         case "feed": {
@@ -552,8 +586,10 @@ const HomeView = ({
           if (!mountedRef.current) return;
           const safePosts = Array.isArray(pd) ? pd : [];
           const safeReels = Array.isArray(rd) ? rd : [];
-          swrSet("posts", safePosts);
-          swrSet("reels", safeReels);
+          swrSet(postsKey, safePosts);
+          swrSet(reelsKey, safeReels);
+          writeHomeCache(postsKey, safePosts);
+          writeHomeCache(reelsKey, safeReels);
           tabFetchedAt.current.feed = Date.now();
           preloadFirstPaintImages(safePosts);
           preloadReelThumbs(safeReels, 0);
@@ -565,7 +601,8 @@ const HomeView = ({
           const d = await storyService.getStories({ limit: 20 }).catch(() => null);
           if (!d || !mountedRef.current) return;
           const safe = Array.isArray(d) ? d : [];
-          swrSet("stories", safe);
+          swrSet(storiesKey, safe);
+          writeHomeCache(storiesKey, safe);
           tabFetchedAt.current.stories = Date.now();
           preloadStoryAssets(safe);
           setStories(safe);
@@ -575,7 +612,8 @@ const HomeView = ({
           const d = await newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => null);
           if (!d || !mountedRef.current) return;
           const safe = Array.isArray(d) ? d : [];
-          swrSet("news", safe);
+          swrSet(newsKey, safe);
+          writeHomeCache(newsKey, safe);
           tabFetchedAt.current.news = Date.now();
           preloadNewsAssets(safe);
           setNewsPosts(safe);
@@ -589,7 +627,7 @@ const HomeView = ({
         default: break;
       }
     } catch {}
-  }, []);
+  }, [userId]);
 
   // ── Pagination ────────────────────────────────────────────────────────────
   const resetPagination = useCallback(() => {
@@ -750,10 +788,28 @@ const HomeView = ({
           return prev.map(x => x.id===item.id ? { ...x, ...item, _optimistic:false } : x);
         return [item, ...prev];
       });
-    if      (item.type==="post")  { upsert(setPosts);   setActiveHomeTab?.("posts");   }
-    else if (item.type==="reel")  { upsert(setReels);   setActiveHomeTab?.("reels");   }
-    else if (item.type==="story") { upsert(setStories); setActiveHomeTab?.("stories"); }
-  }, [currentUserProp, setActiveHomeTab]);
+    const updateCache = (key, limit) => {
+      const scopedKey = scopedHomeKey(key, userId);
+      if (!homeCacheFresh(scopedKey)) return;
+      const cachedItems = swrVal(scopedKey) || readHomeCache(scopedKey) || [];
+      const nextItems = [item, ...cachedItems.filter(cachedItem => cachedItem.id !== item.id)].slice(0, limit);
+      swrSet(scopedKey, nextItems);
+      writeHomeCache(scopedKey, nextItems);
+    };
+    if (item.type === "post") {
+      upsert(setPosts);
+      updateCache("posts", POSTS_PAGE);
+      setActiveHomeTab?.("posts");
+    } else if (item.type === "reel") {
+      upsert(setReels);
+      updateCache("reels", REELS_PAGE);
+      setActiveHomeTab?.("reels");
+    } else if (item.type === "story") {
+      upsert(setStories);
+      updateCache("stories", 20);
+      setActiveHomeTab?.("stories");
+    }
+  }, [currentUserProp, setActiveHomeTab, userId]);
 
   const handleRefresh = useCallback(async () => {
     try {

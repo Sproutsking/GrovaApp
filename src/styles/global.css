@@ -141,7 +141,7 @@ html *::-webkit-scrollbar {
   --sidebar-w: clamp(220px, 26vw, 320px);
   --trending-w: 0px;
   --layout-gutter: 0px;
-  --main-content-min-w: 520px;
+  --main-content-min-w: 420px;
   --main-content-max-w: 800px;
   --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
   --layout-right: max(0px, calc(100vw - var(--layout-left) - var(--main-content-max-w)));
@@ -370,7 +370,6 @@ img, video {
 }
 
 .desktop-layout--without-trending {
-  --trending-w: 0px;
   --layout-right: max(0px, calc(100vw - var(--layout-left) - var(--main-content-max-w)));
 }
 
@@ -878,6 +877,7 @@ img, video {
 @media (max-width: 1199px) and (min-width: 769px) {
   :root {
     --trending-w: var(--sidebar-w);
+    --main-content-max-w: 600px;
     --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
     --layout-right: calc(var(--trending-w) + var(--layout-gutter));
     --edge-left: var(--layout-left);
