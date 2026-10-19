@@ -17,18 +17,20 @@ const LiquidOrbitLoader = ({ scale = 1.5 }) => {
           </filter>
         </defs>
       </svg>
+
       <div className="liquid-wrap">
         <div className="liquid-stage">
           <div className="liquid-goo" style={{ filter: `url(#${filterId})` }}>
-          <div className="liquid-core" />
-          <div className="liquid-dot liquid-dot-a" />
-          <div className="liquid-dot liquid-dot-b" />
-          <div className="liquid-dot liquid-dot-c" />
+            <div className="liquid-core" />
+            <div className="liquid-dot liquid-dot-a" />
+            <div className="liquid-dot liquid-dot-b" />
+            <div className="liquid-dot liquid-dot-c" />
           </div>
           <div className="liquid-abs liquid-sheen" />
           <img className="liquid-abs liquid-logo" src={Logo} alt="" />
         </div>
       </div>
+
       <div className="liquid-word">XEEVI<span>A</span></div>
     </div>
   );
@@ -222,7 +224,7 @@ const UnifiedLoader = ({
           z-index: 1;
         }
 
-        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;background:var(--liquid-bg);color:#fff;}
+        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;background:var(--liquid-bg);color:#fff;position:relative;}
         .liquid-defs{position:absolute;width:0;height:0;overflow:hidden;}
         .liquid-wrap{display:grid;place-items:center;gap:calc(var(--liquid-k)*30px);}
         .liquid-stage{position:relative;width:calc(var(--liquid-k)*160px);height:calc(var(--liquid-k)*160px);}
@@ -233,15 +235,15 @@ const UnifiedLoader = ({
         .liquid-dot{width:calc(var(--liquid-k)*26px);height:calc(var(--liquid-k)*26px);margin:calc(var(--liquid-k)*-13px);animation:liquidOrbit 3s cubic-bezier(.6,0,.4,1) infinite;}
         .liquid-dot-b{animation-delay:-.25s;}
         .liquid-dot-c{animation-delay:-.5s;background:#d4af37;}
-        .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3s ease-in-out infinite;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),transparent 50%),linear-gradient(170deg,transparent 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
+        .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3s ease-in-out infinite;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),rgba(255,255,255,0) 50%),linear-gradient(170deg,rgba(255,255,255,0) 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
         .liquid-sheen::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:50%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);transform:translateX(-140%) skewX(-12deg);animation:liquidGlint 3s ease-in-out infinite;}
         .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:multiply;will-change:transform;animation:liquidLogo 3s ease-in-out infinite;}
-        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc(var(--liquid-k)*18px);line-height:1.2;animation:liquidFade 3s ease-in-out infinite;}
+        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc(var(--liquid-k)*18px);line-height:1.2;animation:liquidFade 2.8s ease-in-out infinite;}
         .liquid-word span{color:#d4af37;}
         @keyframes liquidOrbit{0%{transform:rotate(0) translateX(calc(var(--liquid-k)*70px))}50%{transform:rotate(360deg) translateX(0)}100%{transform:rotate(720deg) translateX(calc(var(--liquid-k)*70px))}}
-        @keyframes liquidCore{0%,100%{transform:scale(1);border-radius:50%}50%{transform:scale(1.5);border-radius:30%}}
+        @keyframes liquidCore{0%,100%{transform:scale(1)}50%{transform:scale(1.5);border-radius:30%}}
         @keyframes liquidLogo{0%,100%{transform:scale(.6667)}50%{transform:scale(1)}}
-        @keyframes liquidFade{0%,100%{opacity:.4}50%{opacity:1}}
+        @keyframes liquidFade{0%,100%{opacity:.5}50%{opacity:1}}
         @keyframes liquidGlint{0%,38%{transform:translateX(-140%) skewX(-12deg)}64%,100%{transform:translateX(280%) skewX(-12deg)}}
         .boxed-dots-loader{display:flex;align-items:center;justify-content:center;gap:5px;height:24px;}
         .boxed-dots-loader span{width:9px;height:9px;border-radius:2px;background:var(--accent,#c6ff00);opacity:.4;animation:boxedDot 1s ease-in-out infinite;}
@@ -250,7 +252,7 @@ const UnifiedLoader = ({
         .boxed-dots-loader-compact{height:16px;gap:3px;}
         .boxed-dots-loader-compact span{width:5px;height:5px;}
         @keyframes boxedDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-5px);opacity:1}}
-        @media(prefers-reduced-motion:reduce){.liquid-core,.liquid-dot,.liquid-sheen,.liquid-sheen::after,.liquid-logo,.liquid-word,.boxed-dots-loader span{animation:none!important}.boxed-dots-loader span{opacity:1}}
+        @media(prefers-reduced-motion:reduce){.liquid-core,.liquid-dot,.liquid-sheen,.liquid-sheen::after,.liquid-logo,.liquid-word,.boxed-dots-loader span{animation-duration:9s!important}}
 
         .loader-logo {
           font-size: 72px;

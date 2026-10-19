@@ -1465,7 +1465,9 @@ function AppRouter() {
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
-  const [appReadyGate, setAppReadyGate] = useState(false);
+  const [bootSplashUserId, setBootSplashUserId] = useState(null);
+  const bootUserId = user?.id;
+  const bootProfileId = profile?.id;
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
@@ -1479,17 +1481,19 @@ function AppRouter() {
   }, [loading]);
 
   useEffect(() => {
-    if (!user || !profile || loading || profileLoading) {
-      setAppReadyGate(false);
+    if (!bootUserId) {
+      setBootSplashUserId(null);
       return;
     }
 
+    if (!bootProfileId || bootProfileId !== bootUserId || loading || bootSplashUserId === bootUserId) return;
+
     const timer = setTimeout(() => {
-      setAppReadyGate(true);
-    }, 2800);
+      setBootSplashUserId(bootUserId);
+    }, 3100);
 
     return () => clearTimeout(timer);
-  }, [user, profile, loading, profileLoading]);
+  }, [bootUserId, bootProfileId, loading, bootSplashUserId]);
 
   useEffect(() => {
     if (!user || profile) return;
@@ -1543,7 +1547,7 @@ function AppRouter() {
       </div>
     );
   }
-  if (!appReadyGate) return <Splash />;
+  if (bootSplashUserId !== user.id) return <Splash />;
   return <MainApp />;
 }
 
