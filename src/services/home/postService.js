@@ -226,19 +226,27 @@ class PostService {
       if (post.user_id !== user.id) throw new Error("You can only delete your own posts");
 
       const deleteTimestamp = new Date().toISOString();
-      const { error: deleteError } = await supabase
+      const { data: deletedPost, error: deleteError } = await supabase
         .from("posts")
         .update({ deleted_at: deleteTimestamp })
         .eq("id", postId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .select("id")
+        .maybeSingle();
 
       if (deleteError) throw deleteError;
+      if (!deletedPost?.id) throw new Error("Post not found or no longer available.");
 
-      xrcService.writeRecord(
-        STREAM_TYPES.XCRC,
-        XRC_EVENTS.postDeleted(postId, user.id),
-        user.id,
-      ).catch((err) => console.error("[XRC] postDeleted record failed:", err));
+      try {
+        Promise.resolve(xrcService.writeRecord(
+          STREAM_TYPES.XCRC,
+          XRC_EVENTS.postDeleted(postId, user.id),
+          user.id,
+        )).catch((err) => console.error("[XRC] postDeleted record failed:", err));
+      } catch (err) {
+        console.error("[XRC] postDeleted record failed:", err);
+      }
 
       this._safeInvalidate(`post:${postId}`);
       this._safeInvalidate("posts");

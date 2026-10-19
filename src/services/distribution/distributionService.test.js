@@ -16,7 +16,7 @@ describe('distributionService.getConnectedPlatforms', () => {
     jest.clearAllMocks();
   });
 
-  it('treats a Supabase auth identity as a connected platform for distribution', async () => {
+  it('does not treat a Supabase auth identity without a publishing token as connected', async () => {
     supabase.from.mockImplementation((table) => {
       if (table === 'connections') {
         return {
@@ -49,6 +49,46 @@ describe('distributionService.getConnectedPlatforms', () => {
         },
       },
       error: null,
+    });
+
+    await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual([]);
+  });
+
+  it('returns only active connections with an unexpired publishing token', async () => {
+    supabase.from.mockImplementation((table) => {
+      if (table === 'connections') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: async () => ({
+                data: [
+                  { id: 'x-connection', provider: 'twitter', auth_status: 'active' },
+                  { id: 'fb-connection', provider: 'facebook', auth_status: 'active' },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'tokens') {
+        return {
+          select: () => ({
+            in: () => ({
+              eq: async () => ({
+                data: [
+                  { connection_id: 'x-connection', encrypted_token: 'x-token', expires_at: null },
+                  { connection_id: 'fb-connection', encrypted_token: 'expired-token', expires_at: '2000-01-01T00:00:00.000Z' },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
     });
 
     await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual(['x']);

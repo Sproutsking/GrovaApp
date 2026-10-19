@@ -50,7 +50,8 @@ export function resolveProviderLinkState({ platform, identities = [], connection
   };
 
   const matchedIdentity = safeIdentities.find((identity) => matchesProvider(identity?.provider));
-  if (matchedIdentity) {
+  const hasPublishingToken = currentConn?.hasValidToken === true;
+  if (matchedIdentity && hasPublishingToken) {
     const platformUserId = matchedIdentity.identity_data?.user_name
       || matchedIdentity.identity_data?.preferred_username
       || matchedIdentity.identity_data?.email
@@ -67,7 +68,7 @@ export function resolveProviderLinkState({ platform, identities = [], connection
     };
   }
 
-  if (currentConn && currentConn.auth_status === "active") {
+  if (currentConn && currentConn.auth_status === "active" && hasPublishingToken) {
     return {
       alreadyConnected: true,
       source: "connections_table",
@@ -79,10 +80,16 @@ export function resolveProviderLinkState({ platform, identities = [], connection
 
   return {
     alreadyConnected: false,
-    source: null,
+    source: matchedIdentity ? "supabase_identity" : null,
     connection: currentConn || null,
-    platformUserId: currentConn?.platform_user_id || null,
-    identity: null,
+    platformUserId: currentConn?.platform_user_id
+      || matchedIdentity?.identity_data?.user_name
+      || matchedIdentity?.identity_data?.preferred_username
+      || matchedIdentity?.identity_data?.email
+      || matchedIdentity?.identity_data?.sub
+      || matchedIdentity?.id
+      || null,
+    identity: matchedIdentity || null,
   };
 }
 
@@ -180,6 +187,8 @@ class SocialConnectService {
           .eq("provider", platformKey)
           .maybeSingle();
 
+        const sessionProvider = session?.user?.app_metadata?.provider;
+        const providerToken = sessionProvider === identity.provider ? session?.provider_token : null;
         if (!existing || existing.auth_status !== "active") {
           // Create/update the connection record
           const platformUserId = identity.identity_data?.user_name
@@ -193,26 +202,25 @@ class SocialConnectService {
               user_id:          userId,
               provider:         platformKey,
               platform_user_id: platformUserId,
-              auth_status:      "active",
+              auth_status:      providerToken ? "active" : "expired",
               connected_via:    "supabase_identity",
             }, { onConflict: "user_id,provider" })
             .select()
             .maybeSingle();
 
           if (conn) {
-            imported[platformKey] = true;
-            const sessionProvider = session?.user?.app_metadata?.provider;
-            const providerToken = sessionProvider === identity.provider ? session?.provider_token : null;
             if (providerToken) {
-              await supabase.from("tokens").upsert({
+              const { error: tokenError } = await supabase.from("tokens").upsert({
                 connection_id: conn.id,
                 encrypted_token: providerToken,
                 refresh_token: session.provider_refresh_token || null,
-                expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                expires_at: null,
                 revoked: false,
               }, { onConflict: "connection_id" });
+              if (tokenError) throw tokenError;
+              imported[platformKey] = true;
             }
-            try {
+            if (providerToken) try {
               const { syncUserConnectorEvidence } = await import("../evidence/connectorService");
               await syncUserConnectorEvidence(userId, platformKey).catch((err) => {
                 console.warn(`[SocialConnect] Evidence sync failed for imported ${platformKey}:`, err?.message);
@@ -221,7 +229,7 @@ class SocialConnectService {
               console.warn("[SocialConnect] Evidence service not available:", importErr?.message);
             }
           }
-        } else {
+        } else if (existing.auth_status === "active") {
           imported[platformKey] = true;
         }
       }
@@ -262,6 +270,10 @@ class SocialConnectService {
       return { redirecting: false, alreadyConnected: true, platform };
     }
 
+    if (linkedState.source === "supabase_identity") {
+      return this._openOAuthPopup(userId, platform, config);
+    }
+
     if (!supabase.auth.linkIdentity) throw new Error("Account linking is unavailable in this Supabase client.");
     const nonce = crypto.randomUUID();
     sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify({ userId, platform, nonce, startedAt: Date.now() }));
@@ -280,75 +292,70 @@ class SocialConnectService {
         throw new Error("Supabase blocked account linking. In Supabase Dashboard open Authentication > Settings > User Signups, enable Manual Linking, and confirm this provider is enabled. This is separate from the provider's OAuth login setting.");
       }
       if (/provider.*already.*connected|already.*identity/i.test(linkMessage)) {
+        if (linkedState.source === "supabase_identity") {
+          throw new Error(`This ${config.label} identity is linked for sign-in, but has no valid publishing token. Reconnect it with posting permissions enabled.`);
+        }
         throw new Error("This provider is already connected to another Xeevia account or identity. Sign in to that account before managing it.");
       }
       throw linkError;
     }
     return { redirecting: true, platform };
+  }
 
-    /* Legacy popup flow retained below for reference during migration. */
-    /* istanbul ignore next */
+  _openOAuthPopup(userId, platform, config) {
     return new Promise((resolve, reject) => {
-      // Position popup
-      const left = Math.round(window.screenX + (window.outerWidth  - POPUP_W) / 2);
-      const top  = Math.round(window.screenY + (window.outerHeight - POPUP_H) / 2);
+      const left = Math.round(window.screenX + (window.outerWidth - POPUP_W) / 2);
+      const top = Math.round(window.screenY + (window.outerHeight - POPUP_H) / 2);
       const features = `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`;
-
       const popup = window.open("about:blank", `xeevia_link_${platform}`, features);
       if (!popup || popup.closed) {
         reject(new Error("Popup was blocked. Please allow popups for this site."));
         return;
       }
 
-      // Build the popup HTML
-      const html = this._buildLinkPopupHTML(platform, config);
       popup.document.open();
-      popup.document.write(html);
+      popup.document.write(this._buildLinkPopupHTML(platform, config));
       popup.document.close();
 
-      // Listen for postMessage result
       const onMessage = async (event) => {
-        if (event.origin !== window.location.origin) return;
-        if (event.data?.type !== "XEEVIA_SOCIAL_LINKED") return;
-
+        if (event.origin !== window.location.origin || event.source !== popup
+          || event.data?.type !== "XEEVIA_SOCIAL_LINKED"
+          || event.data?.platformKey !== platform) return;
         window.removeEventListener("message", onMessage);
         clearInterval(pollInterval);
 
-        const { platformKey, accessToken, refreshToken, platformUserId, error } = event.data;
-
-        if (error) {
-          reject(new Error(error));
+        if (event.data.error) {
+          reject(new Error(event.data.error));
+          return;
+        }
+        if (typeof event.data.accessToken !== "string" || !event.data.accessToken) {
+          reject(new Error(`The ${config.label} provider did not return a publishing token.`));
           return;
         }
 
         try {
-          // Store connection + token in DB
-          await this._storeConnection(userId, platformKey, platformUserId, accessToken, refreshToken);
-
-          try {
-            const { syncUserConnectorEvidence } = await import("../evidence/connectorService");
-            await syncUserConnectorEvidence(userId, platformKey).catch((err) => {
-              console.warn(`[SocialConnect] Evidence sync failed for ${platformKey}:`, err?.message);
-            });
-          } catch (importErr) {
-            console.warn("[SocialConnect] Evidence service not available:", importErr?.message);
-          }
-
-          resolve({ platform: platformKey, platformUserId });
-        } catch (err) {
-          reject(err);
+          await this._storeConnection(
+            userId,
+            platform,
+            event.data.platformUserId,
+            event.data.accessToken,
+            event.data.refreshToken,
+          );
+          await syncUserConnectorEvidence(userId, platform).catch((error) => {
+            console.warn(`[SocialConnect] Evidence sync failed for ${platform}:`, error?.message);
+          });
+          resolve({ platform, platformUserId: event.data.platformUserId });
+        } catch (error) {
+          reject(error);
         }
       };
 
       window.addEventListener("message", onMessage);
-
-      // Poll for popup closure
       const pollInterval = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(pollInterval);
-          window.removeEventListener("message", onMessage);
-          reject(new Error("Sign-in was cancelled."));
-        }
+        if (!popup.closed) return;
+        clearInterval(pollInterval);
+        window.removeEventListener("message", onMessage);
+        reject(new Error("Sign-in was cancelled."));
       }, 600);
     });
   }
@@ -373,6 +380,12 @@ class SocialConnectService {
 
   // ── Store connection and token in database ────────────────────────────────
   async _storeConnection(userId, platform, platformUserId, accessToken, refreshToken) {
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new Error(`The ${platform} provider did not return a publishing token.`);
+    }
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || user?.id !== userId) throw new Error("Your session changed while linking this platform. Please try again.");
+
     // Upsert connection record
     const { data: conn, error: connErr } = await supabase
       .from("connections")
@@ -388,21 +401,17 @@ class SocialConnectService {
 
     if (connErr) throw new Error(`Failed to save connection: ${connErr.message}`);
 
-    // Store token (encrypted in production — here we store as-is with a note)
-    // In production, encrypt tokens server-side before storing
-    if (accessToken && conn?.id) {
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h default
-
-      await supabase
-        .from("tokens")
-        .upsert({
-          connection_id:   conn.id,
-          encrypted_token: accessToken,   // TODO: encrypt server-side
-          refresh_token:   refreshToken || null,
-          expires_at:      expiresAt,
-          revoked:         false,
-        }, { onConflict: "connection_id" });
-    }
+    if (!conn?.id) throw new Error("The platform connection could not be saved.");
+    const { error: tokenError } = await supabase
+      .from("tokens")
+      .upsert({
+        connection_id: conn.id,
+        encrypted_token: accessToken,
+        refresh_token: refreshToken || null,
+        expires_at: null,
+        revoked: false,
+      }, { onConflict: "connection_id" });
+    if (tokenError) throw new Error(`The ${platform} connection was created, but its publishing token could not be saved: ${tokenError.message}`);
 
     return conn;
   }
@@ -441,18 +450,37 @@ class SocialConnectService {
     try {
       const { data, error } = await supabase
         .from("connections")
-        .select("provider, platform_user_id, auth_status, connected_via")
+        .select("id, provider, platform_user_id, auth_status, connected_via")
         .eq("user_id", userId);
 
-      if (!error) (data || []).forEach(c => { map[c.provider] = c; });
-    } catch {
-      // Auth identities below remain a reliable fallback when the optional
-      // distribution table is unavailable or temporarily unreachable.
+      if (error) throw error;
+      const connections = data || [];
+      const connectionIds = connections.map((connection) => connection.id).filter(Boolean);
+      const { data: tokens, error: tokenError } = connectionIds.length
+        ? await supabase
+          .from("tokens")
+          .select("connection_id, encrypted_token, expires_at")
+          .in("connection_id", connectionIds)
+          .eq("revoked", false)
+        : { data: [], error: null };
+      if (tokenError) throw tokenError;
+      const now = Date.now();
+      const validTokenConnections = new Set((tokens || [])
+        .filter((token) => Boolean(token.encrypted_token)
+          && (!token.expires_at || new Date(token.expires_at).getTime() > now))
+        .map((token) => token.connection_id));
+      connections.forEach((connection) => {
+        map[connection.provider] = {
+          ...connection,
+          hasValidToken: validTokenConnections.has(connection.id),
+        };
+      });
+    } catch (error) {
+      console.warn("[SocialConnect] Unable to verify publishing credentials:", error?.message);
     }
 
-    // Supabase Auth is the authoritative source for sign-in identities. Merge
-    // it after the table read so Google/X sign-in never appears unlinked just
-    // because connection persistence lagged or a migration is missing.
+    // An Auth identity proves sign-in linkage only; it does not prove that a
+    // usable platform publishing token exists.
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id === userId) {
@@ -468,13 +496,14 @@ class SocialConnectService {
             ...map[platform],
             provider: platform,
             platform_user_id: map[platform]?.platform_user_id || platformUserId,
-            auth_status: map[platform]?.auth_status === "revoked" ? "revoked" : "active",
+            auth_status: map[platform]?.auth_status || "expired",
+            hasValidToken: map[platform]?.hasValidToken === true,
             connected_via: map[platform]?.connected_via || "supabase_identity",
           };
         }
       }
     } catch {
-      // Keep any database-backed connections if auth metadata is unavailable.
+      // Keep database-backed connections if auth metadata is unavailable.
     }
 
     return map;
@@ -597,7 +626,7 @@ class SocialConnectService {
         || session.user.id;
 
       // Get the provider token if available
-      const accessToken = session.provider_token || session.access_token;
+      const accessToken = session.provider_token || null;
       const refreshToken = session.provider_refresh_token || null;
 
       // Sign out this popup session only
@@ -611,6 +640,7 @@ class SocialConnectService {
           accessToken,
           refreshToken,
           platformUserId,
+          ...(!accessToken ? { error: 'The provider did not return a publishing token. Confirm posting scopes are enabled and reconnect.' } : {}),
         }, origin);
         document.getElementById('sp').style.display='none';
         document.getElementById('msg').textContent='Connected! Closing…';

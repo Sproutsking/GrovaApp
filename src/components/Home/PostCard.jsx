@@ -725,9 +725,17 @@ const PostCard = ({
   };
 
   const doDelete = async (id) => {
-    delRef.current = post; setVisible(false); if (onPostDelete) onPostDelete(id);
-    try { await postService.deletePost(id); }
-    catch { setVisible(true); delRef.current = null; throw new Error("Delete failed"); }
+    delRef.current = post;
+    setVisible(false);
+    try {
+      await postService.deletePost(id);
+    } catch (error) {
+      setVisible(true);
+      delRef.current = null;
+      throw error;
+    }
+    delRef.current = null;
+    onPostDelete?.(id);
   };
 
   // fetchPriority based on feed position

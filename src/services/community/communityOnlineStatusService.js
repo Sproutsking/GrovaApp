@@ -1,15 +1,16 @@
 // services/community/communityOnlineStatusService.js
 import { supabase } from "../config/supabase";
 
-export const COMMUNITY_ONLINE_WINDOW_MS = 20_000;
+export const COMMUNITY_ONLINE_WINDOW_MS = 90_000;
+const PRESENCE_HEARTBEAT_MS = 60_000;
+const STATUS_REFRESH_MS = 60_000;
 export const isCommunityMemberOnline = (member, now = Date.now()) => {
   if (!member?.last_seen) return Boolean(member?.is_online);
 
   const lastSeen = new Date(member.last_seen).getTime();
   if (!Number.isFinite(lastSeen)) return Boolean(member?.is_online);
 
-  const isRecent = now - lastSeen < COMMUNITY_ONLINE_WINDOW_MS;
-  return Boolean(member?.is_online) || isRecent;
+  return now - lastSeen < COMMUNITY_ONLINE_WINDOW_MS;
 };
 
 class CommunityOnlineStatusService {
@@ -22,6 +23,7 @@ class CommunityOnlineStatusService {
     this.cache = new Map();
     this.listeners = new Set();
     this.memberIds = [];
+    this.beforeUnloadHandler = null;
   }
 
   start(userId, communityId) {
@@ -34,10 +36,12 @@ class CommunityOnlineStatusService {
     this.communityId = communityId;
     this.updatePresence(!document.hidden);
 
-    this.heartbeat = setInterval(() => this.updatePresence(), 10000);
+    this.heartbeat = setInterval(() => {
+      if (!document.hidden) this.updatePresence(true);
+    }, PRESENCE_HEARTBEAT_MS);
     this.statusRefresh = setInterval(() => {
-      if (this.memberIds.length) this.fetchMemberStatuses(this.memberIds);
-    }, 10000);
+      if (!document.hidden && this.memberIds.length) this.fetchMemberStatuses(this.memberIds);
+    }, STATUS_REFRESH_MS);
 
     // Subscribe to presence channel for this community
     this.channel = supabase
@@ -64,7 +68,8 @@ class CommunityOnlineStatusService {
         }
       });
 
-    window.addEventListener("beforeunload", () => this.stop());
+    this.beforeUnloadHandler = () => this.stop();
+    window.addEventListener("beforeunload", this.beforeUnloadHandler);
     this.visibilityHandler = () => this.updatePresence(!document.hidden);
     document.addEventListener("visibilitychange", this.visibilityHandler);
   }
@@ -85,6 +90,10 @@ class CommunityOnlineStatusService {
     if (this.visibilityHandler) {
       document.removeEventListener("visibilitychange", this.visibilityHandler);
       this.visibilityHandler = null;
+    }
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener("beforeunload", this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
     }
 
     if (this.channel) {
@@ -137,10 +146,9 @@ class CommunityOnlineStatusService {
 
       if (!data) return { online: false, lastSeenText: "Offline" };
 
-      // A 10-second heartbeat allows a short network grace window.
       const diff = data.last_seen ? Date.now() - new Date(data.last_seen).getTime() : Infinity;
       const online = isCommunityMemberOnline(data);
-      const lastSeenText = this.formatLastSeen(diff);
+      const lastSeenText = online ? "Online" : this.formatLastSeen(diff);
 
       const status = { online, lastSeenText };
       this.cache.set(userId, status);
@@ -169,7 +177,7 @@ class CommunityOnlineStatusService {
       (data || []).forEach((member) => {
         const diff = member.last_seen ? now - new Date(member.last_seen).getTime() : Infinity;
         const online = isCommunityMemberOnline(member, now);
-        const lastSeenText = this.formatLastSeen(diff);
+        const lastSeenText = online ? "Online" : this.formatLastSeen(diff);
 
         statuses[member.user_id] = { online, lastSeenText };
         const previous = this.cache.get(member.user_id);

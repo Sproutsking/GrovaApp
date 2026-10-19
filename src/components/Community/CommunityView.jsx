@@ -14,6 +14,7 @@ import CreateCommunityModal from "./modals/CreateCommunityModal";
 import InviteModal from "./modals/InviteModal";
 import InviteHandler from "./components/InviteHandler";
 import ConfirmModal from "../Modals/ConfirmModal";
+import UnifiedLoader from "../Shared/UnifiedLoader";
 import communityService from "../../services/community/communityService";
 import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
@@ -26,7 +27,11 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [myCommunities, setMyCommunities] = useState(() => communityService.getCachedUserCommunities(userId));
   const [allCommunities, setAllCommunities] = useState(() => communityService.getCachedCommunities(userId));
-  // NO loading state — we render immediately with empty data, fill as it arrives
+  const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(() => (
+    !communityService.getCachedUserCommunities(userId).length &&
+    !communityService.getCachedCommunities(userId).length
+  ));
+  const [communitiesLoadError, setCommunitiesLoadError] = useState(null);
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCommunity, setInviteCommunity] = useState(null);
@@ -172,7 +177,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
     communityService.markOnline(communityId, userId, currentUser?.username || "");
     const initialRefresh = setTimeout(refreshCounts, 250);
-    const refreshInterval = setInterval(refreshCounts, 10000);
+    const refreshInterval = setInterval(refreshCounts, 60000);
 
     return () => {
       disposed = true;
@@ -191,6 +196,8 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const loadCommunities = async () => {
+    if (!myCommunities.length && !allCommunities.length) setIsCommunitiesLoading(true);
+    setCommunitiesLoadError(null);
     try {
       const [userComms, allComms] = await Promise.all([
         communityService.fetchUserCommunities(userId),
@@ -206,14 +213,11 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         const restored = await communityService.fetchCommunityDetails(restoredCommunity.id);
         if (restored) handleSelectCommunity(restored);
       }
-      // Warm every joined community's channel list before the user opens one.
-      // The cache deduplicates these requests and lets ChannelsView paint from
-      // memory on first navigation instead of waiting on its mount effect.
-      userComms.forEach((community) => {
-        communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id)).catch(() => {});
-      });
     } catch (error) {
       console.error("Error loading communities:", error);
+      setCommunitiesLoadError(error?.message || "Communities could not be loaded.");
+    } finally {
+      setIsCommunitiesLoading(false);
     }
   };
 
@@ -253,7 +257,6 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
   const handleSelectChannel = async (channel) => {
     setSelectedChannel(channel);
-    if (channel?.id) communityUnreadService.markRead(channel.id).catch(() => {});
     setView("chat"); // Move to chat when a channel is selected
     if (selectedCommunity?.id && channel?.id) saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
   };
@@ -484,7 +487,14 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       </div>
 
       <div className="community-content">
-        {view === "discover" ? (
+        {view === "discover" && !myCommunities.length && !allCommunities.length && (isCommunitiesLoading || communitiesLoadError) ? (
+          <UnifiedLoader
+            type="section"
+            message="Loading communities..."
+            error={communitiesLoadError}
+            onRetry={loadCommunities}
+          />
+        ) : view === "discover" ? (
           <DiscoverTab
             communities={allCommunities}
             myCommunities={myCommunities}

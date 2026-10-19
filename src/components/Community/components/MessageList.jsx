@@ -91,6 +91,7 @@ const MessageList = ({
   onWelcomeProfileClick,
   onWelcomeIntroduce,
   onWelcomeBrowse,
+  newMessageId,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -218,9 +219,21 @@ const MessageList = ({
           const communityNameColor = communityRole?.color || nameDesign.color?.color;
 
           return (
-            welcomeMemberId ? <WelcomeMemberCard key={msg.id || msg.tempId || msg._tempId} communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
+            <React.Fragment key={msg.id || msg.tempId || msg._tempId}>
+            {String(msg.id) === String(newMessageId) && newMessageId && (
+              <div
+                data-new-message-divider
+                role="separator"
+                aria-label={`New messages, ${formatTime(msg.created_at)}`}
+                style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 6px", color: "#fb7185", fontSize: 11, fontWeight: 800, letterSpacing: ".04em" }}
+              >
+                <span style={{ height: 1, flex: 1, background: "rgba(251,113,133,.62)" }} />
+                <span>NEW MESSAGES · {formatTime(msg.created_at)}</span>
+                <span style={{ height: 1, flex: 1, background: "rgba(251,113,133,.62)" }} />
+              </div>
+            )}
+            {welcomeMemberId ? <WelcomeMemberCard communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
             <div
-              key={msg.id || msg.tempId || msg._tempId}
               data-message-id={msg.id || msg.tempId || msg._tempId}
               className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onClick={(event) => onMessageClick?.(event, msg)}
@@ -317,7 +330,8 @@ const MessageList = ({
                 </>}
               </MessageReactionArea>
             </div>
-          )
+          )}
+          </React.Fragment>
           );
         })}
 

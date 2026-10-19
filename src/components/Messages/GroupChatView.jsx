@@ -509,6 +509,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const [typing,       setTyping]       = useState([]);
   const [sending,      setSending]      = useState(false);
   const [showJump,     setShowJump]     = useState(false);
+  const [newMessageId,setNewMessageId]=useState(null);
   const [messageContextMenu, setMessageContextMenu] = useState(null);
   const [profileTarget, setProfileTarget] = useState(null);
   const [selectedBg,   setSelectedBg]   = useState(() =>
@@ -569,18 +570,35 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const handleScroll = ()=>{
     if (!containerRef.current) return;
     const {scrollTop,scrollHeight,clientHeight}=containerRef.current;
+    const wasAtBottom=isAtBottom.current;
     isAtBottom.current=scrollHeight-scrollTop-clientHeight<100;
     setShowJump(!isAtBottom.current);
+    const divider=containerRef.current.querySelector("[data-new-message-divider]");
+    if(divider&&divider.getBoundingClientRect().top<containerRef.current.getBoundingClientRect().top-4)setNewMessageId(null);
+    if(isAtBottom.current&&!wasAtBottom)groupDMService.markRead(group?.id).catch((error)=>console.error("[GroupDM] mark read:",error));
   };
 
   // Load messages on mount
   useEffect(()=>{
     if (!group?.id) return;
     setLoading(true);
+    const unreadCount=Number(group.unreadCount)||0;
+    const lastReadAt=group.lastReadAt||null;
+    setNewMessageId(null);
     groupDMService.loadMessages(group.id).then(msgs=>{
       setMessages(msgs||[]);
       setLoading(false);
-      setTimeout(()=>scrollToBottom("instant"),80);
+      const firstUnread=unreadCount>0
+        ? (msgs||[]).find((message)=>String(message.user_id)!==String(uid)
+          && (!lastReadAt||new Date(message.created_at).getTime()>new Date(lastReadAt).getTime()))
+        : null;
+      setNewMessageId(firstUnread?.id||null);
+      if(unreadCount===0||firstUnread)groupDMService.markRead(group.id).catch((error)=>console.error("[GroupDM] mark read:",error));
+      setTimeout(()=>{
+        const divider=containerRef.current?.querySelector("[data-new-message-divider]");
+        if(firstUnread&&divider)divider.scrollIntoView({behavior:"instant",block:"start"});
+        else scrollToBottom("instant");
+      },80);
     }).catch(()=>setLoading(false));
   },[group?.id,scrollToBottom]);
 
@@ -598,7 +616,10 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
           if (replaced.some(m=>m._tempId&&m._tempId===msg._tempId)) return replaced;
           return [...prev,msg];
         });
-        if (isAtBottom.current) setTimeout(()=>scrollToBottom("smooth"),80);
+        if (isAtBottom.current) {
+          setTimeout(()=>scrollToBottom("smooth"),80);
+          if(String(msg.user_id)!==String(uid))groupDMService.markRead(group.id).catch((error)=>console.error("[GroupDM] mark read:",error));
+        } else if (String(msg.user_id)!==String(uid)) setNewMessageId((current)=>current||msg.id);
       },
       onMessageUpdate: msg => {
         setMessages(previous => previous.map(message => message.id === msg.id
@@ -766,6 +787,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
               pendingMessages={[]}
               loading={loading}
               userId={uid}
+              newMessageId={newMessageId}
               currentUser={currentUser}
               messagesEndRef={endRef}
               onContextMenu={(event, message) => { event.preventDefault(); setMessageContextMenu({ x: event.clientX, y: event.clientY, message }); }}

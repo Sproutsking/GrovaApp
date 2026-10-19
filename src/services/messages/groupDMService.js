@@ -29,6 +29,7 @@ class GroupDMService {
     this._msgChannels      = new Map();
     this._listeners        = new Map();
     this._groups           = new Map();
+    this._groupReadAt      = new Map();
     this._pendingMessages  = new Map();
     this._initialized      = false;
     this._msgTableVerified = null; // null | "group_messages" | "community_messages"
@@ -248,16 +249,34 @@ class GroupDMService {
           .select("*")
           .order("updated_at", { ascending: false });
 
-        return this._mergeGroups(all?.filter(g =>
+        const fallbackGroups = all?.filter(g =>
           Array.isArray(g.member_ids) && g.member_ids.includes(this._userId)
-        ) || [], fromLS);
+        ) || [];
+        return this._mergeGroups(await this._attachUnreadCounts(fallbackGroups), fromLS);
       }
 
-      return this._mergeGroups(data || [], fromLS);
+      return this._mergeGroups(await this._attachUnreadCounts(data || []), fromLS);
     } catch (e) {
       console.error("[GroupDM] loadGroups:", e);
       return fromLS;
     }
+  }
+
+  async _attachUnreadCounts(groups) {
+    if (!groups.length) return groups;
+    const { data, error } = await supabase.rpc("get_group_chat_unread_counts");
+    if (error) throw error;
+    const states = new Map((data || []).map((row) => [row.group_id, row]));
+    return groups.map((group) => {
+      const state = states.get(group.id);
+      const lastReadAt = state?.last_read_at || null;
+      this._groupReadAt.set(group.id, lastReadAt);
+      return {
+        ...group,
+        unreadCount: Number(state?.unread_count) || 0,
+        lastReadAt,
+      };
+    });
   }
 
   _mergeGroups(dbGroups, fromLS) {
@@ -269,7 +288,8 @@ class GroupDMService {
         member_ids: Array.isArray(g.member_ids) ? g.member_ids : [],
         isGroup:    true,
         lastMessage: null,
-        unreadCount: 0,
+        unreadCount: Number(g.unreadCount) || 0,
+        lastReadAt: g.lastReadAt || this._groupReadAt.get(g.id) || null,
       };
       map.set(g.id, normalized);
       try { localStorage.setItem(`gc_meta_${g.id}`, JSON.stringify(normalized)); } catch {}
@@ -278,6 +298,22 @@ class GroupDMService {
     merged.forEach(g => this._groups.set(g.id, g));
     this._emit("group_list", merged);
     return merged;
+  }
+
+  async markRead(groupId) {
+    if (!groupId || !this._userId) throw new Error("Group and user are required to mark messages read.");
+    const { data, error } = await supabase.rpc("mark_group_chat_read", { p_group_id: groupId });
+    if (error) throw error;
+    const lastReadAt = data || new Date().toISOString();
+    this._groupReadAt.set(groupId, lastReadAt);
+    const group = this._groups.get(groupId);
+    if (group) {
+      const updated = { ...group, unreadCount: 0, lastReadAt };
+      this._groups.set(groupId, updated);
+      try { localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(updated)); } catch {}
+      this._emit("group_list", Array.from(this._groups.values()));
+    }
+    return lastReadAt;
   }
 
   async getGroup(groupId) {
@@ -696,6 +732,17 @@ class GroupDMService {
           this._emit(`group_deleted:${id}`, { groupId: id });
         }
       })
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "group_messages",
+      }, ({ new: message }) => {
+        if (!message?.group_id || String(message.user_id) === String(this._userId)) return;
+        const group = this._groups.get(message.group_id);
+        if (!group) return;
+        const updated = { ...group, unreadCount: (Number(group.unreadCount) || 0) + 1 };
+        this._groups.set(group.id, updated);
+        try { localStorage.setItem(`gc_meta_${group.id}`, JSON.stringify(updated)); } catch {}
+        this._emit("group_list", Array.from(this._groups.values()));
+      })
       .on("broadcast", { event: "gc_new_group" }, ({ payload }) => {
         if (!payload?.id || !Array.isArray(payload?.members)) return;
         if (!payload.members.some(m => m?.id === this._userId)) return;
@@ -801,6 +848,7 @@ class GroupDMService {
     this._msgChannels.clear();
     this._listeners.clear();
     this._groups.clear();
+    this._groupReadAt.clear();
     this._pendingMessages.clear();
     this._userId           = null;
     this._initialized      = false;

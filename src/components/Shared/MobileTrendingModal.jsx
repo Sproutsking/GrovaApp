@@ -422,13 +422,14 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
 
     liveRef.current = ch;
 
-    // ── 15s poll fallback ─────────────────────────────────────────────────
+    // Realtime is primary; poll occasionally as a fallback when a connection drops.
     livePollRef.current = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const d = await fetchLiveSessions();
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
-    }, 15_000);
+    }, 60_000);
 
     return () => {
       alive = false;

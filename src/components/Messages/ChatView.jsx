@@ -416,6 +416,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [messagePreferences,setMessagePreferences] = useState(null);
   const [showBgPicker,setShowBgPicker] = useState(false);
   const [showJump,setShowJump]         = useState(false);
+  const [newMessageId,setNewMessageId] = useState(null);
   const [selectedBg,setSelectedBg]     = useState(()=>backgroundService.getConversationBackground(conversation.id));
   const [readStatus,setReadStatus]     = useState({});
   const [replyTo,setReplyTo]           = useState(null);
@@ -441,8 +442,12 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const handleScroll=()=>{
     if(!containerRef.current)return;
     const{scrollTop,scrollHeight,clientHeight}=containerRef.current;
+    const wasAtBottom=isAtBottom.current;
     isAtBottom.current=scrollHeight-scrollTop-clientHeight<80;
     setShowJump(!isAtBottom.current&&msgsRef.current.length>=2);
+    const divider=containerRef.current.querySelector("[data-new-message-divider]");
+    if(divider&&divider.getBoundingClientRect().top<containerRef.current.getBoundingClientRect().top-4)setNewMessageId(null);
+    if(isAtBottom.current&&!wasAtBottom)dmMessageService.markRead(convId,currentUser.id);
   };
 
   const patchStatus=useCallback((ids,ns)=>{
@@ -468,23 +473,40 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     patchStatus(ids,"read");
   },[currentUser.id,patchStatus]);
 
-  useEffect(()=>{conversationState.setActive(convId);dmMessageService.markRead(convId,currentUser.id);return()=>conversationState.clearActive();},[convId,currentUser.id]);
+  useEffect(()=>{conversationState.setActive(convId);return()=>conversationState.clearActive();},[convId]);
   useEffect(()=>{
     const requestId = ++messagesRequestRef.current;
     const cached=conversationState.getMessages?.(convId)||[];
     setMessages(cached);
     setLoading(cached.length===0);
     setReadStatus({});
+    setNewMessageId(null);
     dmMessageService.loadMessages(convId).then(msgs=>{
       if (requestId !== messagesRequestRef.current) return;
       setMessages(msgs); setLoading(false); seedFromMessages(msgs);
-      setTimeout(()=>scrollToBottom("auto"),50);
+      const firstUnread = msgs.find((message) => String(message.sender_id) !== String(currentUser.id) && !message.read);
+      setNewMessageId(firstUnread?.id || null);
+      if (firstUnread) dmMessageService.markRead(convId,currentUser.id);
+      setTimeout(()=>{
+        const divider=containerRef.current?.querySelector("[data-new-message-divider]");
+        if(firstUnread&&divider)divider.scrollIntoView({behavior:"instant",block:"start"});
+        else scrollToBottom("auto");
+      },50);
     }).catch(()=>setLoading(false));
-  },[convId,seedFromMessages]);
+  },[convId,currentUser.id,seedFromMessages]);
 
   useEffect(()=>{
     const unsub=dmMessageService.subscribeToConversation(convId,{
-      onMessage:msg=>{if(isAtBottom.current){setTimeout(scrollToBottom,10);}else{setShowJump(true);}if(msg.sender_id!==currentUser.id&&msg.id){patchStatus([msg.id],"read");dmMessageService.markRead(convId,currentUser.id);}},
+      onMessage:msg=>{
+        const incoming=String(msg.sender_id)!==String(currentUser.id)&&msg.id;
+        if(isAtBottom.current){
+          setTimeout(scrollToBottom,10);
+          if(incoming){patchStatus([msg.id],"read");dmMessageService.markRead(convId,currentUser.id);}
+        }else{
+          setShowJump(true);
+          if(incoming)setNewMessageId((current)=>current||msg.id);
+        }
+      },
       onDelivered:tempId=>{const m=msgsRef.current.find(x=>x.id===tempId||x._tempId===tempId);if(m?.id&&!m.id.startsWith("temp_"))patchStatus([m.id],"delivered");patchStatus([tempId],"delivered");},
       onRead:uid=>{if(uid!==currentUser.id)markOurRead();},
       onTyping:(uid,isTy,uname)=>{if(uid===otherUser?.id){setTyping({isTyping:isTy,userName:uname||otherUser?.full_name||"User"});if(isTy&&isAtBottom.current)setTimeout(scrollToBottom,100);}},
@@ -684,6 +706,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
             onReplyNavigate={(_, messageId) => scrollToMessage(messageId)}
             onNavigate={onNavigate}
             getMessageStatus={getMessageState}
+            newMessageId={newMessageId}
             onReactionClick={toggleReaction}
           />
           {typing.isTyping && <div className="cv-community-typing">{typing.userName} is typing…</div>}

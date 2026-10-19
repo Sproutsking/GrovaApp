@@ -18,17 +18,15 @@ const LiquidOrbitLoader = ({ scale = 1.5 }) => {
         </defs>
       </svg>
 
-      <div className="liquid-wrap">
-        <div className="liquid-stage">
-          <div className="liquid-goo" style={{ filter: `url(#${filterId})` }}>
-            <div className="liquid-core" />
-            <div className="liquid-dot liquid-dot-a" />
-            <div className="liquid-dot liquid-dot-b" />
-            <div className="liquid-dot liquid-dot-c" />
-          </div>
-          <div className="liquid-abs liquid-sheen" />
-          <img className="liquid-abs liquid-logo" src={Logo} alt="" />
+      <div className="liquid-stage">
+        <div className="liquid-goo" style={{ filter: `url(#${filterId})` }}>
+          <div className="liquid-core" />
+          <div className="liquid-dot liquid-dot-a" />
+          <div className="liquid-dot liquid-dot-b" />
+          <div className="liquid-dot liquid-dot-c" />
         </div>
+        <div className="liquid-abs liquid-sheen" />
+        <img className="liquid-abs liquid-logo" src={Logo} alt="" />
       </div>
 
       <div className="liquid-word">XEEVI<span>A</span></div>
@@ -56,7 +54,7 @@ const UnifiedLoader = ({
   error = null,
   showOfflineDetection = true 
 }) => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [dots, setDots] = useState('');
 
   useEffect(() => {
@@ -66,16 +64,16 @@ const UnifiedLoader = ({
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const interval = setInterval(() => {
+    const interval = type === "app-init" ? null : setInterval(() => {
       setDots(prev => prev.length >= 3 ? '' : prev + '.');
     }, 500);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [type]);
 
   // Sizes for different loader types
   const config = {
@@ -224,9 +222,8 @@ const UnifiedLoader = ({
           z-index: 1;
         }
 
-        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;background:var(--liquid-bg);color:#fff;position:relative;}
+        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;align-content:center;gap:calc(var(--liquid-k)*30px);width:100%;min-height:100%;background:var(--liquid-bg);color:#fff;position:relative;}
         .liquid-defs{position:absolute;width:0;height:0;overflow:hidden;}
-        .liquid-wrap{display:grid;place-items:center;gap:calc(var(--liquid-k)*30px);}
         .liquid-stage{position:relative;width:calc(var(--liquid-k)*160px);height:calc(var(--liquid-k)*160px);}
         .liquid-abs{position:absolute;left:50%;top:50%;border-radius:50%;}
         .liquid-goo{position:absolute;inset:calc(var(--liquid-k)*-14px);}

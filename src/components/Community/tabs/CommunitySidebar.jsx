@@ -117,12 +117,9 @@ const CommunitySidebar = ({
         .community-sidebar {
           width: 72px;
           position: relative;
-          background:
-            radial-gradient(circle at 24% 8%, rgba(156,255,0,0.24), transparent 16%),
-            radial-gradient(circle at 72% 16%, rgba(45,212,191,0.16), transparent 19%),
-            radial-gradient(circle at 50% 96%, rgba(96,165,250,0.12), transparent 30%),
-            linear-gradient(180deg, rgba(14,18,14,0.96) 0%, rgba(8,11,10,0.97) 36%, rgba(4,6,6,1) 100%);
-          border-right: 1px solid rgba(156,255,0,0.18);
+          isolation: isolate;
+          background: linear-gradient(180deg, #11131a 0%, #0b0d12 48%, #080a0f 100%);
+          border-right: 1px solid rgba(255,255,255,0.08);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -130,10 +127,7 @@ const CommunitySidebar = ({
           gap: 10px;
           overflow-y: auto;
           overflow-x: hidden;
-          box-shadow:
-            inset -1px 0 0 rgba(255,255,255,0.02),
-            inset 18px 0 32px rgba(156,255,0,0.05),
-            0 0 26px rgba(0,0,0,0.6);
+          box-shadow: inset -1px 0 0 rgba(255,255,255,0.025), 12px 0 32px rgba(0,0,0,0.18);
         }
 
         .community-sidebar::before {
@@ -141,22 +135,21 @@ const CommunitySidebar = ({
           position: absolute;
           inset: 0;
           background:
-            linear-gradient(180deg, rgba(255,255,255,0.06), transparent 16%, transparent 84%, rgba(255,255,255,0.02)),
-            repeating-linear-gradient(135deg, rgba(156,255,0,0.035) 0 1px, transparent 1px 12px),
-            linear-gradient(90deg, transparent 0%, rgba(156,255,0,0.04) 50%, transparent 100%);
+            radial-gradient(ellipse at 50% 8%, rgba(159,132,255,0.13), transparent 42%),
+            radial-gradient(ellipse at 50% 92%, rgba(132,204,22,0.07), transparent 38%);
+          z-index: 0;
           pointer-events: none;
         }
 
         .community-sidebar::after {
           content: "";
           position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(156,255,0,0.09) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(156,255,0,0.07) 1px, transparent 1px);
-          background-size: 18px 18px;
-          mask-image: radial-gradient(circle at center, black 35%, transparent 100%);
-          opacity: 0.32;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: 1px;
+          background: linear-gradient(180deg, transparent, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.04) 76%, transparent);
+          z-index: 0;
           pointer-events: none;
         }
 
@@ -208,6 +201,8 @@ const CommunitySidebar = ({
           gap: 10px;
           width: 100%;
           padding: 0 2px;
+          position: relative;
+          z-index: 1;
         }
 
         .community-icon {
@@ -224,17 +219,18 @@ const CommunitySidebar = ({
           flex-shrink: 0;
           border: 1.5px solid transparent;
           box-shadow: none;
-          background: linear-gradient(145deg, rgba(47,62,38,.96), rgba(12,17,13,.99));
+          background: linear-gradient(145deg, rgba(38,41,52,.96), rgba(18,20,27,.98));
           background-size: 100% 100%;
           background-position: center;
           background-repeat: no-repeat;
+          z-index: 1;
         }
 
         .community-icon:hover {
           transform: translateY(-3px) scale(1.05);
-          background: linear-gradient(145deg, rgba(49, 64, 37, 0.98), rgba(15, 22, 15, 0.98));
-          border-color: rgba(156, 255, 0, 0.26);
-          box-shadow: 0 8px 22px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.08);
+          background: linear-gradient(145deg, rgba(49, 50, 68, 0.98), rgba(20, 22, 31, 0.99));
+          border-color: rgba(179, 157, 255, 0.34);
+          box-shadow: 0 8px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
         }
 
         .community-icon:active {
@@ -242,26 +238,26 @@ const CommunitySidebar = ({
         }
 
         .community-icon.home {
-          background: rgba(0, 0, 0, 0.3);
+          background: rgba(255, 255, 255, 0.035);
           color: var(--accent);
-          border: 1.5px solid rgba(156, 255, 0, 0.3);
+          border: 1.5px solid rgba(255, 255, 255, 0.12);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
         .community-icon.home:hover {
-          background: rgba(0, 0, 0, 0.4);
-          border-color: rgba(156, 255, 0, 0.5);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(179, 157, 255, 0.4);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 18px rgba(102, 76, 190, 0.12);
           transform: translateY(-3px) scale(1.05);
         }
 
         .community-icon.home.active {
-          background: rgba(0, 0, 0, 0.5);
+          background: linear-gradient(145deg, rgba(132,204,22,0.14), rgba(255,255,255,0.035));
           color: var(--accent);
-          border: 2px solid var(--accent);
-          box-shadow: inset 0 1px 0 rgba(156, 255, 0, 0.2), 0 0 12px rgba(156, 255, 0, 0.18);
+          border: 1.5px solid rgba(132,204,22,0.45);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 16px rgba(132,204,22,0.1);
         }
 
         .community-rail-unread-badge {
@@ -294,6 +290,7 @@ const CommunitySidebar = ({
           padding: 2px 0;
           transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           flex-shrink: 0;
+          z-index: 1;
         }
         .community-icon-wrap .cav-root {
           width: 50px !important;
@@ -306,11 +303,11 @@ const CommunitySidebar = ({
         .community-icon-wrap:active { transform: translateY(-1px) scale(0.98); }
 
         .community-icon-wrap.active .cav-root {
-          border-color: rgba(156,255,0,.45);
+          border-color: rgba(179,157,255,.58);
           box-shadow:
             0 10px 26px rgba(0,0,0,.45),
-            0 0 0 1px rgba(156,255,0,.22) inset,
-            0 0 26px -4px var(--cav-glow);
+            0 0 0 1px rgba(179,157,255,.2) inset,
+            0 0 20px -6px rgba(159,132,255,.32);
         }
 
         .community-icon-wrap:not(.active) .cav-root {
@@ -325,22 +322,22 @@ const CommunitySidebar = ({
           transform: translateY(-50%);
           width: 4px;
           height: 28px;
-          background: linear-gradient(180deg, var(--accent), rgba(156,255,0,.4));
+          background: linear-gradient(180deg, #c3adff, rgba(159,132,255,.4));
           border-radius: 0 4px 4px 0;
-          box-shadow: 0 0 10px rgba(156,255,0,0.5);
+          box-shadow: 0 0 10px rgba(159,132,255,0.36);
         }
 
         .community-icon.create {
-          background: rgba(156,255,0,0.08);
-          border: 1.5px dashed rgba(156,255,0,0.4);
+          background: rgba(255,255,255,0.035);
+          border: 1.5px dashed rgba(255,255,255,0.22);
           color: var(--accent);
           font-weight: 700;
         }
 
         .community-icon.create:hover {
-          background: rgba(156,255,0,0.15);
-          border-color: rgba(156,255,0,0.6);
-          box-shadow: none;
+          background: rgba(132,204,22,0.1);
+          border-color: rgba(132,204,22,0.45);
+          box-shadow: 0 8px 22px rgba(132,204,22,0.08);
           transform: scale(1.08);
         }
 

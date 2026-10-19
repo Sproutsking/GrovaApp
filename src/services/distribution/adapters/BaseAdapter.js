@@ -14,19 +14,18 @@ class BaseAdapter {
   }
 
   /**
-   * Decrypt token (to be implemented by derived classes or shared utility)
-   * @param {Buffer} encryptedToken - Encrypted token from database
-   * @returns {string} Decrypted access token
+   * Decode a stored token. The current client-side flow stores provider tokens
+   * as-is; production publishing should move token access into a server function.
+   * @param {string} encryptedToken - Token value from the database
+   * @returns {string} Provider access token
    */
   async decryptToken(encryptedToken) {
-    // TODO: Implement token decryption using app's encryption service
-    // For now, assume tokens are passed as-is in development
     return encryptedToken;
   }
 
   /**
    * Publish post to platform - MUST be implemented by each adapter
-   * @param {Buffer} encryptedToken - Encrypted access token
+   * @param {string} encryptedToken - Stored provider access token
    * @param {Object} post - Post data { content, image_metadata, video_metadata, etc. }
    * @param {string} platformUserId - User's ID on the platform
    * @returns {string} External post ID from platform

@@ -97,12 +97,15 @@
  * 
  * TOKEN MANAGEMENT:
  * 
- * Tokens are stored encrypted in the database:
+ * Current token handling:
  * - Stored in: tokens table
  * - Associated with: connections(connection_id)
- * - Decryption: Handled by adapter's decryptToken() method
+ * - The client currently stores provider tokens as-is; BaseAdapter.decryptToken
+ *   is a pass-through, not encryption/decryption.
  * 
- * For development, modify BaseAdapter.decryptToken() to skip decryption
+ * Before production use, move token reads and platform API requests into a
+ * trusted server function and encrypt credentials at rest. Never treat the
+ * encrypted_token column name as proof that its contents are encrypted.
  * 
  * DATABASE SCHEMA:
  * 

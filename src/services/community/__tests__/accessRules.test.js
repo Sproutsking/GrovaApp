@@ -53,4 +53,14 @@ describe("community access rule enforcement", () => {
       }, now),
     ).toBe(true);
   });
+
+  it("does not treat an old online flag as active after its last_seen expires", () => {
+    const now = Date.now();
+    expect(
+      isCommunityMemberOnline({
+        is_online: true,
+        last_seen: new Date(now - 2 * 60_000).toISOString(),
+      }, now),
+    ).toBe(false);
+  });
 });

@@ -391,13 +391,14 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       )
       .subscribe();
 
-    // ── 15s poll — belt-and-suspenders so live strip never stays stale ────
+    // Realtime is primary; poll occasionally as a fallback when a connection drops.
     livePollRef.current = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const d = await fetchLiveSessions(activeTrinityLens);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
-    }, 15_000);
+    }, 60_000);
 
     return () => {
       alive = false;

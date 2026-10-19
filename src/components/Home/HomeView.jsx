@@ -952,14 +952,19 @@ const HomeView = ({
     const c = modals.actionMenu?.content;
     if (!c || !resolvedUser) return;
     const { type="post", id } = c;
-    if      (type==="post")  setPosts(p   => p.filter(x => x.id!==id));
-    else if (type==="reel")  setReels(r   => r.filter(x => x.id!==id));
-    else if (type==="story") setStories(s => s.filter(x => x.id!==id));
-    dispatchModal({ type:"CLOSE_ACTION" });
     try {
       if      (type==="post") await postService.deletePost(id);
       else if (type==="reel") await reelService.deleteReel(id);
-    } catch (err) { alert(err.message || "Delete failed"); await handleRefresh(); }
+      else if (type==="story") await storyService.deleteStory(id);
+
+      if      (type==="post")  setPosts(p   => p.filter(x => x.id!==id));
+      else if (type==="reel")  setReels(r   => r.filter(x => x.id!==id));
+      else if (type==="story") setStories(s => s.filter(x => x.id!==id));
+      dispatchModal({ type:"CLOSE_ACTION" });
+    } catch (err) {
+      await handleRefresh();
+      throw err;
+    }
   }, [modals.actionMenu, resolvedUser, handleRefresh]);
 
   // [ULTRA-3] Pipeline navigation — intercepts "reels" + reelId

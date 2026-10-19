@@ -99,7 +99,8 @@ const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
 const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
 const WalletViewRouter      = lazy(() => import("./components/wallet/WalletViewRouter"));
-const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
+const loadCommunityView = () => import("./components/Community/CommunityView");
+const CommunityView   = lazy(loadCommunityView);
 const SportsView      = lazy(() => import("./components/Sports/SportsView"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
@@ -1188,6 +1189,11 @@ const MainApp = memo(() => {
         <Sidebar
           activeTab={activeTab}
           setActiveTab={handleTabChange}
+          onPrefetchCommunity={() => {
+            loadCommunityView().catch((error) => {
+              console.error("Failed to preload community view:", error);
+            });
+          }}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onSignOut={handleSignOut}
@@ -1465,9 +1471,6 @@ function AppRouter() {
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
-  const [bootSplashUserId, setBootSplashUserId] = useState(null);
-  const bootUserId = user?.id;
-  const bootProfileId = profile?.id;
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
@@ -1479,21 +1482,6 @@ function AppRouter() {
     }, 10_000);
     return () => clearTimeout(timer);
   }, [loading]);
-
-  useEffect(() => {
-    if (!bootUserId) {
-      setBootSplashUserId(null);
-      return;
-    }
-
-    if (!bootProfileId || bootProfileId !== bootUserId || loading || bootSplashUserId === bootUserId) return;
-
-    const timer = setTimeout(() => {
-      setBootSplashUserId(bootUserId);
-    }, 3100);
-
-    return () => clearTimeout(timer);
-  }, [bootUserId, bootProfileId, loading, bootSplashUserId]);
 
   useEffect(() => {
     if (!user || profile) return;
@@ -1547,7 +1535,6 @@ function AppRouter() {
       </div>
     );
   }
-  if (bootSplashUserId !== user.id) return <Splash />;
   return <MainApp />;
 }
 

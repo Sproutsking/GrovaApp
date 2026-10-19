@@ -27,7 +27,6 @@ import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
-import channelNotificationService from "../../../services/community/channelNotificationService";
 import communityUnreadService from "../../../services/community/communityUnreadService";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import CommunityProfileModal from "../components/CommunityProfileModal";
@@ -79,6 +78,7 @@ const ChatTab = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
+  const [newMessagesAfter, setNewMessagesAfter] = useState(null);
   const [backgroundId, setBackgroundId] = useState("classic_weave");
   const [isMobile, setIsMobile] = useState(false);
   const [welcomeBrowse, setWelcomeBrowse] = useState({ active: false, viewed: [] });
@@ -181,6 +181,7 @@ const ChatTab = ({
   const isAtBottom = useRef(true);
   const channelsRequestRef = useRef(0);
   const messagesRequestRef = useRef(0);
+  const readMarkTimer = useRef(null);
 
   // ── Channel appearance settings (from communities.settings.channel_appearance) ──
   const channelAppearance = community?.settings?.channel_appearance || {};
@@ -219,6 +220,10 @@ const ChatTab = ({
     const atBottom = scrollHeight - scrollTop - clientHeight < 60;
     isAtBottom.current = atBottom;
     setShowJump(!atBottom && messages.length >= 2);
+    const divider = containerRef.current.querySelector("[data-new-message-divider]");
+    if (divider && divider.getBoundingClientRect().top < containerRef.current.getBoundingClientRect().top - 4) {
+      setNewMessagesAfter(null);
+    }
   };
 
   useEffect(() => {
@@ -380,17 +385,35 @@ const ChatTab = ({
 
   useEffect(() => {
     if (selectedChannel) {
-      communityUnreadService.markRead(selectedChannel.id).catch(() => {});
-      channelNotificationService.markRead(selectedChannel.id).catch(() => {});
-      setChannelUnreadCounts((current) => ({ ...current, [selectedChannel.id]: 0 }));
+      isAtBottom.current = true;
+      clearTimeout(readMarkTimer.current);
+      const unreadCount = Math.max(
+        communityUnreadService.getChannelCount(selectedChannel.id),
+        channelUnreadCounts[selectedChannel.id] || 0,
+      );
+      const lastReadAt = communityUnreadService.getLastReadAt(selectedChannel.id);
+      setNewMessagesAfter(unreadCount > 0 ? lastReadAt || "all" : null);
       setMessages([...(communityState.getMessages(selectedChannel.id) || [])]);
       communityState.setActive(selectedChannel.id);
       communityMessageService.init(userId);
-      loadMessages();
+      loadMessages().then((loadedCount) => {
+        if (loadedCount !== null && (loadedCount > 0 || unreadCount === 0)) {
+          communityUnreadService.markRead(selectedChannel.id).then(() => {
+            setChannelUnreadCounts((current) => ({ ...current, [selectedChannel.id]: 0 }));
+          }).catch((error) => {
+            console.error("[CommunityUnread] mark read:", error);
+            setChannelUnreadCounts((current) => ({ ...current, [selectedChannel.id]: unreadCount }));
+          });
+        }
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          containerRef.current?.querySelector("[data-new-message-divider]")?.scrollIntoView({ behavior: "instant", block: "start" });
+        }));
+      });
       subscribeToChannel();
       subscribeToTyping();
     }
     return () => {
+      clearTimeout(readMarkTimer.current);
       stopTyping();
       if (unsubscribeChannel.current) unsubscribeChannel.current();
       if (unsubscribeTyping.current) unsubscribeTyping.current();
@@ -431,14 +454,16 @@ const ChatTab = ({
   }, [messageInput, selectedChannel?.id, currentUser?.username, currentUser?.full_name]);
 
   const loadMessages = async () => {
-    if (!selectedChannel?.id) return;
+    if (!selectedChannel?.id) return null;
     const requestId = ++messagesRequestRef.current;
     const channelId = selectedChannel.id;
     try {
-      await communityMessageService.loadMessages(channelId);
-      if (requestId !== messagesRequestRef.current || selectedChannel?.id !== channelId) return;
+      const loaded = await communityMessageService.loadMessages(channelId);
+      if (requestId !== messagesRequestRef.current || selectedChannel?.id !== channelId) return null;
+      return Array.isArray(loaded) ? loaded.length : null;
     } catch (error) {
       console.error("Error loading messages:", error);
+      return null;
     }
   };
 
@@ -446,7 +471,21 @@ const ChatTab = ({
     if (unsubscribeChannel.current) unsubscribeChannel.current();
     unsubscribeChannel.current = communityMessageService.subscribeToChannel(
       selectedChannel.id,
-      () => { if (isAtBottom.current) setTimeout(scrollToBottom, 10); }
+      (message) => {
+        const incoming = String(message?.user_id) !== String(userId) && !message?._optimistic;
+        if (isAtBottom.current) {
+          setTimeout(scrollToBottom, 10);
+          if (incoming) {
+            setNewMessagesAfter(null);
+            clearTimeout(readMarkTimer.current);
+            readMarkTimer.current = setTimeout(() => {
+              communityUnreadService.markRead(selectedChannel.id).catch((error) => console.error("[CommunityUnread] mark read:", error));
+            }, 300);
+          }
+        } else if (incoming && message?.created_at) {
+          setNewMessagesAfter((current) => current || new Date(new Date(message.created_at).getTime() - 1).toISOString());
+        }
+      }
     );
   };
 
@@ -614,6 +653,10 @@ const ChatTab = ({
     reader.readAsDataURL(file);
   };
 
+  const newMessageId = newMessagesAfter
+    ? messages.find((message) => String(message.user_id) !== String(userId)
+      && (newMessagesAfter === "all" || new Date(message.created_at).getTime() > new Date(newMessagesAfter).getTime()))?.id || null
+    : null;
   const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
 
   const browseChannels = channels.filter((channel) => channel.type !== "voice" && !channel.deleted_at);
@@ -945,6 +988,7 @@ const ChatTab = ({
               onWelcomeIntroduce={openWelcomeIntroduction}
               onWelcomeBrowse={startWelcomeBrowse}
               channelType={selectedChannel?.type}
+              newMessageId={newMessageId}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;
               const msg = messages.find((m) => m.id === msgId);

@@ -75,6 +75,7 @@ const Sidebar = ({
   xrcService,
   setActiveHomeTab,
   onOpenAdsCentre,
+  onPrefetchCommunity,
   unreadCounts = {},
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -181,6 +182,12 @@ const Sidebar = ({
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   onMouseEnter={() => setHoveredItem(item.id)}
+                  onPointerEnter={() => {
+                    if (item.id === "community") onPrefetchCommunity?.();
+                  }}
+                  onFocus={() => {
+                    if (item.id === "community") onPrefetchCommunity?.();
+                  }}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={`nav-item${isActive ? " nav-item-active" : ""}`}
                   style={{

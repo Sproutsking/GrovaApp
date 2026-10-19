@@ -119,31 +119,11 @@ class DistributionService {
 
   // ── Get active connected platforms ────────────────────────────────────────
   // [BUG-B FIX] Any error returns [] so callers always get an array.
-  // Auth identities are also treated as real connections for distribution so
-  // users who signed in with social providers see those platforms in the
-  // create panel without needing a legacy rows migration.
+  // A sign-in identity is not necessarily authorized to publish. Only
+  // connections with a usable publishing token are returned.
   async getConnectedPlatforms(userId) {
     try {
       const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
-      const authIdentityProviders = new Set();
-
-      try {
-        const { data: { user } = {}, error: authError } = await withTimeout(
-          supabase.auth.getUser(),
-          10000
-        );
-        if (!authError && user?.id === userId) {
-          for (const identity of user.identities || []) {
-            const provider = providerAliases[identity?.provider] || identity?.provider;
-            if (provider && adapters.getAdapter(provider)) {
-              authIdentityProviders.add(provider);
-            }
-          }
-        }
-      } catch (authErr) {
-        console.warn("[DistributionService] auth identities check failed:", authErr?.message);
-      }
-
       const { data, error } = await withTimeout(
         supabase
           .from("connections")
@@ -153,10 +133,10 @@ class DistributionService {
         10000
       );
 
-      if (error?.code === "42P01") return Array.from(authIdentityProviders);
+      if (error?.code === "42P01") return [];
       if (error) {
         console.warn("[DistributionService] getConnectedPlatforms:", error.message);
-        return Array.from(authIdentityProviders);
+        return [];
       }
 
       const activeConnections = (data || [])
@@ -165,31 +145,32 @@ class DistributionService {
           provider: providerAliases[connection.provider] || connection.provider,
         }))
         .filter((connection) => adapters.getAdapter(connection.provider));
-      if (!activeConnections.length) return Array.from(authIdentityProviders);
+      if (!activeConnections.length) return [];
 
       const connectionIds = activeConnections.map((connection) => connection.id);
       const { data: tokens, error: tokenError } = await withTimeout(
         supabase
           .from("tokens")
-          .select("connection_id, expires_at")
+          .select("connection_id, encrypted_token, expires_at")
           .in("connection_id", connectionIds)
           .eq("revoked", false),
         10000
       );
       if (tokenError) {
         console.warn("[DistributionService] getConnectedPlatforms token check:", tokenError.message);
-        return Array.from(new Set([...authIdentityProviders, ...activeConnections.map((connection) => connection.provider)]));
+        return [];
       }
 
       const now = Date.now();
       const validTokenConnections = new Set((tokens || [])
-        .filter((token) => !token.expires_at || new Date(token.expires_at).getTime() > now)
+        .filter((token) => Boolean(token.encrypted_token)
+          && (!token.expires_at || new Date(token.expires_at).getTime() > now))
         .map((token) => token.connection_id));
       const validConnectedProviders = activeConnections
         .filter((connection) => validTokenConnections.has(connection.id))
         .map((connection) => connection.provider);
 
-      return Array.from(new Set([...validConnectedProviders, ...authIdentityProviders]));
+      return Array.from(new Set(validConnectedProviders));
     } catch (err) {
       console.warn("[DistributionService] getConnectedPlatforms exception:", err?.message);
       return [];
@@ -388,7 +369,13 @@ class DistributionService {
           .maybeSingle(),
         10000
       );
-      if (tokenErr || !tokenRow) throw new Error(`No valid token for ${platform}`);
+      if (tokenErr) throw new Error(`Unable to verify the ${platform} publishing token. Please reconnect the platform and try again.`);
+      const tokenExpiry = tokenRow?.expires_at ? Date.parse(tokenRow.expires_at) : null;
+      if (!tokenRow?.encrypted_token
+        || tokenRow.revoked
+        || (tokenRow.expires_at && (!Number.isFinite(tokenExpiry) || tokenExpiry <= Date.now()))) {
+        throw new Error(`No valid publishing token for ${platform}. Reconnect the platform with posting permissions.`);
+      }
 
       // Publish with retry (exponential backoff)
       let externalId = null;

@@ -5,6 +5,7 @@ class CommunityUnreadService {
     this._counts = new Map();
     this._channels = new Map();
     this._channelCounts = new Map();
+    this._lastReadAt = new Map();
     this._listeners = new Set();
     this._channel = null;
     this._userId = null;
@@ -29,17 +30,26 @@ class CommunityUnreadService {
     return this._counts.get(communityId) || 0;
   }
 
+  getChannelCount(channelId) {
+    return this._channelCounts.get(channelId) || 0;
+  }
+
+  getLastReadAt(channelId) {
+    return this._lastReadAt.get(channelId) || null;
+  }
+
   getTotalCount() {
     return [...this._counts.values()].reduce((total, count) => total + count, 0);
   }
 
   async sync(userId, communities = []) {
     if (!userId) return;
-    if (this._userId && this._userId !== userId && this._channel) {
-      await supabase.removeChannel(this._channel);
+    if (this._userId && this._userId !== userId) {
+      if (this._channel) await supabase.removeChannel(this._channel);
       this._channel = null;
       this._channels.clear();
       this._channelCounts.clear();
+      this._lastReadAt.clear();
       this._counts.clear();
     }
     this._userId = userId;
@@ -48,6 +58,7 @@ class CommunityUnreadService {
       this._counts.clear();
       this._channels.clear();
       this._channelCounts.clear();
+      this._lastReadAt.clear();
       if (this._channel) {
         await supabase.removeChannel(this._channel);
         this._channel = null;
@@ -68,7 +79,7 @@ class CommunityUnreadService {
     const { data: preferences, error: preferenceError } = channelIds.length
       ? await supabase
         .from("channel_notification_preferences")
-        .select("channel_id, unread_count")
+        .select("channel_id, unread_count, last_read_at")
         .eq("user_id", userId)
         .in("channel_id", channelIds)
       : { data: [], error: null };
@@ -76,11 +87,13 @@ class CommunityUnreadService {
 
     const next = new Map(communityIds.map((id) => [id, 0]));
     this._channelCounts = new Map();
+    this._lastReadAt = new Map();
     (preferences || []).forEach((preference) => {
       const communityId = this._channels.get(preference.channel_id);
       if (communityId) {
         const unreadCount = preference.unread_count || 0;
         this._channelCounts.set(preference.channel_id, unreadCount);
+        if (preference.last_read_at) this._lastReadAt.set(preference.channel_id, preference.last_read_at);
         next.set(communityId, (next.get(communityId) || 0) + unreadCount);
       }
     });
@@ -102,24 +115,30 @@ class CommunityUnreadService {
       await this.sync(this._userId, [...new Set(this._channels.values())].map((id) => ({ id })));
       throw error;
     }
+    this._lastReadAt.set(channelId, new Date().toISOString());
   }
 
   _startRealtime(userId) {
+    if (this._channel && this._userId === userId) return;
     if (this._channel) supabase.removeChannel(this._channel);
     this._channel = supabase
       .channel(`community-unread-global:${userId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "channel_notification_preferences", filter: `user_id=eq.${userId}` }, (payload) => {
-        const channelId = payload.new?.channel_id;
+      .on("postgres_changes", { event: "*", schema: "public", table: "channel_notification_preferences", filter: `user_id=eq.${userId}` }, (payload) => {
+        const preference = payload.eventType === "DELETE" ? payload.old : payload.new;
+        const channelId = preference?.channel_id;
+        if (payload.eventType !== "DELETE" && preference?.last_read_at) {
+          this._lastReadAt.set(channelId, preference.last_read_at);
+        }
         const communityId = this._channels.get(channelId);
         if (!communityId) return;
-        this.sync(this._userId, [...new Set(this._channels.values())].map((id) => ({ id }))).catch(() => {});
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_messages" }, (payload) => {
-        const message = payload.new;
-        const communityId = this._channels.get(message?.channel_id);
-        if (!communityId || String(message.user_id) === String(userId)) return;
-        this._channelCounts.set(message.channel_id, (this._channelCounts.get(message.channel_id) || 0) + 1);
-        this._counts.set(communityId, (this._counts.get(communityId) || 0) + 1);
+        const previousCount = this._channelCounts.get(channelId) || 0;
+        const incomingCount = Number(preference.unread_count);
+        const nextCount = payload.eventType === "DELETE"
+          ? 0
+          : Number.isFinite(incomingCount) ? Math.max(0, incomingCount) : previousCount;
+        if (nextCount === previousCount) return;
+        this._channelCounts.set(channelId, nextCount);
+        this._counts.set(communityId, Math.max(0, (this._counts.get(communityId) || 0) + nextCount - previousCount));
         this._notify();
       })
       .subscribe();
