@@ -462,16 +462,16 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     if (isFollowing) {
       return hasBoosted
         ? {
-            background: `${nameColor}14`,
-            border:     `1.5px solid ${nameColor}40`,
+            background: `${nameColor}24`,
+            border:     `1.5px solid ${nameColor}A0`,
             color:      nameColor,
-            boxShadow:  "none",
+            boxShadow:  `0 4px 16px ${nameColor}30`,
           }
         : {
-            background: "rgba(132,204,22,0.08)",
-            border:     "1.5px solid rgba(132,204,22,0.28)",
-            color:      "#84cc16",
-            boxShadow:  "none",
+            background: "linear-gradient(135deg,rgba(132,204,22,.22),rgba(16,185,129,.13))",
+            border:     "1.5px solid rgba(163,230,53,.72)",
+            color:      "#d9f99d",
+            boxShadow:  "0 4px 16px rgba(132,204,22,.18)",
           };
     }
     if (hasBoosted && v?.grad) {
@@ -1589,11 +1589,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-app-rail-divider { width:34px; height:1px; flex:none; margin:3px 0 5px; background:linear-gradient(90deg,transparent,rgba(163,230,53,.92),rgba(52,211,153,.78),transparent); box-shadow:0 0 9px rgba(163,230,53,.62); }
         .upm-app-rail button { width:44px; height:44px; display:grid; place-items:center; border:1px solid #2a2d2a; border-radius:13px; background:#000; color:#8a918a; cursor:pointer; transition:color .15s,border-color .15s,background .15s; }
         .upm-app-rail button:hover, .upm-app-rail button.active { color:#a3e635; border-color:#a3e635; background:rgba(163,230,53,.055); }
-        .upm-profile-sidebar { min-width:0; min-height:0; box-sizing:border-box; padding:22px 16px 28px; overflow-y:auto; overscroll-behavior:contain; background:linear-gradient(180deg,#101610,#080b09 88%); border-right:1px solid #2f3336; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.28) transparent; }
+        .upm-profile-sidebar { min-width:0; min-height:0; display:grid; align-content:start; gap:10px; box-sizing:border-box; padding:16px 12px 24px; overflow-y:auto; overscroll-behavior:contain; background:linear-gradient(180deg,#101610,#080b09 88%); border-right:1px solid #2f3336; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.28) transparent; }
         .upm-profile-sidebar::-webkit-scrollbar { width:5px; }
         .upm-profile-sidebar::-webkit-scrollbar-thumb { background:rgba(132,204,22,.24); border-radius:999px; }
-        .upm-sidebar-block { padding:14px 2px; border-top:1px solid rgba(255,255,255,.065); }
-        .upm-sidebar-label { margin-bottom:9px; color:#a3e635; font-size:9px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+        .upm-sidebar-block { position:relative; min-width:0; padding:13px 12px; overflow:hidden; border:1px solid #343b33; border-radius:14px; background:radial-gradient(ellipse at 100% 0,rgba(132,204,22,.075),transparent 48%),linear-gradient(145deg,rgba(16,21,16,.98),rgba(5,7,5,.99)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 10px 24px rgba(0,0,0,.28); }
+        .upm-sidebar-block::before { position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,rgba(163,230,53,.7),rgba(16,185,129,.4),transparent); content:""; }
+        .upm-sidebar-label { display:flex; align-items:center; gap:7px; margin-bottom:9px; color:#d9f99d; font-size:9px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+        .upm-sidebar-label::before { width:3px; height:11px; flex:0 0 3px; border-radius:99px; background:linear-gradient(180deg,#bef264,#65a30d); box-shadow:0 0 8px rgba(163,230,53,.42); content:""; }
         .upm-sidebar-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
         .upm-sidebar-title .upm-sidebar-label { margin:0; }
         .upm-sidebar-title button { padding:0; border:0; background:none; color:#a3e635; font-size:9px; font-weight:700; cursor:pointer; }
@@ -1601,21 +1603,22 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sidebar-detail { display:flex; align-items:center; gap:7px; margin-top:8px; color:#a8b0a3; font-size:10px; overflow-wrap:anywhere; }
         .upm-sidebar-detail svg { flex:0 0 auto; color:#84cc16; }
         .upm-sidebar-detail-dot { width:5px; height:5px; flex:0 0 5px; border-radius:50%; background:#84cc16; }
-        .upm-strength-card { padding:13px 11px; margin:0 0 10px; border:1px solid rgba(163,230,53,.16); border-radius:13px; background:linear-gradient(135deg,rgba(132,204,22,.1),rgba(16,185,129,.045)); }
+        .upm-strength-card { padding:13px 11px; border-color:rgba(163,230,53,.28); background:linear-gradient(135deg,rgba(132,204,22,.11),rgba(16,185,129,.045) 52%,rgba(5,7,5,.98)); }
         .upm-sidebar-strength-top { display:flex; justify-content:space-between; gap:8px; color:#c7cec1; font-size:10px; }
         .upm-sidebar-strength-top strong { color:#d9f99d; }
         .upm-strength-track { height:4px; margin:10px 0; overflow:hidden; border-radius:99px; background:rgba(255,255,255,.1); }
         .upm-strength-track span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#65a30d,#a3e635); }
         .upm-strength-card button { display:flex; align-items:center; gap:4px; padding:0; border:0; background:none; color:#a3e635; font-size:9px; font-weight:800; cursor:pointer; }
-        .upm-sidebar-nav { display:grid; gap:3px; padding:3px 0 14px; }
-        .upm-sidebar-nav button { min-width:0; display:flex; align-items:center; gap:9px; padding:9px 8px; border:1px solid transparent; border-radius:9px; color:#b9c0b4; background:transparent; text-align:left; font:inherit; font-size:10px; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
-        .upm-sidebar-nav button:hover { color:#f4f8ef; border-color:rgba(163,230,53,.16); background:rgba(132,204,22,.075); }
+        .upm-sidebar-nav { display:grid; gap:5px; padding:10px; border:1px solid #292e29; border-radius:14px; background:linear-gradient(145deg,rgba(16,21,16,.96),rgba(5,7,5,.98)); box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 8px 22px rgba(0,0,0,.16); }
+        .upm-sidebar-nav button { min-width:0; display:flex; align-items:center; gap:9px; padding:9px 8px; border:1px solid #202620; border-radius:9px; color:#b9c0b4; background:rgba(0,0,0,.28); text-align:left; font:inherit; font-size:10px; cursor:pointer; transition:background .15s,border-color .15s,color .15s,transform .15s; }
+        .upm-sidebar-nav button:hover { color:#f4f8ef; border-color:rgba(163,230,53,.32); background:linear-gradient(110deg,rgba(132,204,22,.12),rgba(16,185,129,.045)); transform:translateY(-1px); }
         .upm-sidebar-nav button > svg { flex:0 0 auto; color:#93c944; }
         .upm-sidebar-nav button span { flex:1; }
         .upm-sidebar-nav button b, .upm-sidebar-nav button small { color:#9ca3af; font-size:9px; font-weight:700; }
-        .upm-connections-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
-        .upm-connection-person { display:flex; flex-direction:column; gap:5px; min-width:0; padding:5px; }
-        .upm-connection-person > span { width:100%; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; border-radius:10px; color:#d9f99d; background:linear-gradient(135deg,rgba(132,204,22,.8),rgba(16,185,129,.55)); font-size:19px; font-weight:800; }
+        .upm-connections-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
+        .upm-connection-person { display:flex; flex-direction:column; gap:6px; min-width:0; padding:7px; border:1px solid #252b25; border-radius:11px; background:linear-gradient(155deg,rgba(255,255,255,.035),rgba(0,0,0,.34)); transition:border-color .15s,background .15s; }
+        .upm-connection-person:hover { border-color:rgba(163,230,53,.28); background:linear-gradient(155deg,rgba(132,204,22,.075),rgba(0,0,0,.35)); }
+        .upm-connection-person > span { width:100%; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#d9f99d; background:linear-gradient(135deg,rgba(132,204,22,.8),rgba(16,185,129,.55)); font-size:19px; font-weight:800; }
         .upm-connection-person > span img { width:100%; height:100%; object-fit:cover; }
         .upm-connection-person > div { display:flex; flex-direction:column; min-width:0; gap:2px; }
         .upm-connection-person strong { color:#d5dbd0; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1624,11 +1627,11 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-connection-actions button, .upm-connections-back { padding:0; border:0; background:none; color:#a3e635; font-size:9px; cursor:pointer; }
         .upm-connection-actions b { margin-left:3px; color:#e3e8de; }
         .upm-connections-back { margin-top:9px; color:#aab3a5; }
-        .upm-sidebar-links a { display:flex; align-items:center; gap:7px; padding:7px 0; color:#b9c0b4; text-decoration:none; text-transform:capitalize; font-size:10px; }
+        .upm-sidebar-links a { display:flex; align-items:center; gap:7px; margin-top:6px; padding:8px; border:1px solid #202620; border-radius:9px; background:rgba(0,0,0,.28); color:#b9c0b4; text-decoration:none; text-transform:capitalize; font-size:10px; transition:border-color .15s,background .15s,color .15s; }
         .upm-sidebar-links a svg:first-child { color:#93c944; }
         .upm-sidebar-links a span { flex:1; }
-        .upm-sidebar-links a:hover { color:#d9f99d; }
-        .upm-network-status { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 0; color:#b9c0b4; font-size:10px; text-transform:capitalize; }
+        .upm-sidebar-links a:hover { color:#d9f99d; border-color:rgba(163,230,53,.32); background:rgba(132,204,22,.075); }
+        .upm-network-status { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; padding:8px; border:1px solid #202620; border-radius:9px; background:rgba(0,0,0,.28); color:#b9c0b4; font-size:10px; text-transform:capitalize; }
         .upm-network-status small { color:#9ca3af; font-size:9px; }
         .upm-network-status small.is-linked { color:#a3e635; }
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:#000; border-right:1px solid #2f3336; }
@@ -1736,8 +1739,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-cover-edit:hover { background:#fff; transform:scale(1.08); }
         .upm-cover-edit:focus-visible { outline:2px solid #fff; outline-offset:3px; }
         .upm-profile-identity-row { display:flex; align-items:flex-end; gap:12px; min-height:76px; margin-top:-49px; position:relative; z-index:2; }
-        .upm-profile-action-row { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; margin-left:auto; padding-bottom:4px; }
-        .upm-profile-action-row .upm-fbtn { width:auto; min-height:34px; padding:7px 10px; border-radius:999px; white-space:nowrap; }
+        .upm-profile-action-row { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; margin-left:auto; padding:5px; border:1px solid rgba(219,255,186,.22); border-radius:999px; background:rgba(2,5,3,.94); box-shadow:0 8px 24px rgba(0,0,0,.56),inset 0 1px 0 rgba(255,255,255,.1); backdrop-filter:blur(12px); }
+        .upm-profile-action-row .upm-fbtn { width:auto; min-height:36px; padding:7px 11px; border-radius:999px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.1); }
+        .upm-profile-action-row .upm-fbtn:focus-visible,.upm-xrd-btn:focus-visible { outline:2px solid #d9f99d; outline-offset:2px; }
         .upm-xrd-btn { min-height:34px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 12px; border:1px solid rgba(163,230,53,.38); border-radius:999px; background:linear-gradient(135deg,#a3e635,#65a30d); color:#0a1400; font-size:10px; font-weight:900; cursor:pointer; box-shadow:0 6px 20px rgba(132,204,22,.2); }
         .upm-xrd-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
         .upm-profile-header .upm-name { justify-content:flex-start; margin:13px 0 2px; text-align:left; }
@@ -1793,10 +1797,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           box-shadow:none !important;
         }
         .upm-fbtn:disabled { opacity:.55; cursor:not-allowed; }
-        .upm-message-btn { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.16); color:#e5e7eb; box-shadow:inset 0 1px rgba(255,255,255,.06); }
-        .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
-        .upm-gift-btn { background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.24); color:#fcd34d; box-shadow:inset 0 1px rgba(255,255,255,.05); }
-        .upm-gift-btn:hover { background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.48); color:#fde68a; box-shadow:0 0 18px rgba(251,191,36,.14); }
+        .upm-message-btn { background:linear-gradient(145deg,rgba(37,99,235,.3),rgba(30,64,175,.17)); border:1px solid rgba(147,197,253,.62); color:#dbeafe; box-shadow:0 3px 14px rgba(37,99,235,.18),inset 0 1px rgba(255,255,255,.12); }
+        .upm-message-btn:hover { background:linear-gradient(145deg,rgba(59,130,246,.4),rgba(30,64,175,.26)); border-color:#bfdbfe; color:#fff; box-shadow:0 0 20px rgba(96,165,250,.25); }
+        .upm-gift-btn { background:linear-gradient(145deg,rgba(217,119,6,.28),rgba(146,64,14,.17)); border:1px solid rgba(252,211,77,.66); color:#fef3c7; box-shadow:0 3px 14px rgba(217,119,6,.16),inset 0 1px rgba(255,255,255,.1); }
+        .upm-gift-btn:hover { background:linear-gradient(145deg,rgba(245,158,11,.4),rgba(180,83,9,.27)); border-color:#fde68a; color:#fff; box-shadow:0 0 20px rgba(251,191,36,.22); }
         .upm-verification-entry { margin:5px 10px 0; width:calc(100% - 20px); border-radius:11px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:6px 8px; display:flex; align-items:center; gap:6px; cursor:pointer; color:#fff; text-align:left; }
         .upm-verification-entry:hover { border-color:rgba(168,85,247,.58); background:radial-gradient(circle at top left,rgba(168,85,247,.24),transparent 34%),rgba(15,23,42,.9); }
         .upm-verification-icon { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }
