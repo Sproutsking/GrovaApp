@@ -573,42 +573,21 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     try {
       const { data: p } = await supabase
         .from("profiles")
-        .select("id,full_name,username,avatar_id,banner_image_id,bio,profile_tags,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
+        .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
         .eq("id", targetId)
         .maybeSingle();
 
       const raw = p || {};
 
-      // Build avatar URL — DB record wins, then try every prop shape callers pass
-      let avatarUrl = null;
-      if (raw.avatar_id) {
-        avatarUrl = /^https?:\/\//i.test(raw.avatar_id)
-          ? raw.avatar_id
-          : mediaUrlService.getOptimizedImageUrl(raw.avatar_id, {
-              width: 300,
-              height: 300,
-              quality: "100",
-              format: "webp",
-              crop: "fill",
-              gravity: "face",
-            });
-      } else {
-        const fallback =
-          user?.avatar     ||
-          user?.avatar_url ||
-          user?.avatarUrl  ||
-          null;
-        if (fallback && typeof fallback === "string" && fallback.startsWith("http")) {
-          avatarUrl = mediaUrlService.getOptimizedImageUrl(fallback, {
-            width: 300,
-            height: 300,
-            quality: "100",
-            format: "webp",
-            crop: "fill",
-            gravity: "face",
-          }) || fallback;
-        }
-      }
+      const avatarUrl = mediaUrlService.resolveAvatarUrl(raw.avatar_id, 300)
+        || mediaUrlService.resolveAvatarUrl(raw.avatar_metadata, 300)
+        || mediaUrlService.resolveAvatarUrl(user?.avatar_id, 300)
+        || mediaUrlService.resolveAvatarUrl(
+          [user?.avatar_url, user?.avatarUrl, user?.avatar].find((value) => (
+            typeof value === "string" && /^(https?:\/\/|blob:|data:image\/)/i.test(value)
+          )),
+          300,
+        );
       const bannerImageUrl = raw.banner_image_id
         ? (/^https?:\/\//i.test(raw.banner_image_id)
           ? raw.banner_image_id
@@ -1064,8 +1043,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     themeId={hasBoosted ? themeId : null}
                     size={110}
                     src={profile?.avatarUrl || null}
-                    fallbackSrc={`${process.env.PUBLIC_URL || ""}/logo192.png`}
-                    letter=""
+                    letter={profile?.fullName?.trim()?.charAt(0) || "U"}
                     showBadge={false}
                     badgeSize="md"
                     borderRadius="circle"
