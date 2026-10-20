@@ -209,34 +209,11 @@ class PostService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("You must be logged in to delete a post");
 
-      const { data: post, error: fetchError } = await supabase
-        .from("posts")
-        .select("id, user_id, deleted_at")
-        .eq("id", postId)
-        .single();
-
-      if (fetchError) throw new Error("Post not found");
-
-      if (post.deleted_at) {
-        this._safeInvalidate(`post:${postId}`);
-        this._safeInvalidate("posts");
-        return { success: true, postId };
-      }
-
-      if (post.user_id !== user.id) throw new Error("You can only delete your own posts");
-
-      const deleteTimestamp = new Date().toISOString();
-      const { data: deletedPost, error: deleteError } = await supabase
-        .from("posts")
-        .update({ deleted_at: deleteTimestamp })
-        .eq("id", postId)
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .select("id")
-        .maybeSingle();
-
+      const { data: deleted, error: deleteError } = await supabase.rpc("delete_own_post", {
+        p_post_id: postId,
+      });
       if (deleteError) throw deleteError;
-      if (!deletedPost?.id) throw new Error("Post not found or no longer available.");
+      if (deleted !== true) throw new Error("This post is unavailable or you do not have permission to delete it.");
 
       try {
         Promise.resolve(xrcService.writeRecord(
@@ -250,7 +227,7 @@ class PostService {
 
       this._safeInvalidate(`post:${postId}`);
       this._safeInvalidate("posts");
-      return { success: true, deletedAt: deleteTimestamp, postId };
+      return { success: true, postId };
     } catch (error) {
       throw handleError(error, error.message || "Failed to delete post");
     }

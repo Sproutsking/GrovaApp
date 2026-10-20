@@ -118,7 +118,6 @@ class DistributionService {
   }
 
   // ── Get active connected platforms ────────────────────────────────────────
-  // [BUG-B FIX] Any error returns [] so callers always get an array.
   // A sign-in identity is not necessarily authorized to publish. Only
   // connections with a usable publishing token are returned.
   async getConnectedPlatforms(userId) {
@@ -133,11 +132,8 @@ class DistributionService {
         10000
       );
 
-      if (error?.code === "42P01") return [];
-      if (error) {
-        console.warn("[DistributionService] getConnectedPlatforms:", error.message);
-        return [];
-      }
+      if (error?.code === "42P01") throw new Error("Platform connections are not configured in the database.");
+      if (error) throw handleError(error, "Could not load connected platforms");
 
       const activeConnections = (data || [])
         .map((connection) => ({
@@ -156,10 +152,7 @@ class DistributionService {
           .eq("revoked", false),
         10000
       );
-      if (tokenError) {
-        console.warn("[DistributionService] getConnectedPlatforms token check:", tokenError.message);
-        return [];
-      }
+      if (tokenError) throw handleError(tokenError, "Could not verify platform publishing tokens");
 
       const now = Date.now();
       const validTokenConnections = new Set((tokens || [])
@@ -172,8 +165,7 @@ class DistributionService {
 
       return Array.from(new Set(validConnectedProviders));
     } catch (err) {
-      console.warn("[DistributionService] getConnectedPlatforms exception:", err?.message);
-      return [];
+      throw handleError(err, "Could not load connected platforms");
     }
   }
 
@@ -188,21 +180,31 @@ class DistributionService {
       // User explicitly chose platforms → intersect with connected
       if (selectedPlatforms && selectedPlatforms.length > 0) {
         const platformTargets = selectedPlatforms.filter((platform) => connected.includes(platform));
+        const missingPlatforms = selectedPlatforms.filter((platform) => (
+          !platform.startsWith("community:") && !connected.includes(platform)
+        ));
+        if (missingPlatforms.length) {
+          throw new Error(`Selected platform connection or publishing token is unavailable: ${missingPlatforms.join(", ")}`);
+        }
         const communityIds = selectedPlatforms
           .filter((platform) => platform.startsWith("community:"))
           .map((platform) => platform.slice("community:".length));
         if (!communityIds.length) return platformTargets;
-        const { data: communityTargets } = await supabase
+        const { data: communityTargets, error: communityError } = await supabase
           .from("community_bot_destinations")
           .select("id,provider,community_id,integration:community_bot_integrations(status)")
           .in("id", communityIds)
           .eq("enabled", true);
+        if (communityError) throw handleError(communityError, "Could not verify community destinations");
         const activeCommunityTargets = (communityTargets || []).filter((target) => {
           const status = Array.isArray(target.integration)
             ? target.integration[0]?.status
             : target.integration?.status;
           return status === "active";
         });
+        if (activeCommunityTargets.length !== communityIds.length) {
+          throw new Error("One or more selected community destinations are no longer available.");
+        }
         return [...platformTargets, ...activeCommunityTargets.map((target) => `community:${target.id}`)];
       }
 
@@ -215,8 +217,7 @@ class DistributionService {
       return Object.keys(prefs.platform_preferences || {})
         .filter(p => prefs.platform_preferences[p]?.enabled && connected.includes(p));
     } catch (err) {
-      console.warn("[DistributionService] getPublishTargets:", err?.message);
-      return [];
+      throw handleError(err, "Could not determine distribution destinations");
     }
   }
 
@@ -267,15 +268,16 @@ class DistributionService {
       }
 
       // Init distribution records
-      await Promise.allSettled(
-        targets.map(platform =>
-          supabase.from("post_distribution").insert({
+      await Promise.all(
+        targets.map(async (platform) => {
+          const { error } = await supabase.from("post_distribution").insert({
             post_id: postId,
             user_id: resolvedUserId,
             platform,
             status: "pending",
-          })
-        )
+          });
+          if (error) throw handleError(error, `Could not prepare distribution to ${platform}`);
+        })
       );
 
       // Publish in parallel
@@ -287,8 +289,9 @@ class DistributionService {
 
       const summary = results.map((r, i) => ({
         platform: targets[i],
-        ok: r.status === "fulfilled",
-        error: r.reason?.message,
+        ok: r.status === "fulfilled" && r.value?.status === "success",
+        error: r.status === "rejected" ? r.reason?.message : r.value?.status === "fallback" ? "Manual sharing is required" : undefined,
+        deepLink: r.status === "fulfilled" ? r.value?.deepLink : undefined,
       }));
 
       // Update queue status
@@ -320,8 +323,73 @@ class DistributionService {
     }
   }
 
+  async distributeContent(contentType, contentId, userId, selectedPlatforms = []) {
+    const contentTables = { reel: "reels", story: "stories" };
+    const table = contentTables[contentType];
+    if (!table) throw new Error(`Unsupported content type for distribution: ${contentType}`);
+    if (!contentId || !userId) throw new Error("A content ID and signed-in user are required for distribution");
+    if (!selectedPlatforms.length) {
+      return { success: true, targets: [], message: "No platforms selected" };
+    }
+
+    try {
+      const { data: source, error } = await withTimeout(
+        supabase.from(table).select("*").eq("id", contentId).eq("user_id", userId).single(),
+        12000
+      );
+      if (error || !source) throw new Error(`Could not load your ${contentType} for distribution`);
+
+      const content = contentType === "reel"
+        ? {
+            ...source,
+            content: source.caption || "",
+            image_metadata: [],
+            video_metadata: source.video_metadata?.url ? [source.video_metadata] : [],
+          }
+        : {
+            ...source,
+            content: [source.title, source.preview].filter(Boolean).join("\n\n"),
+            image_metadata: source.cover_image_metadata?.url ? [source.cover_image_metadata] : [],
+            video_metadata: [],
+          };
+      const targets = await this.getPublishTargets(userId, selectedPlatforms);
+      if (!targets.length) {
+        return { success: true, targets: [], message: "No linked platforms selected" };
+      }
+
+      const { error: recordError } = await supabase
+        .from("content_distribution")
+        .upsert(
+          targets.map((platform) => ({
+            user_id: userId,
+            content_type: contentType,
+            content_id: contentId,
+            platform,
+            status: "pending",
+            error_message: null,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: "content_type,content_id,platform" }
+        );
+      if (recordError) throw handleError(recordError, "Could not create distribution records");
+
+      const results = await Promise.allSettled(
+        targets.map((platform) => this._publishToSinglePlatform(contentId, userId, content, platform, contentType))
+      );
+      const summary = results.map((result, index) => ({
+        platform: targets[index],
+        ok: result.status === "fulfilled" && result.value?.status === "success",
+        error: result.status === "rejected" ? result.reason?.message : result.value?.status === "fallback" ? "Manual sharing is required" : undefined,
+        deepLink: result.status === "fulfilled" ? result.value?.deepLink : undefined,
+      }));
+      return { success: summary.every((result) => result.ok), targets, results: summary };
+    } catch (err) {
+      throw handleError(err, `Failed to distribute ${contentType}`);
+    }
+  }
+
   // ── Publish to a single platform ──────────────────────────────────────────
-  async _publishToSinglePlatform(postId, userId, post, platform) {
+  async _publishToSinglePlatform(postId, userId, post, platform, contentType = "post") {
     try {
       if (platform.startsWith("community:")) {
         const destinationId = platform.slice("community:".length);
@@ -334,26 +402,32 @@ class DistributionService {
         if (destinationError || !destination) throw new Error("Community destination is no longer available");
         const content = post.content || post.card_caption || post.caption || "";
         const origin = typeof window !== "undefined" ? window.location.origin : "";
-        const url = `${origin}/post/${postId}`;
+        const route = contentType === "reel" ? "reel" : contentType === "story" ? "story" : "post";
+        const url = `${origin}/${route}/${postId}`;
         const { data, error } = await supabase.functions.invoke("community-bot", {
-          body: { action: "dispatch", provider: destination.provider, communityId: destination.community_id, destinationId, content, url, sourceId: postId, sourceType: "post" },
+          body: { action: "dispatch", provider: destination.provider, communityId: destination.community_id, destinationId, content, url, sourceId: postId, sourceType: contentType },
         });
         if (error) throw error;
         const result = data?.results?.find((item) => item.destinationId === destinationId) || data;
         if (!result?.ok && data?.ok === false) throw new Error(result?.error || "Community bot delivery failed");
-        await supabase.from("post_distribution").update({ status: "success", external_post_id: result?.externalMessageId || null, published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("post_id", postId).eq("platform", platform);
+        await this._updateDistributionStatus(contentType, postId, platform, { status: "success", external_post_id: result?.externalMessageId || null, published_at: new Date().toISOString(), updated_at: new Date().toISOString() });
         return { platform, status: "success", externalId: result?.externalMessageId || null };
       }
       const adapter = adapters.getAdapter(platform);
       if (!adapter) throw new Error(`No adapter for: ${platform}`);
 
       // Get connection
+      const providerAliases = {
+        x: ["x", "twitter"],
+        linkedin: ["linkedin", "linkedin_oidc"],
+      };
       const { data: conn, error: connErr } = await withTimeout(
         supabase
           .from("connections")
           .select("id, provider, platform_user_id")
           .eq("user_id", userId)
-          .eq("provider", platform)
+          .in("provider", providerAliases[platform] || [platform])
+          .limit(1)
           .maybeSingle(),
         10000
       );
@@ -396,51 +470,48 @@ class DistributionService {
       }
 
       if (externalId) {
-        await supabase
-          .from("post_distribution")
-          .update({
+        await this._updateDistributionStatus(contentType, postId, platform, {
             status: "success",
             external_post_id: externalId,
             published_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          })
-          .eq("post_id", postId)
-          .eq("platform", platform);
+          });
 
         return { platform, status: "success", externalId };
       }
 
       // All retries failed — generate deep link as fallback
       const deepLink = await this.generateDeepLink(platform, post).catch(() => null);
-      await supabase
-        .from("post_distribution")
-        .update({
+      await this._updateDistributionStatus(contentType, postId, platform, {
           status: "failed",
           error_message: "All publish attempts failed; deep link generated",
           updated_at: new Date().toISOString(),
-        })
-        .eq("post_id", postId)
-        .eq("platform", platform);
+        });
 
       return { platform, status: "fallback", deepLink };
     } catch (err) {
       try {
-        const { error: statusUpdateError } = await supabase
-          .from("post_distribution")
-          .update({
+        await this._updateDistributionStatus(contentType, postId, platform, {
             status: "failed",
             error_message: err.message,
             updated_at: new Date().toISOString(),
-          })
-          .eq("post_id", postId)
-          .eq("platform", platform);
-        if (statusUpdateError) throw statusUpdateError;
+          });
       } catch (statusUpdateError) {
         console.warn("[Distribution] Failed to record platform error:", statusUpdateError?.message);
       }
-
       throw err;
     }
+  }
+
+  async _updateDistributionStatus(contentType, contentId, platform, values) {
+    let query = supabase
+      .from(contentType === "post" ? "post_distribution" : "content_distribution")
+      .update(values);
+    query = contentType === "post"
+      ? query.eq("post_id", contentId).eq("platform", platform)
+      : query.eq("content_type", contentType).eq("content_id", contentId).eq("platform", platform);
+    const { error } = await query;
+    if (error) throw error;
   }
 
   // ── Deep link fallback ────────────────────────────────────────────────────

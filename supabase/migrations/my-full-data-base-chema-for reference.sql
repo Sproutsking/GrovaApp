@@ -50,6 +50,8 @@ CREATE TABLE public.profiles (
   reward_level text DEFAULT 'none'::text CHECK (reward_level = ANY (ARRAY['none'::text, 'silver'::text, 'gold'::text, 'diamond'::text])),
   reward_level_since timestamp with time zone,
   level_activity_score numeric DEFAULT 0,
+  profile_tags ARRAY NOT NULL DEFAULT '{}'::text[] CHECK (cardinality(profile_tags) <= 5 AND profile_tags <@ ARRAY['creator'::text, 'founder'::text, 'builder'::text, 'artist'::text, 'designer'::text, 'developer'::text, 'educator'::text, 'entrepreneur'::text, 'researcher'::text, 'writer'::text, 'community leader'::text]),
+  banner_image_id text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -214,6 +216,7 @@ CREATE TABLE public.posts (
   is_text_card boolean DEFAULT false,
   text_card_metadata jsonb,
   card_caption text,
+  audience text NOT NULL DEFAULT 'public'::text CHECK (audience = ANY (ARRAY['public'::text, 'followers'::text, 'verified'::text])),
   CONSTRAINT posts_pkey PRIMARY KEY (id),
   CONSTRAINT posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
@@ -599,7 +602,7 @@ CREATE TABLE public.community_invites (
 CREATE TABLE public.drafts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  content_type text NOT NULL CHECK (content_type = ANY (ARRAY['post'::text, 'reel'::text, 'story'::text])),
+  content_type text NOT NULL CHECK (content_type = ANY (ARRAY['post'::text, 'reel'::text, 'story'::text, 'culture'::text])),
   title text,
   last_edited timestamp with time zone DEFAULT now(),
   post_content text,
@@ -621,6 +624,11 @@ CREATE TABLE public.drafts (
   story_text_color text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  post_audience text NOT NULL DEFAULT 'public'::text CHECK (post_audience = ANY (ARRAY['public'::text, 'followers'::text, 'verified'::text])),
+  culture_caption text,
+  culture_category text NOT NULL DEFAULT 'trending'::text,
+  post_is_text_card boolean NOT NULL DEFAULT false,
+  post_caption text,
   CONSTRAINT drafts_pkey PRIMARY KEY (id),
   CONSTRAINT drafts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );

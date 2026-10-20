@@ -19,18 +19,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
-  TrendingUp, X, Eye, Sparkles, Flame, Crown, ChevronRight,
+  TrendingUp, Search, X, Eye, Sparkles, Flame, Crown, ChevronRight,
   RefreshCw, ArrowRight, ArrowLeft, Hash, FileText, Play,
-  BookOpen, Zap, Radio, Tv, BarChart2, Gamepad2,
+  BookOpen, Zap, Radio, Tv, BarChart2, Gamepad2, User,
 } from "lucide-react";
 import useTrinitylens from "../../hooks/useTrinitylens";
 
 import { supabase }         from "../../services/config/supabase";
 import mediaUrlService      from "../../services/shared/mediaUrlService";
+import exploreService       from "../../services/explore/exploreService";
 import UnifiedLoader        from "./UnifiedLoader";
 import UserProfileModal     from "../Modals/UserProfileModal";
 import StreamerDetailModal  from "./StreamerDetailModal";
 import SectionHeader        from "../Shared/SectionHeader";
+import ProfilePreview       from "./ProfilePreview";
+import PostCard             from "../Home/PostCard";
+import ReelCard             from "../Home/ReelCard";
+import StoryCard            from "../Home/StoryCard";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DESKTOP_HEADER_H  = 58;
@@ -62,6 +67,331 @@ const rankStyle = (rank) => {
   if (rank === 2) return { bg: "var(--surface-strong)", color: "var(--text)", shadow: "var(--surface-border)" };
   if (rank === 3) return { bg: "var(--accent-gradient)", color: "var(--text)", shadow: "var(--surface-border)" };
   return { bg: "var(--danger-bg)", color: "var(--danger)", shadow: "transparent" };
+};
+
+const TrendingSearch = ({ onNavigate, currentUser }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+  const triggerRef = useRef(null);
+  const popupRef = useRef(null);
+  const [popupPosition, setPopupPosition] = useState(null);
+
+  useEffect(() => {
+    const onShortcut = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && popupPosition && document.activeElement !== inputRef.current) {
+      inputRef.current?.focus();
+    }
+  }, [open, popupPosition]);
+
+  useEffect(() => {
+    if (!open) {
+      setPopupPosition(null);
+      return undefined;
+    }
+
+    const positionPopup = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      if (!trigger) return;
+      const viewportPadding = 12;
+      const width = Math.min(680, window.innerWidth - viewportPadding * 2);
+      const left = Math.max(
+        viewportPadding,
+        Math.min(
+          trigger.left + trigger.width / 2 - width / 2,
+          window.innerWidth - width - viewportPadding,
+        ),
+      );
+      const top = trigger.bottom + 1;
+      const availableHeight = Math.max(120, window.innerHeight - top - viewportPadding);
+      const height = Math.min(760, availableHeight);
+      setPopupPosition({
+        top,
+        left,
+        width,
+        height,
+        pointerLeft: Math.max(18, Math.min(trigger.left + trigger.width / 2 - left, width - 18)),
+      });
+    };
+    const onOutsidePointer = (event) => {
+      if (
+        !triggerRef.current?.contains(event.target) &&
+        !popupRef.current?.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    positionPopup();
+    window.addEventListener("resize", positionPopup);
+    window.addEventListener("scroll", positionPopup, true);
+    document.addEventListener("mousedown", onOutsidePointer);
+    return () => {
+      window.removeEventListener("resize", positionPopup);
+      window.removeEventListener("scroll", positionPopup, true);
+      document.removeEventListener("mousedown", onOutsidePointer);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    const searchTerm = query.trim();
+    if (!open || searchTerm.length < 2) {
+      setResults(null);
+      setLoading(false);
+      setError("");
+      return undefined;
+    }
+
+    setResults(null);
+    setLoading(false);
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await exploreService.searchAll(searchTerm, { limit: 12 }, currentUser?.id);
+        if (active) setResults(data);
+      } catch (searchError) {
+        if (active) {
+          setResults(null);
+          setError(searchError?.message || "Search is temporarily unavailable.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, query, currentUser?.id]);
+
+  const navigate = () => {
+    const term = query.trim();
+    if (!term) return;
+    setOpen(false);
+    onNavigate?.(term);
+  };
+
+  const contentResults = [
+    ...(results?.stories || []).map((item) => ({ item, type: "Story" })),
+    ...(results?.posts || []).map((item) => ({ item, type: "Post" })),
+    ...(results?.reels || []).map((item) => ({ item, type: "Reel" })),
+  ];
+  const hasResults = Boolean(
+    results?.users?.length || results?.tags?.length || contentResults.length,
+  );
+  const renderSearchResult = ({ item, type }, index) => {
+    if (type === "Post") {
+      return (
+        <div key={`post-${item.id}`} className="ts-search-native-result">
+          <PostCard post={item} currentUser={currentUser} feedIndex={index} />
+        </div>
+      );
+    }
+    if (type === "Reel") {
+      return (
+        <div key={`reel-${item.id}`} className="ts-search-native-result">
+          <ReelCard reel={item} currentUser={currentUser} index={index} />
+        </div>
+      );
+    }
+    return (
+      <div key={`story-${item.id}`} className="ts-search-native-result">
+        <StoryCard story={item} currentUser={currentUser} />
+      </div>
+    );
+  };
+
+  const popup = open && popupPosition && (
+    <>
+      <span
+        className="ts-search-pointer"
+        aria-hidden="true"
+        style={{
+          top: popupPosition.top - 6,
+          left: popupPosition.left + popupPosition.pointerLeft,
+        }}
+      />
+      <section
+        ref={popupRef}
+        className="ts-search-modal"
+        role="dialog"
+        aria-label="Search Xeevia"
+        style={{
+          top: popupPosition.top,
+          left: popupPosition.left,
+          width: popupPosition.width,
+          height: popupPosition.height,
+        }}
+      >
+        <div className="ts-search-modal-head">
+          <div className="ts-search-mark"><Search size={17} /></div>
+          <div className="ts-search-input-wrap">
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") navigate();
+              }}
+              placeholder="Search people, posts, reels, stories, and tags"
+              aria-label="Search Xeevia"
+            />
+            {query && <button className="ts-search-clear" onClick={() => { setQuery(""); inputRef.current?.focus(); }} aria-label="Clear search"><X size={15} /></button>}
+          </div>
+          <button className="ts-search-escape" onClick={() => setOpen(false)}>Esc</button>
+        </div>
+
+        <div className="ts-search-results">
+          {!query.trim() && (
+            <div className="ts-search-empty">
+              <span className="ts-search-empty-icon"><Search size={20} /></span>
+              <strong>Find your next connection</strong>
+              <span>Search across people, posts, stories, reels, and topics.</span>
+            </div>
+          )}
+          {query.trim().length === 1 && <div className="ts-search-hint">Type one more character to search.</div>}
+          {loading && <div className="ts-search-status"><RefreshCw size={15} className="spin" /> Searching Xeevia…</div>}
+          {!loading && error && <div className="ts-search-error">{error}</div>}
+          {!loading && !error && results && !hasResults && (
+            <div className="ts-search-empty">
+              <span className="ts-search-empty-icon"><Search size={20} /></span>
+              <strong>No matches yet</strong>
+              <span>Try another name, phrase, @mention, or #tag.</span>
+            </div>
+          )}
+          {!loading && results?.users?.length > 0 && (
+            <div className="ts-search-group">
+              <div className="ts-search-group-title"><User size={13} /> People</div>
+              {results.users.slice(0, 4).map((user) => (
+              <div key={user.id} className="ts-search-user">
+                <ProfilePreview
+                  profile={{
+                    userId: user.id,
+                    user_id: user.id,
+                    author: user.full_name,
+                    username: user.username,
+                    avatar_id: user.avatar_id,
+                    verified: user.verified,
+                  }}
+                  currentUser={currentUser}
+                  size="small"
+                  layout="horizontal"
+                  showUsername
+                  className="ts-search-profile"
+                />
+                <button className="ts-search-arrow-button" onClick={navigate} aria-label={`See search results for ${user.full_name || user.username}`}>
+                  <ArrowRight size={14} className="ts-search-arrow" />
+                </button>
+              </div>
+              ))}
+            </div>
+          )}
+          {!loading && results?.tags?.length > 0 && (
+            <div className="ts-search-group">
+              <div className="ts-search-group-title"><Hash size={13} /> Topics</div>
+              <div className="ts-search-tags">
+                {results.tags.slice(0, 6).map((tag, index) => (
+                  <button key={`${tag.tag}-${index}`} onClick={() => { setQuery(tag.tag); }}>
+                    <Hash size={12} />{tag.tag.replace(/^#/, "")}<small>{fmt(tag.count)}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {!loading && contentResults.length > 0 && (
+            <div className="ts-search-group">
+              <div className="ts-search-group-title"><FileText size={13} /> Content</div>
+              <div className="ts-search-feed-results" aria-label="Matching posts, reels, and stories">
+                {contentResults.slice(0, 6).map(renderSearchResult)}
+              </div>
+            </div>
+          )}
+        </div>
+        {query.trim().length >= 2 && (
+          <button className="ts-search-all" onClick={navigate}>See all results for “{query.trim()}” <ArrowRight size={14} /></button>
+        )}
+      </section>
+    </>
+  );
+
+  return (
+    <>
+      <div ref={triggerRef} className="ts-search-anchor">
+        <button className="ts-search-trigger" onClick={() => setOpen(true)} aria-label="Search Xeevia" aria-expanded={open}>
+          <Search size={15} /><span>Search Xeevia</span><kbd>⌘ K</kbd>
+        </button>
+      </div>
+      {popup && ReactDOM.createPortal(popup, document.body)}
+      <style>{`
+        .ts-search-anchor{position:relative;width:min(245px,100%);max-width:100%}
+        .ts-search-trigger{display:flex;align-items:center;gap:9px;width:100%;max-width:245px;height:38px;padding:0 11px;border-radius:11px;border:1px solid var(--surface-border);background:var(--surface);color:var(--text-secondary);font-family:inherit;font-size:12px;font-weight:600;letter-spacing:normal;text-transform:none;white-space:normal;text-align:left;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s}
+        .ts-search-trigger:hover{border-color:var(--accent-border);background:var(--surface-strong);box-shadow:0 0 0 3px var(--accent-bg-soft)}
+        .ts-search-trigger>svg{color:var(--accent);flex-shrink:0}.ts-search-trigger span{flex:1}.ts-search-trigger kbd{padding:2px 5px;border:1px solid var(--surface-border);border-radius:5px;background:var(--surface-strong);font:10px inherit;color:var(--text-secondary)}
+        .ts-search-pointer{position:fixed;z-index:100199;width:12px;height:12px;transform:translateX(-50%) rotate(45deg);background:#10130e;border-top:1px solid rgba(132,204,22,.34);border-left:1px solid rgba(132,204,22,.34);pointer-events:none}
+        .ts-search-modal{position:fixed;z-index:100200;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(132,204,22,.25);border-radius:16px;background:linear-gradient(145deg,#10130e,#090a09 65%);box-shadow:0 18px 54px rgba(0,0,0,.42),0 0 36px rgba(132,204,22,.07);animation:tsSearchRise .16s cubic-bezier(.2,.8,.2,1) both}
+        .ts-search-modal-head,.ts-search-results,.ts-search-all{position:relative;z-index:1;background:#10130e}
+        .ts-search-modal-head{border-radius:15px 15px 0 0}
+        .ts-search-results{flex:1;min-height:0}
+        .ts-search-all{border-radius:0 0 15px 15px}
+        .ts-search-modal-head{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+        .ts-search-mark{width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;border-radius:12px;background:rgba(132,204,22,.12);border:1px solid rgba(132,204,22,.24);color:#a8e63d}
+        .ts-search-input-wrap{flex:1;display:flex;align-items:center;min-width:0}
+        .ts-search-input-wrap input{width:100%;padding:8px 0;border:0;outline:0;background:transparent;color:#f5f8ef;font:500 16px inherit}
+        .ts-search-input-wrap input::placeholder{color:#73786e}
+        .ts-search-clear,.ts-search-escape{display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.04);color:#a0a49a;cursor:pointer}
+        .ts-search-clear{width:27px;height:27px}.ts-search-escape{padding:5px 7px;font:11px inherit}
+        .ts-search-results{overflow-y:auto;min-height:0;padding:10px 14px 16px;overscroll-behavior:contain}
+        .ts-search-empty{min-height:min(190px,25vh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;color:#858b7e}
+        .ts-search-empty strong{color:#e8eddf;font-size:15px}.ts-search-empty>span:last-child{max-width:330px;font-size:12px;line-height:1.5}
+        .ts-search-empty-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(132,204,22,.2);border-radius:14px;background:rgba(132,204,22,.07);color:#a8e63d}
+        .ts-search-hint,.ts-search-status,.ts-search-error{padding:22px 10px;text-align:center;color:#93988d;font-size:13px}
+        .ts-search-status{display:flex;justify-content:center;align-items:center;gap:8px}.ts-search-status svg{color:#a8e63d}
+        .ts-search-error{color:#fca5a5}
+        .ts-search-group{margin:6px 0 16px}.ts-search-group-title{display:flex;align-items:center;gap:7px;padding:5px 5px 8px;color:#a8e63d;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+        .ts-search-user{width:100%;display:flex;align-items:center;gap:11px;padding:10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.018));color:inherit;text-align:left;box-shadow:inset 0 1px rgba(255,255,255,.035),0 4px 12px rgba(0,0,0,.12);transition:background .16s,border-color .16s,box-shadow .16s,transform .16s}
+        .ts-search-user+.ts-search-user{margin-top:7px}
+        .ts-search-user{justify-content:space-between}
+        .ts-search-user:hover{transform:translateY(-1px);background:linear-gradient(135deg,rgba(132,204,22,.09),rgba(255,255,255,.035));border-color:rgba(132,204,22,.28);box-shadow:inset 0 1px rgba(255,255,255,.055),0 7px 18px rgba(0,0,0,.22)}
+        .ts-search-feed-results{display:flex;flex-direction:column;gap:12px}
+        .ts-search-native-result{width:100%;min-width:0;max-width:100%}
+        .ts-search-native-result>.gvp-card,.ts-search-native-result>.xv-reel-card,.ts-search-native-result>.story-card-premium{width:100%;max-width:100%;margin:0!important}
+        .ts-search-user:focus-within,.ts-search-tags button:focus-visible{outline:2px solid rgba(168,230,61,.75);outline-offset:2px}
+        .ts-search-profile{flex:1;min-width:0;max-width:none!important;padding:2px 0!important}
+        .ts-search-arrow-button{width:30px;height:30px;display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.035);cursor:pointer}
+        .ts-search-arrow-button:hover{border-color:rgba(132,204,22,.32);background:rgba(132,204,22,.1)}
+        .ts-search-verified{color:#a8e63d}.ts-search-arrow{flex-shrink:0;color:#737a6a;transition:transform .15s,color .15s}.ts-search-user:hover .ts-search-arrow{transform:translateX(2px);color:#a8e63d}
+        .ts-search-tags{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px}.ts-search-tags button{display:flex;align-items:center;gap:5px;padding:8px 11px;border:1px solid rgba(132,204,22,.22);border-radius:10px;background:linear-gradient(140deg,rgba(132,204,22,.1),rgba(132,204,22,.035));color:#dce7cf;font:600 11px inherit;box-shadow:inset 0 1px rgba(255,255,255,.04),0 3px 10px rgba(0,0,0,.13);cursor:pointer;transition:background .15s,border-color .15s,transform .15s,box-shadow .15s}.ts-search-tags button:hover{transform:translateY(-1px);border-color:rgba(132,204,22,.48);background:linear-gradient(140deg,rgba(132,204,22,.18),rgba(132,204,22,.07));box-shadow:0 6px 14px rgba(0,0,0,.2)}.ts-search-tags button svg{color:#a8e63d}.ts-search-tags button small{color:#8d9584}
+        .ts-search-all{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:0;border-top:1px solid rgba(255,255,255,.08);background:rgba(132,204,22,.06);color:#b9e67b;font:700 12px inherit;cursor:pointer}.ts-search-all:hover{background:rgba(132,204,22,.12)}
+        @keyframes tsSearchRise{from{opacity:0;transform:translateY(-4px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @media(max-width:600px){.ts-search-modal{border-radius:15px}.ts-search-modal-head{padding:12px}.ts-search-input-wrap input{font-size:14px}.ts-search-anchor{width:min(210px,100%)}.ts-search-trigger kbd{display:none}}
+      `}</style>
+    </>
+  );
 };
 
 // ── Live sessions fetcher (currently live only) ───────────────────────────────
@@ -327,7 +657,7 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream }) => {
+const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream, onSearchNavigate }) => {
   const { activeTrinityLens } = useTrinitylens();
   const [liveSessions,    setLiveSessions]    = useState([]);
   const [liveLoading,     setLiveLoading]     = useState(true);
@@ -586,20 +916,25 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     );
   };
 
+  const renderDesktopSearchHeader = () => (
+    <div className="ts-search-header">
+      <TrendingSearch currentUser={currentUser} onNavigate={onSearchNavigate} />
+      <button
+        className="ts-refresh"
+        onClick={() => { setRefreshing(true); loadAll(false); }}
+        disabled={refreshing}
+        title="Refresh"
+        aria-label="Refresh trending"
+      >
+        <RefreshCw size={11} className={refreshing ? "spin" : ""} />
+      </button>
+    </div>
+  );
+
   if (loading && topStreamers.length === 0) return (
     <aside className={isMobile ? "trending-mobile-fullscreen" : "trending-sidebar"}>
       {isMobile && <MobileHeader onClose={onClose} />}
-      {!isMobile && (
-        <SectionHeader
-          className="ts-page-header"
-          icon={TrendingUp}
-          iconColor="var(--accent)"
-          iconBg="var(--accent-bg-soft)"
-          iconBorder="var(--accent-border)"
-          title="Trending"
-          right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
-        />
-      )}
+      {!isMobile && renderDesktopSearchHeader()}
       <div style={{ padding: "12px" }}>
         <UnifiedLoader type="section" message="Loading trending…" />
       </div>
@@ -672,7 +1007,11 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-refresh { width:26px; height:26px; border-radius:7px; background: var(--surface); border:1px solid var(--surface-border); color: var(--text-secondary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
         .ts-refresh:hover { background: var(--surface-strong); color: var(--accent); border-color: var(--accent-border); }
         .spin { animation:spin 1s linear infinite; }
-        .ts-page-header { position: sticky; top: 0; z-index: 15; margin-bottom: 0; padding: 12px 14px 12px 14px; background: var(--surface-strong); border-bottom: 1px solid var(--surface-border); }
+        .ts-search-header { position:sticky; top:0; z-index:15; display:grid; grid-template-columns:minmax(0,1fr) 30px; align-items:center; gap:8px; min-height:58px; padding:10px 14px; background:var(--surface-strong); }
+        .ts-search-header .ts-search-anchor { justify-self:center; width:min(250px,100%); }
+        .ts-search-header .ts-search-trigger { max-width:none; }
+        .ts-section > .sh-root { margin-bottom: 8px; padding-bottom: 0; border-bottom: 0; }
+        .ts-section > .sh-root::before { display: none; }
         @keyframes spin { to{transform:rotate(360deg);} }
 
         /* ── STREAMER ROWS ── */
@@ -721,7 +1060,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
         /* ── TAG ROWS ── */
         .tag-list { display:flex; flex-direction:column; gap:5px; }
-        .ts-divider { height:1px; background: rgba(255,255,255,0.06); margin: 8px 0 10px; border-radius: 999px; }
         .ts-section { margin-bottom:12px; }
         .ts-section:last-child { margin-bottom:0; }
         .tag-row {
@@ -832,17 +1170,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         {isMobile && <MobileHeader onClose={onClose} />}
 
         {/* Desktop sticky top label */}
-        {!isMobile && (
-          <SectionHeader
-            className="ts-page-header"
-            icon={TrendingUp}
-            iconColor="var(--accent)"
-            iconBg="var(--accent-bg-soft)"
-            iconBorder="var(--accent-border)"
-            title="Trending"
-            right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
-          />
-        )}
+        {!isMobile && renderDesktopSearchHeader()}
 
         {/* Inner content wrapper */}
         <div style={{ padding: "12px 12px 24px" }}>
@@ -861,7 +1189,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
                 </button>
               ) : null}
             />
-            <div className="ts-divider" />
             {topStreamers.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📡</div>
@@ -894,7 +1221,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
                 title="Live Now"
                 right={<div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>}
               />
-              <div className="ts-divider" />
               <div className="sc-scroll">
                 {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
               </div>
@@ -915,7 +1241,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
                 </button>
               ) : null}
             />
-            <div className="ts-divider" />
             {topTags.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🔥</div><p className="empty-text">No trending tags yet</p></div>
             ) : (
@@ -937,7 +1262,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
                 iconBorder="var(--accent-border)"
                 title={activeTrinityLens === "web3" ? "Signals" : "Gaming Pulse"}
               />
-              <div className="ts-divider" />
               <div className="tag-list">
                 {modeSignals.map((signal) => (
                   <div className="tag-row" key={signal.label}>
@@ -958,7 +1282,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               iconBorder="var(--brand-warning-border)"
               title="Top Creators"
             />
-            <div className="ts-divider" />
             {topCreators.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">👑</div><p className="empty-text">No creators this week</p></div>
             ) : (

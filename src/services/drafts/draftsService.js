@@ -22,6 +22,9 @@ class DraftsService {
           post_content: draftData.content || null,
           post_images_data: draftData.imagesData || [],
           post_category: draftData.category || "General",
+          post_audience: draftData.postAudience || "public",
+          post_is_text_card: Boolean(draftData.isTextCard),
+          post_caption: draftData.caption || null,
         };
       } else if (contentType === "reel") {
         draftPayload = {
@@ -44,6 +47,12 @@ class DraftsService {
           story_max_accesses: draftData.maxAccesses || 1000,
           story_title_color: draftData.titleColor || "#ffffff",
           story_text_color: draftData.textColor || "#d4d4d4",
+        };
+      } else if (contentType === "culture") {
+        draftPayload = {
+          ...draftPayload,
+          culture_caption: draftData.caption || null,
+          culture_category: draftData.category || "trending",
         };
       }
 

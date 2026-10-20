@@ -19,8 +19,8 @@ const TEMPLATE_TABS = [
   { id: "story", name: "Story Templates", icon: <BookOpen size={18} /> },
 ];
 
-const TemplateLibrary = ({ onClose, onSelectTemplate, currentUser }) => {
-  const [activeTab, setActiveTab] = useState("reel");
+const TemplateLibrary = ({ onClose, onSelectTemplate, currentUser, initialType = "reel" }) => {
+  const [activeTab, setActiveTab] = useState(["post", "reel", "story"].includes(initialType) ? initialType : "post");
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);

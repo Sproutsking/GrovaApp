@@ -5,7 +5,7 @@ jest.mock("../config/supabase", () => ({
   __esModule: true,
   supabase: {
     auth: { getUser: jest.fn() },
-    from: jest.fn(),
+    rpc: jest.fn(),
   },
 }));
 
@@ -26,54 +26,28 @@ jest.mock("../xrc", () => ({
   STREAM_TYPES: { XCRC: "xrc" },
 }));
 
-const makePostsQuery = ({ post, deletedPost } = {}) => {
-  const updateQuery = {
-    eq: jest.fn(() => updateQuery),
-    is: jest.fn(() => updateQuery),
-    select: jest.fn(() => updateQuery),
-    maybeSingle: jest.fn().mockResolvedValue({ data: deletedPost || null, error: null }),
-  };
-  return {
-    select: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        single: jest.fn().mockResolvedValue({ data: post, error: null }),
-      })),
-    })),
-    update: jest.fn(() => updateQuery),
-    updateQuery,
-  };
-};
-
 describe("postService.deletePost", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     supabase.auth.getUser.mockResolvedValue({ data: { user: { id: "owner-1" } }, error: null });
   });
 
-  it("soft-deletes only a still-active post owned by the authenticated user", async () => {
-    const query = makePostsQuery({
-      post: { id: "post-1", user_id: "owner-1", deleted_at: null },
-      deletedPost: { id: "post-1" },
-    });
-    supabase.from.mockReturnValue(query);
+  it("calls the database's authenticated-owner delete function", async () => {
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
 
     await expect(postService.deletePost("post-1")).resolves.toMatchObject({ success: true, postId: "post-1" });
-    expect(query.updateQuery.eq).toHaveBeenCalledWith("user_id", "owner-1");
-    expect(query.updateQuery.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(supabase.rpc).toHaveBeenCalledWith("delete_own_post", { p_post_id: "post-1" });
   });
 
-  it("rejects attempts to delete another user's post before issuing an update", async () => {
-    const query = makePostsQuery({ post: { id: "post-1", user_id: "owner-2", deleted_at: null } });
-    supabase.from.mockReturnValue(query);
+  it("does not claim success when the database rejects the caller's ownership", async () => {
+    supabase.rpc.mockResolvedValue({ data: false, error: null });
 
-    await expect(postService.deletePost("post-1")).rejects.toThrow("You can only delete your own posts");
-    expect(query.update).not.toHaveBeenCalled();
+    await expect(postService.deletePost("post-1")).rejects.toThrow("You do not have permission to perform this action");
   });
 
-  it("reports an update that matched no owned active post instead of claiming success", async () => {
-    const query = makePostsQuery({ post: { id: "post-1", user_id: "owner-1", deleted_at: null } });
-    supabase.from.mockReturnValue(query);
+  it("surfaces database errors rather than hiding a failed deletion", async () => {
+    supabase.rpc.mockResolvedValue({ data: null, error: new Error("permission denied") });
 
-    await expect(postService.deletePost("post-1")).rejects.toThrow("The requested item was not found");
+    await expect(postService.deletePost("post-1")).rejects.toThrow("You do not have permission to perform this action");
   });
 });

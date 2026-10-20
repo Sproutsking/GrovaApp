@@ -45,8 +45,7 @@ class TemplateService {
 
       if (error) throw error;
 
-      // Return mock data for now until database is set up
-      return this.getMockTemplates(type);
+      return data?.length ? data : this.getMockTemplates(type);
     } catch (error) {
       console.error("Failed to fetch templates:", error);
       return this.getMockTemplates(type);

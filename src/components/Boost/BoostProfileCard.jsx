@@ -720,7 +720,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     minHeight: embeddedMinHeight,
     maxHeight: embeddedMaxHeight,
     maxWidth: embedded ? "100%" : undefined,
-    aspectRatio: embedded ? undefined : "auto",
+    aspectRatio: "auto",
     borderRadius: cardRadius,
     ...theme.frame,
     ...style,
@@ -771,6 +771,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
             display: "flex",
             flexDirection: "column",
             flex: embedded ? "0 0 auto" : undefined,
+            pointerEvents: embedded ? "auto" : "none",
           }}
         >
           {children}

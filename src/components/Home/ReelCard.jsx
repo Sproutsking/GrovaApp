@@ -116,7 +116,6 @@ const ReelCard = ({
   onProfileClick,
   onAuthorClick,
   onMusicClick,
-  onActionMenu,
   currentUser,
   onOpenFullScreen,
   onHashtagClick,
@@ -186,6 +185,7 @@ const ReelCard = ({
     avatar_id: reel.profiles?.avatar_id,
     avatar: null,
     verified: reel.profiles?.verified || reel.verified || false,
+    createdAt: reel.created_at,
   };
 
   const reelWithType = { ...reel, type: "reel" };
@@ -201,11 +201,29 @@ const ReelCard = ({
 
   // Follow status
   useEffect(() => {
-    if (!currentUser?.id || isOwnReel) return;
-    followService
-      .isFollowing(currentUser.id, reel.user_id)
-      .then(setIsFollowing)
+    if (!currentUser?.id || isOwnReel) {
+      setIsFollowing(false);
+      return undefined;
+    }
+    let active = true;
+    let changedAfterCheck = false;
+    const handleFollowsChanged = (event) => {
+      const detail = event.detail || {};
+      if (String(detail.followerId) !== String(currentUser.id)
+        || String(detail.followingId) !== String(reel.user_id)) return;
+      changedAfterCheck = true;
+      setIsFollowing(Boolean(detail.following));
+    };
+    window.addEventListener("xeevia:follows-changed", handleFollowsChanged);
+    followService.isFollowing(currentUser.id, reel.user_id)
+      .then((status) => {
+        if (active && !changedAfterCheck) setIsFollowing(status);
+      })
       .catch(() => {});
+    return () => {
+      active = false;
+      window.removeEventListener("xeevia:follows-changed", handleFollowsChanged);
+    };
   }, [reel.user_id, currentUser?.id, isOwnReel]);
 
   const handleFollowToggle = async (e) => {
@@ -358,7 +376,6 @@ const ReelCard = ({
     const rect = e.currentTarget.getBoundingClientRect();
     setActionMenuPos({ x: rect.right, y: rect.bottom });
     setShowActionMenu(true);
-    if (onActionMenu) onActionMenu(e, reelWithType, isOwnReel);
   };
 
   const handleDelete = async (reelId) => {

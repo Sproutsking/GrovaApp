@@ -14,11 +14,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Image, Film, BookOpen, Sparkles, DollarSign, Users, Plus, Minus, Loader,
-  Infinity, Palette, Save, FileText, CheckCircle, Eye, Lock, Wand2, Type,
-  Send, Compass,
+  Infinity, Palette, Save, FileText, CheckCircle, Eye, Lock, Wand2, Type, Music,
+  Send, Compass, Upload, ChevronDown, Globe, ShieldCheck, UserRound,
 } from "lucide-react";
 import { supabase }       from "../../services/config/supabase";
 import createService      from "../../services/create/createService";
+import cultureService     from "../../services/explore/cultureService";
 import securityService    from "../../services/security/SecurityService";
 import draftsService      from "../../services/drafts/draftsService";
 import MediaUploader      from "../MediaUploader/MediaUploader";
@@ -26,6 +27,7 @@ import Drafts             from "../Drafts/Drafts";
 import CustomCardMaker    from "../MediaUploader/CustomCardMaker";
 import TemplateLibrary    from "../MediaUploader/TemplateLibrary";
 import SmartTextarea      from "../SmartTextarea/SmartTextarea";
+import { SoundGalleryProvider, AddSoundButton } from "../Shared/SoundGallery";
 import LinkifiedText, { getExternalUrls } from "../Shared/LinkifiedText";
 import useDistribution    from "../../hooks/useDistribution";          // [D4]
 import PlatformSelector   from "../Distribution/PlatformSelector";
@@ -47,7 +49,7 @@ const DistributionBlock = ({ label, userId, distribution }) => {
       <PlatformSelector
         userId={userId}
         onSelection={distribution.setPlatforms}
-        initialSelection={distribution.selectedPlatforms}
+        selectedPlatforms={distribution.selectedPlatforms}
       />
       {distribution.distributionError && (
         <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, fontSize: 12, color: "#f87171" }}>
@@ -58,7 +60,59 @@ const DistributionBlock = ({ label, userId, distribution }) => {
   );
 };
 
-const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
+const MediaPickerPanel = ({ open, onToggle, children, title = "Add media from your device" }) => (
+  <section className="create-media-picker">
+    <button
+      type="button"
+      className="create-media-picker-toggle"
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <span className="create-media-picker-icon"><Upload size={16} /></span>
+      <span className="create-media-picker-copy">
+        <strong>{title}</strong>
+        <small>{open ? "Choose files or review selected media" : "Open your device media picker"}</small>
+      </span>
+      <ChevronDown size={16} className={open ? "create-media-picker-chevron open" : "create-media-picker-chevron"} />
+    </button>
+    {open && (
+      <div className="create-media-picker-content">
+        <p className="create-media-hint">Choose files from your device; selected images and videos appear below as previews.</p>
+        {children}
+      </div>
+    )}
+  </section>
+);
+
+const PostAudiencePicker = ({ value, onChange, disabled }) => {
+  const audiences = [
+    { value: "public", label: "Public", detail: "Anyone can see this post", Icon: Globe },
+    { value: "followers", label: "Followers", detail: "People who follow you", Icon: UserRound },
+    { value: "verified", label: "Verified", detail: "Verified members only", Icon: ShieldCheck },
+  ];
+
+  return (
+    <div className="create-audience-picker" role="radiogroup" aria-label="Post audience">
+      {audiences.map(({ value: audience, label, detail, Icon }) => (
+        <button
+          key={audience}
+          type="button"
+          role="radio"
+          aria-checked={value === audience}
+          className={`create-audience-option${value === audience ? " active" : ""}`}
+          onClick={() => onChange(audience)}
+          disabled={disabled}
+        >
+          <Icon size={16} />
+          <span><strong>{label}</strong><small>{detail}</small></span>
+          <i aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
+};
+
+const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
   const { showToast } = useToast();
   const { activeTrinityLens } = useTrinitylens();
   const [activeTab,       setActiveTab]       = useState("post");
@@ -98,12 +152,17 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [postCaption,  setPostCaption]  = useState("");
   const [postMedia,    setPostMedia]    = useState([]);
   const [postCategory, setPostCategory] = useState("General");
+  const [postAudience, setPostAudience] = useState("public");
+  const [mediaPickerOpen, setMediaPickerOpen] = useState({
+    post: false, reel: false, culture: false, story: false,
+  });
   const [useTextCard,  setUseTextCard]  = useState(false);
   const [linkDisplayMode, setLinkDisplayMode] = useState("embed");
 
   const [reelCaption,  setReelCaption]  = useState("");
   const [reelMedia,    setReelMedia]    = useState(null);
   const [reelCategory, setReelCategory] = useState("Entertainment");
+  const [reelSound,    setReelSound]    = useState(null);
 
   const [storyTitle,        setStoryTitle]        = useState("");
   const [storyCategory,     setStoryCategory]     = useState("Folklore");
@@ -113,6 +172,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [maxAccesses,       setMaxAccesses]       = useState(1000);
   const [isUnlimitedAccess, setIsUnlimitedAccess] = useState(false);
   const [storyCover,        setStoryCover]        = useState(null);
+  const [storyCoverPreview, setStoryCoverPreview] = useState(null);
   const [titleColor,        setTitleColor]        = useState("#ffffff");
   const [textColor,         setTextColor]         = useState("#d4d4d4");
 
@@ -123,6 +183,20 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const effectiveUserId = initialUserId || currentUser?.id || initialCurrentUser?.id;
   const distribution = useDistribution(effectiveUserId);          // [D4]
   const isPublishing = loading || distribution.isDistributing;
+
+  useEffect(() => {
+    if (!storyCover) {
+      setStoryCoverPreview(null);
+      return undefined;
+    }
+    if (typeof storyCover === "string") {
+      setStoryCoverPreview(storyCover);
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(storyCover);
+    setStoryCoverPreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [storyCover]);
 
   const cultureCategories = [
     { id: "trending", name: "Trending" },
@@ -235,7 +309,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     reelCaption, reelMedia, storyTitle, storyPreview, storyContent,
     cultureCaption, cultureMedia,
     postCategory, reelCategory, storyCategory, cultureCategory,
-    unlockPrice, maxAccesses, isUnlimitedAccess, titleColor, textColor, currentUser,
+    postAudience, unlockPrice, maxAccesses, isUnlimitedAccess, titleColor, textColor, currentUser,
   ]);
 
   const loadUser = async () => {
@@ -262,6 +336,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       if (activeTab === "post") {
         draftData.content  = useTextCard ? postContent : postCaption;
         draftData.category = postCategory;
+        draftData.postAudience = postAudience;
+        draftData.isTextCard = useTextCard;
+        draftData.caption = postCaption;
       } else if (activeTab === "reel") {
         draftData.caption  = reelCaption;
         draftData.category = reelCategory;
@@ -328,21 +405,30 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
 
   const handleCultureMediaReady = (mediaData) => {
     if (!mediaData) return;
+    if (mediaData.items?.length === 0) {
+      setCultureMedia(null);
+      return;
+    }
     if ((mediaData.type === "video" || mediaData.type === "created") && mediaData.url) {
-      setCultureMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
+      setCultureMedia({
+        type: "created",
+        url: mediaData.url,
+        mediaType: mediaData.type === "video" || mediaData.type === "created" ? "video" : mediaData.type,
+        duration: mediaData.duration || null,
+      });
       return;
     }
     if (mediaData.items?.length === 1) {
       const item = mediaData.items[0];
       if (item.url && typeof item.url === "string" && item.url.startsWith("http")) {
-        setCultureMedia({ type: "created", url: item.url, duration: item.duration || null });
+        setCultureMedia({ type: "created", url: item.url, mediaType: item.type, duration: item.duration || null });
       } else if (item.file) {
         setCultureMedia({ type: "items", items: mediaData.items });
       }
       return;
     }
     if (mediaData.url && typeof mediaData.url === "string" && mediaData.url.startsWith("http")) {
-      setCultureMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
+      setCultureMedia({ type: "created", url: mediaData.url, mediaType: mediaData.type, duration: mediaData.duration || null });
       return;
     }
     if (mediaData.items?.length > 0) {
@@ -354,11 +440,11 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const clearForm = () => {
     if (activeTab === "post") {
       setPostContent(""); setPostCaption(""); setPostMedia([]);
-      setPostCategory("General"); setUseTextCard(false);
+      setPostCategory("General"); setPostAudience("public"); setUseTextCard(false);
       setLinkDisplayMode("embed");
       setTextAlign("center"); setCardFontSize(null);
     } else if (activeTab === "reel") {
-      setReelCaption(""); setReelMedia(null); setReelCategory("Entertainment");
+      setReelCaption(""); setReelMedia(null); setReelCategory("Entertainment"); setReelSound(null);
     } else if (activeTab === "story") {
       setStoryTitle(""); setStoryCategory("Folklore");
       setStoryContent(""); setStoryPreview("");
@@ -447,35 +533,14 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         };
       }
 
-      const newPost = await createService.createPost(postData, currentUser.id);
+      const newPost = await createService.createPost({ ...postData, audience: postAudience }, currentUser.id);
       dispatchPublish(newPost, "post");
       if (onPublishSuccess) onPublishSuccess(newPost, "post");
       setDistributedPostId(newPost.id);
       setPublishNotice("Post published successfully");
       window.setTimeout(() => setPublishNotice(""), 3500);
 
-      try {
-        const distributionResult = await distribution.distributePost(newPost.id);
-        if (distributionResult && !distributionResult.success) {
-          const failedPlatforms = (distributionResult.results || [])
-            .filter((result) => !result.ok)
-            .map((result) => result.platform);
-          showToast({
-            type: "error",
-            message: "Post published, but distribution failed",
-            description: failedPlatforms.length
-              ? `Could not publish to: ${failedPlatforms.join(", " )}`
-              : "Check your connected platforms in Account → Identity.",
-          });
-        }
-      } catch (distributionError) {
-        console.warn("Post created but distribution failed:", distributionError);
-        showToast({
-          type: "error",
-          message: "Post published, but distribution failed",
-          description: distributionError.message || "Check your connected platforms in Account → Identity.",
-        });
-      }
+      await distributeCreatedContent("post", newPost);
 
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm();
@@ -505,19 +570,14 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       if (!videoToUpload) throw new Error("Could not resolve video. Please re-attach your video and try again.");
 
       const newReel = await createService.createReel(
-        { video: videoToUpload, caption: reelCaption.trim(), music: "Original Audio", category: reelCategory },
+        { video: videoToUpload, caption: reelCaption.trim(), music: reelSound?.name || "Original Audio", category: reelCategory },
         currentUser.id,
         (progress) => setUploadProgress(progress)
       );
       dispatchPublish(newReel, "reel");
       if (onPublishSuccess) onPublishSuccess(newReel, "reel");
 
-      // [D2] Distribute reel to connected platforms
-      try {
-        await distribution.distributePost(newReel.id);
-      } catch (distErr) {
-        console.warn("Reel created but distribution failed:", distErr);
-      }
+      await distributeCreatedContent("reel", newReel);
 
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm(); setUploadProgress(0);
@@ -558,12 +618,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       dispatchPublish(newStory, "story");
       if (onPublishSuccess) onPublishSuccess(newStory, "story");
 
-      // [D3] Distribute story preview to connected platforms
-      try {
-        await distribution.distributePost(newStory.id);
-      } catch (distErr) {
-        console.warn("Story created but distribution failed:", distErr);
-      }
+      await distributeCreatedContent("story", newStory);
 
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm();
@@ -582,32 +637,47 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       if (!cultureMedia) throw new Error("Image or video is required");
 
       let mediaToUpload;
+      let mediaType;
       if (cultureMedia.type === "created" && cultureMedia.url) {
         mediaToUpload = cultureMedia.url;
+        mediaType = cultureMedia.mediaType || "video";
       } else if (cultureMedia.type === "items" && cultureMedia.items?.length > 0) {
         const item = cultureMedia.items[0];
         mediaToUpload = (item.url && item.url.startsWith("http")) ? item.url : item.file;
+        mediaType = item.type;
       }
       if (!mediaToUpload) throw new Error("Could not resolve media. Please re-attach and try again.");
 
-      const newPost = await createService.createPost(
-        { 
-          media: [{ url: mediaToUpload, type: cultureMedia.type === "created" ? "video" : "image" }], 
-          caption: cultureCaption.trim(), 
-          category: cultureCategory,
-          isCulturePost: true
-        },
-        currentUser.id,
-        (progress) => setUploadProgress(progress)
-      );
+      const newPost = await createService.createPost({
+        content: cultureCaption.trim(),
+        images: mediaType === "image" ? [mediaToUpload] : [],
+        videos: mediaType === "video" ? [mediaToUpload] : [],
+        category: "Culture",
+        isTextCard: false,
+        audience: "public",
+      }, currentUser.id);
+      const category = (await cultureService.getCategories()).find((item) => item.slug === cultureCategory);
+      if (category) {
+        try {
+          await cultureService.tagContentToCulture("post", newPost.id, category.id, currentUser.id);
+        } catch (tagError) {
+          showToast({
+            type: "error",
+            message: "Culture post published, but category tagging failed",
+            description: tagError.message || "You can still find the post in your profile.",
+          });
+        }
+      } else {
+        showToast({
+          type: "error",
+          message: "Culture post published without a category",
+          description: "The selected culture category could not be found.",
+        });
+      }
       dispatchPublish(newPost, "post");
       if (onPublishSuccess) onPublishSuccess(newPost, "post");
 
-      try {
-        await distribution.distributePost(newPost.id);
-      } catch (distErr) {
-        console.warn("Culture post created but distribution failed:", distErr);
-      }
+      await distributeCreatedContent("post", newPost);
 
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm(); setUploadProgress(0);
@@ -619,7 +689,43 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
 
   const handleCoverUpload = (e) => {
     const file = e.target.files[0];
-    if (file && file.size <= 5 * 1024 * 1024) setStoryCover(file);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast({ type: "error", message: "Cover image is too large", description: "Choose an image under 5 MB." });
+      e.target.value = "";
+      return;
+    }
+    setStoryCover(file);
+  };
+
+  const distributeCreatedContent = async (contentType, item) => {
+    if (!distribution.selectedPlatforms.length) return;
+    try {
+      const result = contentType === "post"
+        ? await distribution.distributePost(item.id)
+        : await distribution.distributeContent(contentType, item.id);
+      if (result && !result.success) {
+        const failed = (result.results || []).filter((entry) => !entry.ok);
+        const failedPlatforms = failed.map((entry) => entry.platform);
+        const manualShareLinks = failed
+          .filter((entry) => entry.deepLink?.url)
+          .map((entry) => `${entry.platform}: ${entry.deepLink.url}`);
+        showToast({
+          type: "error",
+          message: `${contentType[0].toUpperCase()}${contentType.slice(1)} published, but some destinations failed`,
+          description: [
+            failedPlatforms.length ? `Could not publish to: ${failedPlatforms.join(", ")}` : "Check the destination connection and try again.",
+            ...manualShareLinks,
+          ].join("\n"),
+        });
+      }
+    } catch (error) {
+      showToast({
+        type: "error",
+        message: `${contentType[0].toUpperCase()}${contentType.slice(1)} published, but distribution failed`,
+        description: error.message || "Check your linked platforms and try again.",
+      });
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -644,7 +750,10 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     setCurrentDraftId(draft.id);
     if (draft.content_type === "post") {
       setPostContent(draft.post_content   || "");
+      setPostCaption(draft.post_caption || (!draft.post_is_text_card ? draft.post_content || "" : ""));
+      setUseTextCard(Boolean(draft.post_is_text_card));
       setPostCategory(draft.post_category || "General");
+      setPostAudience(draft.post_audience || "public");
     } else if (draft.content_type === "reel") {
       setReelCaption(draft.reel_caption   || "");
       setReelCategory(draft.reel_category || "Entertainment");
@@ -659,8 +768,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       setTitleColor(draft.story_title_color   || "#ffffff");
       setTextColor(draft.story_text_color     || "#d4d4d4");
     } else if (draft.content_type === "culture") {
-      setCultureCaption(draft.caption || "");
-      setCultureCategory(draft.category || "trending");
+      setCultureCaption(draft.culture_caption || "");
+      setCultureCategory(draft.culture_category || "trending");
     }
     setShowDrafts(false);
     setHasUnsavedChanges(true);
@@ -674,6 +783,32 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     if (diffMins === 1) return "Saved 1 minute ago";
     if (diffMins < 60)  return `Saved ${diffMins} minutes ago`;
     return `Saved at ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  const handleSelectTemplate = (template) => {
+    const config = template?.config || {};
+    if (template?.type === "post") {
+      setActiveTab("post");
+      if (config.textCard) {
+        setUseTextCard(true);
+        setPostContent("");
+      }
+      if (modePostCategories.includes(template.category)) setPostCategory(template.category);
+    } else if (template?.type === "reel") {
+      setActiveTab("reel");
+      if (modeReelCategories.includes(template.category)) setReelCategory(template.category);
+      setMediaPickerOpen((state) => ({ ...state, reel: true }));
+    } else if (template?.type === "story") {
+      setActiveTab("story");
+      if (storyCategories.includes(template.category)) setStoryCategory(template.category);
+      if (!storyTitle.trim()) setStoryTitle(template.name || "");
+      if (config.structure === "three-act" && !storyContent.trim()) {
+        setStoryContent("Beginning\n\nTurning point\n\nResolution");
+      }
+      if (!storyPreview.trim() && template.description) setStoryPreview(template.description);
+    }
+    setHasUnsavedChanges(true);
+    setShowTemplates(false);
   };
 
   const cardGradient  = `linear-gradient(${gradientAngle}deg, ${customCardColor1} 0%, ${customCardColor2} 100%)`;
@@ -717,18 +852,18 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         )}
 
         {/* ── TABS ── */}
-        <div className="content-tabs">
-          <button className={`content-tab${activeTab === "post"  ? " active" : ""}`} onClick={() => handleTabChange("post")}>
-            <Image size={14} /> Post
+        <div className="content-tabs" role="tablist" aria-label="Choose content type">
+          <button role="tab" aria-selected={activeTab === "post"} className={`content-tab${activeTab === "post"  ? " active" : ""}`} onClick={() => handleTabChange("post")}>
+            <Image size={16} /><span><strong>Post</strong></span>
           </button>
-          <button className={`content-tab${activeTab === "reel"  ? " active" : ""}`} onClick={() => handleTabChange("reel")}>
-            <Film size={14} /> Reel
+          <button role="tab" aria-selected={activeTab === "reel"} className={`content-tab${activeTab === "reel"  ? " active" : ""}`} onClick={() => handleTabChange("reel")}>
+            <Film size={16} /><span><strong>Reel</strong></span>
           </button>
-          <button className={`content-tab${activeTab === "culture" ? " active" : ""}`} onClick={() => handleTabChange("culture")}>
-            <Compass size={14} /> {activeTrinityLens === "streaming" ? "Events" : "Culture"}
+          <button role="tab" aria-selected={activeTab === "culture"} className={`content-tab${activeTab === "culture" ? " active" : ""}`} onClick={() => handleTabChange("culture")}>
+            <Compass size={16} /><span><strong>{activeTrinityLens === "streaming" ? "Events" : "Culture"}</strong></span>
           </button>
-          <button className={`content-tab${activeTab === "story" ? " active" : ""}`} onClick={() => handleTabChange("story")}>
-            <BookOpen size={14} /> Story
+          <button role="tab" aria-selected={activeTab === "story"} className={`content-tab${activeTab === "story" ? " active" : ""}`} onClick={() => handleTabChange("story")}>
+            <BookOpen size={16} /><span><strong>Story</strong></span>
           </button>
         </div>
 
@@ -838,14 +973,33 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                     textareaRef={postCaptionRef}
                   />
                 </div>
-                <div className="form-group">
-                  <label className="form-label"><Image size={12} /> Media (Images &amp; Videos)</label>
-                  <MediaUploader
-                    onMediaReady={handlePostMediaReady}
-                    maxItems={10}
-                    allowMixed={true}
-                    defaultType="mixed"
+                <div className="form-group create-reel-sound-group">
+                  <label className="form-label"><Music size={12} /> Sound</label>
+                  <AddSoundButton
+                    context="reel"
+                    onSoundSelected={setReelSound}
+                    hasSound={Boolean(reelSound)}
+                    soundName={reelSound?.name}
                   />
+                  {reelSound?.url && (
+                    <audio className="create-reel-sound-preview" controls preload="none" src={reelSound.url}>
+                      Your browser does not support audio playback.
+                    </audio>
+                  )}
+                </div>
+                <div className="form-group">
+                  <MediaPickerPanel
+                    open={mediaPickerOpen.post}
+                    onToggle={() => setMediaPickerOpen((state) => ({ ...state, post: !state.post }))}
+                    title="Recent media & uploads"
+                  >
+                    <MediaUploader
+                      onMediaReady={handlePostMediaReady}
+                      maxItems={10}
+                      allowMixed={true}
+                      defaultType="mixed"
+                    />
+                  </MediaPickerPanel>
                 </div>
               </>
             )}
@@ -885,6 +1039,12 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
               </select>
             </div>
 
+            <div className="form-group">
+              <label className="form-label"><Users size={12} /> Audience</label>
+              <PostAudiencePicker value={postAudience} onChange={setPostAudience} disabled={loading} />
+              <small className="create-audience-note">This controls who can view the post in Grova. Linked platforms use their own account defaults.</small>
+            </div>
+
             {/* [D2] Distribution — post tab */}
             <DistributionBlock label="post" userId={currentUser?.id} distribution={distribution} />
 
@@ -911,13 +1071,19 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         {activeTab === "reel" && (
           <div className="create-form">
             <div className="form-group">
-              <label className="form-label"><Film size={12} /> Create Your Reel</label>
-              <MediaUploader
-                onMediaReady={handleReelMediaReady}
-                maxItems={10}
-                allowMixed={true}
-                defaultType="video"
-              />
+              <MediaPickerPanel
+                open={mediaPickerOpen.reel}
+                onToggle={() => setMediaPickerOpen((state) => ({ ...state, reel: !state.reel }))}
+                title="Choose recent video"
+              >
+                <MediaUploader
+                  onMediaReady={handleReelMediaReady}
+                  maxItems={1}
+                  allowMixed={false}
+                  defaultType="video"
+                  acceptedTypes={["video"]}
+                />
+              </MediaPickerPanel>
             </div>
             <div className="form-group">
               <label className="form-label"><Sparkles size={12} /> Caption</label>
@@ -956,6 +1122,12 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         {/* ════ STORY TAB ════ */}
         {activeTab === "story" && (
           <div className="create-form">
+            <div className="create-story-intro">
+              <BookOpen size={18} />
+              <div><strong>Build a story people can follow</strong><span>Start with a clear title and free preview, then add the full story and choose how readers can access it.</span></div>
+            </div>
+            <div className="create-story-layout">
+              <div className="create-story-fields">
 
             <div className="form-group">
               <label className="form-label"><BookOpen size={12} /> Story Title</label>
@@ -979,13 +1151,22 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
 
             <div className="form-group">
               <label className="form-label"><Image size={12} /> Cover Image (Optional)</label>
-              <input type="file" accept="image/*" onChange={handleCoverUpload}
-                style={{ display: "none" }} id="story-cover-upload" disabled={loading} />
-              <label htmlFor="story-cover-upload" className="upload-area-compact">
-                <Image size={16} />
-                <span>{storyCover ? storyCover.name : "Upload cover image"}</span>
-                <small>JPG, PNG · 5 MB</small>
-              </label>
+              <MediaPickerPanel
+                open={mediaPickerOpen.story}
+                onToggle={() => setMediaPickerOpen((state) => ({ ...state, story: !state.story }))}
+                title="Choose story cover from device"
+              >
+                <input type="file" accept="image/*" onChange={handleCoverUpload}
+                  className="create-device-file-input" id="story-cover-upload" disabled={loading} />
+                <label htmlFor="story-cover-upload" className="create-cover-file-button"><Image size={15} />Browse images</label>
+                {storyCoverPreview && (
+                  <div className="create-story-cover-preview">
+                    <img src={storyCoverPreview} alt="Selected story cover preview" />
+                    <span>{storyCover?.name || "Current cover image"}</span>
+                  </div>
+                )}
+                <small className="create-media-hint">Select an image to see its thumbnail preview. JPG or PNG, up to 5 MB.</small>
+              </MediaPickerPanel>
             </div>
 
             <div className="customization-section">
@@ -1117,12 +1298,38 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                   : <><Send size={15} /> Publish Story</>}
               </button>
             </div>
+              </div>
+
+              <aside className="creator-live-preview story-live-preview" aria-label="Story preview">
+                <div className="creator-live-preview-heading">
+                  <span>LIVE PREVIEW</span>
+                  <span className="creator-preview-type"><BookOpen size={12} /> STORY</span>
+                </div>
+                <article className="story-preview-card">
+                  <div className="story-preview-art" style={storyCoverPreview ? { backgroundImage: `linear-gradient(155deg, rgba(10,14,7,.18), rgba(10,14,7,.86)), url("${storyCoverPreview}")` } : undefined}>
+                    {!storyCoverPreview && <BookOpen size={30} />}
+                    <span className="story-preview-category">{storyCategory}</span>
+                  </div>
+                  <div className="story-preview-copy">
+                    <strong style={{ color: titleColor }}>{storyTitle.trim() || "Your story title"}</strong>
+                    <p style={{ color: textColor }}>{storyPreview.trim() || "Your free preview will appear here as readers discover your story."}</p>
+                    <div className="story-preview-footer">
+                      <span>{unlockPrice > 0 ? `${unlockPrice} XEV to unlock` : "Free to read"}</span>
+                      <span>{storyContent.trim() ? `${Math.max(1, Math.ceil(storyContent.trim().split(/\s+/).length / 200))} min read` : "A new story"}</span>
+                    </div>
+                  </div>
+                </article>
+                <p className="creator-preview-note">Readers see the title, cover and preview before opening the full story.</p>
+              </aside>
+            </div>
           </div>
         )}
 
         {/* ════ CULTURE TAB ════ */}
         {activeTab === "culture" && (
           <div className="create-form">
+            <div className="create-culture-layout">
+              <div className="create-culture-fields">
 
             <div className="form-group">
               <label className="form-label"><Compass size={12} /> Culture Category</label>
@@ -1135,13 +1342,18 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             </div>
 
             <div className="form-group">
-              <label className="form-label"><Sparkles size={12} /> Culture Media (Image or Video)</label>
-              <MediaUploader
-                onMediaReady={handleCultureMediaReady}
-                acceptedTypes={["image", "video"]}
-                maxFiles={1}
-                maxDuration={300}
-              />
+              <MediaPickerPanel
+                open={mediaPickerOpen.culture}
+                onToggle={() => setMediaPickerOpen((state) => ({ ...state, culture: !state.culture }))}
+                title="Choose recent culture media"
+              >
+                <MediaUploader
+                  onMediaReady={handleCultureMediaReady}
+                  acceptedTypes={["image", "video"]}
+                  maxFiles={1}
+                  maxDuration={300}
+                />
+              </MediaPickerPanel>
             </div>
 
             <div className="form-group">
@@ -1168,6 +1380,36 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                   : <><Send size={15} /> Publish Culture Post</>}
               </button>
             </div>
+              </div>
+
+              <aside className="creator-live-preview culture-live-preview" aria-label="Culture post preview">
+                <div className="creator-live-preview-heading">
+                  <span>LIVE PREVIEW</span>
+                  <span className="creator-preview-type"><Compass size={12} /> CULTURE</span>
+                </div>
+                <article className="culture-preview-card">
+                  {(() => {
+                    const previewItem = cultureMedia?.items?.[0];
+                    const previewUrl = cultureMedia?.url || previewItem?.preview || previewItem?.thumbnail || previewItem?.url;
+                    const isVideo = cultureMedia?.type === "created"
+                      ? cultureMedia.mediaType === "video"
+                      : previewItem?.type === "video";
+                    if (!previewUrl) {
+                      return <div className="culture-preview-media culture-preview-placeholder"><Compass size={28} /><span>Your chosen media will appear here</span></div>;
+                    }
+                    return isVideo
+                      ? <video className="culture-preview-media" src={previewUrl} poster={previewItem?.thumbnail} muted playsInline preload="metadata" />
+                      : <img className="culture-preview-media" src={previewUrl} alt="Culture post media preview" />;
+                  })()}
+                  <div className="culture-preview-copy">
+                    <span className="culture-preview-category">{cultureCategories.find((category) => category.id === cultureCategory)?.name || "Culture"}</span>
+                    <p>{cultureCaption.trim() || "Your caption will appear here alongside the selected culture media."}</p>
+                    <small>Shared with the Grova community</small>
+                  </div>
+                </article>
+                <p className="creator-preview-note">A clear caption and category help people discover the culture behind your post.</p>
+              </aside>
+            </div>
           </div>
         )}
       </div>
@@ -1179,8 +1421,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       {showTemplates && (
         <TemplateLibrary
           onClose={() => setShowTemplates(false)}
-          onSelectTemplate={(template) => { setShowTemplates(false); }}
+          onSelectTemplate={handleSelectTemplate}
           currentUser={currentUser}
+          initialType={activeTab}
         />
       )}
       {showCustomColorPicker && (
@@ -1219,5 +1462,11 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     </>
   );
 };
+
+const CreateView = (props) => (
+  <SoundGalleryProvider>
+    <CreateViewContent {...props} />
+  </SoundGalleryProvider>
+);
 
 export default CreateView;

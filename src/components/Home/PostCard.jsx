@@ -160,17 +160,6 @@ function buildVideoPoster(id, metadata = {}) {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const relTime = (d) => {
-  if (!d) return "";
-  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-  if (s < 60)  return "just now";
-  const m = Math.floor(s / 60); if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60); if (h < 24) return `${h}h`;
-  const dy = Math.floor(h / 24); if (dy < 7) return `${dy}d`;
-  return new Date(d).toLocaleDateString("en-US", { month:"short", day:"numeric" });
-};
-
 // ─── Global video state ───────────────────────────────────────────────────────
 export const GlobalVideoState = {
   globalPlayState: false, globalMuteState: true, listeners: new Set(),
@@ -582,11 +571,33 @@ const PostCard = ({
     avatar_id: post.profiles?.avatar_id,
     avatar:   post.avatar || null,
     verified: post.profiles?.verified || post.verified || false,
+    createdAt: post.created_at,
   };
 
   useEffect(() => {
-    if (!currentUser?.id || isOwn) return;
-    followService.isFollowing(currentUser.id, post.user_id).then(setFollowing).catch(() => {});
+    if (!currentUser?.id || isOwn) {
+      setFollowing(false);
+      return undefined;
+    }
+    let active = true;
+    let changedAfterCheck = false;
+    const handleFollowsChanged = (event) => {
+      const detail = event.detail || {};
+      if (String(detail.followerId) !== String(currentUser.id)
+        || String(detail.followingId) !== String(post.user_id)) return;
+      changedAfterCheck = true;
+      setFollowing(Boolean(detail.following));
+    };
+    window.addEventListener("xeevia:follows-changed", handleFollowsChanged);
+    followService.isFollowing(currentUser.id, post.user_id)
+      .then((status) => {
+        if (active && !changedAfterCheck) setFollowing(status);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      window.removeEventListener("xeevia:follows-changed", handleFollowsChanged);
+    };
   }, [post.user_id, currentUser?.id, isOwn]); // eslint-disable-line
 
   const toggleFollow = async (e) => {
@@ -595,10 +606,15 @@ const PostCard = ({
     const next = !following;
     setFollowing(next);
     if (next) { setFollowPop(true); setTimeout(() => setFollowPop(false), 600); }
-    const result = next
-      ? await followService.followUser(currentUser.id, post.user_id)
-      : await followService.unfollowUser(currentUser.id, post.user_id);
-    if (result?.success === false && !result?.alreadyFollowing) setFollowing(!next);
+    try {
+      const result = next
+        ? await followService.followUser(currentUser.id, post.user_id)
+        : await followService.unfollowUser(currentUser.id, post.user_id);
+      if (result?.success === false && !result?.alreadyFollowing) setFollowing(!next);
+      if (result?.alreadyFollowing) setFollowing(true);
+    } catch {
+      setFollowing(!next);
+    }
   };
 
   // Build media items
@@ -775,7 +791,6 @@ const PostCard = ({
             size="small"
             onClick={() => (onProfileClick || onAuthorClick)?.(profile)}
           />
-          {post.created_at && <span className="gvp-ts">{relTime(post.created_at)}</span>}
           <div className="gvp-hsp" />
           {!isOwn && currentUser?.id && (
             <button

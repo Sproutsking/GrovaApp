@@ -77,6 +77,32 @@ const useDistribution = (userId) => {
     }
   }, [selectedPlatforms]);
 
+  const distributeContent = useCallback(async (contentType, contentId) => {
+    if (!contentId) return;
+    if (selectedPlatforms.length === 0) return { success: true, targets: [], message: "No platforms selected" };
+
+    setIsDistributing(true);
+    setDistributionError(null);
+    setDistributionStatus(null);
+    try {
+      const result = await distributionService.distributeContent(
+        contentType,
+        contentId,
+        userIdRef.current,
+        selectedPlatforms
+      );
+      setDistributionStatus(result);
+      return result;
+    } catch (err) {
+      const msg = err?.message || "Distribution failed";
+      setDistributionError(msg);
+      console.error("[useDistribution] distributeContent error:", msg);
+      throw err;
+    } finally {
+      setIsDistributing(false);
+    }
+  }, [selectedPlatforms]);
+
   /**
    * Reset all distribution state.
    * Called by CreateView.clearForm() between publishes so platforms
@@ -96,6 +122,7 @@ const useDistribution = (userId) => {
     distributionStatus,
     distributionError,
     distributePost,
+    distributeContent,
     clearState,
     // Alias for backwards compat with any code calling distribution.reset()
     reset: clearState,

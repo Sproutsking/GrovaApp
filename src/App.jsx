@@ -294,11 +294,13 @@ const MainApp = memo(() => {
   const [userBalance,        setUserBalance]        = useState({ tokens: 0, points: 0 });
   const [profileData,        setProfileData]        = useState(null);
   const [activeTab,          setActiveTab]          = useState("home");
+  const [exploreSearchRequest, setExploreSearchRequest] = useState(null);
   const [hasRoomForTrending, setHasRoomForTrending] = useState(true);
   const [overlayTab,         setOverlayTab]         = useState(null);
   const [isMobile,           setIsMobile]           = useState(checkMobile);
   const [sidebarOpen,        setSidebarOpen]        = useState(true);
   const [accountSection,     setAccountSection]     = useState("profile");
+  const [profileShortcutRequest, setProfileShortcutRequest] = useState({ action: null, id: 0 });
   const [homeSection,        setHomeSection]        = useState("newsfeed");
   const [isSubscribed,       setIsSubscribed]       = useState(profile?.is_pro || false);
   const [showNotifications,  setShowNotifications]  = useState(false);
@@ -883,6 +885,60 @@ const MainApp = memo(() => {
     setMountedTabs((p) => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
   }, [isAdmin, isMobile]);
 
+  useEffect(() => {
+    const handleProfileShortcut = (event) => {
+      const action = event.detail?.action;
+      if (action === "ambassador") {
+        handleTabChange("ambassador");
+        return;
+      }
+
+      setAccountSection("profile");
+      handleTabChange("account");
+      setProfileShortcutRequest((previous) => ({ action, id: previous.id + 1 }));
+    };
+    window.addEventListener("xeevia:profile-shortcut", handleProfileShortcut);
+    return () => window.removeEventListener("xeevia:profile-shortcut", handleProfileShortcut);
+  }, [handleTabChange]);
+
+  useEffect(() => {
+    const handleProfileAppNavigation = (event) => {
+      const tab = event.detail?.tab;
+      if (["home", "search", "create", "community", "wallet", "account"].includes(tab)) {
+        handleTabChange(tab);
+      }
+    };
+    window.addEventListener("xeevia:profile-app-nav", handleProfileAppNavigation);
+    return () => window.removeEventListener("xeevia:profile-app-nav", handleProfileAppNavigation);
+  }, [handleTabChange]);
+
+  useEffect(() => {
+    const handleProfileSearch = (event) => {
+      const query = event.detail?.query;
+      if (typeof query !== "string" || !query.trim()) return;
+      setExploreSearchRequest({ query: query.trim() });
+      handleTabChange("search");
+    };
+    window.addEventListener("xeevia:profile-app-search", handleProfileSearch);
+    return () => window.removeEventListener("xeevia:profile-app-search", handleProfileSearch);
+  }, [handleTabChange]);
+
+  useEffect(() => {
+    const handleProfileAppNavigation = (event) => {
+      const tab = event.detail?.tab;
+      if (["home", "search", "create", "community", "wallet", "account"].includes(tab)) {
+        handleTabChange(tab);
+      }
+    };
+    window.addEventListener("xeevia:profile-app-nav", handleProfileAppNavigation);
+    return () => window.removeEventListener("xeevia:profile-app-nav", handleProfileAppNavigation);
+  }, [handleTabChange]);
+
+  const handleSearchNavigate = useCallback((query) => {
+    setExploreSearchRequest({ query });
+    handleTabChange("search");
+  }, [handleTabChange]);
+
   const closeOverlayToAccount = useCallback(() => {
     setOverlayTab(null);
     setStreamSession(null);
@@ -979,7 +1035,7 @@ const MainApp = memo(() => {
         id: "search",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <ExploreView {...viewProps} xrcService={xrcService} />
+            <ExploreView {...viewProps} xrcService={xrcService} searchRequest={exploreSearchRequest} />
           </Suspense>
         ),
       },
@@ -1007,6 +1063,7 @@ const MainApp = memo(() => {
               {...viewProps}
               accountSection={accountSection}
               setAccountSection={setAccountSection}
+              profileShortcutRequest={profileShortcutRequest}
               setActiveTab={handleTabChange}
               isSubscribed={isSubscribed}
               onSignOut={handleSignOut}
@@ -1302,6 +1359,7 @@ const MainApp = memo(() => {
                 setActiveTab={handleTabChange}
                 setFeedFilter={setFeedFilter}
                 onJoinStream={handleJoinStream}
+                onSearchNavigate={handleSearchNavigate}
               />
             </Suspense>
           )}

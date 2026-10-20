@@ -6,6 +6,7 @@ import {
   Film,
   BookOpen,
   FileText,
+  Compass,
   ArrowLeft,
   RefreshCw,
   Check,
@@ -85,6 +86,8 @@ const Drafts = ({ onLoadDraft, onClose, showToast }) => {
         return <Film size={20} />;
       case "story":
         return <BookOpen size={20} />;
+      case "culture":
+        return <Compass size={20} />;
       default:
         return <FileText size={20} />;
     }
@@ -101,6 +104,8 @@ const Drafts = ({ onLoadDraft, onClose, showToast }) => {
         draft.story_title ||
         "No preview"
       );
+    } else if (draft.content_type === "culture") {
+      return draft.culture_caption?.substring(0, 100) || "No caption";
     }
     return "No preview available";
   };
@@ -177,6 +182,12 @@ const Drafts = ({ onLoadDraft, onClose, showToast }) => {
               onClick={() => setFilterType("story")}
             >
               <BookOpen size={16} /> Stories ({getFilteredCount("story")})
+            </button>
+            <button
+              className={`filter-chip ${filterType === "culture" ? "active" : ""}`}
+              onClick={() => setFilterType("culture")}
+            >
+              <Compass size={16} /> Culture ({getFilteredCount("culture")})
             </button>
           </div>
         </div>

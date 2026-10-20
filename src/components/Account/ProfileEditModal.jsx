@@ -4,6 +4,7 @@ import { X, Loader, Save, User, FileText, Check, AlertCircle, Camera, Sparkles }
 import { supabase } from '../../services/config/supabase';
 import uploadService from '../../services/upload/uploadService';
 import profileService from '../../services/account/profileService';
+import { formatProfileTag, normalizeProfileTags, PROFILE_TAG_OPTIONS } from '../../services/account/profileTags';
 
 const HEADER_H     = 56;
 const BOTTOM_H_MOB = 58;
@@ -44,15 +45,20 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
     fullName:      currentProfile?.fullName || '',
     username:      currentProfile?.username || '',
     bio:           currentProfile?.bio      || '',
+    profileTags:   normalizeProfileTags(currentProfile?.profileTags),
     avatarPreview: currentProfile?.avatar   || null,
     avatarFile:    null,
     avatarId:      null,
+    bannerPreview: currentProfile?.bannerImageUrl || null,
+    bannerFile:    null,
+    bannerImageId: currentProfile?.bannerImageId || null,
   });
 
   const [errors,      setErrors]      = useState({});
   const [touched,     setTouched]     = useState({});
   const [panelEdges,  setPanelEdges]  = useState({ left: 0, right: 0 });
   const fileRef = useRef(null);
+  const bannerFileRef = useRef(null);
 
   const recalc = useCallback(() => {
     setPanelEdges(measureLayout());
@@ -108,6 +114,19 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
     reader.readAsDataURL(file);
   };
 
+  const handleBannerSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert('Banner image must be less than 10 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (event) => setFormData(prev => ({
+      ...prev, bannerFile: file, bannerPreview: event.target.result,
+    }));
+    reader.readAsDataURL(file);
+  };
+
   const uploadAvatar = async () => {
     if (!formData.avatarFile) return null;
     try {
@@ -133,6 +152,7 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
         full_name:  formData.fullName,
         username:   formData.username,
         bio:        formData.bio || null,
+        profile_tags: normalizeProfileTags(formData.profileTags),
         updated_at: new Date().toISOString(),
       };
 
@@ -143,6 +163,14 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
         } catch { alert('Avatar upload failed, other changes will still be saved'); }
       }
 
+      if (formData.bannerFile) {
+        setUploading(true);
+        try {
+          const banner = await uploadService.uploadImage(formData.bannerFile, 'xeevia/profile-banners');
+          updateData.banner_image_id = banner.id;
+        } finally { setUploading(false); }
+      }
+
       const updated = await profileService.updateProfile(userId, updateData);
 
       setSaved(true);
@@ -150,11 +178,16 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
         const updatedProfile = {
           fullName: updated.full_name || formData.fullName,
           username: updated.username || formData.username,
-          bio:      updated.bio || formData.bio,
+          bio:      updated.bio ?? formData.bio,
+          profileTags: normalizeProfileTags(updated.profile_tags ?? formData.profileTags),
           avatar:   updateData.avatar_id
             ? uploadService.getImageUrl(updateData.avatar_id, { width: 400, height: 400, crop: 'fill', gravity: 'face' })
             : currentProfile?.avatar,
           avatarId: updateData.avatar_id || currentProfile?.avatarId,
+          bannerImageUrl: updateData.banner_image_id
+            ? uploadService.getImageUrl(updateData.banner_image_id, { width: 1500, height: 520, crop: 'fill', gravity: 'auto' })
+            : currentProfile?.bannerImageUrl,
+          bannerImageId: updateData.banner_image_id || currentProfile?.bannerImageId,
         };
         if (onSuccess) onSuccess(updatedProfile);
         onClose();
@@ -265,6 +298,24 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
             <p className="pem-avatar-hint">
               {formData.avatarFile ? formData.avatarFile.name : 'Click camera icon to change photo · max 5 MB'}
             </p>
+            <div className="pem-banner-editor">
+              <div
+                className="pem-banner-preview"
+                style={formData.bannerPreview ? { backgroundImage: `linear-gradient(90deg,rgba(3,8,5,.42),rgba(3,8,5,.12)),url("${formData.bannerPreview}")` } : undefined}
+              >
+                <span>{formData.bannerFile ? formData.bannerFile.name : 'Profile banner'}</span>
+              </div>
+              <input ref={bannerFileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleBannerSelect} style={{ display: 'none' }} />
+              <button
+                type="button"
+                className="pem-banner-btn"
+                onClick={() => bannerFileRef.current?.click()}
+                disabled={uploading || saving}
+              >
+                <Camera size={13} /> Change banner
+              </button>
+              <small>JPG, PNG, GIF or WEBP · up to 10 MB</small>
+            </div>
           </div>
 
           {/* Section label */}
@@ -315,6 +366,38 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
                 </div>
               </div>
             </FieldGroup>
+
+            <div className="pem-field">
+              <div className="pem-label">
+                <span className="pem-label-icon"><Sparkles size={11} /></span>
+                Profile tags
+              </div>
+              <p className="pem-hint pem-tags-note">
+                Choose up to 5 labels that describe you. These are self-described, not verified credentials.
+              </p>
+              <div className="pem-profile-tags" aria-label="Choose profile tags">
+                {PROFILE_TAG_OPTIONS.map((tag) => {
+                  const selected = formData.profileTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`pem-profile-tag${selected ? ' selected' : ''}`}
+                      aria-pressed={selected}
+                      disabled={!selected && formData.profileTags.length >= 5}
+                      onClick={() => handleChange(
+                        'profileTags',
+                        selected
+                          ? formData.profileTags.filter((item) => item !== tag)
+                          : [...formData.profileTags, tag],
+                      )}
+                    >
+                      {formatProfileTag(tag)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
           </div>
         </div>
@@ -540,6 +623,27 @@ const STYLES = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     letter-spacing: 0.02em;
   }
+  .pem-banner-editor {
+    display: grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px;
+    width:min(460px,100%); margin-top:20px; padding:9px;
+    border:1px solid rgba(255,255,255,0.09); border-radius:12px; background:rgba(0,0,0,0.22);
+  }
+  .pem-banner-preview {
+    min-width:0; height:48px; display:flex; align-items:flex-end; overflow:hidden;
+    padding:7px 9px; border:1px solid rgba(163,230,53,0.2); border-radius:8px;
+    background-color:#101810;
+    background-image:linear-gradient(135deg,rgba(132,204,22,0.18),rgba(4,10,6,0.86));
+    background-size:cover; background-position:center;
+  }
+  .pem-banner-preview span { overflow:hidden; color:#e8f6d5; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+  .pem-banner-btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; padding:0 11px;
+    border:1px solid rgba(163,230,53,0.34); border-radius:9px; background:rgba(132,204,22,0.12);
+    color:#c5f17e; font-size:10px; font-weight:800; cursor:pointer;
+  }
+  .pem-banner-btn:hover:not(:disabled) { border-color:rgba(163,230,53,0.65); background:rgba(132,204,22,0.2); }
+  .pem-banner-btn:disabled { opacity:.45; cursor:not-allowed; }
+  .pem-banner-editor small { grid-column:1/-1; color:rgba(255,255,255,0.36); font-size:9px; }
 
   /* ── Section divider ── */
   .pem-divider { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; margin-bottom: 4px; }
@@ -600,6 +704,11 @@ const STYLES = `
   .pem-bio-bar-fill  { height: 100%; background: rgba(132,204,22,0.5); border-radius: 1px; transition: width 0.18s, background 0.2s; }
   .pem-bio-counter.warn .pem-bio-bar-fill { background: rgba(245,158,11,0.7); }
   .pem-bio-counter.over .pem-bio-bar-fill { background: rgba(239,68,68,0.8); width: 100% !important; }
+  .pem-tags-note { margin: 0 0 10px; line-height: 1.5; }
+  .pem-profile-tags { display:flex; flex-wrap:wrap; gap:7px; }
+  .pem-profile-tag { border:1px solid rgba(255,255,255,.11); border-radius:999px; padding:7px 10px; background:rgba(255,255,255,.035); color:#adb5a8; font:inherit; font-size:11px; font-weight:600; cursor:pointer; transition:background .16s,border-color .16s,color .16s; }
+  .pem-profile-tag.selected { border-color:rgba(163,230,53,.42); background:rgba(163,230,53,.12); color:#c9f58a; }
+  .pem-profile-tag:disabled { opacity:.42; cursor:not-allowed; }
   .pem-bio-num  { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.26); flex-shrink: 0; letter-spacing: 0.03em; transition: color 0.2s; }
   .pem-bio-max  { opacity: 0.55; }
   .pem-bio-counter.warn .pem-bio-num { color: rgba(245,158,11,0.85); }

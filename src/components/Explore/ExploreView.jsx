@@ -14,6 +14,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback, startTransition } from "react";
+import ReactDOM from "react-dom";
 import {
   Search, Filter, ChevronDown, X, Loader, Hash, AtSign,
   User, ChevronRight, BookOpen, Film, FileText,
@@ -22,7 +23,6 @@ import {
   Lock, Unlock, ArrowRight, Copy, Check
 } from "lucide-react";
 import exploreService from "../../services/explore/exploreService";
-import mediaUrlService from "../../services/shared/mediaUrlService";
 import PostCard from "../Home/PostCard";
 import ReelCard from "../Home/ReelCard";
 import StoryCard from "../Home/StoryCard";
@@ -84,17 +84,25 @@ const UserContextPanel = ({ userContext, currentUser, onAuthorClick, onActionMen
   const mentionedTotal = (mentionedInPosts?.length || 0) + (mentionedInReels?.length || 0) + (mentionedInStories?.length || 0);
   const authoredTotal  = (byUser?.posts?.length || 0) + (byUser?.reels?.length || 0) + (byUser?.stories?.length || 0);
   if (mentionedTotal === 0 && authoredTotal === 0) return null;
-  const avatarUrl = resolvedUser.avatar_id ? mediaUrlService.getAvatarUrl(resolvedUser.avatar_id) : null;
-
   return (
     <div className="xpl-user-ctx">
-      <div className="xpl-ctx-identity" onClick={() => onAuthorClick?.(resolvedUser)}>
-        <div className="xpl-ctx-avatar">
-          {avatarUrl ? <img src={avatarUrl} alt={resolvedUser.full_name} /> : resolvedUser.full_name?.[0]?.toUpperCase() || "U"}
-        </div>
+      <div className="xpl-ctx-identity">
+        <ProfilePreview
+          profile={{
+            userId: resolvedUser.id,
+            user_id: resolvedUser.id,
+            author: resolvedUser.full_name,
+            username: resolvedUser.username,
+            avatar_id: resolvedUser.avatar_id,
+            verified: resolvedUser.verified,
+          }}
+          currentUser={currentUser}
+          size="large"
+          layout="horizontal"
+          showUsername
+          className="xpl-ctx-profile"
+        />
         <div className="xpl-ctx-info">
-          <div className="xpl-ctx-name">{resolvedUser.full_name}{resolvedUser.verified && <span className="xpl-verified">✓</span>}</div>
-          <div className="xpl-ctx-un">@{resolvedUser.username}</div>
           {resolvedUser.bio && <div className="xpl-ctx-bio">{resolvedUser.bio}</div>}
         </div>
         <div className="xpl-ctx-stats">
@@ -330,7 +338,7 @@ const EvidenceGraphPanel = ({ graph, loading }) => {
 // XRC Oracle panel is now opened through the modal quick-action button in the Explore header.
 
 // ── MAIN ExploreView ──────────────────────────────────────────────────────────
-const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcService }) => {
+const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcService, searchRequest }) => {
   const [searchQuery, setSearchQuery]         = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeTab, setActiveTab]             = useState("all");
@@ -345,8 +353,18 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   const [preRendered, setPreRendered] = useState(false);
 
   const searchRef = useRef(null);
+  const searchDropdownRef = useRef(null);
   const tabsRef   = useRef(null);
   const filterRef = useRef(null);
+  const contentRequestRef = useRef(0);
+  const [searchDropdownPosition, setSearchDropdownPosition] = useState(null);
+
+  useEffect(() => {
+    if (!searchRequest?.query) return;
+    setActiveTab("all");
+    setSearchQuery(searchRequest.query);
+    setShowSearchPanel(false);
+  }, [searchRequest]);
 
   const tabs = [
     { id: "all",     label: "All" },
@@ -361,8 +379,39 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   const categories = ["All","Folklore","Life Journey","Philosophy","Innovation","Romance","Adventure","Mystery","Wisdom","Entertainment"];
 
   useEffect(() => {
+    if (!showSearchPanel) {
+      setSearchDropdownPosition(null);
+      return undefined;
+    }
+    const positionSearchDropdown = () => {
+      const anchor = searchRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const viewportPadding = 12;
+      const width = Math.min(520, window.innerWidth - viewportPadding * 2);
+      const top = anchor.bottom + 8;
+      setSearchDropdownPosition({
+        top,
+        left: (window.innerWidth - width) / 2,
+        width,
+        maxHeight: Math.max(120, window.innerHeight - top - viewportPadding),
+      });
+    };
+    positionSearchDropdown();
+    window.addEventListener("resize", positionSearchDropdown);
+    window.addEventListener("scroll", positionSearchDropdown, true);
+    return () => {
+      window.removeEventListener("resize", positionSearchDropdown);
+      window.removeEventListener("scroll", positionSearchDropdown, true);
+    };
+  }, [showSearchPanel]);
+
+  useEffect(() => {
     const handler = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearchPanel(false);
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(e.target) &&
+        !searchDropdownRef.current?.contains(e.target)
+      ) setShowSearchPanel(false);
       if (tabsRef.current   && !tabsRef.current.contains(e.target))   setShowTabsPanel(false);
       if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilterPanel(false);
     };
@@ -418,24 +467,32 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
   const loadContent = async () => {
     if (activeTab === "evidence") return;
+    const requestId = ++contentRequestRef.current;
     try {
       setLoading(true);
       const data = activeTab === "posts"
         ? await exploreService.getRecentPosts(6, userId)
         : await exploreService.getTrending(activeTab, 50, userId);
-      setContent({ ...data, userContext: null, searchType: null });
+      if (requestId === contentRequestRef.current) {
+        setContent({ ...data, userContext: null, searchType: null });
+      }
     } catch (err) { console.error("Failed to load:", err); }
-    finally { setLoading(false); }
+    finally {
+      if (requestId === contentRequestRef.current) setLoading(false);
+    }
   };
 
   const performSearch = async () => {
     if (activeTab === "evidence") return;
+    const requestId = ++contentRequestRef.current;
     try {
       setLoading(true);
       const results = await exploreService.searchAll(searchQuery, { category: selectedCategory === "All" ? null : selectedCategory }, userId);
-      setContent(results);
+      if (requestId === contentRequestRef.current) setContent(results);
     } catch (err) { console.error("Search failed:", err); }
-    finally { setLoading(false); }
+    finally {
+      if (requestId === contentRequestRef.current) setLoading(false);
+    }
   };
 
   const loadEvidenceGraph = async (query = "") => {
@@ -480,14 +537,6 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
     return { icon: Search, text: "General", color: "#84cc16" };
   };
   const sti = getSearchTypeInfo();
-
-  const getAvatarEl = (user) => {
-    if (user.avatar_id) {
-      const url = mediaUrlService.getAvatarUrl(user.avatar_id);
-      if (url) return <img src={url} alt={user.full_name} />;
-    }
-    return user.full_name?.[0]?.toUpperCase() || "U";
-  };
 
   return (
     <>
@@ -594,27 +643,23 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-oracle-tab:hover { background:rgba(168,85,247,.06); }
         .xpl-oracle-tab.active { background:rgba(168,85,247,.12); border-color:#a855f7; }
 
-        .xpl-search-dd { 
-          position: absolute !important;
-          top: calc(100% + 8px) !important;
-          left: 0 !important;
-          transform: none !important;
-          width: min(420px, calc(100% - 16px)) !important;
-          max-height: 60vh;
+        .xpl-search-dd {
+          position: fixed;
+          max-height: min(60vh, 560px);
           overflow-y: auto;
           display:flex !important; 
           flex-direction:column; 
           gap:6px; 
-          background: linear-gradient(135deg, rgba(0,0,0,0.98) 0%, rgba(10,10,10,0.95) 100%) !important; 
-          border: none !important;
-          border-top: 1.5px solid rgba(132,204,22,.3) !important;
-          border-radius: 10px !important; 
-          padding:8px 10px 10px !important; 
-          box-shadow: 0 10px 40px rgba(0,0,0,.95) !important; 
-          animation: dropIn .15s ease !important; 
-          z-index:1000 !important;
+          box-sizing:border-box;
+          background:linear-gradient(145deg,#11140e,#080908 72%);
+          border:1px solid rgba(132,204,22,.28);
+          border-radius:14px;
+          padding:12px;
+          box-shadow:0 18px 54px rgba(0,0,0,.72),0 0 0 1px rgba(132,204,22,.04);
+          animation:dropIn .15s ease;
+          z-index:100200;
         }
-        .xpl-search-input-wrap { display:flex; align-items:center; gap:10px; background:rgba(132,204,22,.05); border:1px solid rgba(132,204,22,.25); border-radius:8px; padding:7px 9px; min-height: 34px; }
+        .xpl-search-input-wrap { display:flex; align-items:center; gap:10px; background:rgba(132,204,22,.07); border:1px solid rgba(132,204,22,.32); border-radius:10px; padding:9px 11px; min-height:42px; box-sizing:border-box; }
         .xpl-search-input { flex:1; background:none; border:none; color:#fff; font-size:13px; outline:none; font-weight:500; height: 18px; }
         .xpl-search-input::placeholder { color:#555; }
         .xpl-clear { background:none; border:1px solid #444; color:#5e5e5e; cursor:pointer; padding:4px; display:flex; transition:all .12s; border-radius:4px; }
@@ -733,11 +778,13 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
         /* People grid — uses ProfilePreview which has its own card styles */
         .xpl-people-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
-        .xpl-profile-preview-card { width:100% !important; max-width:100% !important; }
+        .xpl-profile-preview-card { width:100% !important; max-width:100% !important; min-height:72px; padding:10px 12px !important; border:1px solid rgba(132,204,22,.18) !important; border-radius:12px; background:linear-gradient(145deg,rgba(132,204,22,.07),rgba(255,255,255,.025)); box-shadow:inset 0 1px rgba(255,255,255,.04); }
+        .xpl-profile-preview-card:hover { border-color:rgba(132,204,22,.4) !important; background:linear-gradient(145deg,rgba(132,204,22,.12),rgba(255,255,255,.04)); }
+        .xpl-ctx-profile { min-width:0; flex:1; max-width:none !important; padding:0 !important; }
 
         .xpl-tag-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
-        .xpl-tag-card { background:rgba(59,130,246,.05); border:1px solid rgba(59,130,246,.2); border-radius:8px; padding:12px 14px; cursor:pointer; transition:all .15s; }
-        .xpl-tag-card:hover { background:rgba(59,130,246,.1); border-color:rgba(59,130,246,.4); transform:translateY(-2px); }
+        .xpl-tag-card { background:linear-gradient(145deg,rgba(59,130,246,.11),rgba(59,130,246,.035)); border:1px solid rgba(59,130,246,.25); border-radius:12px; padding:14px 15px; cursor:pointer; box-shadow:inset 0 1px rgba(255,255,255,.04),0 5px 14px rgba(0,0,0,.16); transition:all .15s; }
+        .xpl-tag-card:hover { background:linear-gradient(145deg,rgba(59,130,246,.17),rgba(59,130,246,.06)); border-color:rgba(59,130,246,.48); transform:translateY(-2px); }
         .xpl-tag-name { font-size:15px; font-weight:700; color:#3b82f6; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
         .xpl-tag-count { font-size:12px; color:#666; }
 
@@ -757,11 +804,9 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
         /* User Context Panel */
         .xpl-user-ctx { background:rgba(132,204,22,.02); border:1px solid rgba(132,204,22,.2); border-radius:12px; margin-bottom:24px; overflow:hidden; }
-        .xpl-ctx-identity { display:flex; align-items:center; gap:14px; padding:16px; cursor:pointer; transition:background .15s; border-bottom:1px solid rgba(132,204,22,.2); }
+        .xpl-ctx-identity { display:flex; align-items:center; gap:14px; padding:16px; transition:background .15s; border-bottom:1px solid rgba(132,204,22,.2); }
         .xpl-ctx-identity:hover { background:rgba(132,204,22,.04); }
-        .xpl-ctx-avatar { width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden; background:linear-gradient(135deg,#84cc16,#65a30d); display:flex; align-items:center; justify-content:center; color:#000; font-weight:800; font-size:20px; border:2px solid rgba(132,204,22,.4); }
-        .xpl-ctx-avatar img { width:100%; height:100%; object-fit:cover; }
-        .xpl-ctx-info { flex:1; min-width:0; }
+        .xpl-ctx-info { flex:0 1 140px; min-width:0; }
         .xpl-ctx-name { font-size:15px; font-weight:700; color:#fff; display:flex; align-items:center; gap:5px; }
         .xpl-ctx-un   { font-size:12px; color:#666; margin-top:2px; }
         .xpl-ctx-bio  { font-size:11px; color:#888; margin-top:4px; }
@@ -945,12 +990,18 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         @media (max-width:768px) {
           .xpl-wrapper { width:100%; max-width:none; margin:0; }
           .xpl-content { padding:0; }
+          .xpl-results { padding:0 12px; }
+          .xpl-user-ctx { margin-left:12px; margin-right:12px; }
+          .xpl-section--inset { margin-left:12px; margin-right:12px; }
+          .xpl-feed-section > .xpl-section-title { padding-left:12px; padding-right:12px; }
+          .xpl-people-grid,.xpl-tag-grid { grid-template-columns:1fr; }
+          .xpl-profile-preview-card { min-width:0; }
           .xpl-header { --header-height: 50px; height: 50px; }
           .xpl-controls { gap:8px; padding:0 10px; min-height:50px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
           .xpl-controls-left { gap:6px; }
           .xpl-controls-right { gap:6px; }
           .xpl-btn { padding:7px 11px; font-size:12px; height:30px; }
-          .xpl-search-dd { top: calc(100% + 6px) !important; left: 0 !important; width: min(320px, calc(100vw - 32px)) !important; }
+          .xpl-search-dd { max-height:min(55vh,440px); padding:12px; }
           .xpl-tabs-dd { top: calc(100% + 6px); left: 0; right: auto; width: min(240px, calc(100vw - 32px)); }
           .xpl-filter-dd { position:fixed !important; top:auto !important; bottom:0 !important; left:0 !important; right:0 !important; border-radius:14px 14px 0 0; max-height:65vh; overflow-y:auto; }
           .xpl-reels-grid { grid-template-columns:1fr; }
@@ -983,15 +1034,25 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
                 <button className={`xpl-btn ${showSearchPanel ? "active" : ""}`} onClick={() => { setShowSearchPanel(p => !p); setShowTabsPanel(false); setShowFilterPanel(false); }}>
                   <Search size={15} /> Search
                 </button>
-                {showSearchPanel && (
-                  <div className="xpl-search-dd">
+                {showSearchPanel && searchDropdownPosition && ReactDOM.createPortal(
+                  <div
+                    ref={searchDropdownRef}
+                    className="xpl-search-dd"
+                    style={{
+                      top: searchDropdownPosition.top,
+                      left: searchDropdownPosition.left,
+                      width: searchDropdownPosition.width,
+                      maxHeight: searchDropdownPosition.maxHeight,
+                    }}
+                  >
                     <div className="xpl-search-input-wrap">
                       {sti ? <sti.icon size={18} style={{ color: sti.color }} /> : <Search size={18} style={{ color: "#84cc16" }} />}
                       <input type="text" placeholder="Search stories, posts, reels, people, #tags…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="xpl-search-input" autoFocus />
                       {searchQuery && <button className="xpl-clear" onClick={() => setSearchQuery("")}><X size={16} /></button>}
                     </div>
                     <div className="xpl-search-hint">💡 Try: <strong>#storytelling</strong> for tags · <strong>@username</strong> for people · or just type a name</div>
-                  </div>
+                  </div>,
+                  document.body,
                 )}
               </div>
 
@@ -1071,7 +1132,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
               {/* People — ProfilePreview handles avatar, name, and UserProfileModal internally */}
               {displayContent.users?.length > 0 && (
-                <div className="xpl-section">
+                <div className="xpl-section xpl-section--inset">
                   <h2 className="xpl-section-title"><User size={18} /> People <span className="xpl-badge">{displayContent.users.length}</span></h2>
                   <div className="xpl-people-grid">
                     {displayContent.users.map(user => (
@@ -1099,7 +1160,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
               {/* Tags */}
               {displayContent.tags?.length > 0 && (
-                <div className="xpl-section">
+                <div className="xpl-section xpl-section--inset">
                   <h2 className="xpl-section-title"><Hash size={18} /> Tags <span className="xpl-badge">{displayContent.tags.length}</span></h2>
                   <div className="xpl-tag-grid">
                     {displayContent.tags.map((tag, idx) => (
@@ -1114,7 +1175,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
               {/* Stories */}
               {displayContent.stories?.length > 0 && (
-                <div className="xpl-section">
+                <div className="xpl-section xpl-feed-section">
                   <h2 className="xpl-section-title">Stories <span className="xpl-badge">{displayContent.stories.length}</span></h2>
                   {displayContent.stories.map(story => <StoryCard key={story.id} story={story} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} />)}
                 </div>
@@ -1122,7 +1183,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
               {/* Posts */}
               {displayContent.posts?.length > 0 && (
-                <div className="xpl-section">
+                <div className="xpl-section xpl-feed-section">
                   <h2 className="xpl-section-title">Posts <span className="xpl-badge">{displayContent.posts.length}</span></h2>
                   {displayContent.posts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} />)}
                 </div>
@@ -1130,7 +1191,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
               {/* Reels */}
               {displayContent.reels?.length > 0 && (
-                <div className="xpl-section">
+                <div className="xpl-section xpl-feed-section">
                   <h2 className="xpl-section-title">Reels <span className="xpl-badge">{displayContent.reels.length}</span></h2>
                   <div className="xpl-reels-grid">
                     {displayContent.reels.map((reel, idx) => <ReelCard key={reel.id} reel={reel} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} index={idx} />)}

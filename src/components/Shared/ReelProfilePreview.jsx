@@ -10,12 +10,12 @@
 //   • BoostAvatarRing with new SVG-based tier rings
 //   • Name + username coloured with live tier colour, CSS-transitioned
 //   • Verified badge inherits tier colour when boosted
-//   • Music row and slot animation logic unchanged
+//   • Username and content timestamp stay together beneath the author
 // ============================================================================
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import ReactDOM                        from "react-dom";
-import { Sparkles, Music }             from "lucide-react";
+import { Music }                       from "lucide-react";
 import UserProfileModal                from "../Modals/UserProfileModal";
 import BoostAvatarRing                 from "./BoostAvatarRing";
 import { useUserBoostTier }            from "../../hooks/useUserBoostTier";
@@ -25,28 +25,16 @@ import { getBoostNameColor }           from "./profileVisuals";
 
 // ── Tier colour maps (shared with ProfilePreview) ─────────────────────────
 
-const TIER_NAME_COLORS = {
-  silver:  "#d4d4d4",
-  gold:    "#fbbf24",
-  diamond: "#a78bfa",
-};
-
-const DIAMOND_THEME_COLORS = {
-  "diamond-cosmos":  "#a78bfa",
-  "diamond-glacier": "#60a5fa",
-  "diamond-emerald": "#34d399",
-  "diamond-rose":    "#f472b6",
-  "diamond-void":    "#e5e5e5",
-  "diamond-inferno": "#ff6b35",
-  "diamond-aurora":  "#22d3ee",
-};
-
-const getNameColor = (tier, themeId) => {
-  if (!tier || !TIER_NAME_COLORS[tier]) return null;
-  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId]) {
-    return DIAMOND_THEME_COLORS[themeId];
-  }
-  return TIER_NAME_COLORS[tier];
+const formatContentTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return "now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -60,7 +48,6 @@ const ReelProfilePreview = ({
   size      = "medium",
   className = "",
 }) => {
-  const [animationIndex,   setAnimationIndex]   = useState(0);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // ── Resolve static user data from props ──────────────────────────────
@@ -82,6 +69,7 @@ const ReelProfilePreview = ({
         userId:     profile.userId || profile.user_id || profile.id,
         author:     profile.author || profile.name || profile.full_name || "Unknown User",
         username:   profile.username || "unknown",
+        createdAt:  profile.createdAt || null,
         avatar:     avatar,
         verified:   profile.verified || false,
         propTier:   profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
@@ -124,6 +112,7 @@ const ReelProfilePreview = ({
       userId,
       author,
       username,
+      createdAt: profile.createdAt || null,
       avatar,
       verified:    profileData.verified || profile.verified || false,
       propTier:    profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
@@ -140,6 +129,7 @@ const ReelProfilePreview = ({
     userId,
     author,
     username,
+    createdAt,
     avatar,
     verified,
     propTier,
@@ -174,13 +164,6 @@ const ReelProfilePreview = ({
   const sz = sizes[size] ?? sizes.medium;
 
   const hasMusic = music && music.trim().length > 0;
-
-  // Slot-machine text when there's no music
-  useEffect(() => {
-    if (hasMusic) return;
-    const id = setInterval(() => setAnimationIndex((p) => (p + 1) % 2), 3000);
-    return () => clearInterval(id);
-  }, [hasMusic]);
 
   // ── Ensure avatar is high-quality ────────────────────────────────────────
   const enhancedAvatar =
@@ -290,6 +273,15 @@ const ReelProfilePreview = ({
               )}
             </div>
 
+            <div className="rpp-username" style={{ color: displayUserColor }}>
+              <span>@{username}</span>
+              {createdAt && formatContentTime(createdAt) && (
+                <span className="rpp-content-time" title={new Date(createdAt).toLocaleString()}>
+                  · {formatContentTime(createdAt)}
+                </span>
+              )}
+            </div>
+
             {/* Music row */}
             <button
               className={`rpp-music${!hasMusic ? " rpp-music--silent" : ""}`}
@@ -301,14 +293,7 @@ const ReelProfilePreview = ({
               {hasMusic ? (
                 <span className="rpp-music-text">{music}</span>
               ) : (
-                <span className="rpp-music-animated">
-                  <span className={`rpp-slide${animationIndex === 0 ? " rpp-slide--on" : ""}`}>
-                    No sound used
-                  </span>
-                  <span className={`rpp-slide${animationIndex === 1 ? " rpp-slide--on" : ""}`}>
-                    @{username}
-                  </span>
-                </span>
+                <span className="rpp-music-text">No sound used</span>
               )}
             </button>
           </div>
@@ -363,6 +348,14 @@ const ReelProfilePreview = ({
           transition:transform 0.2s;
         }
         .rpp-name:hover { transform:scale(1.02); }
+        .rpp-username {
+          display:flex; align-items:center; gap:5px; min-width:0;
+          margin-top:2px;
+          font-size:${Math.max(10, sz.music - 1)}px; font-weight:600;
+          white-space:nowrap;
+        }
+        .rpp-username > span:first-child { overflow:hidden; text-overflow:ellipsis; }
+        .rpp-content-time { flex-shrink:0; color:rgba(255,255,255,.48); font-weight:500; }
 
         .rpp-verified {
           width:18px; height:18px; border-radius:50%;

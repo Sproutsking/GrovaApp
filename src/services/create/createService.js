@@ -35,7 +35,13 @@ class CreateService {
     try {
       console.log("📝 Creating post...", { userId, isTextCard: postData.isTextCard });
 
-      const { content, images, videos, category, isTextCard, textCardMetadata, cardCaption, linkDisplayMode } = postData;
+      const {
+        content, images, videos, category, isTextCard, textCardMetadata,
+        cardCaption, linkDisplayMode, audience = "public",
+      } = postData;
+      if (!["public", "followers", "verified"].includes(audience)) {
+        throw new Error("Choose a valid post audience.");
+      }
 
       // ── TEXT CARD ────────────────────────────────────────────────────────
       if (isTextCard) {
@@ -51,6 +57,7 @@ class CreateService {
             video_ids: [],
             video_metadata: [],
             category: category || "General",
+            audience,
             is_text_card: true,
             text_card_metadata: {
               gradient:  textCardMetadata?.gradient  || "linear-gradient(135deg, #84cc16 0%, #65a30d 100%)",
@@ -84,7 +91,11 @@ class CreateService {
 
       if (images?.length) {
         console.log(`⬆️ Uploading ${images.length} images...`);
-        const results = await uploadService.uploadImages(images, "grova/posts");
+        const results = await Promise.all(images.map((image) => (
+          typeof image === "string"
+            ? Promise.resolve({ public_id: image, id: image, url: image })
+            : uploadService.uploadImage(image, "grova/posts")
+        )));
         imageIds    = results.map(r => r.public_id || r.id);
         imageMetadata = results.map(r => ({
           id:     r.public_id || r.id,
@@ -99,7 +110,11 @@ class CreateService {
       if (videos?.length) {
         console.log(`⬆️ Uploading ${videos.length} videos...`);
         const results = await Promise.all(
-          videos.map(v => uploadService.uploadVideo(v, "grova/posts"))
+          videos.map((video) => (
+            typeof video === "string"
+              ? Promise.resolve({ public_id: video, id: video, url: video })
+              : uploadService.uploadVideo(video, "grova/posts")
+          ))
         );
         videoIds    = results.map(r => r.public_id || r.id);
         videoMetadata = results.map(r => ({
@@ -124,6 +139,7 @@ class CreateService {
           video_ids:      videoIds,
           video_metadata: videoMetadata,
           category:       category || "General",
+          audience,
           is_text_card:   false,
           text_card_metadata: { link_display_mode: linkDisplayMode === "embed" ? "embed" : "string" },
           card_caption:   null,

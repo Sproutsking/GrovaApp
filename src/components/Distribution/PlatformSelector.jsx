@@ -29,6 +29,14 @@ import distributionService from "../../services/distribution/distributionService
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
 
+export async function resolveCommunityQuery(query) {
+  try {
+    return await query;
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
 // ── Scoped styles ─────────────────────────────────────────────────────────────
 const CSS = `
   @keyframes psIn   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
@@ -169,14 +177,25 @@ const CSS = `
 `;
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
+const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
   const [communityTargets, setCommunityTargets] = useState([]);
-  const [selected,    setSelected]    = useState(() => initialSelection);
+  const [selected,    setSelected]    = useState(() => selectedPlatforms);
   const [loadError,   setLoadError]   = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasLoadedRef = React.useRef(false);
   const selectedRef = React.useRef(selected);
+  const externalSelectedRef = React.useRef(selectedPlatforms);
+  externalSelectedRef.current = selectedPlatforms;
+
+  useEffect(() => {
+    const next = Array.isArray(selectedPlatforms) ? selectedPlatforms : [];
+    const unchanged = next.length === selectedRef.current.length
+      && next.every((platform, index) => platform === selectedRef.current[index]);
+    if (unchanged) return;
+    selectedRef.current = next;
+    setSelected(next);
+  }, [selectedPlatforms]);
 
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -185,22 +204,28 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     setLoadError("");
     try {
       const [connectedList, ownedCommunities] = await Promise.all([
-        Promise.race([
-          distributionService.getConnectedPlatforms(userId),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Connection refresh timed out")), 8000)),
-        ]).catch(() => []),
-        supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
+        distributionService.getConnectedPlatforms(userId),
+        resolveCommunityQuery(
+          supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
+        ),
       ]);
+      let communityLoadError = ownedCommunities.error
+        ? `Social platforms loaded, but community destinations could not be loaded: ${ownedCommunities.error.message}`
+        : "";
       const nextConnected = Array.isArray(connectedList) ? connectedList : [];
       const communities = (ownedCommunities?.data || []).filter(Boolean);
       const communityIds = Array.from(new Set(communities.map((community) => community.id)));
       let nextCommunityTargets = [];
       if (communityIds.length) {
-        const { data: destinations, error: destinationError } = await supabase
-          .from("community_bot_destinations")
-          .select("id,community_id,provider,display_name,enabled,integration:community_bot_integrations(status)")
-          .in("community_id", communityIds);
-        if (destinationError && destinationError.code !== "42P01") throw destinationError;
+        const { data: destinations, error: destinationError } = await resolveCommunityQuery(
+          supabase
+            .from("community_bot_destinations")
+            .select("id,community_id,provider,display_name,enabled,integration:community_bot_integrations(status)")
+            .in("community_id", communityIds),
+        );
+        if (destinationError) {
+          communityLoadError = `Social platforms loaded, but community destinations could not be loaded: ${destinationError.message}`;
+        }
         nextCommunityTargets = (destinations || []).map((destination) => {
           const integrationStatus = Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status;
           const normalizedStatus = String(integrationStatus || "").toLowerCase();
@@ -216,14 +241,15 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
       }
       setConnected(nextConnected);
       setCommunityTargets(nextCommunityTargets);
+      setLoadError(communityLoadError);
 
       // Auto-select only on the first successful load. Manual refreshes keep
       // the user's explicit on/off choices and remove only disconnected ones.
       const availableTargets = [...nextConnected, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       const nextSelection = hasLoadedRef.current
         ? selectedRef.current.filter((platform) => availableTargets.includes(platform))
-        : initialSelection.length > 0
-          ? initialSelection.filter((platform) => availableTargets.includes(platform))
+        : externalSelectedRef.current.length > 0
+          ? externalSelectedRef.current.filter((platform) => availableTargets.includes(platform))
           : availableTargets;
       hasLoadedRef.current = true;
       selectedRef.current = nextSelection;

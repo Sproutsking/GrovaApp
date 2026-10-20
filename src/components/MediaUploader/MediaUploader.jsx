@@ -22,8 +22,11 @@ const MediaUploader = ({
   onMediaReady,
   onPostClick, // NEW: Callback when user wants to post
   maxItems = 10,
+  maxFiles,
   allowMixed = true,
   defaultType = "image",
+  acceptedTypes,
+  maxDuration,
   showToast,
   layout = "slide",
   gridType = "auto",
@@ -41,6 +44,8 @@ const MediaUploader = ({
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const previewVideoRef = useRef(null);
+  const allowedTypes = acceptedTypes || (allowMixed ? ["image", "video"] : [defaultType]);
+  const itemLimit = maxFiles ?? maxItems;
 
   const videoTemplates = [
     { id: "fade", name: "Fade", icon: "🌫️" },
@@ -92,25 +97,30 @@ const MediaUploader = ({
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
-  const handleFileSelect = async (e, fileType) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
+    e.target.value = "";
 
-    if (mediaItems.length + files.length > maxItems) {
+    const acceptedFiles = files.filter((file) => {
+      const type = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+      return type && allowedTypes.includes(type);
+    });
+    if (mediaItems.length + acceptedFiles.length > itemLimit) {
       showToast?.(
         "warning",
         "Too many items",
-        `Maximum ${maxItems} items allowed`,
+        `Maximum ${itemLimit} items allowed`,
       );
       return;
     }
 
     const newItems = [];
 
-    for (const file of files) {
+    for (const file of acceptedFiles) {
       const isVideo = file.type.startsWith("video/");
       const isImage = file.type.startsWith("image/");
-
-      if (!isVideo && !isImage) continue;
+      if (isVideo && !allowedTypes.includes("video")) continue;
+      if (isImage && !allowedTypes.includes("image")) continue;
 
       if (isVideo && file.size > 100 * 1024 * 1024) {
         showToast?.("warning", "File too large", "Videos must be under 100MB");
@@ -140,6 +150,12 @@ const MediaUploader = ({
               item.width = video.videoWidth;
               item.height = video.videoHeight;
 
+              if (maxDuration && item.duration > maxDuration) {
+                video.removeAttribute("src");
+                video.load();
+                resolve();
+                return;
+              }
               video.currentTime = 1;
               video.onseeked = () => {
                 const canvas = document.createElement("canvas");
@@ -161,8 +177,16 @@ const MediaUploader = ({
       newItems.push(item);
     }
 
-    setMediaItems((prev) => [...prev, ...newItems]);
-    showToast?.("success", "Files added", `${newItems.length} file(s) ready`);
+    const readyItems = newItems.filter((item) => !(maxDuration && item.type === "video" && item.duration > maxDuration));
+    newItems.filter((item) => !readyItems.includes(item)).forEach((item) => {
+      URL.revokeObjectURL(item.preview);
+      if (item.thumbnail) URL.revokeObjectURL(item.thumbnail);
+    });
+    setMediaItems((prev) => [...prev, ...readyItems]);
+    if (readyItems.length < acceptedFiles.length) {
+      showToast?.("warning", "Some files were skipped", `Videos must be ${maxDuration} seconds or shorter.`);
+    }
+    if (readyItems.length) showToast?.("success", "Files added", `${readyItems.length} file(s) ready`);
   };
 
   const removeItem = (itemId) => {
@@ -544,36 +568,38 @@ const MediaUploader = ({
             ref={imageInputRef}
             type="file"
             accept="image/*"
-            multiple={maxItems > 1}
-            onChange={(e) => handleFileSelect(e, "image")}
+            multiple={itemLimit > 1}
+            onChange={handleFileSelect}
             style={{ display: "none" }}
+            disabled={!allowedTypes.includes("image")}
           />
           <input
             ref={videoInputRef}
             type="file"
             accept="video/*"
-            multiple={maxItems > 1}
-            onChange={(e) => handleFileSelect(e, "video")}
+            multiple={itemLimit > 1}
+            onChange={handleFileSelect}
             style={{ display: "none" }}
+            disabled={!allowedTypes.includes("video")}
           />
 
-          <button
+          {allowedTypes.includes("image") && <button
             className="upload-btn image-upload"
             onClick={() => imageInputRef.current?.click()}
-            disabled={mediaItems.length >= maxItems}
+            disabled={mediaItems.length >= itemLimit}
           >
             <ImageIcon size={18} />
             <span>Upload Images</span>
-          </button>
+          </button>}
 
-          <button
+          {allowedTypes.includes("video") && <button
             className="upload-btn video-upload"
             onClick={() => videoInputRef.current?.click()}
-            disabled={mediaItems.length >= maxItems}
+            disabled={mediaItems.length >= itemLimit}
           >
             <Film size={18} />
             <span>Upload Video</span>
-          </button>
+          </button>}
         </div>
 
         {canCreateVideo && (

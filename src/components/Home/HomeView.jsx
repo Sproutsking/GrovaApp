@@ -1206,6 +1206,7 @@ const HomeView = ({
             username: modals.fullscreenPost.profiles?.username || modals.fullscreenPost.username || "unknown",
             avatar_id: modals.fullscreenPost.profiles?.avatar_id,
             verified: modals.fullscreenPost.profiles?.verified || false,
+            createdAt: modals.fullscreenPost.created_at,
           }}
           currentUser={resolvedUser}
           onProfileClick={handleAuthorClick}

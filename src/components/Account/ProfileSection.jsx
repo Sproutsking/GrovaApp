@@ -35,6 +35,7 @@ import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidence
 import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
+import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -267,7 +268,7 @@ const FourStatRow = ({ stats }) => {
 // ── Main component ────────────────────────────────────────────────────────
 // [AMB-2] Added `onNavigate` prop — routes ambassador button click to the
 //         ambassador view in App.jsx (same pattern as DashboardSection → wallet)
-const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, currentUser }) => {
+const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, currentUser, profileShortcutRequest = null }) => {
   const [profile,               setProfile]               = useState(null);
   const [verificationItems,     setVerificationItems]     = useState([]);
   const [selectedSection,       setSelectedSection]       = useState(null);
@@ -305,6 +306,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   useEffect(() => {
     if (userId) loadProfileData();
   }, [userId]);
+
+  useEffect(() => {
+    if (profileShortcutRequest?.action === "saved") setShowSavedModal(true);
+    if (profileShortcutRequest?.action === "edit-profile" && profile) setShowEditModal(true);
+  }, [profileShortcutRequest?.id, profileShortcutRequest?.action, profile]);
 
   useEffect(() => {
     if (userId && profile?.id) {
@@ -392,7 +398,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, bio, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
+        .select("id, full_name, username, avatar_id, banner_image_id, bio, profile_tags, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
         .eq("id", userId)
         .maybeSingle();
 
@@ -429,7 +435,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           username: profileData.username || "user",
           avatar: avatarUrl,
           avatarId: profileData.avatar_id,
+          bannerImageUrl: profileData.banner_image_id
+            ? mediaUrlService.getOptimizedImageUrl(profileData.banner_image_id, { width: 1500, height: 520, quality: "100", format: "webp", crop: "fill" })
+            : null,
+          bannerImageId: profileData.banner_image_id || null,
           bio: profileData.bio,
+          profileTags: normalizeProfileTags(profileData.profile_tags),
           verified: profileData.verified || false,
           isPro: profileData.is_pro || false,
           joinDate: new Date(profileData.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
@@ -508,6 +519,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         avatar:           avatarUrl,  // Use the enhanced avatarUrl constructed above
         avatarId:         profileData?.avatar_id,
         bio:              profileData?.bio,
+        profileTags:      normalizeProfileTags(profileData?.profile_tags),
         verified:         profileData?.verified         || false,
         isPro:            profileData?.is_pro           || false,
         joinDate:         new Date(profileData?.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
@@ -524,7 +536,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       };
 
       if (!profileData) {
-        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
+        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, profileTags:[], verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
         setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, xevTokens:0, engagementPoints:0 });
         return;
       }
@@ -560,8 +572,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       fullName: updatedData.fullName,
       username: updatedData.username,
       bio:      updatedData.bio,
+      profileTags: updatedData.profileTags,
       avatar:   updatedData.avatar,
       avatarId: updatedData.avatarId,
+      bannerImageUrl: updatedData.bannerImageUrl,
+      bannerImageId: updatedData.bannerImageId,
     }));
     if (onProfileUpdate) {
       onProfileUpdate({
@@ -744,6 +759,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:11px;font-weight:800;color:#fbbf24; }
         .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:11px;font-weight:800;color:#84cc16; }
         .profile-username { font-size:15px;color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
+        .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 10px; }
+        .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:9px;font-weight:800;line-height:1.2; }
         .profile-bio { color:#d1d1d1;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
@@ -857,6 +874,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             </h2>
 
             <p className="profile-username">@{profile.username}</p>
+
+            {profile.profileTags?.length > 0 && (
+              <div className="profile-self-tags" aria-label="Self-described profile tags">
+                {profile.profileTags.map((tag) => (
+                  <span className="profile-self-tag" key={tag}>{formatProfileTag(tag)}</span>
+                ))}
+              </div>
+            )}
 
             <div className="profile-badges-row">
               {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
@@ -1101,7 +1126,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         />
       </div>
 
-      {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, avatar:profile.avatar, avatarId:profile.avatarId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
+      {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, profileTags:profile.profileTags, avatar:profile.avatar, avatarId:profile.avatarId, bannerImageUrl:profile.bannerImageUrl, bannerImageId:profile.bannerImageId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
       {showSavedModal       && <SavedContentModal currentUser={{id:userId}} onClose={()=>setShowSavedModal(false)} isMobile={isMobile} />}
       {showCommunitiesModal && <CommunitiesModal  currentUser={{id:userId}} onClose={()=>setShowCommunitiesModal(false)} isMobile={isMobile} />}
       {showFollowersModal   && <FollowersModal    currentUser={{id:userId}} onClose={()=>setShowFollowersModal(false)} isMobile={isMobile} defaultTab={followersTab} />}

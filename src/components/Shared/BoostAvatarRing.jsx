@@ -409,11 +409,11 @@ const BoostAvatarRing = ({
 }) => {
   injectKeyframes();
 
-  const [imageSrc, setImageSrc] = useState(src);
+  const [imageSrc, setImageSrc] = useState(src || fallbackSrc);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    setImageSrc(src);
+    setImageSrc(src || fallbackSrc);
     setImgError(false);
   }, [src, fallbackSrc]);
 
@@ -433,7 +433,7 @@ const BoostAvatarRing = ({
   const isValidImg =
     imageSrc &&
     typeof imageSrc === "string" &&
-    (imageSrc.startsWith("http") || imageSrc.startsWith("blob:") || imageSrc.startsWith("data:image/"));
+    (imageSrc.startsWith("http") || imageSrc.startsWith("blob:") || imageSrc.startsWith("data:image/") || imageSrc.startsWith("/"));
 
   const shouldRenderImage = isValidImg && !imgError;
   const effectiveImageBleed = Math.max(1, imageBleed);

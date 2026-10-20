@@ -17,7 +17,6 @@
 
 import React, { useState } from "react";
 import ReactDOM             from "react-dom";
-import { Sparkles }         from "lucide-react";
 import UserProfileModal     from "../Modals/UserProfileModal";
 import mediaUrlService      from "../../services/shared/mediaUrlService";
 import { getTierBadge }     from "../../services/account/profileTierService";
@@ -53,6 +52,18 @@ const TierBadge = ({ tier, paymentStatus }) => {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const formatContentTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return "now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
 const ProfilePreview = ({
   profile,
   currentUser,           // REQUIRED for follow button in UserProfileModal
@@ -84,6 +95,7 @@ const ProfilePreview = ({
         userId:            profile.userId || profile.user_id || profile.id,
         author:            profile.author || profile.name || profile.full_name || "Unknown User",
         username:          profile.username || "unknown",
+        createdAt:         profile.createdAt || null,
         avatar:            avatar,
         verified:          profile.verified || false,
         propTier:          profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
@@ -133,6 +145,7 @@ const ProfilePreview = ({
       userId,
       author,
       username,
+      createdAt: profile.createdAt || null,
       avatar,
       verified:          profileData.verified || profile.verified || false,
       propTier:          profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
@@ -152,6 +165,7 @@ const ProfilePreview = ({
     userId,
     author,
     username,
+    createdAt,
     avatar,
     verified,
     propTier,
@@ -333,13 +347,24 @@ const ProfilePreview = ({
                 fontSize:     `${sz.username}px`,
                 color:        displayUserColor,
                 fontWeight:   600,
+                display:      "flex",
+                alignItems:   "center",
+                gap:          5,
                 whiteSpace:   "nowrap",
                 overflow:     "hidden",
-                textOverflow: "ellipsis",
                 transition:   "color 0.4s ease",
               }}
             >
-              @{username}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>@{username}</span>
+              {createdAt && formatContentTime(createdAt) && (
+                <span
+                  title={new Date(createdAt).toLocaleString()}
+                  aria-label={`Posted ${new Date(createdAt).toLocaleString()}`}
+                  style={{ flexShrink: 0, color: "rgba(255,255,255,0.46)", fontWeight: 500 }}
+                >
+                  · {formatContentTime(createdAt)}
+                </span>
+              )}
             </div>
           )}
         </div>

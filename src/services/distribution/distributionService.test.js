@@ -11,6 +11,10 @@ jest.mock('../config/supabase', () => ({
   },
 }));
 
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('distributionService.getConnectedPlatforms', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,9 +99,65 @@ describe('distributionService.getConnectedPlatforms', () => {
   });
 });
 
-describe('distributionService._publishToSinglePlatform', () => {
+describe('distributionService publishing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('distributionService.distributeContent', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('publishes a story preview without exposing the locked full story', async () => {
+      const storyQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'story-1',
+            user_id: 'user-1',
+            title: 'A public title',
+            preview: 'A short public preview',
+            full_content: 'Locked story text must not be sent',
+            cover_image_metadata: { url: 'https://cdn.example/cover.jpg' },
+          },
+          error: null,
+        }),
+      };
+      const upsert = jest.fn().mockResolvedValue({ error: null });
+      supabase.from.mockImplementation((table) => {
+        if (table === 'stories') return storyQuery;
+        if (table === 'content_distribution') return { upsert };
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      jest.spyOn(distributionService, 'getPublishTargets').mockResolvedValue(['x']);
+      const publish = jest.spyOn(distributionService, '_publishToSinglePlatform')
+        .mockResolvedValue({ platform: 'x', status: 'success' });
+
+      await expect(
+        distributionService.distributeContent('story', 'story-1', 'user-1', ['x']),
+      ).resolves.toMatchObject({ success: true, targets: ['x'] });
+
+      expect(storyQuery.eq).toHaveBeenNthCalledWith(1, 'id', 'story-1');
+      expect(storyQuery.eq).toHaveBeenNthCalledWith(2, 'user_id', 'user-1');
+      expect(publish).toHaveBeenCalledWith(
+        'story-1',
+        'user-1',
+        expect.objectContaining({
+          content: 'A public title\n\nA short public preview',
+          image_metadata: [{ url: 'https://cdn.example/cover.jpg' }],
+        }),
+        'x',
+        'story',
+      );
+      expect(publish.mock.calls[0][2].content).not.toContain('Locked story text');
+      expect(upsert).toHaveBeenCalledWith(
+        [expect.objectContaining({ content_type: 'story', content_id: 'story-1', platform: 'x' })],
+        { onConflict: 'content_type,content_id,platform' },
+      );
+    });
   });
 
   it('records a failed connection without calling catch on a Supabase thenable', async () => {
@@ -109,7 +169,9 @@ describe('distributionService._publishToSinglePlatform', () => {
         return {
           select: () => ({
             eq: () => ({
-              eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+              in: () => ({
+                limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+              }),
             }),
           }),
         };

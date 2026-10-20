@@ -193,6 +193,7 @@ const ACCOUNT_CSS = `
 const AccountView = ({
   accountSection,
   setAccountSection,
+  profileShortcutRequest = null,
   currentUser,
   isSubscribed,
   userId,
@@ -321,6 +322,7 @@ const AccountView = ({
             <ProfileSection
               currentUser={currentUser}
               userId={userId}
+              profileShortcutRequest={profileShortcutRequest}
               onProfileUpdate={loadBasicProfile}
               onSignOut={onSignOut}
               onNavigate={onNavigate}

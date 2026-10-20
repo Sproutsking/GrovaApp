@@ -3,6 +3,7 @@ import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import mediaUrlService from "../shared/mediaUrlService";
 import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
+import { normalizeProfileTags } from "./profileTags";
 
 class ProfileService {
   // Get user profile
@@ -153,12 +154,14 @@ class ProfileService {
     try {
       console.log("📝 Updating profile:", userId, updates);
 
-      const allowedFields = ["full_name", "username", "bio", "avatar_id"];
+      const allowedFields = ["full_name", "username", "bio", "avatar_id", "banner_image_id", "profile_tags"];
       const filteredUpdates = {};
 
       Object.keys(updates).forEach((key) => {
         if (allowedFields.includes(key) && updates[key] !== undefined) {
-          filteredUpdates[key] = updates[key];
+          filteredUpdates[key] = key === "profile_tags"
+            ? normalizeProfileTags(updates[key])
+            : updates[key];
         }
       });
 

@@ -214,8 +214,8 @@ const FullScreenPostView = ({
           >
             <div className="fspv-desktop-post">
               {postContent}
-              {!isNews && showComments && <PostComments post={post} currentUser={currentUser} onClose={() => setShowComments(false)} />}
             </div>
+            {!isNews && showComments && <PostComments post={post} currentUser={currentUser} onClose={() => setShowComments(false)} />}
           </div>
 
           {!isNews && showShare && (
@@ -238,7 +238,7 @@ const FullScreenPostView = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="fspv-mobile-card" onClick={(e) => e.stopPropagation()}>
+        <div className={`fspv-mobile-card${!isNews && showComments ? " with-comments" : ""}`} onClick={(e) => e.stopPropagation()}>
           {postContent}
           {!isNews && showComments && <PostComments post={post} currentUser={currentUser} onClose={() => setShowComments(false)} />}
         </div>
@@ -265,12 +265,6 @@ const FullScreenPostView = ({
 
 const PostComments = ({ post, currentUser, onClose }) => (
   <section className="fspv-post-comments">
-    <div className="fspv-comments-header">
-      <span>Comments</span>
-      <button className="fspv-comments-close-btn" onClick={onClose} aria-label="Close comments">
-        <X size={15} />
-      </button>
-    </div>
     <div className="fspv-comments-body">
       <CommentModal content={{ ...post, type: "post" }} currentUser={currentUser} onClose={onClose} embedded={true} />
     </div>
@@ -302,8 +296,9 @@ const CSS = `
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   width: min(820px, 90vw);
+  height: min(760px, 92vh);
   max-height: 92vh;
   border-radius: 20px;
   overflow: hidden;
@@ -313,8 +308,8 @@ const CSS = `
   animation: fspvSlideUp 0.25s cubic-bezier(0.34,1.2,0.64,1) both;
   transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
 }
-.fspv-desktop-card.with-comments { width: min(900px, 94vw); }
-.fspv-desktop-post { flex:1; min-width:0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; }
+.fspv-desktop-card.with-comments { width: min(1180px, 96vw); }
+.fspv-desktop-post { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 .fspv-mobile {
   align-items: stretch;
   justify-content: flex-start;
@@ -322,7 +317,7 @@ const CSS = `
   animation: fspvFadeIn 0.18s ease both;
 }
 .fspv-mobile-card {
-  flex:1; display:flex; flex-direction:column; background:#000; overflow-y:auto; overflow-x:hidden; min-width:0;
+  position:relative; flex:1; display:flex; flex-direction:column; background:#000; overflow-y:auto; overflow-x:hidden; min-width:0;
 }
 .fspv-mobile-sidebar {
   position:absolute; top:0; right:0; bottom:0; width:min(100%,400px);
@@ -371,7 +366,7 @@ const CSS = `
   background:rgba(132,204,22,0.13); border-color:rgba(132,204,22,0.35); color:#84cc16; transform:scale(1.05);
 }
 .fspv-body {
-  flex:0 0 auto; overflow:visible; padding:20px 22px; color:#f0f0f0; font-size:17px; line-height:1.85;
+  flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px 22px; color:#f0f0f0; font-size:17px; line-height:1.85;
   scrollbar-width:thin; scrollbar-color:rgba(132,204,22,0.4) rgba(255,255,255,0.03);
 }
 .fspv-post-media {
@@ -379,26 +374,16 @@ const CSS = `
 }
 .fspv-card-post { width:100%; margin-bottom:4px; }
 .fspv-card-post .cp-wrapper { width:100%; }
-.fspv-post-comments { flex:0 0 min(520px, 70vh); display:flex; flex-direction:column; border-top:1px solid rgba(132,204,22,0.1); background:#111; }
+.fspv-post-comments { flex:0 0 min(370px, 34vw); min-width:300px; min-height:0; display:flex; flex-direction:column; border-left:1px solid rgba(132,204,22,0.12); background:#111; }
 .fspv-body::-webkit-scrollbar { width:5px; }
 .fspv-body::-webkit-scrollbar-track { background:rgba(255,255,255,0.02); }
 .fspv-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,0.4); border-radius:3px; }
 .fspv-footer {
   padding:12px 16px; border-top:1px solid rgba(132,204,22,0.08); flex-shrink:0;
 }
-.fspv-comments-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:13px 16px; border-bottom:1px solid rgba(255,255,255,0.07); flex-shrink:0;
-}
-.fspv-comments-title { font-size:14px; font-weight:700; color:#e0e0e0; }
-.fspv-comments-close-btn {
-  width:28px; height:28px; border-radius:7px; background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.1); color:#777;
-  display:flex; align-items:center; justify-content:center; cursor:pointer;
-  transition:background 0.15s,border-color 0.15s,color 0.15s;
-}
-.fspv-comments-close-btn:hover { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#ef4444; }
-.fspv-comments-body { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,0.3) transparent; }
+.fspv-comments-body { flex:1; min-height:0; overflow:hidden; }
+.fspv-post-comments .comment-modal-embedded { min-height:0; }
+.fspv-post-comments .comments-list { min-height:0; }
 .fspv-comments-body::-webkit-scrollbar { width:4px; }
 .fspv-comments-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,0.3); border-radius:3px; }
 .fspv-mobile-back-btn {
@@ -417,6 +402,20 @@ const CSS = `
   position:sticky; bottom:0;
   background:rgba(0,0,0,0.9); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   padding:12px 14px;
+}
+@media (max-width: 768px) {
+  .fspv-desktop-card { flex-direction:column; width:min(820px, 96vw); height:auto; }
+  .fspv-desktop-card.with-comments { width:min(820px, 96vw); }
+  .fspv-desktop-card .fspv-post-comments { display:none; }
+  .fspv-mobile-card.with-comments { overflow:hidden; }
+  .fspv-mobile-card .fspv-post-comments {
+    position:absolute; z-index:5; inset:auto 0 0;
+    width:100%; min-width:0; height:min(76dvh, 680px);
+    border:1px solid rgba(132,204,22,0.16); border-bottom:0;
+    border-radius:18px 18px 0 0;
+    box-shadow:0 -24px 70px rgba(0,0,0,.62);
+    animation:fspvSlideUp .22s cubic-bezier(.22,1,.36,1) both;
+  }
 }
 @keyframes fspvFadeIn { from{opacity:0} to{opacity:1} }
 @keyframes fspvSlideUp { from{opacity:0;transform:translateY(20px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }

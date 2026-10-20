@@ -52,6 +52,7 @@ const FullScreenReels = ({
         userId: currentReel.user_id,
         author: currentReel.profiles?.full_name || currentReel.author || "Unknown",
         username: currentReel.profiles?.username || currentReel.username || "unknown",
+        createdAt: currentReel.created_at,
         avatar: currentReel.profiles?.avatar_id
           ? mediaUrlService.getAvatarUrl(currentReel.profiles.avatar_id, 200)
           : null,
@@ -324,7 +325,7 @@ const FullScreenReels = ({
     <>
       <div
         ref={containerRef}
-        className="fullscreen-reels-container"
+        className={`fullscreen-reels-container${showComments ? " with-comments" : ""}`}
         onMouseMove={() => resetControlsTimer()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -342,7 +343,6 @@ const FullScreenReels = ({
                 className="reel-video"
                 src={videoUrl}
                 poster={thumbnailUrl}
-                preload="auto"
                 loop playsInline muted={muted} preload="auto"
                 onClick={togglePlay}
                 onLoadStart={() => setIsLoading(true)}
@@ -449,20 +449,19 @@ const FullScreenReels = ({
             {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
         </div>
-      </div>
-
-      {showComments && portalRoot && ReactDOM.createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 100003 }}>
+        {showComments && (
+          <div className="fullscreen-reels-comments">
           <CommentModal
             content={{ ...currentReel, type: "reel" }}
             currentUser={currentUser}
             onClose={() => setShowComments(false)}
             isMobile={window.innerWidth <= 768}
+            embedded
             onProfileClick={onProfileClick}
           />
-        </div>,
-        portalRoot,
-      )}
+          </div>
+        )}
+      </div>
       {showShare && (
         <ShareModal content={{ ...currentReel, type: "reel" }} currentUser={currentUser} onClose={() => setShowShare(false)} />
       )}
@@ -482,10 +481,11 @@ const FullScreenReels = ({
           left: 0 !important;
           width: 100vw;
           height: 100vh;
+          box-sizing: border-box;
         }
 
         .fullscreen-reels-comments {
-          position: fixed;
+          position: absolute;
           z-index: 10002;
           top: 0;
           right: 0;
@@ -498,6 +498,8 @@ const FullScreenReels = ({
           box-shadow: -24px 0 70px rgba(0, 0, 0, 0.45);
           animation: reelsCommentsIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
+        .fullscreen-reels-container.with-comments { padding-right: min(390px, 38vw); }
+        .fullscreen-reels-container.with-comments .reel-slide { max-width: 100%; }
         .fullscreen-reels-comments-head {
           display: flex;
           align-items: center;
@@ -521,9 +523,13 @@ const FullScreenReels = ({
         .fullscreen-reels-comments-body { min-height: 0; flex: 1; overflow: hidden; }
         @keyframes reelsCommentsIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 768px) {
+          .fullscreen-reels-container.with-comments { padding-right: 0; }
           .fullscreen-reels-comments {
             top: auto;
+            left: 0;
+            right: 0;
             width: 100%;
+            min-width: 0;
             height: min(78vh, 650px);
             border-top: 1px solid rgba(255,255,255,.15);
             border-left: 0;

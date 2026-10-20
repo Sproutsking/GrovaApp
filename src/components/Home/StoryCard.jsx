@@ -20,21 +20,6 @@ import ParsedText from "../Shared/ParsedText";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import followService from "../../services/social/followService";  // [1]
 
-// ── relative timestamp ────────────────────────────────────────────────────────
-const relTime = (dateStr) => {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60)  return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60)  return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24)  return `${h}h`;
-  const d = Math.floor(h / 24);
-  if (d < 7)   return `${d}d`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-};
-
 const StoryCard = ({
   story,
   currentUser,
@@ -62,6 +47,7 @@ const StoryCard = ({
       ? mediaUrlService.getAvatarUrl(story.profiles.avatar_id, 200)
       : null,
     verified: story.profiles?.verified || story.verified || false,
+    createdAt: story.created_at,
   };
 
   const coverImageUrl = story.cover_image_id
@@ -75,10 +61,29 @@ const StoryCard = ({
 
   // [1] Check follow status on mount — mirrors UserProfileModal.checkFollowStatus()
   useEffect(() => {
-    if (!currentUser?.id || isOwnStory) return;
+    if (!currentUser?.id || isOwnStory) {
+      setIsFollowing(false);
+      return undefined;
+    }
+    let active = true;
+    let changedAfterCheck = false;
+    const handleFollowsChanged = (event) => {
+      const detail = event.detail || {};
+      if (String(detail.followerId) !== String(currentUser.id)
+        || String(detail.followingId) !== String(story.user_id)) return;
+      changedAfterCheck = true;
+      setIsFollowing(Boolean(detail.following));
+    };
+    window.addEventListener("xeevia:follows-changed", handleFollowsChanged);
     followService.isFollowing(currentUser.id, story.user_id)
-      .then(setIsFollowing)
+      .then((status) => {
+        if (active && !changedAfterCheck) setIsFollowing(status);
+      })
       .catch(() => {});
+    return () => {
+      active = false;
+      window.removeEventListener("xeevia:follows-changed", handleFollowsChanged);
+    };
   }, [story.user_id, currentUser?.id, isOwnStory]);
 
   // [2] Follow toggle — mirrors UserProfileModal.handleFollowToggle() exactly
@@ -152,11 +157,6 @@ const StoryCard = ({
           {/* [3] Author header: ProfilePreview + timestamp + Follow/Unfollow */}
           <div className="story-author-header">
             <ProfilePreview profile={profile} onClick={onAuthorClick} size="small" />
-
-            {/* [4] Timestamp */}
-            {story.created_at && (
-              <span className="story-timestamp">{relTime(story.created_at)}</span>
-            )}
 
             {/* [3] Follow/Unfollow replaces category badge */}
             {!isOwnStory && currentUser?.id && (
