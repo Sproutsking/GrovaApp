@@ -230,6 +230,16 @@ class SocialConnectService {
             }
           }
         } else if (existing.auth_status === "active") {
+          if (providerToken && existing.id) {
+            const { error: tokenError } = await supabase.from("tokens").upsert({
+              connection_id: existing.id,
+              encrypted_token: providerToken,
+              refresh_token: session.provider_refresh_token || null,
+              expires_at: null,
+              revoked: false,
+            }, { onConflict: "connection_id" });
+            if (tokenError) throw tokenError;
+          }
           imported[platformKey] = true;
         }
       }

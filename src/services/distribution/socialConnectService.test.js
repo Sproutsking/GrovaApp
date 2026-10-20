@@ -1,4 +1,19 @@
-import { resolveProviderLinkState } from './socialConnectService';
+import socialConnectService, { resolveProviderLinkState } from './socialConnectService';
+import { supabase } from "../config/supabase";
+
+jest.mock("../config/supabase", () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+      getSession: jest.fn(),
+    },
+    from: jest.fn(),
+  },
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('resolveProviderLinkState', () => {
   it('does not treat a Supabase auth identity as publish-ready without a token', () => {
@@ -29,5 +44,51 @@ describe('resolveProviderLinkState', () => {
     });
 
     expect(state).toMatchObject({ alreadyConnected: false, source: 'supabase_identity' });
+  });
+
+  it("refreshes the publishing token for an already-active identity connection", async () => {
+    const connectionQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: { id: "connection-x", auth_status: "active" },
+        error: null,
+      }),
+    };
+    const tokenQuery = {
+      upsert: jest.fn().mockResolvedValue({ error: null }),
+    };
+
+    supabase.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          identities: [{ provider: "twitter", id: "x-user", identity_data: { user_name: "xuser" } }],
+        },
+      },
+    });
+    supabase.auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { app_metadata: { provider: "twitter" } },
+          provider_token: "fresh-provider-token",
+          provider_refresh_token: "fresh-refresh-token",
+        },
+      },
+    });
+    supabase.from.mockImplementation((table) => (
+      table === "connections" ? connectionQuery : tokenQuery
+    ));
+
+    await expect(socialConnectService.checkAndImportExistingIdentities("user-1"))
+      .resolves.toEqual({ x: true });
+
+    expect(tokenQuery.upsert).toHaveBeenCalledWith({
+      connection_id: "connection-x",
+      encrypted_token: "fresh-provider-token",
+      refresh_token: "fresh-refresh-token",
+      expires_at: null,
+      revoked: false,
+    }, { onConflict: "connection_id" });
   });
 });

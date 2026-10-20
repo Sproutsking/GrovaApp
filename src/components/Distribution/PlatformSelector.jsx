@@ -26,6 +26,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Bot, Link2, RefreshCw } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import distributionService from "../../services/distribution/distributionService";
+import socialConnectService from "../../services/distribution/socialConnectService";
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
 
@@ -203,6 +204,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
     setIsRefreshing(true);
     setLoadError("");
     try {
+      await socialConnectService.checkAndImportExistingIdentities(userId);
       const [connectedList, ownedCommunities] = await Promise.all([
         distributionService.getConnectedPlatforms(userId),
         resolveCommunityQuery(
