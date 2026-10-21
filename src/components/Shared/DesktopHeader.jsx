@@ -202,7 +202,7 @@ const DesktopHeader = ({
 
   let avatarUrl = profile?.avatar;
   if (profile?.avatar_id) {
-    avatarUrl = mediaUrlService.getOptimizedImageUrl(profile.avatar_id, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" }) || avatarUrl;
+    avatarUrl = mediaUrlService.resolveAvatarUrl(profile.avatar_id, 240) || avatarUrl;
   } else if (avatarUrl && typeof avatarUrl === "string") {
     avatarUrl = mediaUrlService.getOptimizedImageUrl(avatarUrl, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" }) || avatarUrl;
   }

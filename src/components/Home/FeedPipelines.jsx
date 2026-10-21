@@ -193,8 +193,8 @@ function avatarGrad(str = "") {
 function safeAvatarUrl(avatarId) {
   if (!avatarId) return null;
   try {
-    if (typeof mediaUrlService.getImageUrl === "function")
-      return mediaUrlService.getImageUrl(avatarId, { width: 160, height: 160, crop: "fill", gravity: "face" });
+    if (typeof mediaUrlService.resolveAvatarUrl === "function")
+      return mediaUrlService.resolveAvatarUrl(avatarId, 160);
     if (typeof mediaUrlService.getAvatarUrl === "function")
       return mediaUrlService.getAvatarUrl(avatarId, 160);
   } catch {}

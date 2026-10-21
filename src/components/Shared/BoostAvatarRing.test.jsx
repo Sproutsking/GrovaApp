@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import BoostAvatarRing from './BoostAvatarRing';
 
 describe('BoostAvatarRing', () => {
@@ -15,5 +15,22 @@ describe('BoostAvatarRing', () => {
     );
 
     expect(screen.queryByText('✓')).toBeNull();
+  });
+
+  it('tries the next image source when the primary avatar URL fails', () => {
+    const { container } = render(
+      <BoostAvatarRing
+        size={80}
+        src="https://media.example/expired-avatar.jpg"
+        fallbackSrc={["https://media.example/storage-avatar.jpg"]}
+        letter="D"
+      />
+    );
+
+    const avatarImage = container.querySelector('img');
+    expect(avatarImage).not.toBeNull();
+    fireEvent.error(avatarImage);
+
+    expect(container.querySelector('img').getAttribute('src')).toBe("https://media.example/storage-avatar.jpg");
   });
 });

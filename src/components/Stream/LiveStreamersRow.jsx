@@ -68,12 +68,7 @@ const StreamerAvatar = ({ profile }) => {
 
   const avatarUrl =
     !imgError && profile?.avatar_id
-      ? mediaUrlService.getImageUrl(profile.avatar_id, {
-          width: 100,
-          height: 100,
-          crop: "fill",
-          gravity: "face",
-        })
+      ? mediaUrlService.resolveAvatarUrl(profile.avatar_id, 100)
       : null;
 
   const initials = (profile?.full_name || profile?.username || "?")

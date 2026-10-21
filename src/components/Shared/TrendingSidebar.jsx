@@ -579,7 +579,7 @@ const StreamerRow = ({ streamer, onClick }) => {
   const pr = streamer.profile || {};
   const avatarUrl =
     !imgErr && pr.avatar_id
-      ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 60, height: 60, crop: "fill", gravity: "face" })
+      ? mediaUrlService.resolveAvatarUrl(pr.avatar_id, 60)
       : null;
   const initial  = (pr.full_name || pr.username || "?").charAt(0).toUpperCase();
   const fallback = avatarGradient(pr.id || pr.username || String(streamer.rank));
@@ -620,7 +620,7 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const avatarUrl =
     !imgErr && profile.avatar_id
-      ? mediaUrlService.getImageUrl(profile.avatar_id, { width: 100, height: 100, crop: "fill", gravity: "face" })
+      ? mediaUrlService.resolveAvatarUrl(profile.avatar_id, 100)
       : null;
   const initial = (profile.full_name || profile.username || "?").charAt(0).toUpperCase();
 
@@ -822,7 +822,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     return topIds.map((uid, i) => {
       const pr = profiles?.find((p) => p.id === uid); if (!pr) return null;
       const st = stats[uid];
-      const avatar = pr.avatar_id ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 200, height: 200, crop: "fill", gravity: "face" }) : null;
+      const avatar = mediaUrlService.resolveAvatarUrl(pr.avatar_id, 200);
       return {
         userId: pr.id, rank: i + 1, name: pr.full_name || "Creator", username: pr.username || "user",
         avatar: avatar || pr.full_name?.charAt(0) || "G", verified: pr.verified || false, bio: pr.bio || "",
@@ -855,7 +855,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           id: item.id, contentType: item.contentType, caption: item.caption || "",
           views: item.views || 0, likes: item.likes || 0,
           authorName: pr.full_name || "Creator", authorUsername: pr.username || "user",
-          authorAvatar: pr.avatar_id ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 80, height: 80, crop: "fill", gravity: "face" }) : pr.full_name?.charAt(0) || "?",
+          authorAvatar: mediaUrlService.resolveAvatarUrl(pr.avatar_id, 80) || pr.full_name?.charAt(0) || "?",
           thumbnail: thumbId ? mediaUrlService.getImageUrl(thumbId, { width: 160, height: 160, crop: "fill" }) : null,
           _idx: idx,
         };

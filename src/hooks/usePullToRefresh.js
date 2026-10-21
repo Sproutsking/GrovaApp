@@ -32,9 +32,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ── Physics constants ────────────────────────────────────────────────────────
-const TRIGGER_THRESHOLD = 80;   // px of rubber-banded pull to trigger refresh
-const MAX_DISPLAY_PX    = 108;  // visual ceiling — indicator never goes past this
-const RESISTANCE_FACTOR = 3.2;  // higher = heavier/slower pull feeling
+const TRIGGER_THRESHOLD = 70;   // raw pull distance required to refresh
+const MAX_DISPLAY_PX    = 96;   // visual ceiling — indicator never goes past this
+const RESISTANCE_FACTOR = 0.7;  // keep pull-to-refresh light and responsive
 
 // Rubber-band curve: fast at start, diminishing towards ceiling.
 // Produces the authentic "pulling through gel" feel.

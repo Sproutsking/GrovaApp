@@ -72,7 +72,7 @@ const UserSearchModal = ({ currentUser, onClose, onSelect }) => {
 
   const getAvatar = (user) => {
     if (!user.avatar_id) return null;
-    return mediaUrlService.getImageUrl(user.avatar_id, { width: 100, height: 100 });
+    return mediaUrlService.resolveAvatarUrl(user.avatar_id, 100);
   };
 
   return (

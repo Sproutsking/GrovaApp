@@ -415,14 +415,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       let avatarUrl = null;
       if (profileData?.avatar_id) {
         try {
-          avatarUrl = mediaUrlService.getOptimizedImageUrl(profileData.avatar_id, {
-            width: 600,
-            height: 600,
-            quality: "100",
-            format: "webp",
-            crop: "fill",
-            gravity: "face",
-          });
+          avatarUrl = mediaUrlService.resolveAvatarUrl(profileData.avatar_id, 600);
         } catch (err) {
           console.warn("Avatar URL generation failed:", err?.message);
         }
@@ -582,6 +575,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       onProfileUpdate({
         id: profile.id, fullName: updatedData.fullName,
         username: updatedData.username, avatar: updatedData.avatar,
+        avatarId: updatedData.avatarId, bio: updatedData.bio,
+        bannerImageUrl: updatedData.bannerImageUrl,
+        bannerImageId: updatedData.bannerImageId,
         verified: profile.verified, isPro: profile.isPro,
       });
     }
@@ -839,6 +835,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 themeId={activeThemeId}
                 size={110}
                 src={profile.avatar && typeof profile.avatar === "string" && profile.avatar.startsWith("http") ? profile.avatar : null}
+                fallbackSrc={mediaUrlService.resolveAvatarUrls(profile.avatarId, 600).slice(1)}
                 letter={profile.fullName?.charAt(0)?.toUpperCase() || "U"}
                 showBadge={false}
                 badgeSize="md"

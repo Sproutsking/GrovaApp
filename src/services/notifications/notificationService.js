@@ -312,7 +312,7 @@ class NotificationService {
   _enrich(n) {
     let avatarUrl = null;
     if (n.actor?.avatar_id) {
-      const raw = mediaUrlService.getImageUrl(n.actor.avatar_id, { width: 100, height: 100 });
+      const raw = mediaUrlService.resolveAvatarUrl(n.actor.avatar_id, 100);
       avatarUrl = typeof raw === "string" ? raw : null;
     }
     return {

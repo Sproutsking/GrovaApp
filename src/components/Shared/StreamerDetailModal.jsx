@@ -689,12 +689,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
   const pr = profile || streamer?.profile || {};
   const avatarUrl =
     !imgErr && pr.avatar_id
-      ? mediaUrlService.getImageUrl(pr.avatar_id, {
-          width: 160,
-          height: 160,
-          crop: "fill",
-          gravity: "face",
-        })
+      ? mediaUrlService.resolveAvatarUrl(pr.avatar_id, 160)
       : null;
   const initial = (pr.full_name || pr.username || "?").charAt(0).toUpperCase();
   const recordedCount = sessions.filter((s) => s.recording_url).length;

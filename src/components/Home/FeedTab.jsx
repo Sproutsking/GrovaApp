@@ -50,11 +50,12 @@ const _save   = _conn?.saveData || false;
 const IS_SLOW = _save || _ect === "slow-2g" || _ect === "2g";
 const IS_MID  = _ect === "3g";
 const IS_FAST = !IS_SLOW && !IS_MID;
+const IS_MOBILE = window.innerWidth <= 768;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_SLOW ? 4 : IS_MID ? 6 : 8;
-const PRELOAD_WINDOW = IS_SLOW ? 12 : IS_MID ? 20 : 30;
-const VIDEO_PRELOAD_W = IS_SLOW ? 2 : IS_MID ? 3 : 4;
+const RENDER_RADIUS  = IS_MOBILE ? (IS_SLOW ? 3 : 5) : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const PRELOAD_WINDOW = IS_MOBILE ? (IS_SLOW ? 2 : 4) : IS_SLOW ? 12 : IS_MID ? 20 : 30;
+const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 2 : IS_MID ? 3 : 4;
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
@@ -413,13 +414,14 @@ const VirtualFeed = React.memo(({
         return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
       })}
       <style>{`
-        .vf-list{--vf-item-gap:14px;display:flex;flex-direction:column;position:relative;contain:layout paint;width:100%;min-width:0;}
+        .vf-list{--vf-item-gap:8px;display:flex;flex-direction:column;position:relative;contain:layout paint;width:100%;min-width:0;}
         .vf-item,.vf-placeholder{width:100%;min-width:0;max-width:100%;margin-bottom:var(--vf-item-gap);}
         .vf-item{contain:layout style;}
+        .vf-item .gvp-card{margin-bottom:0;}
         .vf-placeholder{position:relative;overflow:hidden;}
         .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}
         @keyframes vf-placeholder-shimmer{to{background-position-x:-220%;}}
-        @media(max-width:768px){.vf-list{--vf-item-gap:2px;}}
+        @media(max-width:768px){.vf-list{--vf-item-gap:0;}}
         @media(prefers-reduced-motion:reduce){.vf-placeholder::after{animation:none;}}
       `}</style>
     </div>

@@ -31,7 +31,7 @@ import {
 import { supabase }          from "../../services/config/supabase";
 import mediaUrlService       from "../../services/shared/mediaUrlService";
 import followService         from "../../services/social/followService";
-import { BOOST_VISUAL } from "../../services/account/profileTierService";
+import { BOOST_VISUAL, getBoostVisualForTheme } from "../../services/account/profileTierService";
 import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import PostCard              from "../Home/PostCard";
@@ -200,13 +200,7 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
       <span className="upm-people-faces" aria-hidden="true">
         {visiblePeople.map((item, index) => {
           const person = item.profiles || {};
-          const avatar = person.avatar_id
-            ? (person.avatar_id.startsWith?.("http")
-              ? person.avatar_id
-              : mediaUrlService.getOptimizedImageUrl(person.avatar_id, {
-                  width: 80, height: 80, crop: "fill", gravity: "face", format: "webp",
-                }))
-            : null;
+          const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 80);
           return (
             <span className="upm-people-avatar" key={item.follower_id || item.following_id || person.id || index}>
               {avatar
@@ -228,6 +222,27 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
     </button>
   );
 };
+
+const ProfileSidebarAccordion = ({ id, title, isOpen, onToggle, actions, children, className = "" }) => (
+  <section className={`upm-sidebar-block upm-sidebar-accordion${isOpen ? " is-expanded" : ""}${className ? ` ${className}` : ""}`}>
+    <div className="upm-sidebar-accordion-head">
+      <button
+        type="button"
+        className="upm-sidebar-accordion-toggle"
+        aria-expanded={isOpen}
+        aria-controls={`upm-sidebar-${id}`}
+        onClick={onToggle}
+      >
+        <span className="upm-sidebar-label">{title}</span>
+        <ChevronRight size={13} aria-hidden="true" />
+      </button>
+      {actions}
+    </div>
+    <div className="upm-sidebar-accordion-content" id={`upm-sidebar-${id}`}>
+      {children}
+    </div>
+  </section>
+);
 
 const resolveMyId = (cu) =>
   cu?.id      ||
@@ -299,6 +314,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [creatorRailLoading, setCreatorRailLoading] = useState(true);
   const [selectedRailProfile, setSelectedRailProfile] = useState(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [expandedSidebarCard, setExpandedSidebarCard] = useState(null);
 
   const mounted = useRef(true);
 
@@ -445,6 +461,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   };
   const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
   const v          = hasBoosted ? BOOST_VISUAL?.[tier] : null;
+  const coverVisual = hasBoosted
+    ? (getBoostVisualForTheme(tier, themeId) || v)
+    : null;
+  const coverStyle = coverVisual ? {
+    "--cover-accent": getTierColor(tier, themeId) || coverVisual.color,
+    "--cover-glow": coverVisual.glow || glowColor,
+  } : undefined;
 
   const dashboardPage = (
     <VerificationDashboardPage
@@ -578,16 +601,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .maybeSingle();
 
       const raw = p || {};
+      const userAvatarSource = [user?.avatar_url, user?.avatarUrl, user?.avatar]
+        .find((value) => typeof value === "string" && value.trim().length > 1);
 
-      const avatarUrl = mediaUrlService.resolveAvatarUrl(raw.avatar_id, 300)
-        || mediaUrlService.resolveAvatarUrl(raw.avatar_metadata, 300)
-        || mediaUrlService.resolveAvatarUrl(user?.avatar_id, 300)
-        || mediaUrlService.resolveAvatarUrl(
-          [user?.avatar_url, user?.avatarUrl, user?.avatar].find((value) => (
-            typeof value === "string" && /^(https?:\/\/|blob:|data:image\/)/i.test(value)
-          )),
-          300,
-        );
+      const avatarCandidates = [...new Set([
+        ...mediaUrlService.resolveAvatarUrls(raw.avatar_id, 300),
+        ...mediaUrlService.resolveAvatarUrls(raw.avatar_metadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(user?.avatar_id, 300),
+        ...mediaUrlService.resolveAvatarUrls(user?.avatar_metadata || user?.avatarMetadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(userAvatarSource, 300),
+      ])];
+      const [avatarUrl, ...avatarFallbackUrls] = avatarCandidates;
       const bannerImageUrl = raw.banner_image_id
         ? (/^https?:\/\//i.test(raw.banner_image_id)
           ? raw.banner_image_id
@@ -606,6 +630,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           fullName:      raw.full_name || user?.full_name || user?.name || user?.author || "Unknown",
           username:      raw.username  || user?.username  || "unknown",
           avatarUrl,
+          avatarFallbackUrls,
           avatarId:      raw.avatar_id || user?.avatar_id || null,
           bannerImageUrl,
           bannerImageId: raw.banner_image_id || null,
@@ -910,17 +935,21 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             </nav>
 
             <aside className="upm-profile-sidebar" aria-label="Profile details and shortcuts">
-              <section className="upm-sidebar-block">
-                <div className="upm-sidebar-label">{isOwn ? "Your profile" : "About"}</div>
-                {profile?.bio && <p className="upm-sidebar-bio">{profile.bio}</p>}
-                {profile?.location && <div className="upm-sidebar-detail"><MapPin size={13} /><span>{profile.location}</span></div>}
-                {profile?.joinDate && <div className="upm-sidebar-detail"><Clock3 size={13} /><span>Joined {profile.joinDate}</span></div>}
-                {profile?.email && <div className="upm-sidebar-detail"><span className="upm-sidebar-detail-dot" /><span>{profile.email}</span></div>}
-                {profile?.phone && <div className="upm-sidebar-detail"><span className="upm-sidebar-detail-dot" /><span>{profile.phone}</span></div>}
+              <ProfileSidebarAccordion
+                id="about"
+                title={isOwn ? "Your profile" : "About"}
+                isOpen={expandedSidebarCard === "about"}
+                onToggle={() => setExpandedSidebarCard((current) => current === "about" ? null : "about")}
+              >
+                {profile?.bio && <p className="upm-sidebar-bio upm-sidebar-accordion-item">{profile.bio}</p>}
+                {profile?.location && <div className="upm-sidebar-detail upm-sidebar-accordion-item"><MapPin size={13} /><span>{profile.location}</span></div>}
+                {profile?.joinDate && <div className="upm-sidebar-detail upm-sidebar-accordion-item"><Clock3 size={13} /><span>Joined {profile.joinDate}</span></div>}
+                {profile?.email && <div className="upm-sidebar-detail upm-sidebar-accordion-item"><span className="upm-sidebar-detail-dot" /><span>{profile.email}</span></div>}
+                {profile?.phone && <div className="upm-sidebar-detail upm-sidebar-accordion-item"><span className="upm-sidebar-detail-dot" /><span>{profile.phone}</span></div>}
                 {!profile?.bio && !profile?.location && !profile?.joinDate && !profile?.email && !profile?.phone && (
-                  <p className="upm-sidebar-muted">No additional profile details shared.</p>
+                  <p className="upm-sidebar-muted upm-sidebar-accordion-item">No additional profile details shared.</p>
                 )}
-              </section>
+              </ProfileSidebarAccordion>
 
               {isOwn && (
                 <>
@@ -930,6 +959,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     <button type="button" onClick={() => handleOwnerShortcut("edit-profile")}>Complete your profile <ChevronRight size={13} /></button>
                   </section>
 
+                  <ProfileSidebarAccordion
+                    id="shortcuts"
+                    title="Profile shortcuts"
+                    isOpen={expandedSidebarCard === "shortcuts"}
+                    onToggle={() => setExpandedSidebarCard((current) => current === "shortcuts" ? null : "shortcuts")}
+                  >
                   <nav className="upm-sidebar-nav" aria-label="Your profile shortcuts">
                     <button type="button" onClick={() => handleOwnerShortcut("edit-profile")}><Settings size={15} /><span>Edit profile</span><ChevronRight size={13} /></button>
                     <button type="button" onClick={() => handleOwnerShortcut("saved")}><Bookmark size={15} /><span>Saved</span><ChevronRight size={13} /></button>
@@ -940,16 +975,20 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     <button type="button" onClick={() => handleOwnerShortcut("ambassador")}><Sparkles size={15} /><span>Ambassador</span><small>{ambassadorData ? `${ambassadorData.commission_pct}%` : "Explore"}</small></button>
                     <button type="button" onClick={() => { setShowXRD(true); setInitialXRDSection("Oracle"); }}><ExternalLink size={15} /><span>XRC Oracle</span><ChevronRight size={13} /></button>
                   </nav>
+                  </ProfileSidebarAccordion>
                 </>
               )}
 
-              <section className="upm-sidebar-block upm-connections">
-                <div className="upm-sidebar-title">
-                  <div className="upm-sidebar-label">{connectionList ? `Recent ${connectionList}` : "Connections"}</div>
-                  {connectionList
-                    ? <button type="button" onClick={() => setConnectionList(null)}>Back</button>
-                    : <button type="button" onClick={() => openConnectionList("followers")}>See all</button>}
-                </div>
+              <ProfileSidebarAccordion
+                id="connections"
+                title={connectionList ? `Recent ${connectionList}` : "Connections"}
+                isOpen={expandedSidebarCard === "connections"}
+                onToggle={() => setExpandedSidebarCard((current) => current === "connections" ? null : "connections")}
+                className="upm-connections"
+                actions={connectionList
+                  ? <button type="button" onClick={() => setConnectionList(null)}>Back</button>
+                  : <button type="button" onClick={() => openConnectionList("followers")}>See all</button>}
+              >
                 <div className="upm-connections-grid">
                 {connectionListLoading ? <div className="upm-sidebar-muted">Loading connections…</div> : (connectionList ? connectionPreviews[connectionList] : [
                   ...connectionPreviews.followers.slice(0, 3),
@@ -957,11 +996,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 ]).slice(0, 6).map((item, index) => {
                   const person = item.profiles || {};
                   const key = item.follower_id || item.following_id || person.id || index;
-                  const avatar = person.avatar_id
-                    ? (person.avatar_id.startsWith?.("http")
-                      ? person.avatar_id
-                      : mediaUrlService.getOptimizedImageUrl(person.avatar_id, { width: 96, height: 96, crop: "fill", gravity: "face", format: "webp" }))
-                    : null;
+                  const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 96);
                   return (
                     <div className="upm-connection-person" key={`${key}-${index}`}>
                       <span>{avatar ? <img src={avatar} alt="" /> : (person.full_name || person.username || "?").charAt(0).toUpperCase()}</span>
@@ -981,23 +1016,28 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     <button type="button" onClick={() => openConnectionList("following")}>Following <b>{fmt(stats.following)}</b></button>
                   </div>
                 )}
-              </section>
+              </ProfileSidebarAccordion>
 
-              <section className="upm-sidebar-block upm-sidebar-links">
-                <div className="upm-sidebar-label">Linked networks</div>
+              <ProfileSidebarAccordion
+                id="networks"
+                title="Linked networks"
+                isOpen={expandedSidebarCard === "networks"}
+                onToggle={() => setExpandedSidebarCard((current) => current === "networks" ? null : "networks")}
+                className="upm-sidebar-links"
+              >
                 {visibleNetworks.length ? visibleNetworks.map(({ provider, url, status }, index) => (
                   url ? (
-                    <a key={`${provider}-${url}`} href={url} target="_blank" rel="noopener noreferrer">
+                    <a className="upm-sidebar-accordion-item" key={`${provider}-${url}`} href={url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink size={13} /><span>{provider.replaceAll("_", " ")}</span><ChevronRight size={12} />
                     </a>
                   ) : (
-                    <div className="upm-network-status" key={`${provider}-${index}`}>
+                    <div className="upm-network-status upm-sidebar-accordion-item" key={`${provider}-${index}`}>
                       <span>{provider.replaceAll("_", " ")}</span>
                       <small className={status === "active" ? "is-linked" : ""}>{status === "active" ? "Linked" : status || "Connection status unavailable"}</small>
                     </div>
                   )
-                )) : <p className="upm-sidebar-muted">{isOwn ? "Your linked accounts will appear here." : "No public links shared."}</p>}
-              </section>
+                )) : <p className="upm-sidebar-muted upm-sidebar-accordion-item">{isOwn ? "Your linked accounts will appear here." : "No public links shared."}</p>}
+              </ProfileSidebarAccordion>
             </aside>
 
             <main className="upm-main" aria-label="Profile content">
@@ -1013,41 +1053,49 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 >
                   <div className="upm-hdr upm-profile-header">
                     <div
-                      className={`upm-profile-cover${profile?.bannerImageUrl ? " has-custom-banner" : ""}`}
+                      className={`upm-profile-cover${profile?.bannerImageUrl ? " has-custom-banner" : ""}${hasBoosted && !profile?.bannerImageUrl ? ` tier-${tier}` : ""}`}
+                      style={!profile?.bannerImageUrl ? coverStyle : undefined}
                       aria-label="Xeevia profile banner"
                     >
                       {profile?.bannerImageUrl && <img className="upm-profile-banner-image" src={profile.bannerImageUrl} alt="" />}
-                      <div className="upm-cover-grid" />
-                      <div className="upm-cover-copy">
-                        <strong>{profile?.fullName || "Xeevia profile"}</strong>
-                      </div>
-                      <div className="upm-cover-brand">
-                        <img src={`${process.env.PUBLIC_URL || ""}/logo192.png`} alt="Xeevia" />
-                        {isOwn && (
-                          <button
-                            type="button"
-                            className="upm-cover-edit"
-                            onClick={() => setShowProfileEditor(true)}
-                            aria-label="Update profile banner"
-                            title="Update your banner"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-                        )}
-                      </div>
+                      {!profile?.bannerImageUrl && (
+                        <>
+                          <div className="upm-cover-grid" />
+                          <div className="upm-cover-copy">
+                            <strong>{profile?.fullName || "Xeevia profile"}</strong>
+                          </div>
+                          <div className="upm-cover-brand">
+                            <img src={`${process.env.PUBLIC_URL || ""}/logo192.png`} alt="Xeevia" />
+                          </div>
+                        </>
+                      )}
+                      {isOwn && (
+                        <button
+                          type="button"
+                          className="upm-cover-edit"
+                          onClick={() => setShowProfileEditor(true)}
+                          aria-label="Update profile banner"
+                          title="Update your banner"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                      )}
                     </div>
                     <div className="upm-profile-identity-row">
-                  <BoostAvatarRing
-                    userId={targetId}
-                    tier={hasBoosted ? tier : null}
-                    themeId={hasBoosted ? themeId : null}
-                    size={110}
-                    src={profile?.avatarUrl || null}
-                    letter={profile?.fullName?.trim()?.charAt(0) || "U"}
-                    showBadge={false}
-                    badgeSize="md"
-                    borderRadius="circle"
-                  />
+                      <BoostAvatarRing
+                        userId={targetId}
+                        tier={hasBoosted ? tier : null}
+                        themeId={hasBoosted ? themeId : null}
+                        size={110}
+                        src={profile?.avatarUrl || null}
+                        fallbackSrc={profile?.avatarFallbackUrls || []}
+                        letter={profile?.fullName?.trim()?.charAt(0) || "U"}
+                        style={{ transform: "translateX(18px)" }}
+                        showBadge={false}
+                        badgeSize="md"
+                        borderRadius="circle"
+                      />
+                    </div>
                   <div className="upm-profile-action-row" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
                     {showFollowBtn && (
                       <>
@@ -1066,7 +1114,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                       <ShieldCheck size={16} /><span>XRD</span>
                     </button>
                   </div>
-                </div>
 
                 <h2
                   className="upm-name"
@@ -1398,11 +1445,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 {creatorRailLoading ? (
                   <div className="upm-discovery-empty">Loading streamers…</div>
                 ) : topStreamers.length ? topStreamers.map(({ profile: person, peakViewers }) => {
-                  const avatar = person.avatar_id
-                    ? (person.avatar_id.startsWith?.("http")
-                      ? person.avatar_id
-                      : mediaUrlService.getOptimizedImageUrl(person.avatar_id, { width: 80, height: 80, crop: "fill", gravity: "face", format: "webp" }))
-                    : null;
+                  const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 80);
                   return (
                     <button type="button" className="upm-discovery-person" key={person.id} onClick={() => setSelectedRailProfile(person)}>
                       <span className="upm-discovery-avatar">{avatar ? <img src={avatar} alt="" /> : (person.full_name || person.username || "?").charAt(0).toUpperCase()}</span>
@@ -1423,11 +1466,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 {creatorRailLoading ? (
                   <div className="upm-discovery-empty">Finding creators…</div>
                 ) : similarCreators.length ? similarCreators.map((person) => {
-                  const avatar = person.avatar_id
-                    ? (person.avatar_id.startsWith?.("http")
-                      ? person.avatar_id
-                      : mediaUrlService.getOptimizedImageUrl(person.avatar_id, { width: 80, height: 80, crop: "fill", gravity: "face", format: "webp" }))
-                    : null;
+                  const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 80);
                   return (
                     <button type="button" className="upm-discovery-person" key={person.id} onClick={() => setSelectedRailProfile(person)}>
                       <span className="upm-discovery-avatar">{avatar ? <img src={avatar} alt="" /> : (person.full_name || person.username || "?").charAt(0).toUpperCase()}</span>
@@ -1498,6 +1537,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     ...previous,
                     ...updatedProfile,
                     avatarUrl: updatedProfile.avatar || previous?.avatarUrl,
+                    avatarFallbackUrls: [...new Set([
+                      ...mediaUrlService.resolveAvatarUrls(updatedProfile.avatarId || previous?.avatarId, 300),
+                      ...(previous?.avatarFallbackUrls || []),
+                    ].filter(Boolean))],
                   }));
                 }}
               />
@@ -1572,6 +1615,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-profile-sidebar::-webkit-scrollbar-thumb { background:rgba(132,204,22,.24); border-radius:999px; }
         .upm-sidebar-block { position:relative; min-width:0; padding:13px 12px; overflow:hidden; border:1px solid #343b33; border-radius:14px; background:radial-gradient(ellipse at 100% 0,rgba(132,204,22,.075),transparent 48%),linear-gradient(145deg,rgba(16,21,16,.98),rgba(5,7,5,.99)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 10px 24px rgba(0,0,0,.28); }
         .upm-sidebar-block::before { position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,rgba(163,230,53,.7),rgba(16,185,129,.4),transparent); content:""; }
+        .upm-sidebar-accordion-head { display:flex; align-items:center; gap:8px; min-width:0; }
+        .upm-sidebar-accordion-toggle { min-width:0; flex:1; display:flex; align-items:center; gap:8px; padding:0; border:0; background:transparent; color:#d9f99d; text-align:left; cursor:pointer; }
+        .upm-sidebar-accordion-toggle .upm-sidebar-label { flex:1; margin:0; }
+        .upm-sidebar-accordion-toggle > svg { flex:0 0 auto; color:#9aa393; transition:transform .18s,color .18s; }
+        .upm-sidebar-accordion.is-expanded .upm-sidebar-accordion-toggle > svg { transform:rotate(90deg); color:#a3e635; }
+        .upm-sidebar-accordion-content { min-width:0; margin-top:9px; }
+        .upm-sidebar-accordion:not(.is-expanded) .upm-sidebar-accordion-content > .upm-sidebar-accordion-item:nth-child(n+3) { display:none; }
+        .upm-sidebar-accordion-head > button:not(.upm-sidebar-accordion-toggle) { flex:0 0 auto; padding:0; border:0; background:none; color:#a3e635; font-size:9px; font-weight:700; cursor:pointer; }
+        .upm-sidebar-accordion-content .upm-sidebar-nav { padding:0; border:0; background:none; box-shadow:none; }
+        .upm-sidebar-accordion:not(.is-expanded) .upm-sidebar-nav button:nth-of-type(n+3) { display:none; }
+        .upm-connections:not(.is-expanded) .upm-connection-person:nth-child(n+3) { display:none; }
         .upm-sidebar-label { display:flex; align-items:center; gap:7px; margin-bottom:9px; color:#d9f99d; font-size:9px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
         .upm-sidebar-label::before { width:3px; height:11px; flex:0 0 3px; border-radius:99px; background:linear-gradient(180deg,#bef264,#65a30d); box-shadow:0 0 8px rgba(163,230,53,.42); content:""; }
         .upm-sidebar-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -1701,10 +1755,15 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
         .upm-hdr { padding:40px 24px 12px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:24px 24px 0 0; overflow:hidden; }
-        .upm-profile-header { padding:10px 16px 16px; text-align:left; background:transparent!important; }
+        .upm-profile-header { --upm-cover-height:154px; padding:10px 16px 16px; text-align:left; background:transparent!important; }
         .upm-profile-cover { height:154px; position:relative; overflow:hidden; border:1px solid rgba(163,230,53,.42); border-radius:14px; background-color:#07100a; background-image:linear-gradient(90deg,rgba(4,10,6,.9),rgba(4,10,6,.68) 52%,rgba(4,10,6,.42)),radial-gradient(ellipse at 18% 35%,rgba(132,204,22,.28),transparent 48%),radial-gradient(ellipse at 88% 78%,rgba(16,185,129,.22),transparent 48%),linear-gradient(120deg,#101a10,#07100a 50%,#08110d); background-position:center; background-size:cover; box-shadow:inset 0 0 44px rgba(0,0,0,.34),0 8px 28px rgba(0,0,0,.2); }
+        .upm-profile-cover.tier-silver,.upm-profile-cover.tier-gold,.upm-profile-cover.tier-diamond { border-color:color-mix(in srgb,var(--cover-accent) 36%,#292d29); background-image:radial-gradient(ellipse at 16% 20%,color-mix(in srgb,var(--cover-accent) 12%,transparent),transparent 46%),radial-gradient(ellipse at 86% 82%,color-mix(in srgb,var(--cover-accent) 8%,transparent),transparent 44%),linear-gradient(120deg,#101211,#050605 52%,#0d0f0e); box-shadow:inset 0 0 44px rgba(0,0,0,.34),0 8px 28px rgba(0,0,0,.2); }
+        .upm-profile-cover.tier-silver .upm-cover-copy strong,.upm-profile-cover.tier-gold .upm-cover-copy strong,.upm-profile-cover.tier-diamond .upm-cover-copy strong { color:#edf0e9; text-shadow:0 0 12px color-mix(in srgb,var(--cover-accent) 18%,transparent); }
+        .upm-profile-cover.tier-silver .upm-cover-grid,.upm-profile-cover.tier-gold .upm-cover-grid,.upm-profile-cover.tier-diamond .upm-cover-grid { background-image:linear-gradient(color-mix(in srgb,var(--cover-accent) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--cover-accent) 7%,transparent) 1px,transparent 1px); }
+        .upm-profile-cover.tier-silver .upm-cover-brand,.upm-profile-cover.tier-gold .upm-cover-brand,.upm-profile-cover.tier-diamond .upm-cover-brand { filter:drop-shadow(0 0 8px color-mix(in srgb,var(--cover-accent) 24%,transparent)); }
+        .upm-profile-cover.tier-silver .upm-cover-brand::before,.upm-profile-cover.tier-gold .upm-cover-brand::before,.upm-profile-cover.tier-diamond .upm-cover-brand::before { background:linear-gradient(145deg,rgba(255,255,255,.1),color-mix(in srgb,var(--cover-accent) 26%,#101210) 58%,#080a08); }
         .upm-profile-cover.has-custom-banner { background-color:#07100a; }
-        .upm-profile-cover.has-custom-banner::after { position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,rgba(3,8,5,.78),rgba(3,8,5,.4) 55%,rgba(3,8,5,.2)),linear-gradient(0deg,rgba(3,8,5,.48),transparent 55%); content:""; }
+        .upm-profile-cover.has-custom-banner::after { content:none; }
         .upm-profile-banner-image { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; object-position:center; }
         .upm-cover-grid { position:absolute; z-index:1; inset:0; background-image:linear-gradient(rgba(163,230,53,.075) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.075) 1px,transparent 1px); background-size:28px 28px; mask-image:linear-gradient(90deg,transparent,#000 72%); }
         .upm-cover-copy { position:absolute; left:20px; top:50%; z-index:2; display:flex; flex-direction:column; gap:7px; max-width:70%; transform:translateY(-50%); }
@@ -1713,11 +1772,11 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-cover-brand { position:absolute; z-index:2; top:50%; right:24px; width:74px; height:82px; display:grid; place-items:center; transform:translateY(-50%); filter:drop-shadow(0 0 14px rgba(132,204,22,.38)); }
         .upm-cover-brand::before { position:absolute; inset:0; clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background:linear-gradient(145deg,#c5f76b,#57c725 58%,#159b63); content:""; }
         .upm-cover-brand img { position:relative; z-index:1; display:block; width:57px; height:57px; object-fit:contain; border-radius:50%; background:#060906; }
-        .upm-cover-edit { position:absolute; right:-2px; bottom:2px; z-index:2; width:27px; height:27px; display:grid; place-items:center; clip-path:none; border:2px solid #07100a; border-radius:50%; background:#f0ffc8; color:#172407; cursor:pointer; box-shadow:0 3px 12px rgba(0,0,0,.48); transition:transform .16s,background .16s; }
+        .upm-cover-edit { position:absolute; top:12px; right:12px; z-index:2; width:32px; height:32px; display:grid; place-items:center; clip-path:none; border:2px solid rgba(7,16,10,.82); border-radius:50%; background:#f0ffc8; color:#172407; cursor:pointer; box-shadow:0 3px 12px rgba(0,0,0,.48); transition:transform .16s,background .16s; }
         .upm-cover-edit:hover { background:#fff; transform:scale(1.08); }
         .upm-cover-edit:focus-visible { outline:2px solid #fff; outline-offset:3px; }
         .upm-profile-identity-row { display:flex; align-items:flex-end; gap:12px; min-height:76px; margin-top:-49px; position:relative; z-index:2; }
-        .upm-profile-action-row { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; margin-left:auto; padding:5px; border:1px solid rgba(219,255,186,.22); border-radius:999px; background:rgba(2,5,3,.94); box-shadow:0 8px 24px rgba(0,0,0,.56),inset 0 1px 0 rgba(255,255,255,.1); backdrop-filter:blur(12px); }
+        .upm-profile-action-row { position:absolute; top:calc(10px + var(--upm-cover-height) + 3px); right:18px; z-index:3; display:flex; align-items:center; justify-content:flex-end; gap:3px; flex-wrap:wrap; }
         .upm-profile-action-row .upm-fbtn { width:auto; min-height:36px; padding:7px 11px; border-radius:999px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.1); }
         .upm-profile-action-row .upm-fbtn:focus-visible,.upm-xrd-btn:focus-visible { outline:2px solid #d9f99d; outline-offset:2px; }
         .upm-xrd-btn { min-height:34px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 12px; border:1px solid rgba(163,230,53,.38); border-radius:999px; background:linear-gradient(135deg,#a3e635,#65a30d); color:#0a1400; font-size:10px; font-weight:900; cursor:pointer; box-shadow:0 6px 20px rgba(132,204,22,.2); }
@@ -1817,24 +1876,26 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:30px; color:#525252; font-size:13px; }
 
         @media (max-width:767px) {
-          .upm-profile-shell { margin:8px 0 0; }
-          .upm-profile-header { padding:10px 12px 14px; }
-          .upm-profile-cover { height:132px; }
+          .upm-profile-shell { margin:0; }
+          .upm-profile-hero { border-top:0; border-radius:0 0 18px 18px; }
+          .upm-profile-header { --upm-cover-height:132px; padding:0 12px 14px; }
+          .upm-profile-cover { height:132px; border-top:0; border-radius:0 0 14px 14px; }
           .upm-people-grid { grid-template-columns:minmax(0,1fr); }
           .upm-cover-brand { right:18px; width:64px; height:72px; }
           .upm-cover-brand img { width:49px; height:49px; }
-          .upm-cover-edit { right:-3px; bottom:1px; width:25px; height:25px; }
+          .upm-cover-edit { top:10px; right:10px; bottom:auto; width:25px; height:25px; }
           .upm-cover-copy { left:15px; }
           .upm-profile-identity-row { margin-top:-42px; gap:8px; }
-          .upm-profile-action-row { gap:5px; padding-bottom:3px; }
+          .upm-profile-action-row { right:18px; gap:3px; }
           .upm-profile-action-row .upm-fbtn,.upm-xrd-btn { width:34px; min-width:34px; height:34px; min-height:34px; padding:0; border-radius:50%; }
           .upm-profile-action-row .upm-fbtn span,.upm-xrd-btn span { display:none; }
           .upm-profile-header .upm-name { margin-top:12px; font-size:21px; }
           .upm-profile-header .upm-bio { font-size:12px; }
         }
         @media (max-width:380px) {
+          .upm-profile-header { --upm-cover-height:118px; }
           .upm-profile-identity-row { gap:5px; }
-          .upm-profile-action-row { gap:4px; }
+          .upm-profile-action-row { gap:2px; }
           .upm-profile-action-row .upm-fbtn,.upm-xrd-btn { width:30px; min-width:30px; height:30px; min-height:30px; }
           .upm-profile-action-row svg { width:14px; height:14px; }
           .upm-profile-cover { height:118px; }

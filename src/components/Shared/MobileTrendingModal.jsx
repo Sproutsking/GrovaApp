@@ -163,7 +163,7 @@ const StreamerRow = ({ streamer, onClick }) => {
   const rc  = rankStyle(streamer.rank);
   const pr  = streamer.profile || {};
   const avatarUrl = !imgErr && pr.avatar_id
-    ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 60, height: 60, crop: "fill", gravity: "face" })
+    ? mediaUrlService.resolveAvatarUrl(pr.avatar_id, 60)
     : null;
   const initial  = (pr.full_name || pr.username || "?").charAt(0).toUpperCase();
   const fallback = avatarGradient(pr.id || pr.username || String(streamer.rank));
@@ -206,7 +206,7 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
   const [imgErr,    setImgErr]    = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const avatarUrl = !imgErr && profile.avatar_id
-    ? mediaUrlService.getImageUrl(profile.avatar_id, { width: 100, height: 100, crop: "fill", gravity: "face" })
+    ? mediaUrlService.resolveAvatarUrl(profile.avatar_id, 100)
     : null;
   const initial = (profile.full_name || profile.username || "?").charAt(0).toUpperCase();
 
@@ -512,7 +512,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
     return topIds.map((uid, i) => {
       const pr = profiles?.find((x) => x.id === uid); if (!pr) return null;
       const st = stats[uid];
-      const avatar = pr.avatar_id ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 160, height: 160, crop: "fill", gravity: "face" }) : null;
+      const avatar = mediaUrlService.resolveAvatarUrl(pr.avatar_id, 160);
       return { userId: pr.id, rank: i + 1, name: pr.full_name || "Creator", username: pr.username || "user", avatar: avatar || pr.full_name?.charAt(0) || "G", verified: pr.verified || false, stats: { likes: st.likes, views: st.views, comments: st.comments, posts: st.posts }, isTopTier: i < 3 };
     }).filter(Boolean);
   };
@@ -535,7 +535,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
       const pm = Object.fromEntries((prs || []).map((x) => [x.id, x]));
       setTagPosts(all.map((item) => {
         const p = pm[item.user_id] || {}; const thumbId = item[item.thumbField];
-        return { id: item.id, contentType: item.contentType, caption: item.caption || "", views: item.views || 0, likes: item.likes || 0, authorName: p.full_name || "Creator", authorUsername: p.username || "user", authorAvatar: p.avatar_id ? mediaUrlService.getImageUrl(p.avatar_id, { width: 80, height: 80, crop: "fill", gravity: "face" }) : p.full_name?.charAt(0) || "?", thumbnail: thumbId ? mediaUrlService.getImageUrl(thumbId, { width: 160, height: 160, crop: "fill" }) : null };
+        return { id: item.id, contentType: item.contentType, caption: item.caption || "", views: item.views || 0, likes: item.likes || 0, authorName: p.full_name || "Creator", authorUsername: p.username || "user", authorAvatar: mediaUrlService.resolveAvatarUrl(p.avatar_id, 80) || p.full_name?.charAt(0) || "?", thumbnail: thumbId ? mediaUrlService.getImageUrl(thumbId, { width: 160, height: 160, crop: "fill" }) : null };
       }).sort((a, b) => b.views - a.views));
     } catch (e) { console.error(e); }
     finally { setTagPostsLoading(false); }

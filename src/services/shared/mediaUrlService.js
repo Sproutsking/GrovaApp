@@ -123,12 +123,7 @@ class MediaUrlService {
       }
 
       if (/supabase\.co$/i.test(url.hostname) && /\/storage\/v1\/object\/public\//i.test(url.pathname)) {
-        url.searchParams.set('width', String(width));
-        url.searchParams.set('height', String(height));
-        url.searchParams.set('resize', crop === 'fill' ? 'cover' : 'contain');
-        url.searchParams.set('quality', '100');
-        url.searchParams.set('format', 'webp');
-        return url.toString();
+        return source.trim();
       }
     } catch {}
 
@@ -387,85 +382,103 @@ class MediaUrlService {
 
   // ==================== GET AVATAR URL ====================
   
-  resolveAvatarUrl(avatarSource, size = 400) {
-    if (!avatarSource) return null;
+  resolveAvatarUrls(avatarSource, size = 400) {
+    if (!avatarSource) return [];
+
+    if (Array.isArray(avatarSource)) {
+      return [...new Set(avatarSource.flatMap((source) => this.resolveAvatarUrls(source, size)))];
+    }
 
     if (typeof avatarSource === 'object') {
-      const direct = avatarSource.url || avatarSource.avatar_url || avatarSource.avatarUrl || avatarSource.image_url || avatarSource.imageUrl || avatarSource.profile_image_url || avatarSource.profileImageUrl || avatarSource.public_url || avatarSource.publicUrl;
-      if (direct) return this.resolveAvatarUrl(direct, size);
-      const id = avatarSource.avatar_id || avatarSource.id || avatarSource.public_id;
-      if (id) return this.resolveAvatarUrl(id, size);
-      return null;
-    }
-
-    if (typeof avatarSource === 'string' && (avatarSource.startsWith('data:image/') || avatarSource.startsWith('blob:'))) {
-      return avatarSource;
-    }
-
-    // Use stable cache key for avatar URLs (based on source + size)
-    const cacheKey = `${avatarSource}:${size}`;
-    if (this._avatarUrlCache.has(cacheKey)) {
-      return this._avatarUrlCache.get(cacheKey);
-    }
-
-    let result = null;
-
-    // For already-optimized or direct URLs, enhance them further
-    if (this._isHttpUrl(avatarSource)) {
-      result = this._optimizeDirectImageUrl(avatarSource, {
-        width: size,
-        height: size,
-        crop: 'fill',
-        gravity: 'face',
-        quality: '100',
-        format: 'webp',
-      });
-    } else {
-      // For Cloudinary public IDs, use HIGHEST quality
-      const cloudinaryUrl = this.getImageUrl(avatarSource, {
-        width: size,
-        height: size,
-        crop: 'thumb',
-        gravity: 'face',
-        quality: '100',
-        format: 'webp',
-      });
-
-      if (cloudinaryUrl) {
-        // Use stable cache hash instead of Date.now()
-        const cacheHash = this._cacheStamp(avatarSource);
-        result = `${cloudinaryUrl}${cloudinaryUrl.includes('?') ? '&' : '?'}v=${cacheHash}`;
-      } else {
-        // Fallback to Supabase storage
-        try {
-          const { data } = supabase.storage.from('avatars').getPublicUrl(avatarSource);
-          if (data?.publicUrl) {
-            result = this._optimizeDirectImageUrl(data.publicUrl, {
-              width: size,
-              height: size,
-              quality: '100',
-              format: 'webp',
-            });
-          }
-        } catch {}
+      const direct = avatarSource.url || avatarSource.avatar_url || avatarSource.avatarUrl || avatarSource.image_url || avatarSource.imageUrl || avatarSource.profile_image_url || avatarSource.profileImageUrl || avatarSource.profile_photo_url || avatarSource.photo_url || avatarSource.picture || avatarSource.public_url || avatarSource.publicUrl || avatarSource.signedUrl || avatarSource.signed_url || avatarSource.href || avatarSource.src || avatarSource.data?.publicUrl || avatarSource.data?.public_url || avatarSource.data?.url;
+      if (direct) return this.resolveAvatarUrls(direct, size);
+      const nestedMetadata = avatarSource.avatar_metadata || avatarSource.avatarMetadata || avatarSource.user_metadata || avatarSource.userMetadata || avatarSource.identity_data || avatarSource.identityData;
+      if (nestedMetadata) return this.resolveAvatarUrls(nestedMetadata, size);
+      if (Array.isArray(avatarSource.identities)) {
+        return this.resolveAvatarUrls(avatarSource.identities.map((identity) => identity?.identity_data || identity?.identityData || identity), size);
       }
+      const storagePath = avatarSource.path || avatarSource.storage_path || avatarSource.file_path || avatarSource.fullPath || avatarSource.full_path || avatarSource.Key || avatarSource.key;
+      if (storagePath) return this.resolveAvatarUrls(storagePath.replace(/^avatars\//, ''), size);
+      const id = avatarSource.avatar_id || avatarSource.id || avatarSource.public_id || avatarSource.publicId;
+      return id ? this.resolveAvatarUrls(id, size) : [];
     }
 
-    // Cache the resolved URL to prevent recomputation
-    if (result) {
-      this._avatarUrlCache.set(cacheKey, result);
-      // Prevent cache from growing unbounded (max 200 avatar URLs)
+    if (typeof avatarSource !== 'string') return [];
+    const normalizedSource = avatarSource.trim();
+    if (normalizedSource.startsWith('data:image/') || normalizedSource.startsWith('blob:')) return [normalizedSource];
+    if (/^[{[]/.test(normalizedSource)) {
+      try {
+        return this.resolveAvatarUrls(JSON.parse(normalizedSource), size);
+      } catch {}
+    }
+
+    const cacheKey = `avatar-v2:${normalizedSource}:${size}`;
+    if (this._avatarUrlCache.has(cacheKey)) {
+      const cached = this._avatarUrlCache.get(cacheKey);
+      return Array.isArray(cached) ? [...cached] : [cached].filter(Boolean);
+    }
+
+    if (this._isHttpUrl(normalizedSource)) {
+      const directUrl = /^https?:\/\/[^/]*supabase\.co(?:\/|$)/i.test(normalizedSource)
+        ? normalizedSource
+        : this._optimizeDirectImageUrl(normalizedSource, {
+            width: size,
+            height: size,
+            crop: 'fill',
+            gravity: 'face',
+            quality: '100',
+            format: 'webp',
+          });
+      return directUrl ? [directUrl] : [];
+    }
+
+    const cloudinaryUrl = this.cloudName
+      ? this.getImageUrl(normalizedSource, {
+          width: size,
+          height: size,
+          crop: 'thumb',
+          gravity: 'face',
+          quality: '100',
+          format: 'webp',
+        })
+      : null;
+    const cloudinaryRawUrl = this.cloudName
+      ? `https://res.cloudinary.com/${this.cloudName}/image/upload/${normalizedSource}`
+      : null;
+    const storageUrl = this.getAvatarStorageUrl(normalizedSource, size);
+    const cloudinaryAvatarId = /^grova\/avatars\//i.test(normalizedSource);
+    const candidates = [...new Set(cloudinaryAvatarId
+      ? [cloudinaryUrl, cloudinaryRawUrl, storageUrl]
+      : [storageUrl, cloudinaryUrl, cloudinaryRawUrl])].filter(Boolean);
+
+    if (candidates.length) {
+      this._avatarUrlCache.set(cacheKey, candidates);
       if (this._avatarUrlCache.size > 200) {
         const oldestKey = this._avatarUrlCache.keys().next().value;
         this._avatarUrlCache.delete(oldestKey);
       }
     }
+    return candidates;
+  }
 
-    return result;
+  resolveAvatarUrl(avatarSource, size = 400) {
+    return this.resolveAvatarUrls(avatarSource, size)[0] || null;
   }
 
   getAvatarUrl(avatarId, size = 400) {
     return this.resolveAvatarUrl(avatarId, size);
+  }
+
+  getAvatarStorageUrl(avatarId, size = 400) {
+    if (!avatarId || typeof avatarId !== 'string' || this._isHttpUrl(avatarId)) return null;
+
+    try {
+      const storagePath = avatarId.replace(/^avatars\//, '');
+      const { data } = supabase.storage.from('avatars').getPublicUrl(storagePath);
+      return data?.publicUrl || null;
+    } catch {
+      return null;
+    }
   }
 
   // ==================== GET POST IMAGE URL ====================

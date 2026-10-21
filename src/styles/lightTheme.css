@@ -4,6 +4,25 @@
   Applied when html.theme-light on root, data-light-theme="true", or [data-theme="light"]
   ──────────────────────────────────────────────────────────────────────────── */
 
+@media (max-width: 768px) {
+  html.theme-light .main-content-mobile .gvp-card,
+  [data-theme="light"] .main-content-mobile .gvp-card,
+  [data-light-theme="true"] .main-content-mobile .gvp-card,
+  html.theme-light .main-content-mobile .xv-reel-card,
+  [data-theme="light"] .main-content-mobile .xv-reel-card,
+  [data-light-theme="true"] .main-content-mobile .xv-reel-card,
+  html.theme-light .main-content-mobile .content-card,
+  [data-theme="light"] .main-content-mobile .content-card,
+  [data-light-theme="true"] .main-content-mobile .content-card,
+  html.theme-light .main-content-mobile .nc-card,
+  [data-theme="light"] .main-content-mobile .nc-card,
+  [data-light-theme="true"] .main-content-mobile .nc-card {
+    border-width: 1px !important;
+    border-color: rgba(71, 85, 105, 0.2) !important;
+    box-shadow: none !important;
+  }
+}
+
 /* ── PostCard / Post feed card Light Theme ────────────────────────────────── */
 html.theme-light .gvp-card,
 [data-theme="light"] .gvp-card,
@@ -12,8 +31,8 @@ html.theme-light .post-card,
 [data-theme="light"] .post-card,
 [data-light-theme="true"] .post-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border: 1.5px solid var(--surface-border) !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  border: 1px solid var(--surface-border) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
   border-radius: 20px;
 }
 
@@ -24,7 +43,7 @@ html.theme-light .post-card:hover,
 [data-theme="light"] .post-card:hover,
 [data-light-theme="true"] .post-card:hover {
   border-color: var(--surface-border) !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
   transform: none !important;
 }
 
@@ -32,7 +51,7 @@ html.theme-light .gvp-card.gvp-hovered,
 [data-theme="light"] .gvp-card.gvp-hovered,
 [data-light-theme="true"] .gvp-card.gvp-hovered {
   border-color: #d1d5db !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
   transform: none !important;
 }
 
@@ -181,8 +200,8 @@ html.theme-light .reel-card,
 [data-theme="light"] .reel-card,
 [data-light-theme="true"] .reel-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12) !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
 }
 
 html.theme-light .xv-reel-card:hover,
@@ -192,7 +211,7 @@ html.theme-light .xv-reel-card.hovered,
 [data-theme="light"] .xv-reel-card.hovered,
 [data-light-theme="true"] .xv-reel-card.hovered {
   border-color: #d1d5db !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
   transform: none !important;
 }
 
@@ -499,8 +518,8 @@ html.theme-light .content-card,
 [data-theme="light"] .content-card,
 [data-light-theme="true"] .content-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border: 1.5px solid #d1d5db !important;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12) !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
 }
 
 html.theme-light .nc-source-name,

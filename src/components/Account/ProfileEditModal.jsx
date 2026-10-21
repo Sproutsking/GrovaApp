@@ -174,24 +174,22 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
       const updated = await profileService.updateProfile(userId, updateData);
 
       setSaved(true);
-      setTimeout(() => {
-        const updatedProfile = {
-          fullName: updated.full_name || formData.fullName,
-          username: updated.username || formData.username,
-          bio:      updated.bio ?? formData.bio,
-          profileTags: normalizeProfileTags(updated.profile_tags ?? formData.profileTags),
-          avatar:   updateData.avatar_id
-            ? uploadService.getImageUrl(updateData.avatar_id, { width: 400, height: 400, crop: 'fill', gravity: 'face' })
-            : currentProfile?.avatar,
-          avatarId: updateData.avatar_id || currentProfile?.avatarId,
-          bannerImageUrl: updateData.banner_image_id
-            ? uploadService.getImageUrl(updateData.banner_image_id, { width: 1500, height: 520, crop: 'fill', gravity: 'auto' })
-            : currentProfile?.bannerImageUrl,
-          bannerImageId: updateData.banner_image_id || currentProfile?.bannerImageId,
-        };
-        if (onSuccess) onSuccess(updatedProfile);
-        onClose();
-      }, 900);
+      const updatedProfile = {
+        fullName: updated.full_name || formData.fullName,
+        username: updated.username || formData.username,
+        bio:      updated.bio ?? formData.bio,
+        profileTags: normalizeProfileTags(updated.profile_tags ?? formData.profileTags),
+        avatar:   updateData.avatar_id
+          ? uploadService.getImageUrl(updateData.avatar_id, { width: 400, height: 400, crop: 'fill', gravity: 'face' })
+          : currentProfile?.avatar,
+        avatarId: updateData.avatar_id || currentProfile?.avatarId,
+        bannerImageUrl: updateData.banner_image_id
+          ? uploadService.getImageUrl(updateData.banner_image_id, { width: 1500, height: 520, crop: 'fill', gravity: 'auto' })
+          : currentProfile?.bannerImageUrl,
+        bannerImageId: updateData.banner_image_id || currentProfile?.bannerImageId,
+      };
+      if (onSuccess) onSuccess(updatedProfile);
+      onClose();
     } catch (err) {
       alert(`Failed to update profile: ${err.message}`);
     } finally {

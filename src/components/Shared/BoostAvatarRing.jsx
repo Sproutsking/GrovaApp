@@ -409,11 +409,16 @@ const BoostAvatarRing = ({
 }) => {
   injectKeyframes();
 
-  const [imageSrc, setImageSrc] = useState(src || fallbackSrc);
+  const fallbackSources = Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc];
+  const imageCandidates = [...new Set([src, ...fallbackSources].filter((candidate) => (
+    typeof candidate === "string" && candidate.trim()
+  )))];
+  const [imageIndex, setImageIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const imageSrc = imageCandidates[imageIndex] || null;
 
   useEffect(() => {
-    setImageSrc(src || fallbackSrc);
+    setImageIndex(0);
     setImgError(false);
   }, [src, fallbackSrc]);
 
@@ -491,10 +496,10 @@ const BoostAvatarRing = ({
               src={imageSrc}
               alt=""
               loading="eager"
-              fetchPriority="high"
+              fetchpriority="high"
               decoding="async"
               onError={() => {
-                if (fallbackSrc && imageSrc !== fallbackSrc) setImageSrc(fallbackSrc);
+                if (imageIndex + 1 < imageCandidates.length) setImageIndex((index) => index + 1);
                 else setImgError(true);
               }}
               style={{

@@ -15,30 +15,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef } from "react";
-
-// ── Supabase base URL — read from env or window global ───────────
-const getSupabaseUrl = () => {
-  try {
-    if (typeof window !== "undefined") {
-      if (window.__SUPABASE_URL__)                return window.__SUPABASE_URL__;
-      if (window._env_?.REACT_APP_SUPABASE_URL)   return window._env_.REACT_APP_SUPABASE_URL;
-      if (window._env_?.NEXT_PUBLIC_SUPABASE_URL) return window._env_.NEXT_PUBLIC_SUPABASE_URL;
-    }
-    if (typeof process !== "undefined" && process.env) {
-      return (
-        process.env.REACT_APP_SUPABASE_URL   ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL  ||
-        process.env.SUPABASE_URL             ||
-        ""
-      );
-    }
-  } catch (_) {}
-  return "";
-};
-
-const isHttpUrl = (v) =>
-  typeof v === "string" && v.length > 10 &&
-  (v.startsWith("http://") || v.startsWith("https://"));
+import mediaUrlService from "../../../services/shared/mediaUrlService";
 
 // ── Build a full avatar URL from available data ──────────────────
 // Priority (most → least reliable in real Supabase projects):
@@ -47,50 +24,12 @@ const isHttpUrl = (v) =>
 //   3. avatar_metadata.*   — object keys: publicUrl / url / signedUrl / path
 //   4. avatar_id           — construct Supabase Storage URL
 export function resolveAvatarUrl(avatarId, avatarMeta, avatarUrl) {
-  // NOTE: profiles table has NO avatar_url column.
-  // Images are stored via avatar_id (storage key) + avatar_metadata (jsonb).
-
-  // 1. avatar_metadata as a raw string URL (unlikely but guard it)
-  if (avatarMeta && typeof avatarMeta === "string" && avatarMeta.startsWith("http")) {
-    return avatarMeta;
-  }
-
-  // 2. avatar_metadata as an object — try every known Supabase response shape
-  if (avatarMeta && typeof avatarMeta === "object") {
-    // Direct URL keys
-    const urlKeys = ["publicUrl", "url", "signedUrl", "href", "src"];
-    for (const k of urlKeys) {
-      if (avatarMeta[k] && typeof avatarMeta[k] === "string" && avatarMeta[k].startsWith("http")) {
-        return avatarMeta[k];
-      }
-    }
-    // Supabase getPublicUrl() returns { data: { publicUrl } }
-    if (avatarMeta.data && typeof avatarMeta.data === "object") {
-      for (const k of urlKeys) {
-        if (avatarMeta.data[k] && typeof avatarMeta.data[k] === "string" && avatarMeta.data[k].startsWith("http")) {
-          return avatarMeta.data[k];
-        }
-      }
-    }
-    // Supabase upload response contains path / fullPath
-    const rawPath = avatarMeta.fullPath || avatarMeta.path || avatarMeta.Key;
-    if (rawPath && typeof rawPath === "string") {
-      const base = getSupabaseUrl();
-      if (base) {
-        const clean = rawPath.replace(/^avatars\//, "");
-        return `${base}/storage/v1/object/public/avatars/${clean}`;
-      }
-    }
-  }
-
-  // 4. avatar_id — construct Supabase Storage public URL
-  if (avatarId && typeof avatarId === "string" && avatarId.trim()) {
-    if (avatarId.startsWith("http")) return avatarId;
-    const base = getSupabaseUrl();
-    if (base) return `${base}/storage/v1/object/public/avatars/${avatarId.trim()}`;
-  }
-
-  return null;
+  const directAvatarUrl = typeof avatarUrl === "string" && /^(https?:\/\/|blob:|data:image\/)/i.test(avatarUrl)
+    ? mediaUrlService.resolveAvatarUrl(avatarUrl, 400)
+    : null;
+  return directAvatarUrl
+    || mediaUrlService.resolveAvatarUrl(avatarMeta, 400)
+    || mediaUrlService.resolveAvatarUrl(avatarId, 400);
 }
 
 // ── Gradient palette — deterministic from name hash ──────────────

@@ -43,9 +43,7 @@ const fmt = (n) =>
 
 function buildAvatarUrl(avatarId) {
   if (!avatarId) return null;
-  if (avatarId.startsWith("http")) return avatarId;
-  const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL ?? "";
-  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${avatarId}?width=80&height=80&resize=cover&format=webp`;
+  return mediaUrlService.resolveAvatarUrl(avatarId, 80);
 }
 
 function safePrice(value, fallback = 4) {

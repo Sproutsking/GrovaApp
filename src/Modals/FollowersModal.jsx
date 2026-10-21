@@ -61,12 +61,7 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
 
   const resolveAvatar = (avatarId) => {
     if (!avatarId) return null;
-    const url = mediaUrlService.getImageUrl(avatarId);
-    if (!url) return null;
-    const clean = url.split("?")[0];
-    return clean.includes("supabase")
-      ? `${clean}?quality=80&width=200&height=200&resize=cover&format=webp`
-      : url;
+    return mediaUrlService.resolveAvatarUrl(avatarId, 200);
   };
 
   const currentList = tab === "followers" ? followers : following;

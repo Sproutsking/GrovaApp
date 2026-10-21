@@ -41,10 +41,13 @@ const _ect  = _conn?.effectiveType || "4g";
 const _save = _conn?.saveData || false;
 const IS_SLOW = _save || _ect === "slow-2g" || _ect === "2g";
 const IS_MID  = _ect === "3g";
+const IS_MOBILE = window.innerWidth <= 768;
 
-const RENDER_RADIUS   = IS_SLOW ? 4 : IS_MID ? 6 : 10;
-const PRELOAD_WINDOW  = IS_SLOW ? 2 : IS_MID ? 4 : 6;
-const PLACEHOLDER_H   = 520;
+const RENDER_RADIUS   = IS_MOBILE ? (IS_SLOW ? 2 : 3) : IS_SLOW ? 4 : IS_MID ? 6 : 10;
+const PRELOAD_WINDOW  = IS_MOBILE ? (IS_SLOW ? 1 : 3) : IS_SLOW ? 2 : IS_MID ? 4 : 6;
+const PLACEHOLDER_H   = IS_MOBILE
+  ? Math.round(Math.min(window.innerWidth * 14 / 9, window.innerHeight * 0.82, 900) + 120)
+  : 520;
 
 // ─── Placeholder gradients ────────────────────────────────────────────────────
 const REEL_GRADIENTS = [
@@ -196,6 +199,7 @@ const VirtualReelGrid = React.memo(({
   const [anchorIndex, setAnchorIndex] = useState(0);
   const heightMap  = useRef({});
   const wrapperMap = useRef({});
+  const refCallbacks = useRef(new Map());
   const ioRef      = useRef(null);
   const roMap      = useRef({});
 
@@ -204,12 +208,13 @@ const VirtualReelGrid = React.memo(({
   useEffect(() => {
     ioRef.current?.disconnect();
     ioRef.current = new IntersectionObserver(entries => {
-      let best = null, bestTop = Infinity;
+      let best = null, bestDistance = Infinity;
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
         const top = entry.boundingClientRect.top;
+        const distance = Math.abs(top);
         const idx = Number(entry.target.dataset.rlidx);
-        if (!isNaN(idx) && top < bestTop) { bestTop = top; best = idx; }
+        if (!isNaN(idx) && distance < bestDistance) { bestDistance = distance; best = idx; }
       }
       if (best !== null) setAnchorIndex(prev => Math.abs(prev - best) >= 1 ? best : prev);
     }, { rootMargin: "400px 0px 400px 0px", threshold: 0 });
@@ -220,47 +225,64 @@ const VirtualReelGrid = React.memo(({
 
   useEffect(() => () => { Object.values(roMap.current).forEach(ro => ro.disconnect()); }, []);
 
-  const makeRef = useCallback((index) => (el) => {
-    roMap.current[index]?.disconnect();
-    delete roMap.current[index];
-    wrapperMap.current[index] = el;
-    // Expose for scrollToReel
-    if (cardRefs) cardRefs.current[index] = el;
-    if (!el) return;
-    el.dataset.rlidx = index;
-    ioRef.current?.observe(el);
-    const ro = new ResizeObserver(([e]) => {
-      const h = Math.round(e.contentRect.height);
-      if (h > 0) heightMap.current[index] = h;
-    });
-    ro.observe(el);
-    roMap.current[index] = ro;
+  const makeRef = useCallback((index) => {
+    if (refCallbacks.current.has(index)) return refCallbacks.current.get(index);
+    const callback = (el) => {
+      roMap.current[index]?.disconnect();
+      delete roMap.current[index];
+      wrapperMap.current[index] = el;
+      if (cardRefs) cardRefs.current[index] = el;
+      if (!el) return;
+      el.dataset.rlidx = index;
+      ioRef.current?.observe(el);
+      const ro = new ResizeObserver(([e]) => {
+        const h = Math.round(e.contentRect.height);
+        if (h > 0) heightMap.current[index] = h;
+      });
+      ro.observe(el);
+      roMap.current[index] = ro;
+    };
+    refCallbacks.current.set(index, callback);
+    return callback;
   }, [cardRefs]);
+
+  const renderStart = Math.max(0, anchorIndex - RENDER_RADIUS);
+  const renderEnd = Math.min(reels.length - 1, anchorIndex + RENDER_RADIUS);
 
   return (
     <div className="reels-vgrid">
       {reels.map((reel, index) => {
+        const isOutsideWindow = index < renderStart || index > renderEnd;
+        const height = heightMap.current[index] || PLACEHOLDER_H;
         return (
-          <div ref={makeRef(index)} key={reel.id} className="reels-vgrid-item">
-            <ReelCard
-              reel={reel}
-              currentUser={currentUser}
-              onAuthorClick={onAuthorClick}
-              onActionMenu={onActionMenu}
-              onOpenFullScreen={() => onOpenFullScreen(index)}
-              onSoundClick={onSoundClick}
-              onHashtagClick={onHashtagClick}
-              onMentionClick={onMentionClick}
-              index={index}
-            />
+          <div
+            ref={makeRef(index)}
+            key={reel.id}
+            className={`reels-vgrid-item${isOutsideWindow ? " reels-vgrid-placeholder" : ""}`}
+            style={isOutsideWindow ? { height, background: getReelGradient(reel) } : undefined}
+            aria-hidden={isOutsideWindow ? "true" : undefined}
+          >
+            {!isOutsideWindow && (
+              <ReelCard
+                reel={reel}
+                currentUser={currentUser}
+                onAuthorClick={onAuthorClick}
+                onActionMenu={onActionMenu}
+                onOpenFullScreen={() => onOpenFullScreen(index)}
+                onSoundClick={onSoundClick}
+                onHashtagClick={onHashtagClick}
+                onMentionClick={onMentionClick}
+                index={index}
+              />
+            )}
           </div>
         );
       })}
       <style>{`
-        .reels-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;padding:0;max-width:1400px;margin:0 auto;}
+        .reels-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:0;max-width:1400px;margin:0 auto;}
         .reels-vgrid-item{width:100%;}
-        @media(max-width:1280px){.reels-vgrid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;}}
-        @media(max-width:1024px){.reels-vgrid{grid-template-columns:repeat(2,1fr);gap:16px;padding:0;}}
+        @media(max-width:1280px){.reels-vgrid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;}}
+        @media(max-width:1024px){.reels-vgrid{grid-template-columns:repeat(2,1fr);gap:8px;padding:0;}}
         @media(max-width:768px){.reels-vgrid{grid-template-columns:1fr;gap:0;padding:0;}}
       `}</style>
     </div>

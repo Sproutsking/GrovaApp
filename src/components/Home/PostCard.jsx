@@ -973,7 +973,7 @@ const PostCard = ({
 // ════════════════════════════════════════════════════════════════════════════════
 const CSS = `
 /* ── Card shell ── */
-.gvp-card{position:relative;width:100%;min-width:0;max-width:100%;box-sizing:border-box;background:#080808;border-radius:20px;overflow:hidden;border:1px solid var(--surface-border);transition:none;box-shadow:0 8px 32px rgba(0,0,0,.45);margin-bottom:10px;contain:layout style;}
+.gvp-card{position:relative;width:100%;min-width:0;max-width:100%;box-sizing:border-box;background:#080808;border-radius:20px;overflow:hidden;border:1px solid var(--surface-border);transition:none;box-shadow:0 4px 16px rgba(0,0,0,.3);margin-bottom:8px;contain:layout style;}
 @keyframes gvpShimmer{0%{background-position:-200% center}100%{background-position:200% center}}
 .gvp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(132,204,22,0) 15%,rgba(163,230,53,.95) 40%,#d4f576 50%,rgba(163,230,53,.95) 60%,rgba(132,204,22,0) 85%,transparent 100%);background-size:200% 100%;opacity:0;z-index:20;pointer-events:none;transition:opacity .3s ease;}
 .gvp-card.gvp-hovered::before{opacity:0;animation:none;}
@@ -1074,7 +1074,7 @@ const CSS = `
 
 /* ── Mobile ── */
 @media(max-width:768px){
-  .gvp-card{border-radius:0!important;margin-bottom:0;}
+  .gvp-card{border-radius:0!important;margin-bottom:0;box-shadow:none!important;}
   .gvp-card.gvp-hovered{transform:none;box-shadow:none;}
   .gvp-card::before,.gvp-card::after{display:none;}
   .gvp-header{padding:8px 12px 5px;gap:4px;}

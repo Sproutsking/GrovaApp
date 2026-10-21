@@ -229,7 +229,7 @@ const AccountView = ({
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id,full_name,username,avatar_id,verified,is_pro")
+        .select("id,full_name,username,avatar_id,banner_image_id,bio,verified,is_pro")
         .eq("id", userId)
         .maybeSingle();
 
@@ -243,23 +243,19 @@ const AccountView = ({
         return applyFallback();
       }
 
-      // Build avatar URL
-      let avatarUrl = null;
-      if (profile.avatar_id) {
-        const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
-        if (baseUrl && typeof baseUrl === "string") {
-          const cleanUrl = baseUrl.split("?")[0];
-          avatarUrl = cleanUrl.includes("supabase")
-            ? `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`
-            : baseUrl;
-        }
-      }
+      const avatarUrl = mediaUrlService.resolveAvatarUrl(profile.avatar_id, 400);
 
       const profileState = {
         id:       profile.id,
         fullName: profile.full_name || "User",
         username: profile.username  || "user",
         avatar:   avatarUrl,
+        avatarId: profile.avatar_id || null,
+        bio:      profile.bio || "",
+        bannerImageUrl: profile.banner_image_id
+          ? mediaUrlService.getOptimizedImageUrl(profile.banner_image_id, { width: 1500, height: 520, crop: "fill", gravity: "auto" })
+          : null,
+        bannerImageId: profile.banner_image_id || null,
         verified: profile.verified  || false,
         isPro:    profile.is_pro    || false,
       };

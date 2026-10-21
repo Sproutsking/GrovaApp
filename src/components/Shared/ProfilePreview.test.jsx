@@ -9,7 +9,7 @@ describe("profile preview click payloads", () => {
 
     render(
       <ProfilePreview
-        profile={{ userId: "user-1", author: "Ada Writer", username: "adawriter", verified: true, avatar_id: null }}
+        profile={{ userId: "user-1", author: "Ada Writer", username: "adawriter", verified: true, avatar_id: "grova/avatars/user-1/avatar", avatar_metadata: { publicUrl: "https://images.example/avatar.png" } }}
         currentUser={null}
         onClick={onClick}
       />
@@ -26,6 +26,8 @@ describe("profile preview click payloads", () => {
       author: "Ada Writer",
       username: "adawriter",
       verified: true,
+      avatar_id: "grova/avatars/user-1/avatar",
+      avatar_metadata: { publicUrl: "https://images.example/avatar.png" },
     }));
   });
 
@@ -34,7 +36,7 @@ describe("profile preview click payloads", () => {
 
     render(
       <ReelProfilePreview
-        profile={{ userId: "user-2", author: "Kai Reel", username: "kaireel", verified: false, avatar_id: null }}
+        profile={{ userId: "user-2", author: "Kai Reel", username: "kaireel", verified: false, avatar_id: "grova/avatars/user-2/avatar", avatar_metadata: { publicUrl: "https://images.example/reel-avatar.png" } }}
         music="Late night"
         currentUser={null}
         onProfileClick={onProfileClick}
@@ -52,6 +54,8 @@ describe("profile preview click payloads", () => {
       author: "Kai Reel",
       username: "kaireel",
       verified: false,
+      avatar_id: "grova/avatars/user-2/avatar",
+      avatar_metadata: { publicUrl: "https://images.example/reel-avatar.png" },
     }));
   });
 });

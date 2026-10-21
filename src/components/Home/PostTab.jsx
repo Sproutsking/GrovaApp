@@ -54,11 +54,12 @@ const _save   = _conn?.saveData || false;
 const IS_SLOW = _save || _ect === "slow-2g" || _ect === "2g";
 const IS_MID  = _ect === "3g";
 const IS_FAST = !IS_SLOW && !IS_MID;
+const IS_MOBILE = window.innerWidth <= 768;
 
 // [VBF-1] Expanded render radius
-const RENDER_RADIUS  = IS_SLOW ? 8 : IS_MID ? 12 : 18;
-const PRELOAD_WINDOW = IS_SLOW ? 4 : IS_MID ? 6 : 8;
-const VIDEO_PRELOAD_W = IS_SLOW ? 1 : IS_MID ? 2 : 3;
+const RENDER_RADIUS  = IS_MOBILE ? (IS_SLOW ? 3 : 5) : IS_SLOW ? 8 : IS_MID ? 12 : 18;
+const PRELOAD_WINDOW = IS_MOBILE ? (IS_SLOW ? 2 : 4) : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 1 : IS_MID ? 2 : 3;
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
@@ -405,6 +406,7 @@ const VirtualFeed = React.memo(({
   const [anchorIndex, setAnchorIndex] = useState(0);
   const heightMap  = useRef({});
   const wrapperMap = useRef({});
+  const refCallbacks = useRef(new Map());
   const ioRef      = useRef(null);
   const roMap      = useRef({});
 
@@ -418,12 +420,13 @@ const VirtualFeed = React.memo(({
   useEffect(() => {
     ioRef.current?.disconnect();
     ioRef.current = new IntersectionObserver(entries => {
-      let best = null, bestTop = Infinity;
+      let best = null, bestDistance = Infinity;
       for (const e of entries) {
         if (!e.isIntersecting) continue;
         const top = e.boundingClientRect.top;
+        const distance = Math.abs(top);
         const idx = Number(e.target.dataset.vfidx);
-        if (!isNaN(idx) && top < bestTop) { bestTop = top; best = idx; }
+        if (!isNaN(idx) && distance < bestDistance) { bestDistance = distance; best = idx; }
       }
       if (best !== null) setAnchorIndex(prev => Math.abs(prev - best) >= 1 ? best : prev);
     }, { rootMargin: ROOT_MARGIN, threshold: 0 });
@@ -434,19 +437,24 @@ const VirtualFeed = React.memo(({
   useEffect(() => () => Object.values(roMap.current).forEach(ro => ro.disconnect()), []);
 
   // [VBF-4] ResizeObserver on EVERY wrapper including Placeholder wrappers
-  const makeRef = useCallback((index) => (el) => {
-    roMap.current[index]?.disconnect();
-    delete roMap.current[index];
-    wrapperMap.current[index] = el;
-    if (!el) return;
-    el.dataset.vfidx = index;
-    ioRef.current?.observe(el);
-    const ro = new ResizeObserver(([e]) => {
-      const h = Math.round(e.contentRect.height);
-      if (h > 0) heightMap.current[index] = h;
-    });
-    ro.observe(el);
-    roMap.current[index] = ro;
+  const makeRef = useCallback((index) => {
+    if (refCallbacks.current.has(index)) return refCallbacks.current.get(index);
+    const callback = (el) => {
+      roMap.current[index]?.disconnect();
+      delete roMap.current[index];
+      wrapperMap.current[index] = el;
+      if (!el) return;
+      el.dataset.vfidx = index;
+      ioRef.current?.observe(el);
+      const ro = new ResizeObserver(([e]) => {
+        const h = Math.round(e.contentRect.height);
+        if (h > 0) heightMap.current[index] = h;
+      });
+      ro.observe(el);
+      roMap.current[index] = ro;
+    };
+    refCallbacks.current.set(index, callback);
+    return callback;
   }, []);
 
   const renderStart = Math.max(0, anchorIndex - RENDER_RADIUS);
@@ -456,19 +464,27 @@ const VirtualFeed = React.memo(({
     <div className="vf-list">
       {posts.map((post, index) => {
         const pipeType = injections.get(index);
+        const isOutsideWindow = index < renderStart || index > renderEnd;
+        const height = heightMap.current[index] || estimatePostHeight(post) + (pipeType ? 220 : 0);
         return (
-          <React.Fragment key={post.id}>
-            {pipeType && (
-              <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />
+          <div
+            key={post.id}
+            ref={makeRef(index)}
+            className={`vf-item${isOutsideWindow ? " vf-placeholder" : ""}`}
+            style={isOutsideWindow ? { height, background: getPlaceholderGradient(post) } : undefined}
+            aria-hidden={isOutsideWindow ? "true" : undefined}
+          >
+            {!isOutsideWindow && (
+              <>
+                {pipeType && <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />}
+                <PostCard
+                  post={post} currentUser={currentUser}
+                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
+                  onComment={onComment} feedIndex={index}
+                />
+              </>
             )}
-            <div ref={makeRef(index)} className="vf-item">
-              <PostCard
-                post={post} currentUser={currentUser}
-                onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                onComment={onComment} feedIndex={index}
-              />
-            </div>
-          </React.Fragment>
+          </div>
         );
       })}
       <style>{`

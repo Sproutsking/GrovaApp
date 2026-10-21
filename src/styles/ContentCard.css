@@ -11,7 +11,7 @@
   border-radius: 16px;
   overflow: hidden;
   transition: border-color 0.2s ease;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .content-card:hover {

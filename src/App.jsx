@@ -768,16 +768,7 @@ const MainApp = memo(() => {
         .maybeSingle();
       if (w) setUserBalance({ tokens: w.xev_tokens || 0, points: w.engagement_points || 0 });
       if (p) {
-        let avatarUrl = null;
-        if (p.avatar_id) {
-          const base = mediaUrlService.getImageUrl(p.avatar_id);
-          if (base && typeof base === "string") {
-            const clean = base.split("?")[0];
-            avatarUrl = clean.includes("supabase")
-              ? `${clean}?quality=100&width=400&height=400&resize=cover&format=webp&t=${Date.now()}`
-              : base;
-          }
-        }
+        const avatarUrl = mediaUrlService.resolveAvatarUrl(p.avatar_id, 400);
         const userObj = {
           id:        p.id || userId,
           name:      p.full_name || "User",
