@@ -1,4 +1,4 @@
-import socialConnectService, { resolveProviderLinkState } from './socialConnectService';
+import socialConnectService, { getPlatformConfig, resolveProviderLinkState } from './socialConnectService';
 import { supabase } from "../config/supabase";
 
 jest.mock("../config/supabase", () => ({
@@ -13,6 +13,20 @@ jest.mock("../config/supabase", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+describe('getPlatformConfig', () => {
+  it('keeps XRD account linking read-only', () => {
+    expect(getPlatformConfig('x', { readOnly: true }).scopes).toBe('tweet.read users.read offline.access');
+    expect(getPlatformConfig('x', { readOnly: true }).scopes).not.toContain('tweet.write');
+    expect(getPlatformConfig('linkedin', { readOnly: true }).scopes).not.toContain('w_member_social');
+  });
+
+  it('preserves publishing scopes for existing distribution callers', () => {
+    expect(getPlatformConfig('x').scopes).toContain('tweet.write');
+    expect(getPlatformConfig('linkedin').scopes).toContain('w_member_social');
+    expect(getPlatformConfig('unknown')).toBeNull();
+  });
 });
 
 describe('resolveProviderLinkState', () => {

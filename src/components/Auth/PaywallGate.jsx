@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import {
   verifyWeb3Payment,
   activateFreeCode,

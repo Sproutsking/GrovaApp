@@ -145,6 +145,21 @@ const PLATFORM_CONFIGS = {
   },
 };
 
+const READ_ONLY_SCOPES = {
+  x: "tweet.read users.read offline.access",
+  facebook: "email public_profile",
+  instagram: "email public_profile instagram_basic",
+  linkedin: "openid profile email",
+};
+
+export function getPlatformConfig(platform, options = {}) {
+  const baseConfig = PLATFORM_CONFIGS[platform];
+  if (!baseConfig) return null;
+  return options.readOnly
+    ? { ...baseConfig, scopes: READ_ONLY_SCOPES[platform] || baseConfig.scopes }
+    : baseConfig;
+}
+
 class SocialConnectService {
 
   // ── Check if user already has a linked identity for this provider ─────────
@@ -252,8 +267,8 @@ class SocialConnectService {
   }
 
   // ── Open OAuth popup to link a new platform ───────────────────────────────
-  async linkPlatform(userId, platform) {
-    const config = PLATFORM_CONFIGS[platform];
+  async linkPlatform(userId, platform, options = {}) {
+    const config = getPlatformConfig(platform, options);
     if (!config) throw new Error(`Unknown platform: ${platform}`);
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();

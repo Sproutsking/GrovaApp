@@ -29,25 +29,35 @@ export async function computeHash(data) {
   }
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object") return value;
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = canonicalize(value[key]);
+    return result;
+  }, {});
+}
+
 /**
- * Compute hash of a record.
- * Excludes 'hash' and 'signature' fields from computation.
+ * Compute the v3 hash from the fields persisted in xrc_records.
  */
 export async function computeRecordHash(record) {
   if (!record) throw new Error("Record is required for hash computation");
-
-  // Create copy without hash/signature fields
-  const { hash: _, signature: __, ...dataToHash } = record;
+  const required = ["record_id", "stream_type", "previous_hash", "actor_id", "timestamp", "created_at"];
+  const missing = required.filter((key) => record[key] == null);
+  if (missing.length || record.version !== 3) {
+    throw new Error(`A complete v3 XRC record is required to compute its hash${missing.length ? `; missing ${missing.join(", ")}` : ""}`);
+  }
 
   return computeHash({
     record_id: record.record_id,
     stream_type: record.stream_type,
-    user_id: record.user_id,
-    event_type: record.event_type,
-    payload: dataToHash.payload || null,
-    previous_hash: record.previous_hash || null,
+    previous_hash: record.previous_hash,
+    actor_id: record.actor_id,
+    payload: canonicalize(record.payload ?? {}),
+    timestamp: record.timestamp,
+    version: record.version,
     created_at: record.created_at,
-    version: record.version || 1,
   });
 }
 
@@ -56,11 +66,11 @@ export async function computeRecordHash(record) {
  */
 export async function verifyRecordHash(record) {
   if (!record) return false;
-  if (!record.hash) return false;
+  if (record.version !== 3 || !record.record_hash) return false;
 
   try {
     const computed = await computeRecordHash(record);
-    return computed === record.hash;
+    return computed === record.record_hash;
   } catch (err) {
     console.error("[XRC Hashing] verifyRecordHash failed:", err);
     return false;
@@ -98,7 +108,7 @@ export async function verifyChainContinuity(record, previousRecord) {
   }
 
   // Otherwise must link to previous record's hash
-  return record.previous_hash === previousRecord.hash;
+  return record.previous_hash === previousRecord.record_hash;
 }
 
 export default {

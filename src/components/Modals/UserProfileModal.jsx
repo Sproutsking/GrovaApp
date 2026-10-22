@@ -50,7 +50,7 @@ import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles,
-  ShieldCheck, Users, MessageSquare,
+  BadgeCheck, ShieldCheck, Users, MessageSquare,
   ChevronRight, Edit3,
 } from "lucide-react";
 
@@ -183,8 +183,14 @@ const resolveTargetId = (user) =>
 
 const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
   const label = kind === "following" ? "Following" : "Followers";
-  const visiblePeople = people.slice(0, 4);
-  const names = people
+  const visiblePeople = [...people]
+    .sort((left, right) => {
+      const verifiedDelta = Number(Boolean(right.profiles?.verified)) - Number(Boolean(left.profiles?.verified));
+      if (verifiedDelta) return verifiedDelta;
+      return new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+    })
+    .slice(0, 4);
+  const names = visiblePeople
     .slice(0, 3)
     .map((item) => item.profiles?.full_name || item.profiles?.username)
     .filter(Boolean);
@@ -201,11 +207,13 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
         {visiblePeople.map((item, index) => {
           const person = item.profiles || {};
           const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 80);
+          const size = 26 + Math.round(8 * (index / Math.max(visiblePeople.length - 1, 1)));
           return (
-            <span className="upm-people-avatar" key={item.follower_id || item.following_id || person.id || index}>
+            <span className={`upm-people-avatar${index === visiblePeople.length - 1 ? " is-front" : ""}`} key={item.follower_id || item.following_id || person.id || index} style={{ "--avatar-size": `${size}px`, "--avatar-order": index, "--avatar-brightness": (0.6 + 0.4 * (index / Math.max(visiblePeople.length - 1, 1))).toFixed(2) }} title={`${person.full_name || person.username || "Member"}${person.verified ? " · Verified" : ""}`}>
               {avatar
                 ? <img src={avatar} alt="" />
                 : (person.full_name || person.username || "?").charAt(0).toUpperCase()}
+              {person.verified && <span className="upm-people-verified"><BadgeCheck size={12} /></span>}
             </span>
           );
         })}
@@ -1804,9 +1812,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-people-card::before { position:absolute; top:0; left:18px; right:18px; height:1px; background:linear-gradient(90deg,transparent,#a3e635,transparent); content:""; opacity:.42; }
         .upm-people-card:hover,.upm-people-card:focus-visible { border-color:rgba(163,230,53,.6); outline:none; transform:translateY(-1px); box-shadow:0 14px 30px -18px #a3e635; }
         .upm-people-faces { display:flex; align-items:center; flex:none; padding-right:2px; }
-        .upm-people-avatar { position:relative; display:grid; place-items:center; flex:none; width:29px; height:29px; margin-left:-10px; overflow:hidden; border:2px solid #060706; border-radius:50%; background:linear-gradient(135deg,#a3e635,#10b981); color:#06100a; font-size:10px; font-weight:800; }
+        .upm-people-avatar { position:relative; display:grid; place-items:center; flex:none; width:var(--avatar-size,29px); height:var(--avatar-size,29px); margin-left:-10px; overflow:visible; border:2px solid #060706; border-radius:50%; background:linear-gradient(135deg,#a3e635,#10b981); color:#06100a; font-size:10px; font-weight:800; filter:brightness(var(--avatar-brightness,1)); z-index:var(--avatar-order,0); transition:margin .3s cubic-bezier(.2,.9,.3,1),filter .25s,transform .3s; }
         .upm-people-avatar:first-child { margin-left:0; }
-        .upm-people-avatar img { width:100%; height:100%; object-fit:cover; }
+        .upm-people-avatar.is-front { box-shadow:0 0 0 1px rgba(163,230,53,.72),0 8px 18px -8px rgba(163,230,53,.65); }
+        .upm-people-avatar img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
+        .upm-people-verified { position:absolute; right:-4px; bottom:-3px; z-index:2; width:15px; height:15px; display:grid; place-items:center; border:1px solid #050705; border-radius:50%; background:#a3e635; color:#071004; filter:drop-shadow(0 0 5px rgba(163,230,53,.65)); }
+        .upm-people-verified svg { fill:#a3e635; stroke:#071004; }
+        .upm-people-card:hover .upm-people-avatar,.upm-people-card:focus-visible .upm-people-avatar { margin-left:-5px; filter:brightness(1); transform:translateY(-1px); }
+        .upm-people-card:hover .upm-people-avatar:first-child,.upm-people-card:focus-visible .upm-people-avatar:first-child { margin-left:0; }
         .upm-people-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; overflow:hidden; margin-left:12px; padding-left:12px; border-left:1px solid #2a2d2a; line-height:1; }
         .upm-people-title { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:7px; row-gap:3px; min-width:0; }
         .upm-people-title strong { color:#ececec; font-size:19px; font-weight:800; letter-spacing:-.03em; }
@@ -1814,6 +1827,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-people-names { overflow:hidden; color:#747c72; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
         .upm-people-open { flex:none; width:25px; height:25px; display:grid; place-items:center; margin-left:6px; border:1px solid #33372f; border-radius:50%; background:#000; color:#a3e635; transition:background .2s,color .2s,border-color .2s; }
         .upm-people-card:hover .upm-people-open,.upm-people-card:focus-visible .upm-people-open { border-color:#a3e635; background:#a3e635; color:#0a1400; }
+        @media(prefers-reduced-motion:reduce) { .upm-people-avatar,.upm-people-open { transition:none!important; } }
         .upm-stats { display:flex; align-items:stretch; margin:0 10px; padding:2px; border-radius:12px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
         .upm-stat { flex:1; padding:6px 6px; text-align:center; display:flex; flex-direction:column; gap:1px; border-radius:9px; }
         .upm-stat:hover { background:rgba(255,255,255,.035); }

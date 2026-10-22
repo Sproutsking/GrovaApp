@@ -12,12 +12,13 @@
 //   compareRecords(id1, id2)   → show diff between two records
 // ============================================================================
 
-import { verifyRecordHash } from "./hashing.js";
+import { computeGenesisHash, verifyRecordHash } from "./hashing.js";
 
 export const VERIFICATION_STATUS = {
   VALID: "valid",
   MODIFIED: "modified",     // hash doesn't match — data was tampered
   BROKEN_CHAIN: "broken_chain", // previous_hash doesn't link correctly
+  UNVERIFIABLE: "unverifiable", // record uses a hash version this client cannot verify
   MISSING: "missing",       // record not found
   GENESIS: "genesis",       // this is the genesis record
 };
@@ -36,6 +37,7 @@ export function createVerificationService(supabase) {
 
       if (error) throw error;
       if (!record) return { status: VERIFICATION_STATUS.MISSING, record: null };
+      if (record.version !== 3) return { status: VERIFICATION_STATUS.UNVERIFIABLE, record };
 
       const hashOk = await verifyRecordHash(record);
 
@@ -79,19 +81,23 @@ export function createVerificationService(supabase) {
       }
 
       const invalidRecords = [];
-      let previousHash = records[0].previous_hash; // genesis hash for first record
+      let previousHash = await computeGenesisHash(streamType);
 
       for (const record of records) {
-        // Check hash integrity
-        const hashOk = await verifyRecordHash(record);
-        if (!hashOk) {
+        if (record.version !== 3) {
+          invalidRecords.push({
+            recordId: record.record_id,
+            status: VERIFICATION_STATUS.UNVERIFIABLE,
+            timestamp: record.timestamp,
+            event: record.payload?.event,
+          });
+        } else if (!(await verifyRecordHash(record))) {
           invalidRecords.push({
             recordId: record.record_id,
             status: VERIFICATION_STATUS.MODIFIED,
             timestamp: record.timestamp,
             event: record.payload?.event,
           });
-          continue;
         }
 
         // Check chain linkage
@@ -114,10 +120,11 @@ export function createVerificationService(supabase) {
         recordCount: records.length,
         invalidRecords,
         checkedUpTo: records[records.length - 1]?.record_id,
-        message:
-          invalidRecords.length === 0
-            ? `Chain is intact — ${records.length} records verified`
-            : `${invalidRecords.length} integrity violations found`,
+        message: invalidRecords.length === 0
+          ? `Chain is intact — ${records.length} records verified`
+          : invalidRecords.every((record) => record.status === VERIFICATION_STATUS.UNVERIFIABLE)
+            ? `${invalidRecords.length} legacy records cannot be verified by this client`
+            : `${invalidRecords.length} integrity issues found`,
       };
     } catch (err) {
       console.error("[XRC Verify] validateChain error:", err);
@@ -131,6 +138,8 @@ export function createVerificationService(supabase) {
    */
   async function traceHistory(recordId, maxDepth = 20) {
     const chain = [];
+    let reachedGenesis = false;
+    let brokenLink = false;
 
     try {
       let currentId = recordId;
@@ -142,26 +151,39 @@ export function createVerificationService(supabase) {
           .eq("record_id", currentId)
           .maybeSingle();
 
-        if (error || !record) break;
+        if (error) throw error;
+        if (!record) break;
 
-        const hashOk = await verifyRecordHash(record);
+        const hashOk = record.version === 3 ? await verifyRecordHash(record) : null;
         chain.push({ ...record, _hashValid: hashOk, _depth: i });
 
+        if (record.previous_hash === await computeGenesisHash(record.stream_type)) {
+          reachedGenesis = true;
+          break;
+        }
+
         // Find parent record by its hash
-        const { data: parent } = await supabase
+        const { data: parent, error: parentError } = await supabase
           .from("xrc_records")
           .select("record_id")
+          .eq("stream_type", record.stream_type)
           .eq("record_hash", record.previous_hash)
           .maybeSingle();
 
-        if (!parent) break; // reached genesis or broken link
+        if (parentError) throw parentError;
+        if (!parent) {
+          brokenLink = true;
+          break;
+        }
         currentId = parent.record_id;
       }
 
       return {
         chain,
         depth: chain.length,
-        reachedGenesis: chain.length < maxDepth,
+        reachedGenesis,
+        brokenLink,
+        traceLimitReached: chain.length >= maxDepth && !reachedGenesis && !brokenLink,
       };
     } catch (err) {
       console.error("[XRC Verify] traceHistory error:", err);

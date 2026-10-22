@@ -102,23 +102,21 @@ export function createXRCService(supabase) {
       const recordId = generateUUID();
       const head = await rootChain.getStreamHead(streamType);
       const previousHash = head.hash;
-      const recordHash = await computeRecordHash({
-        previousHash,
-        payload,
-        timestampMs,
-        actorId,
-      });
-
-      const { error: insertError } = await supabase.from("xrc_records").insert({
+      const record = {
         record_id: recordId,
         stream_type: streamType,
         previous_hash: previousHash,
-        record_hash: recordHash,
         actor_id: actorId,
         payload,
         timestamp: timestampMs,
-        version: 2,
+        version: 3,
         created_at: new Date().toISOString(),
+      };
+      const recordHash = await computeRecordHash(record);
+
+      const { error: insertError } = await supabase.from("xrc_records").insert({
+        ...record,
+        record_hash: recordHash,
       });
 
       if (insertError) throw insertError;
