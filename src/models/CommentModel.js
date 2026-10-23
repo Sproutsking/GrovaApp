@@ -278,7 +278,7 @@ class CommentModel {
       author:       profile.full_name || 'Unknown User',
       username:     profile.username  || 'unknown',
       avatar:       profile.avatar_id
-        ? mediaUrlService.getAvatarUrl(profile.avatar_id, 128)
+        ? mediaUrlService.getAvatarUrl(profile.avatar_id, 160)
         : null,
       verified:     profile.verified || false,
       text:         comment.text,

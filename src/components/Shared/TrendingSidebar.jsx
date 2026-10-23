@@ -1007,7 +1007,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-refresh { width:26px; height:26px; border-radius:7px; background: var(--surface); border:1px solid var(--surface-border); color: var(--text-secondary); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
         .ts-refresh:hover { background: var(--surface-strong); color: var(--accent); border-color: var(--accent-border); }
         .spin { animation:spin 1s linear infinite; }
-        .ts-search-header { position:sticky; top:0; z-index:15; display:grid; grid-template-columns:minmax(0,1fr) 30px; align-items:center; gap:8px; min-height:58px; padding:10px 14px; background:var(--surface-strong); }
+        .ts-search-header { position:sticky; top:0; z-index:15; display:grid; grid-template-columns:minmax(0,1fr) 30px; align-items:center; gap:8px; min-height:58px; padding:10px 14px; background:var(--bg); }
         .ts-search-header .ts-search-anchor { justify-self:center; width:min(250px,100%); }
         .ts-search-header .ts-search-trigger { max-width:none; }
         .ts-section > .sh-root { margin-bottom: 8px; padding-bottom: 0; border-bottom: 0; }

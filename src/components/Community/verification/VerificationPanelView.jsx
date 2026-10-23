@@ -60,10 +60,8 @@ function QuickBody({ m, locked, busy, onSubmit }) {
 }
 
 function PictureBody({ m, locked, busy, onSubmit }) {
-  const sig = m.cards.map((c) => c.id).join("|");
   const [order, setOrder] = useState(() => shuffled(m.cards));
   const [wrong, setWrong] = useState(null);
-  useEffect(() => { setOrder(shuffled(m.cards)); setWrong(null); }, [sig]);
   const pick = async (card) => {
     if (busy || locked) return;
     const res = await onSubmit({ answer: card.id });
@@ -163,7 +161,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
       <div className="vp-method" key={id}>
         {missing.length > 0 && <div className="vp-lock"><Lock size={12} />Complete {missing.map((x) => METHOD_META[x].label).join(" and ")} first.</div>}
         {timeLocked && <div className="vp-lock"><Lock size={12} />Locked until {new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.</div>}
-        {id === "rules" ? <RulesBody {...props} /> : id === "quick" ? <QuickBody {...props} /> : <PictureBody {...props} />}
+        {id === "rules" ? <RulesBody {...props} /> : id === "quick" ? <QuickBody {...props} /> : <PictureBody key={m.cards.map((card) => `${card.id}:${card.image}`).join("|")} {...props} />}
         {cfg.showReward && !rulesLeadToVerification && <Reward m={m} />}
         {errors[id] && <div className="vp-err">{errors[id]}</div>}
       </div>
@@ -177,7 +175,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
         <div><div className="vp-kicker">{panel?.name}{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
       </header>
 
-      {!ready.length ? <p className="vp-empty">Verification hasn't been set up yet. Check back soon.</p> : (
+      {!ready.length ? <p className="vp-empty">The community owner is still setting up verification. Please check back later or contact a moderator.</p> : (
         <>
           {cfg.showProgress && ready.length > 1 && <div className="vp-progress"><div><i style={{ width: `${(doneCount / ready.length) * 100}%` }} /></div><span>{doneCount} of {ready.length} complete</span></div>}
           {ready.length > 1 && cfg.layout === "tabs" && (

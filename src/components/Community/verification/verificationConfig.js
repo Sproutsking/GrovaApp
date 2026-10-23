@@ -64,7 +64,7 @@ function legacyMethods(s) {
   const roleId = s.roleGrant?.roleId || "";
   return {
     rules: { enabled: Boolean(s.rulesEnabled && s.rules?.enabled), roleId, ...defined({ title: s.rules?.title, description: s.rules?.description }), ...(s.rules?.rules ? { items: legacyItems(s.rules.rules) } : {}) },
-    quick: { enabled: s.quickEnabled !== false, roleId, ...defined({ title: s.quick?.idleTitle, description: s.quick?.idleDescription, buttonLabel: s.quick?.buttonLabel, successTitle: s.quick?.verifiedTitle, successDescription: s.quick?.verifiedDescription }) },
+    quick: { enabled: Boolean(s.quickEnabled || s.quick?.enabled), roleId, ...defined({ title: s.quick?.idleTitle, description: s.quick?.idleDescription, buttonLabel: s.quick?.buttonLabel, successTitle: s.quick?.verifiedTitle, successDescription: s.quick?.verifiedDescription }) },
     picture: { enabled: Boolean(s.pictureEnabled), roleId, ...defined({ title: s.picture?.idleTitle, instruction: s.picture?.descriptionTemplate, successTitle: s.picture?.verifiedTitle, successDescription: s.picture?.verifiedDescription }), cards: s.challenge?.cards || [], correctId: s.challenge?.correctId || "" },
   };
 }
@@ -74,7 +74,7 @@ export function normalizeVerificationConfig(saved = {}) {
   const d = DEFAULT_VERIFICATION_CONFIG;
   const { quickEnabled, pictureEnabled, rulesEnabled, roleGrant, quick, picture, rules: _rules, challenge, mode, avatarIcon, ...rest } = s;
   const savedRulesFlow = s.rulesGate?.flow;
-  const sm = s.version === 2 && s.methods ? obj(s.methods) : legacyMethods(s);
+  const sm = s.methods ? obj(s.methods) : legacyMethods(s);
   const methods = {};
   METHOD_ORDER.forEach((id) => {
     const merged = { ...d.methods[id], ...defined(sm[id]) };
@@ -128,6 +128,21 @@ export function challengeIsReady(config = {}) {
   return cards.length >= 2 && cards.some((card) => String(card.id) === String(correctId));
 }
 
+export function isVerificationConfigEnabled(config = {}) {
+  const normalized = normalizeVerificationConfig(config);
+  return METHOD_ORDER.some((method) => normalized.methods[method]?.enabled === true);
+}
+
+export function getSelectableVerificationRoles(roles = []) {
+  const defaultRole = roles.find((role) => role.is_default);
+  return roles.filter((role) =>
+    !role.is_default
+    && role.name?.trim().toLowerCase() !== "owner"
+    && !DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true)
+    && (!defaultRole || Number(role.position) < Number(defaultRole.position)),
+  );
+}
+
 export function getMethodsForVerificationChannel(rulesGate, channelId) {
   if (!rulesGate?.enabled) return null;
   if (channelId && channelId === rulesGate.rulesChannelId) return ["rules"];
@@ -156,7 +171,9 @@ export function compactForSave(config) {
 export function methodIssues(id, m, roleMap, methods = {}, config = {}) {
   const out = [];
   const configuredRoleIds = config.roleGrant?.roleIds || [];
-  const roleIds = m.roleId ? [m.roleId] : config.roleGrant?.enabled ? configuredRoleIds : [];
+  const roleIds = config.roleGrant?.enabled
+    ? configuredRoleIds
+    : m.roleId ? [m.roleId] : [];
   const roles = roleIds.map((roleId) => roleMap?.get?.(roleId)).filter(Boolean);
   const defaultRole = [...(roleMap?.values?.() || [])].find((role) => role.is_default);
   if (!roleIds.length) out.push({ level: "error", text: "Choose at least one role members can unlock." });
@@ -199,13 +216,9 @@ export function toPublicPanel(config, roleMap = new Map(), { preview = false, ta
     }
     methods[id] = base;
   });
-  const defaultRole = [...roleMap.values()].find((role) => role.is_default);
-  const roleChoices = c.roleGrant.roleIds.map((id) => roleMap.get(id)).filter((role) =>
-    role
-    && !role.is_default
-    && role.name?.trim().toLowerCase() !== "owner"
-    && !DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true)
-    && (!defaultRole || Number(role.position) < Number(defaultRole.position)),
+  const selectableRoleIds = new Set(getSelectableVerificationRoles([...roleMap.values()]).map((role) => role.id));
+  const roleChoices = (c.roleGrant.enabled ? c.roleGrant.roleIds : []).map((id) => roleMap.get(id)).filter((role) =>
+    role && selectableRoleIds.has(role.id),
   ).map((role) => ({
     id: role.id,
     name: role.name,

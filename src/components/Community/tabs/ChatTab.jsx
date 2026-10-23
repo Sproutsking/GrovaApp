@@ -75,6 +75,7 @@ const ChatTab = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
   const [channelPermissions, setChannelPermissions] = useState({});
+  const [reactionError, setReactionError] = useState("");
   const [roles, setRoles] = useState([]);
   const [members, setMembers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -238,6 +239,10 @@ const ChatTab = ({
       loadVerificationRouting();
     }
   }, [community?.id, userId]);
+
+  useEffect(() => {
+    setReactionError("");
+  }, [selectedChannel]);
 
   useEffect(() => {
     let active = true;
@@ -1012,14 +1017,16 @@ const ChatTab = ({
               communityMembers={members}
               communityRoles={roles}
               communityChannels={channels}
+              canAddReactions={canAddReactions}
               onWelcomeProfileClick={(member) => member?.id && setCommunityProfileTarget(member)}
               onWelcomeIntroduce={openWelcomeIntroduction}
               onWelcomeBrowse={startWelcomeBrowse}
               channelType={selectedChannel?.type}
               newMessageId={newMessageId}
             onReactionClick={async (msgId, emoji) => {
-              if (!canAddReactions) return;
               const msg = messages.find((m) => m.id === msgId);
+              if (!msg) return;
+              setReactionError("");
               const previousReactions = msg?.reactions || {};
               const hasReacted = previousReactions?.[emoji]?.users?.includes(userId);
               const nextReactions = JSON.parse(JSON.stringify(previousReactions));
@@ -1037,14 +1044,18 @@ const ChatTab = ({
               setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: nextReactions } : item));
               communityState.updateMessage(selectedChannel?.id, msgId, { reactions: nextReactions });
               try {
+                let savedReactions;
                 if (hasReacted) {
-                  await communityMessageService.removeReaction(msgId, userId, emoji);
+                  savedReactions = await communityMessageService.removeReaction(msgId, userId, emoji);
                 } else {
-                  await communityMessageService.addReaction(msgId, userId, emoji);
+                  savedReactions = await communityMessageService.addReaction(msgId, userId, emoji);
                 }
+                setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: savedReactions } : item));
+                communityState.updateMessage(selectedChannel?.id, msgId, { reactions: savedReactions });
               } catch (error) {
                 setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: previousReactions } : item));
                 communityState.updateMessage(selectedChannel?.id, msgId, { reactions: previousReactions });
+                setReactionError(error.message || "Could not save your reaction. Check the role's Add Reactions permission.");
                 console.error("Error toggling reaction:", error);
               }
             }}
@@ -1056,6 +1067,13 @@ const ChatTab = ({
           )}
           {welcomeBrowse.active && <div className="welcome-browse-footer"><span>Browsing community channels</span><button type="button" onClick={browseNextWelcomeChannel} disabled={welcomeBrowse.viewed.length >= browseChannels.length}>Next channel</button><button type="button" onClick={cancelWelcomeBrowse}>Cancel</button></div>}
         </div>
+
+        {reactionError && (
+          <div className="chat-reaction-error" role="alert">
+            <span>{reactionError}</span>
+            <button type="button" onClick={() => setReactionError("")} aria-label="Dismiss reaction error">×</button>
+          </div>
+        )}
 
         <div className="chat-input-area">
           <BackgroundDropdown
@@ -1430,6 +1448,8 @@ const ChatTab = ({
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
         .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }
 
+        .chat-reaction-error{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;background:rgba(127,29,29,.35);border-top:1px solid rgba(248,113,113,.25);color:#fecaca;font-size:11px}
+        .chat-reaction-error button{border:0;background:transparent;color:inherit;font-size:16px;cursor:pointer}
         .chat-input-area { position: relative; flex-shrink: 0; }
 
         .jump-btn { position: fixed; bottom: 80px; right: 18px; z-index: 5; width: 38px; height: 38px; border-radius: 50%; background: var(--panel-strong); border: 1.5px solid var(--accent-border-strong); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.4); transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }

@@ -77,7 +77,7 @@ export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {
 /**
  * reactions: { "❤️": { count: 3, users: ["uid1","uid2"] }, ... }
  */
-export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef }) => {
+export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef, canReact = true }) => {
   const [burst, setBurst] = useState(null);
   const [pulseKeys, setPulseKeys] = useState({});
   const barRef = useRef(null);
@@ -104,6 +104,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
   }, [reactions]);
 
   const handleClick = useCallback((emoji, e) => {
+    if (!canReact) return;
     e.preventDefault();
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -111,7 +112,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
     window.setTimeout(() => setBurst(null), 800);
 
     onToggle?.(emoji);
-  }, [onToggle]);
+  }, [canReact, onToggle]);
 
   const entries = Object.entries(reactions).filter(([, v]) => v.count > 0);
   return (
@@ -123,6 +124,8 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
             key={`${emoji}-${pulseKeys[emoji] || 0}`}
             className={`rb-pill ${reacted ? "reacted" : ""} ${pulseKeys[emoji] ? "reaction-added" : ""} ${isAnnouncement ? "ann-pill" : ""}`}
             onClick={(e) => handleClick(emoji, e)}
+            disabled={!canReact}
+            title={!canReact ? "Reactions are disabled for your role in this channel." : undefined}
           >
             <span className="rb-emoji">{emoji}</span>
             <span className="rb-count">{data.count}</span>
@@ -136,7 +139,8 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           className={`rb-pill rb-add-trigger ${isAnnouncement ? "ann-pill" : ""}`}
           onClick={onOpenPicker}
           aria-label="Add a reaction"
-          title="Add a reaction"
+          title={canReact ? "Add a reaction" : "Reactions are disabled for your role in this channel."}
+          disabled={!canReact}
         >
           <span className="rb-emoji"><Smile size={15} /></span>
         </button>
@@ -193,6 +197,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           border-color: rgba(156,255,0,0.3);
           transform: scale(1.08);
         }
+        .rb-pill:disabled { cursor: not-allowed; opacity: .55; transform: none; }
         .rb-pill:active { transform: scale(0.95); }
 
         .rb-pill.reaction-added { animation: reactionCountPop 0.42s cubic-bezier(0.2,0.9,0.3,1.3); }
@@ -328,7 +333,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 /**
  * Full area that wraps a message — shows reaction bar + hover picker trigger
  */
-export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false }) => {
+export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false, canReact = true }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const [burst, setBurst] = useState(null);
@@ -337,6 +342,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
   const burstIdRef = useRef(0);
 
   const handleAddReaction = (emoji) => {
+    if (!canReact) return;
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
       setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: `${Date.now()}-${burstIdRef.current++}` });
@@ -369,6 +375,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         userId={userId}
         onToggle={(emoji) => onToggle?.(message.id, emoji)}
         isAnnouncement={isAnnouncement}
+        canReact={canReact}
         triggerRef={triggerRef}
         onOpenPicker={showReactionTrigger ? togglePicker : undefined}
       />
@@ -402,7 +409,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; }
         .msg-item.me .mra-wrapper { margin-left: auto; }
-        .mra-ann { align-items: flex-start; width: min(92%, 760px); max-width: 92%; }
+        .mra-ann { align-items: flex-start; width: min(70%, 760px); max-width: min(70%, 760px); }
         .mra-picker-wrap {
           position: absolute;
           right: 10px;
@@ -464,6 +471,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         }
         @media (max-width: 768px) {
           .mra-wrapper { max-width: 80%; }
+          .mra-ann { width: min(80%, 760px); max-width: min(80%, 760px); }
         }
       `}</style>
     </div>

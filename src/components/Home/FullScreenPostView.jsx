@@ -308,7 +308,10 @@ const CSS = `
   animation: fspvSlideUp 0.25s cubic-bezier(0.34,1.2,0.64,1) both;
   transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
 }
-.fspv-desktop-card.with-comments { width: min(1180px, 96vw); }
+.fspv-desktop-card.with-comments {
+  width: min(1180px, 96vw);
+  height: min(800px, 94vh);
+}
 .fspv-desktop-post { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 .fspv-mobile {
   align-items: stretch;
@@ -374,7 +377,7 @@ const CSS = `
 }
 .fspv-card-post { width:100%; margin-bottom:4px; }
 .fspv-card-post .cp-wrapper { width:100%; }
-.fspv-post-comments { flex:0 0 min(370px, 34vw); min-width:300px; min-height:0; display:flex; flex-direction:column; border-left:1px solid rgba(132,204,22,0.12); background:#111; }
+.fspv-post-comments { flex:0 0 min(390px, 38vw); min-width:300px; min-height:0; display:flex; flex-direction:column; border-left:1px solid rgba(255,255,255,0.1); background:#0a0a0a; }
 .fspv-body::-webkit-scrollbar { width:5px; }
 .fspv-body::-webkit-scrollbar-track { background:rgba(255,255,255,0.02); }
 .fspv-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,0.4); border-radius:3px; }
@@ -382,6 +385,11 @@ const CSS = `
   padding:12px 16px; border-top:1px solid rgba(132,204,22,0.08); flex-shrink:0;
 }
 .fspv-comments-body { flex:1; min-height:0; overflow:hidden; }
+.fspv-post-comments .comment-modal-embedded .comment-modal-header {
+  padding:16px 18px;
+  border-bottom-color:rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.025);
+}
 .fspv-post-comments .comment-modal-embedded { min-height:0; }
 .fspv-post-comments .comments-list { min-height:0; }
 .fspv-comments-body::-webkit-scrollbar { width:4px; }
@@ -405,7 +413,7 @@ const CSS = `
 }
 @media (max-width: 768px) {
   .fspv-desktop-card { flex-direction:column; width:min(820px, 96vw); height:auto; }
-  .fspv-desktop-card.with-comments { width:min(820px, 96vw); }
+  .fspv-desktop-card.with-comments { width:min(820px, 96vw); height:auto; }
   .fspv-desktop-card .fspv-post-comments { display:none; }
   .fspv-mobile-card.with-comments { overflow:hidden; }
   .fspv-mobile-card .fspv-post-comments {

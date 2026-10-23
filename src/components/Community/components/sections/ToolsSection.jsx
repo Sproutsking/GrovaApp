@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
-import { Bot, Check, ChevronRight, Crown, Link2, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
+import { Bot, Check, ChevronRight, Crown, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 
 import { X, Settings2 } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
-import RulesVerificationDashboard from "../../verification/RulesVerificationDashboard";
-import VerificationModeDashboard from "../../verification/VerificationModeDashboard";
 import WelcomeToolDashboard from "../../verification/WelcomeToolDashboard";
 import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
 import socialUpdatesService, { SOCIAL_UPDATE_PROVIDER_IDS } from "../../../../services/community/socialUpdatesService";
 import { getPlatformCapabilities } from "../../../../services/community/platformCapabilities";
+import { isMethodReady, isVerificationConfigEnabled, METHOD_ORDER, normalizeVerificationConfig } from "../../verification/verificationConfig";
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
 import BotsDashboard from "../../bots/BotsDashboard";
 const TOOL_CATALOG = [
@@ -25,6 +24,8 @@ const TOOL_CATALOG = [
 export default function ToolsSection({ communityId, userId, channels = [], canManage = false, onOpenInvite, onOpenUpgrade, onOpenModeration, onCreateChannel }) {
   const [rows, setRows] = useState([]);
   const [communityRoles, setCommunityRoles] = useState([]);
+  const [accessRules, setAccessRules] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [openTool, setOpenTool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +56,18 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
         if (rolesError) setError(rolesError.message);
         setCommunityRoles(data || []);
       });
+    supabase.from("community_access_rules").select("target_type,target_id,role_id,can_view,can_send").eq("community_id", communityId)
+      .then(({ data, error: accessError }) => {
+        if (!active) return;
+        if (accessError) setError(accessError.message);
+        setAccessRules(data || []);
+      });
+    supabase.from("community_channel_categories").select("id,name").eq("community_id", communityId)
+      .then(({ data, error: categoriesError }) => {
+        if (!active) return;
+        if (categoriesError) setError(categoriesError.message);
+        setCategories(data || []);
+      });
     supabase.from("community_social_connections").select("id").eq("community_id", communityId).eq("provider", "xeevia").eq("status", "active").maybeSingle()
       .then(({ data }) => { if (active) setSourceConnected(Boolean(data)); });
     if (userId) supabase.from("connections").select("provider, platform_user_id, auth_status").eq("user_id", userId).eq("auth_status", "active")
@@ -71,6 +84,10 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const configured = row.config?.channel_ids;
     if (Array.isArray(configured)) return new Set(configured);
     return row.channel_id ? new Set([row.channel_id]) : new Set();
+  };
+
+  const toggleToolPicker = (type) => {
+    setOpenTool((current) => current === type ? null : type);
   };
 
   const connectXeevia = async () => {
@@ -125,7 +142,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const nextRow = {
       community_id: communityId,
       tool_type: type,
-      enabled: ids.length > 0,
+      enabled: ids.length > 0 || (type === "verification" && isVerificationConfigEnabled(row.config)),
       channel_id: ids[0] || null,
       config: { ...(row.config || {}), channel_ids: ids },
       updated_at: new Date().toISOString(),
@@ -180,44 +197,20 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   const saveVerificationConfig = async (config) => {
     if (!canManage || !dashboardTool) return;
     const row = getRow("verification");
-    const routeChannelId = config.rulesGate?.flow === "rules_then_verify"
-      ? config.rulesGate.verificationChannelId
-      : config.rulesGate?.rulesChannelId;
+    const nextConfig = normalizeVerificationConfig(config);
     const nextRow = {
       ...row,
       community_id: communityId,
       tool_type: "verification",
-      enabled: Boolean(row.enabled || selectedIds("verification").size || config.rulesGate?.enabled),
-      channel_id: row.channel_id || routeChannelId || null,
-      config,
+      enabled: Boolean(selectedIds("verification").size || isVerificationConfigEnabled(nextConfig)),
+      channel_id: row.channel_id || null,
+      config: nextConfig,
       updated_at: new Date().toISOString(),
     };
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
     if (saveError) throw saveError;
     setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
-    setDashboardTool(null);
-  };
-
-  const saveRulesConfig = async (config) => {
-    if (!canManage || !dashboardTool) return;
-    const row = getRow("verification");
-    const nextConfig = { ...(row.config || {}), rules: config, rulesEnabled: Boolean(config.enabled) };
-    const nextRow = { ...row, community_id: communityId, tool_type: "verification", enabled: Boolean(row.enabled || config.enabled), channel_id: row.channel_id || config.verificationChannelId || null, config: nextConfig, updated_at: new Date().toISOString() };
-    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
-    if (saveError) throw saveError;
-    setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
-    setDashboardTool(null);
-  };
-
-  const saveFocusedVerification = async (mode, config) => {
-    if (!canManage || !dashboardTool) return;
-    const row = getRow("verification");
-    const nextConfig = { ...(row.config || {}), [mode]: config[mode], [`${mode}Enabled`]: config[`${mode}Enabled`] };
-    const nextRow = { ...row, community_id: communityId, tool_type: "verification", enabled: true, config: nextConfig, updated_at: new Date().toISOString() };
-    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
-    if (saveError) throw saveError;
-    setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
-    setDashboardTool(null);
+    setFocusedVerificationMode(null);
   };
 
   const saveModerationConfig = async (config) => {
@@ -265,12 +258,24 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       {TOOL_CATALOG.map((tool) => {
         const open = openTool === tool.type;
         const selected = selectedIds(tool.type);
+        const verificationConfig = normalizeVerificationConfig(getRow("verification").config);
+        const verificationActive = isVerificationConfigEnabled(verificationConfig);
+        const verificationRoleMap = new Map(communityRoles.map((role) => [role.id, role]));
+        const verificationCheckReady = METHOD_ORDER.some((method) =>
+          isMethodReady(method, verificationConfig.methods[method], verificationRoleMap, verificationConfig.methods, verificationConfig),
+        );
+        const hasRulesRoute = Boolean(
+          verificationConfig.rulesGate.enabled
+          && verificationConfig.rulesGate.rulesChannelId
+          && (verificationConfig.rulesGate.flow !== "rules_then_verify" || verificationConfig.rulesGate.verificationChannelId),
+        );
+        const verificationReady = verificationCheckReady && (selected.size > 0 || hasRulesRoute);
         return (
           <div className={`community-tool-group${open ? " open" : ""}`} key={tool.type}>
-            <button type="button" className="community-tool-card" onClick={() => openDashboard(tool)}>
-              <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
+              <button type="button" className="community-tool-card" onClick={() => tool.type === "verification" ? toggleToolPicker(tool.type) : openDashboard(tool)}>
+                <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.type === "verification" ? verificationReady ? "Ready · members can open the configured check and choose an access role." : verificationActive || selected.size ? "Needs setup · add an entry channel, a ready check, and an eligible role." : "Choose channels, verification checks, and the role members receive." : tool.description}</small></span><em>{tool.type === "verification" ? verificationReady ? "Ready" : verificationActive || selected.size ? "Needs setup" : "Set up" : selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
-            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div>}
+            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? tool.type === "verification" ? "Choose channels where members can open the verification panel:" : "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}{tool.type === "verification" && <><p className="community-tool-picker-help">The panel appears only in selected channels. For a rules gate, choose the rules and follow-up verification channels in the Rules Gate setup.</p><button type="button" className="community-verification-configure" disabled={!canManage} onClick={() => openDashboard(tool)}><Settings2 size={14} /> Configure verification flow</button></>}</div>}
             {open && tool.type === "social_updates" && canManage && <div className="community-tool-sources"><button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button><button type="button" className="community-tool-source" onClick={syncSources} disabled={syncingSources}>{syncingSources ? "Syncing sources..." : "Sync connected sources"}</button>{linkedSources.length ? <div className="community-tool-linked-sources">{linkedSources.map((source) => { const sourceKey = `${source.provider}:${source.platform_user_id}`; const route = sourceRoutes.find((item) => item.connection?.provider === source.provider && item.connection?.provider_account_id === source.platform_user_id); const capability = getPlatformCapabilities(source.provider); return <div className="community-tool-linked-source" key={sourceKey}><span><strong>{source.provider}</strong><small>{source.platform_user_id}</small></span><select value={routeSelections[sourceKey] || route?.channel_id || ""} onChange={(event) => setRouteSelections((current) => ({ ...current, [sourceKey]: event.target.value }))}><option value="">Choose channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" disabled={!routeSelections[sourceKey] && !route?.channel_id} onClick={() => connectLinkedSource(source, routeSelections[sourceKey] || route?.channel_id)}>{route ? "Update route" : "Connect route"}</button>{capability?.canDetectLive && <small>Live detection available</small>}</div>; })}</div> : <span>Link an account in Account &gt; Identity to use it here.</span>}<small>Profile links identify a source. OAuth/API access is required before automatic imports can run.</small></div>}
           </div>
         );
@@ -279,13 +284,47 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       {dashboardTool && dashboardTool.type === "social_updates" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Social updates</h2><p>Connect sources, route activity, and run a real inbound sync.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close social updates dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><SocialUpdatesDashboard communityId={communityId} userId={userId} channels={channels} linkedSources={linkedSources} canManage={canManage} onCreateChannel={onCreateChannel} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "bots" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Bots</h2><p>Connect Discord and Telegram destinations for outbound posts.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close bots dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><BotsDashboard communityId={communityId} userId={userId} canManage={canManage} /></div></section></div>, document.body)}
       {welcomeDashboardOpen && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setWelcomeDashboardOpen(false)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Welcome experience</h2><p>Design the first impression members see when they arrive.</p></div><button type="button" onClick={() => setWelcomeDashboardOpen(false)} aria-label="Close welcome dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Welcome card channel</strong><p className="tool-dashboard-help">Select or create the channel where every welcome card will be posted.</p><select disabled={!canManage} value={getRow("welcome").channel_id || ""} onChange={(event) => toggleChannel("welcome", event.target.value)}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" disabled={!canManage} className="welcome-create-channel" onClick={onCreateChannel}>+ Create a channel first</button></div><div className="tool-dashboard-block"><strong>Member introduction destination</strong><p className="tool-dashboard-help">Choose the channel opened by “Introduce yourself”.</p><select disabled={!canManage} value={getRow("welcome").config?.introChannelId || ""} onChange={(event) => setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), { ...getRow("welcome"), config: { ...(getRow("welcome").config || {}), introChannelId: event.target.value } }])}><option value="">Select a channel</option>{channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select></div><WelcomeToolDashboard value={getRow("welcome").config} communityName="your community" channels={channels} disabled={!canManage} onSave={saveWelcomeConfig} /></div></section></div>, document.body)}
-      {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => { setDashboardTool(null); setOpenTool(null); setFocusedVerificationMode(null); }}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>{focusedVerificationMode === "quick" ? "Quick verify" : focusedVerificationMode === "picture" ? "Picture check" : focusedVerificationMode === "rules_gate" ? "Rules gate" : focusedVerificationMode === "role_grant" ? "Role grant" : "Verification"}</h2><p>{focusedVerificationMode ? "Configure this verification flow in its own section." : "Choose the verification method to configure."}</p></div><button type="button" onClick={() => { setDashboardTool(null); setOpenTool(null); setFocusedVerificationMode(null); }} aria-label="Close verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><VerificationToolDashboard key={focusedVerificationMode || "verification-root"} value={getRow("verification").config} focusMode={focusedVerificationMode} channels={channels} roles={communityRoles} disabled={!canManage} onSave={saveVerificationConfig} onModeSelect={(mode) => setFocusedVerificationMode(mode)} /></div></section></div>, document.body)}
+      {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(
+        <div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => { setDashboardTool(null); setFocusedVerificationMode(null); }}>
+          <section className="tool-dashboard" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <span className="tool-dashboard-kicker">Community access setup</span>
+                <h2>{focusedVerificationMode === "quick" ? "Quick verify" : focusedVerificationMode === "picture" ? "Picture check" : focusedVerificationMode === "rules_gate" ? "Rules gate" : focusedVerificationMode === "role_grant" ? "Access roles" : "Verification"}</h2>
+                <p>{focusedVerificationMode ? "Configure this step, save, then return to the setup overview." : "Connect the channel, check, and role so members can complete verification and reach the right channels."}</p>
+              </div>
+              <div className="tool-dashboard-header-actions">
+                {focusedVerificationMode && <button type="button" className="tool-dashboard-back" onClick={() => setFocusedVerificationMode(null)}>Back to setup</button>}
+                <button type="button" onClick={() => { setDashboardTool(null); setFocusedVerificationMode(null); }} aria-label="Close verification dashboard"><X size={18} /></button>
+              </div>
+            </header>
+            <div className="tool-dashboard-body">
+              <VerificationToolDashboard
+                key={focusedVerificationMode || "verification-root"}
+                value={getRow("verification").config}
+                focusMode={focusedVerificationMode}
+                channels={channels}
+                roles={communityRoles}
+                categories={categories}
+                accessRules={accessRules}
+                selectedChannelIds={[...selectedIds("verification")]}
+                onToggleChannel={(channelId) => toggleChannel("verification", channelId)}
+                channelError={error}
+                disabled={!canManage}
+                onSave={saveVerificationConfig}
+                onModeSelect={(mode) => setFocusedVerificationMode(mode)}
+              />
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
       {dashboardTool && dashboardTool.type === "moderation" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Moderation</h2><p>Build a live safety system for this community.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close moderation dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><ModerationToolDashboard communityId={communityId} value={getRow("moderation").config} disabled={!canManage} onSave={saveModerationConfig} /></div></section></div>, document.body)}
       {dashboardTool && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>{dashboardTool.label}</h2><p>{dashboardTool.description}</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close tool dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Tool type</strong><div className="tool-mode-grid">{(dashboardTool.modes || [{ id: "default", label: "Standard", description: "Use the standard configuration for this tool." }]).map((mode) => <button type="button" key={mode.id} className={`tool-mode-card${draft.mode === mode.id ? " selected" : ""}`} onClick={() => setDraft((current) => ({ ...current, mode: mode.id }))}><span>{draft.mode === mode.id ? <Check size={14} /> : null}</span><b>{mode.label}</b><small>{mode.description}</small></button>)}</div></div><div className="tool-dashboard-block"><strong>Member-facing channels</strong><p className="tool-dashboard-help">Choose where this tool is available. Selecting a channel opens it in the channel list without changing your existing channel arrangement.</p><div className="tool-channel-grid">{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selectedIds(dashboardTool.type).has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(dashboardTool.type, channel.id)}><i>{selectedIds(dashboardTool.type).has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div></div>{dashboardTool.type === "verification" && <div className="tool-dashboard-block"><strong>Verification setup</strong><input disabled={!canManage} value={draft.message || ""} onChange={(event) => setDraft((current) => ({ ...current, message: event.target.value }))} placeholder="Message shown before verification" maxLength={300} /><small className="tool-dashboard-help">Some verification types require an enabled Xeevia platform integration before members can use them.</small></div>}{dashboardTool.type === "welcome" && <div className="tool-dashboard-block"><strong>Welcome content</strong><input disabled={!canManage} value={draft.title || "Welcome to our community"} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={draft.description || "Introduce yourself and join the conversation."} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Welcome description" rows={4} maxLength={500} /></div>}</div><footer><button type="button" className="tool-dashboard-cancel" onClick={() => setDashboardTool(null)}>Cancel</button><button type="button" className="tool-dashboard-save" disabled={!canManage} onClick={saveDashboard}>Save tool setup</button></footer></section></div>, document.body)}
       <style>{`
-        .community-tools-section{padding:10px;display:flex;flex-direction:column;gap:7px}.tools-intro{display:flex;flex-direction:column;gap:4px;padding:5px 3px 9px}.tools-intro strong{color:var(--text);font-size:16px}.tools-intro span{color:var(--text-secondary);font-size:11px;line-height:1.5}.community-tool-card{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid var(--surface-border);border-radius:11px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer;font:inherit}.community-tool-card:hover{border-color:var(--accent-border);background:var(--surface-strong)}.community-tool-icon{width:34px;height:34px;display:grid;place-items:center;flex-shrink:0;border-radius:9px;background:var(--accent-bg);color:var(--accent)}.community-tool-copy{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.community-tool-copy strong{font-size:12px}.community-tool-copy small{color:var(--text-secondary);font-size:10px;line-height:1.3}.community-tool-card em{font-style:normal;color:var(--accent);font-size:10px;font-weight:800}.community-tool-group.open>.community-tool-card svg:last-child{transform:rotate(90deg)}.community-tool-picker{display:flex;flex-direction:column;gap:3px;padding:8px 9px 9px;margin-top:-2px;border:1px solid var(--accent-border);border-top:0;border-radius:0 0 10px 10px;background:rgba(0,0,0,.18)}.community-tool-picker>span{padding:2px 3px 5px;color:var(--text-secondary);font-size:10px}.community-tool-channel{display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);font:600 12px inherit;text-align:left;cursor:pointer}.community-tool-channel:hover,.community-tool-channel.selected{background:var(--accent-bg);color:var(--accent)}.community-tool-channel i{width:15px;height:15px;display:grid;place-items:center;border:1px solid var(--accent-border);border-radius:4px;font-style:normal}.community-tools-error{margin:4px 2px;color:var(--danger);font-size:11px}
+        .community-tools-section{padding:10px;display:flex;flex-direction:column;gap:7px}.tools-intro{display:flex;flex-direction:column;gap:4px;padding:5px 3px 9px}.tools-intro strong{color:var(--text);font-size:16px}.tools-intro span{color:var(--text-secondary);font-size:11px;line-height:1.5}.community-tool-card{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid var(--surface-border);border-radius:11px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer;font:inherit}.community-tool-card:hover{border-color:var(--accent-border);background:var(--surface-strong)}.community-tool-icon{width:34px;height:34px;display:grid;place-items:center;flex-shrink:0;border-radius:9px;background:var(--accent-bg);color:var(--accent)}.community-tool-copy{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.community-tool-copy strong{font-size:12px}.community-tool-copy small{color:var(--text-secondary);font-size:10px;line-height:1.3}.community-tool-card em{font-style:normal;color:var(--accent);font-size:10px;font-weight:800}.community-tool-group.open>.community-tool-card svg:last-child{transform:rotate(90deg)}.community-tool-picker{display:flex;flex-direction:column;gap:3px;padding:8px 9px 9px;margin-top:-2px;border:1px solid var(--accent-border);border-top:0;border-radius:0 0 10px 10px;background:rgba(0,0,0,.18)}.community-tool-picker>span{padding:2px 3px 5px;color:var(--text-secondary);font-size:10px}.community-tool-picker-help{margin:3px;color:var(--text-secondary);font-size:10px;line-height:1.45}.community-verification-configure{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:5px;padding:9px;border:1px solid var(--accent-border);border-radius:8px;background:var(--accent-bg);color:var(--accent);font:800 11px inherit;cursor:pointer}.community-verification-configure:disabled{opacity:.5;cursor:not-allowed}.community-tool-channel{display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);font:600 12px inherit;text-align:left;cursor:pointer}.community-tool-channel:hover,.community-tool-channel.selected{background:var(--accent-bg);color:var(--accent)}.community-tool-channel i{width:15px;height:15px;display:grid;place-items:center;border:1px solid var(--accent-border);border-radius:4px;font-style:normal}.community-tools-error{margin:4px 2px;color:var(--danger);font-size:11px}
       `}</style>
-      <style>{`.tool-dashboard-overlay{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.tool-dashboard{width:min(680px,100%);max-height:min(760px,calc(100vh - 36px));display:flex;flex-direction:column;overflow:hidden;background:var(--surface-strong);border:1px solid var(--accent-border);border-radius:16px;box-shadow:0 24px 90px rgba(0,0,0,.65)}.tool-dashboard header,.tool-dashboard footer{display:flex;align-items:center;gap:12px;padding:16px 18px;border-color:var(--surface-border)}.tool-dashboard header{justify-content:space-between;border-bottom:1px solid var(--surface-border)}.tool-dashboard header h2{margin:3px 0;font-size:20px;color:var(--text)}.tool-dashboard header p,.tool-dashboard-help{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.tool-dashboard header button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:var(--surface);color:var(--text-secondary);cursor:pointer}.tool-dashboard-body{overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px}.tool-dashboard-kicker{color:var(--accent);font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.tool-dashboard-block{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:11px;background:rgba(0,0,0,.12)}.tool-dashboard-block strong{font-size:12px;color:var(--text)}.tool-mode-grid,.tool-channel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px}.tool-mode-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px;border:1px solid var(--surface-border);border-radius:9px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer}.tool-mode-card.selected{border-color:var(--accent-border-strong);background:var(--accent-bg)}.tool-mode-card span{color:var(--accent);height:14px}.tool-mode-card b{font-size:11px}.tool-mode-card small{color:var(--text-secondary);font-size:10px;line-height:1.4}.tool-dashboard-block input,.tool-dashboard-block textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}.tool-dashboard footer{justify-content:flex-end;border-top:1px solid var(--surface-border)}.tool-dashboard-cancel,.tool-dashboard-save{padding:10px 14px;border-radius:8px;font:800 11px inherit;cursor:pointer}.tool-dashboard-cancel{border:1px solid var(--surface-border);background:var(--surface);color:var(--text-secondary)}.tool-dashboard-save{border:1px solid var(--accent-border);background:var(--accent-bg);color:var(--accent)}@media(max-width:700px){.tool-dashboard-overlay{align-items:stretch;padding:0}.tool-dashboard{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.tool-dashboard header{padding:18px 16px}.tool-dashboard-body{padding:14px 16px}.tool-dashboard footer{padding:14px 16px}.tool-dashboard-save,.tool-dashboard-cancel{flex:1;padding:12px}}`}</style>
+      <style>{`.tool-dashboard-overlay{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.tool-dashboard{width:min(680px,100%);max-height:min(760px,calc(100vh - 36px));display:flex;flex-direction:column;overflow:hidden;background:var(--surface-strong);border:1px solid var(--accent-border);border-radius:16px;box-shadow:0 24px 90px rgba(0,0,0,.65)}.tool-dashboard header,.tool-dashboard footer{display:flex;align-items:center;gap:12px;padding:16px 18px;border-color:var(--surface-border)}.tool-dashboard header{justify-content:space-between;border-bottom:1px solid var(--surface-border)}.tool-dashboard header h2{margin:3px 0;font-size:20px;color:var(--text)}.tool-dashboard header p,.tool-dashboard-help{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.tool-dashboard header button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:var(--surface);color:var(--text-secondary);cursor:pointer}.tool-dashboard-header-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}.tool-dashboard header .tool-dashboard-back{width:auto;padding:0 9px;color:var(--accent);font-size:10px;font-weight:800}.tool-dashboard-body{overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px}.tool-dashboard-kicker{color:var(--accent);font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.tool-dashboard-block{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:11px;background:rgba(0,0,0,.12)}.tool-dashboard-block strong{font-size:12px;color:var(--text)}.tool-mode-grid,.tool-channel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px}.tool-mode-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px;border:1px solid var(--surface-border);border-radius:9px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer}.tool-mode-card.selected{border-color:var(--accent-border-strong);background:var(--accent-bg)}.tool-mode-card span{color:var(--accent);height:14px}.tool-mode-card b{font-size:11px}.tool-mode-card small{color:var(--text-secondary);font-size:10px;line-height:1.4}.tool-dashboard-block input,.tool-dashboard-block textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}.tool-dashboard footer{justify-content:flex-end;border-top:1px solid var(--surface-border)}.tool-dashboard-cancel,.tool-dashboard-save{padding:10px 14px;border-radius:8px;font:800 11px inherit;cursor:pointer}.tool-dashboard-cancel{border:1px solid var(--surface-border);background:var(--surface);color:var(--text-secondary)}.tool-dashboard-save{border:1px solid var(--accent-border);background:var(--accent-bg);color:var(--accent)}@media(max-width:700px){.tool-dashboard-overlay{align-items:stretch;padding:0}.tool-dashboard{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.tool-dashboard header{padding:18px 16px}.tool-dashboard-body{padding:14px 16px}.tool-dashboard footer{padding:14px 16px}.tool-dashboard-save,.tool-dashboard-cancel{flex:1;padding:12px}}`}</style>
     </section>
   );
 }

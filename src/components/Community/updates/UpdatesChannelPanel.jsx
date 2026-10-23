@@ -89,7 +89,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
       {error && <div className="updates-error">{error}</div>}
 
       <style>{`
-        .updates-panel { max-width: 760px; margin: 26px auto; padding: 24px; border: 1px solid rgba(96,165,250,.2); border-radius: 20px; background: linear-gradient(145deg, rgba(17,28,40,.97), rgba(8,13,18,.99)); color: #eef8ff; }
+        .updates-panel { width: min(70%, 760px); box-sizing: border-box; margin: 26px auto; padding: 24px; border: 1px solid rgba(96,165,250,.2); border-radius: 20px; background: linear-gradient(145deg, rgba(17,28,40,.97), rgba(8,13,18,.99)); color: #eef8ff; }
         .updates-head { display: flex; align-items: flex-start; gap: 14px; }
         .updates-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #67e8f9; background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.3); flex-shrink: 0; }
         .updates-head span { font-size: 10px; color: #67e8f9; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
@@ -116,7 +116,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
         .updates-reaction-list { display: flex; gap: 5px; margin-top: 8px; }
         .updates-reaction-list span { padding: 3px 7px; color: #d8f6ff; background: rgba(103,232,249,.1); border: 1px solid rgba(103,232,249,.2); border-radius: 12px; font-size: 11px; }
         .updates-error { margin-top: 12px; color: #ffaaa3; font-size: 11px; }
-        @media (max-width: 600px) { .updates-panel { margin: 14px; padding: 16px; } }
+        @media (max-width: 768px) { .updates-panel { width: 80%; margin: 14px auto; padding: 16px; } }
       `}</style>
     </section>
   );

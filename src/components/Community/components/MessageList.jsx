@@ -73,6 +73,7 @@ const MessageList = ({
   messagesEndRef,
   onContextMenu,
   onReactionClick,
+  canAddReactions = true,
   onProfileClick,
   onReply,
   onChannelMention,
@@ -273,7 +274,7 @@ const MessageList = ({
               )}
               {!showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel}>
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel} canReact={canAddReactions}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
@@ -402,7 +403,7 @@ const MessageList = ({
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
         .msg-item.clustered { margin-bottom: 4px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
-        .msg-item.announcement .mra-wrapper { width: 100%; max-width: calc(100% - 48px); }
+        .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
@@ -412,7 +413,7 @@ const MessageList = ({
         .msg-external-preview{display:block;width:100%;margin:8px 0 0;padding:0 4px;box-sizing:border-box;}
         .msg-external-preview .xeevia-link-card{width:100%;max-width:420px;}
         @media(max-width:768px){.msg-external-preview{width:90%;margin-left:5%;}.msg-external-preview .xeevia-link-card{width:100%;}}
-        .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
+        .msg-item.announcement .msg-bubble { min-width: min(280px, 100%); }
         .msg-card-menu-btn {
           position: relative;
           top: 6px;
@@ -591,7 +592,7 @@ const MessageList = ({
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
-        .mra-ann { align-items: flex-start; width: 100%; max-width: min(760px, calc(100vw - 92px)); }
+        .mra-ann { align-items: flex-start; width: min(70%, 760px); max-width: min(70%, 760px); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
@@ -620,6 +621,7 @@ const MessageList = ({
         @media (max-width: 768px) {
           .msg-list-wrapper.text-channel { padding-left: 4px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel { padding-left: 4px; padding-right: 4px; }
+          .msg-item.announcement .mra-wrapper { max-width: 80%; }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel .msg-item.them { padding-left: 4px; padding-right: 10px; }
           .msg-list-wrapper.announcement-channel .msg-item.announcement .msg-bubble { padding-left: 10px; padding-right: 4px; }
@@ -785,6 +787,7 @@ const MessageList = ({
             width: 56px;
             height: 56px;
           }
+          .mra-ann { width: min(80%, 760px); max-width: min(80%, 760px); }
 
           .msg-avatar-spacer {
             width: 56px;

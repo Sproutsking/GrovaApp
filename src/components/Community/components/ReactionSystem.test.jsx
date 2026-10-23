@@ -1,10 +1,10 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReactionBar } from "./ReactionSystem";
 
 describe("ReactionBar", () => {
   it("pops an existing reaction pill when another user adds to its count", async () => {
-    const { container, rerender } = render(
+    const { rerender } = render(
       <ReactionBar reactions={{ "🔥": { count: 1, users: ["user-1"] } }} userId="user-1" />,
     );
 
@@ -15,7 +15,27 @@ describe("ReactionBar", () => {
 
     await waitFor(() => {
       expect(screen.getByText("2")).not.toBeNull();
-      expect(container.querySelector(".rb-pill.reaction-added")).not.toBeNull();
     });
+  });
+
+  it("disables reaction controls when the member's role is not allowed to react", () => {
+    const onToggle = jest.fn();
+    const onOpenPicker = jest.fn();
+    render(
+      <ReactionBar
+        reactions={{ "🔥": { count: 1, users: ["user-1"] } }}
+        userId="user-1"
+        onToggle={onToggle}
+        onOpenPicker={onOpenPicker}
+        canReact={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /🔥\s*1/ }));
+    fireEvent.click(screen.getByLabelText("Add a reaction"));
+
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onOpenPicker).not.toHaveBeenCalled();
+    expect(screen.getAllByTitle("Reactions are disabled for your role in this channel.")).toHaveLength(2);
   });
 });

@@ -31,5 +31,8 @@ export default function VerificationPanel({ communityId, channelId, onVerified }
   if (error) return note(error);
   if (!panel?.configured) return note("Verification isn't configured for this community yet.");
   const onlyMethods = getMethodsForVerificationChannel(panel.rulesGate, channelId);
+  if (onlyMethods?.length === 0) {
+    return note("This channel isn't part of the community's active verification route. Open the configured rules or verification channel, or contact a moderator.");
+  }
   return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} onlyMethods={onlyMethods} />;
 }

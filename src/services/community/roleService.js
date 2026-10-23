@@ -228,10 +228,15 @@ class RoleService {
         ? verificationResult.data.config || {}
         : {};
       const rulesGate = verificationConfig.rulesGate || {};
+      const verificationChannelIds = new Set([
+        ...(Array.isArray(verificationConfig.channel_ids) ? verificationConfig.channel_ids : []),
+        ...(allChannels || []).filter((channel) => channel.tool_type === "verification").map((channel) => channel.id),
+      ].filter(Boolean).map(String));
       const rulesAccepted = (verificationResult.data?.completions || []).some((completion) =>
         completion.method === "rules" && ["rules_accepted", "completed"].includes(completion.status),
       );
       return (allChannels || []).filter((channel) => {
+        if (verificationResult.data?.configured && verificationChannelIds.has(String(channel.id))) return true;
         if (rulesGate.enabled && channel.id === rulesGate.rulesChannelId) return true;
         if (
           rulesGate.enabled

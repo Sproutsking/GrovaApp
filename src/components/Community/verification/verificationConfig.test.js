@@ -1,4 +1,4 @@
-import { getMethodsForVerificationChannel, isMethodReady, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
+import { getMethodsForVerificationChannel, getSelectableVerificationRoles, isMethodReady, isVerificationConfigEnabled, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 
 describe("verification role choices", () => {
   const defaultRole = { id: "default", name: "Novice", position: 2, is_default: true, permissions: {} };
@@ -16,6 +16,17 @@ describe("verification role choices", () => {
 
     expect(panel.roleChoices.map((role) => role.id)).toEqual(["verified"]);
     expect(isMethodReady("quick", config.methods.quick, roles, config.methods, config)).toBe(false);
+    expect(toPublicPanel(config, roles).methods.quick.ready).toBe(false);
+  });
+
+  it("uses the same safe-role rules in setup and member-facing role choices", () => {
+    const roles = [defaultRole, verifiedRole, lowerRole, dangerousRole];
+    expect(getSelectableVerificationRoles(roles).map((role) => role.id)).toEqual(["verified"]);
+
+    const disabledConfig = normalizeVerificationConfig({
+      roleGrant: { enabled: false, roleIds: ["verified"] },
+    });
+    expect(toPublicPanel(disabledConfig, new Map(roles.map((role) => [role.id, role]))).roleChoices).toEqual([]);
   });
 
   it("marks an eligible selected role ready for verification", () => {
@@ -26,6 +37,16 @@ describe("verification role choices", () => {
     const roles = new Map([defaultRole, verifiedRole].map((role) => [role.id, role]));
 
     expect(isMethodReady("quick", config.methods.quick, roles, config.methods, config)).toBe(true);
+  });
+
+  it("does not mark a method ready when role selection is enabled without selectable roles", () => {
+    const config = normalizeVerificationConfig({
+      roleGrant: { enabled: true, roleIds: [] },
+      methods: { quick: { enabled: true, roleId: "verified" } },
+    });
+    const roles = new Map([defaultRole, verifiedRole].map((role) => [role.id, role]));
+
+    expect(isMethodReady("quick", config.methods.quick, roles, config.methods, config)).toBe(false);
   });
 
   it("keeps both configured checks available for channel-specific routing", () => {
@@ -98,5 +119,32 @@ describe("verification role choices", () => {
     });
 
     expect(config.roleGrant.enabled).toBe(false);
+  });
+
+  it("enables the community verification tool only when a real check is active", () => {
+    expect(isVerificationConfigEnabled({})).toBe(false);
+    expect(isVerificationConfigEnabled({ roleGrant: { enabled: true, roleIds: ["verified"] } })).toBe(false);
+    expect(isVerificationConfigEnabled({
+      version: 2,
+      methods: { quick: { enabled: true } },
+    })).toBe(true);
+    expect(isVerificationConfigEnabled({
+      version: 2,
+      methods: { picture: { enabled: true } },
+    })).toBe(true);
+  });
+
+  it("normalizes enabled quick checks into the canonical configuration consumed by verification", () => {
+    const config = normalizeVerificationConfig({
+      version: 2,
+      methods: { quick: { enabled: true, minAccountAgeDays: 7, requireAvatar: true } },
+    });
+
+    expect(config.methods.quick).toMatchObject({
+      enabled: true,
+      minAccountAgeDays: 7,
+      requireAvatar: true,
+    });
+    expect(isVerificationConfigEnabled(config)).toBe(true);
   });
 });

@@ -117,18 +117,18 @@ class DistributionService {
     }
   }
 
-  // ── Get active connected platforms ────────────────────────────────────────
-  // A sign-in identity is not necessarily authorized to publish. Only
-  // connections with a usable publishing token are returned.
-  async getConnectedPlatforms(userId) {
+  // ── Get platform connection readiness ─────────────────────────────────────
+  // A linked identity is not necessarily authorized to publish. Distinguish
+  // linked accounts that need reconnecting from accounts with usable tokens.
+  async getPlatformConnectionStates(userId) {
     try {
       const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
+      const supportedPlatforms = new Set(adapters.getSupportedPlatforms());
       const { data, error } = await withTimeout(
         supabase
           .from("connections")
-          .select("id, provider, auth_status")
-          .eq("user_id", userId)
-          .eq("auth_status", "active"),
+          .select("id, provider, auth_status, platform_user_id")
+          .eq("user_id", userId),
         10000
       );
 
@@ -140,8 +140,8 @@ class DistributionService {
           ...connection,
           provider: providerAliases[connection.provider] || connection.provider,
         }))
-        .filter((connection) => adapters.getAdapter(connection.provider));
-      if (!activeConnections.length) return [];
+        .filter((connection) => supportedPlatforms.has(connection.provider));
+      if (!activeConnections.length) return {};
 
       const connectionIds = activeConnections.map((connection) => connection.id);
       const { data: tokens, error: tokenError } = await withTimeout(
@@ -155,18 +155,33 @@ class DistributionService {
       if (tokenError) throw handleError(tokenError, "Could not verify platform publishing tokens");
 
       const now = Date.now();
-      const validTokenConnections = new Set((tokens || [])
-        .filter((token) => Boolean(token.encrypted_token)
-          && (!token.expires_at || new Date(token.expires_at).getTime() > now))
-        .map((token) => token.connection_id));
-      const validConnectedProviders = activeConnections
-        .filter((connection) => validTokenConnections.has(connection.id))
-        .map((connection) => connection.provider);
+      const validTokenConnections = new Set();
+      for (const token of tokens || []) {
+        const expiresAt = token.expires_at ? Date.parse(token.expires_at) : null;
+        if (token.encrypted_token && (!token.expires_at || (Number.isFinite(expiresAt) && expiresAt > now))) {
+          validTokenConnections.add(token.connection_id);
+        }
+      }
 
-      return Array.from(new Set(validConnectedProviders));
+      return activeConnections.reduce((states, connection) => {
+        const ready = connection.auth_status === "active" && validTokenConnections.has(connection.id);
+        const current = states[connection.provider];
+        if (!current || ready) {
+          states[connection.provider] = {
+            status: ready ? "ready" : "reconnect",
+            platformUserId: connection.platform_user_id || null,
+          };
+        }
+        return states;
+      }, {});
     } catch (err) {
       throw handleError(err, "Could not load connected platforms");
     }
+  }
+
+  async getConnectedPlatforms(userId) {
+    const states = await this.getPlatformConnectionStates(userId);
+    return Object.keys(states).filter((platform) => states[platform].status === "ready");
   }
 
   // ── Determine which platforms to target ───────────────────────────────────
@@ -200,7 +215,7 @@ class DistributionService {
           const status = Array.isArray(target.integration)
             ? target.integration[0]?.status
             : target.integration?.status;
-          return status === "active";
+          return String(status || "").toLowerCase() === "active";
         });
         if (activeCommunityTargets.length !== communityIds.length) {
           throw new Error("One or more selected community destinations are no longer available.");
@@ -395,11 +410,17 @@ class DistributionService {
         const destinationId = platform.slice("community:".length);
         const { data: destination, error: destinationError } = await supabase
           .from("community_bot_destinations")
-          .select("id,provider,community_id")
+          .select("id,provider,community_id,integration:community_bot_integrations(status)")
           .eq("id", destinationId)
           .eq("enabled", true)
           .maybeSingle();
         if (destinationError || !destination) throw new Error("Community destination is no longer available");
+        const integrationStatus = Array.isArray(destination.integration)
+          ? destination.integration[0]?.status
+          : destination.integration?.status;
+        if (String(integrationStatus || "").toLowerCase() !== "active") {
+          throw new Error("The community bot integration is not active.");
+        }
         const content = post.content || post.card_caption || post.caption || "";
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const route = contentType === "reel" ? "reel" : contentType === "story" ? "story" : "post";
@@ -427,6 +448,7 @@ class DistributionService {
           .select("id, provider, platform_user_id")
           .eq("user_id", userId)
           .in("provider", providerAliases[platform] || [platform])
+          .eq("auth_status", "active")
           .limit(1)
           .maybeSingle(),
         10000

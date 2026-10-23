@@ -25,9 +25,7 @@ describe('distributionService.getConnectedPlatforms', () => {
       if (table === 'connections') {
         return {
           select: () => ({
-            eq: () => ({
-              eq: async () => ({ data: [], error: null }),
-            }),
+            eq: async () => ({ data: [], error: null }),
           }),
         };
       }
@@ -63,14 +61,12 @@ describe('distributionService.getConnectedPlatforms', () => {
       if (table === 'connections') {
         return {
           select: () => ({
-            eq: () => ({
-              eq: async () => ({
-                data: [
-                  { id: 'x-connection', provider: 'twitter', auth_status: 'active' },
-                  { id: 'fb-connection', provider: 'facebook', auth_status: 'active' },
-                ],
-                error: null,
-              }),
+            eq: async () => ({
+              data: [
+                { id: 'x-connection', provider: 'twitter', auth_status: 'active', platform_user_id: 'xuser' },
+                { id: 'fb-connection', provider: 'facebook', auth_status: 'active', platform_user_id: null },
+              ],
+              error: null,
             }),
           }),
         };
@@ -95,6 +91,10 @@ describe('distributionService.getConnectedPlatforms', () => {
       throw new Error(`Unexpected table: ${table}`);
     });
 
+    await expect(distributionService.getPlatformConnectionStates('user-1')).resolves.toEqual({
+      x: { status: 'ready', platformUserId: 'xuser' },
+      facebook: { status: 'reconnect', platformUserId: null },
+    });
     await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual(['x']);
   });
 });
@@ -170,7 +170,9 @@ describe('distributionService publishing', () => {
           select: () => ({
             eq: () => ({
               in: () => ({
-                limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+                eq: () => ({
+                  limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+                }),
               }),
             }),
           }),

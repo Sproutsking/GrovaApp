@@ -1,25 +1,12 @@
 // src/components/Distribution/PlatformSelector.jsx
 // ============================================================================
-// PlatformSelector — v2 PRECISE FIX
-//
-// ROOT CAUSE OF "Loading platforms..." HANG:
-//   1. distributionService.getPlatformPreferences() called .single() which
-//      throws PGRST116 for new users (no row yet). The catch block set
-//      loadError but the loading state was still true — rendering stayed
-//      on the loading branch forever.
-//   2. distributionService.getConnectedPlatforms() could also throw if the
-//      connections table had RLS issues, leaving state in limbo.
-//
-// FIX: Both calls now resolve to safe defaults on any error (see service).
-//      PlatformSelector itself also guards: loading is always cleared in
-//      a finally block. Even if both calls fail, the component renders the
-//      "no platforms connected" state with a link to Identity.
+// PlatformSelector — connection-aware distribution destinations
 //
 // DESIGN:
-//   - Connected platforms: fully opaque toggle pill, ON by default, clickable
-//   - Unconnected platforms: dimmed, locked, shows "Link in Identity" on hover
-//   - Only postable platforms with a valid connection and token are shown as available
-//   - No Settings panel complexity — clean and direct
+//   - Publishing-ready platforms are selectable; linked accounts needing a
+//     token or reconnect are visibly distinguished from accounts not linked.
+//   - Community destinations are selectable only when their integration is active.
+//   - Manual refresh preserves the user's destination choices.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -76,12 +63,14 @@ const CSS = `
     border:1px solid rgba(255,255,255,.07);
     border-radius:12px; padding:10px 12px;
     display:flex; align-items:center; gap:11px;
+    width:100%; text-align:left; color:inherit; font:inherit;
     transition:border-color .18s, background .18s, opacity .18s, transform .12s;
     user-select:none;
   }
   .psCard.psClickable { cursor:pointer; }
   .psCard.psClickable:hover { border-color:rgba(255,255,255,.16); transform:translateY(-1px); }
   .psCard.psClickable:active { transform:scale(.97); }
+  .psCard:disabled { cursor:not-allowed; }
 
   /* Connected + selected (ON) */
   .psCard.psOn {
@@ -100,6 +89,12 @@ const CSS = `
     border-color:rgba(255,255,255,.04);
     opacity:.38; cursor:not-allowed;
   }
+  .psCard.psReconnect {
+    background:rgba(245,158,11,.035);
+    border-color:rgba(245,158,11,.18);
+    opacity:.72;
+  }
+  .psCard.psReconnect .psPSub { color:#fbbf24; }
 
   /* Icon badge */
   .psIcon {
@@ -112,7 +107,8 @@ const CSS = `
 
   /* Text */
   .psPName { font-size:12.5px; font-weight:800; color:#efefef; margin:0 0 2px; }
-  .psPSub  { font-size:10.5px; color:#454545; margin:0; }
+  .psPSub  { font-size:10.5px; color:#858585; margin:0; }
+  .psCard.psLocked .psPSub { color:#777; }
 
   /* Toggle indicator */
   .psToggle {
@@ -179,12 +175,13 @@ const CSS = `
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
-  const [connected,   setConnected]   = useState([]);   // array of provider strings
+  const [connectionStates, setConnectionStates] = useState({});
   const [communityTargets, setCommunityTargets] = useState([]);
   const [selected,    setSelected]    = useState(() => selectedPlatforms);
   const [loadError,   setLoadError]   = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true);
   const hasLoadedRef = React.useRef(false);
+  const identitySyncAttemptedRef = React.useRef(false);
   const selectedRef = React.useRef(selected);
   const externalSelectedRef = React.useRef(selectedPlatforms);
   externalSelectedRef.current = selectedPlatforms;
@@ -200,13 +197,19 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
 
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setIsRefreshing(false);
+      return;
+    }
     setIsRefreshing(true);
     setLoadError("");
     try {
-      await socialConnectService.checkAndImportExistingIdentities(userId);
-      const [connectedList, ownedCommunities] = await Promise.all([
-        distributionService.getConnectedPlatforms(userId),
+      if (!identitySyncAttemptedRef.current) {
+        identitySyncAttemptedRef.current = true;
+        await socialConnectService.checkAndImportExistingIdentities(userId);
+      }
+      const [platformStates, ownedCommunities] = await Promise.all([
+        distributionService.getPlatformConnectionStates(userId),
         resolveCommunityQuery(
           supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
         ),
@@ -214,7 +217,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
       let communityLoadError = ownedCommunities.error
         ? `Social platforms loaded, but community destinations could not be loaded: ${ownedCommunities.error.message}`
         : "";
-      const nextConnected = Array.isArray(connectedList) ? connectedList : [];
+      const nextConnectionStates = platformStates && typeof platformStates === "object" ? platformStates : {};
       const communities = (ownedCommunities?.data || []).filter(Boolean);
       const communityIds = Array.from(new Set(communities.map((community) => community.id)));
       let nextCommunityTargets = [];
@@ -231,7 +234,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
         nextCommunityTargets = (destinations || []).map((destination) => {
           const integrationStatus = Array.isArray(destination.integration) ? destination.integration[0]?.status : destination.integration?.status;
           const normalizedStatus = String(integrationStatus || "").toLowerCase();
-          const ready = Boolean(destination.enabled) && ["active", "pending", "connected", "ready"].includes(normalizedStatus);
+          const ready = Boolean(destination.enabled) && normalizedStatus === "active";
           return {
             ...destination,
             communityName: communities.find((community) => community.id === destination.community_id)?.name || "Community",
@@ -241,13 +244,15 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
           };
         });
       }
-      setConnected(nextConnected);
+      setConnectionStates(nextConnectionStates);
       setCommunityTargets(nextCommunityTargets);
       setLoadError(communityLoadError);
 
       // Auto-select only on the first successful load. Manual refreshes keep
       // the user's explicit on/off choices and remove only disconnected ones.
-      const availableTargets = [...nextConnected, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
+      const connectedPlatforms = Object.keys(nextConnectionStates)
+        .filter((platform) => nextConnectionStates[platform]?.status === "ready");
+      const availableTargets = [...connectedPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       const nextSelection = hasLoadedRef.current
         ? selectedRef.current.filter((platform) => availableTargets.includes(platform))
         : externalSelectedRef.current.length > 0
@@ -271,7 +276,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
   // ── Toggle a platform ──────────────────────────────────────────────────────
   const toggle = useCallback((platform) => {
     const communityTarget = communityTargets.find((destination) => destination.target === platform);
-    if (!connected.includes(platform) && !communityTarget?.ready) return; // locked, ignore
+    if (connectionStates[platform]?.status !== "ready" && !communityTarget?.ready) return;
     setSelected(prev => {
       const next = prev.includes(platform)
         ? prev.filter(p => p !== platform)
@@ -280,9 +285,14 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
       onSelection?.(next);
       return next;
     });
-  }, [connected, communityTargets, onSelection]);
+  }, [connectionStates, communityTargets, onSelection]);
 
-  const noneConnected = connected.length === 0 && communityTargets.length === 0;
+  const readyPlatforms = Object.keys(connectionStates)
+    .filter((platform) => connectionStates[platform]?.status === "ready");
+  const hasReconnectableAccounts = Object.values(connectionStates)
+    .some((connection) => connection?.status === "reconnect");
+  const readyCommunityTargets = communityTargets.filter((destination) => destination.ready);
+  const noneConnected = readyPlatforms.length === 0 && readyCommunityTargets.length === 0;
 
   return (
     <>
@@ -304,17 +314,23 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
           {POSTABLE_PLATFORM_KEYS.map(key => {
             const meta       = PLATFORMS[key];
             if (!meta) return null;
-            const isConn     = connected.includes(key);
+            const connection = connectionStates[key];
+            const isConn     = connection?.status === "ready";
+            const needsReconnect = connection?.status === "reconnect";
             const isSel      = selected.includes(key);
-            const stateClass = !isConn ? "psLocked" : isSel ? "psOn" : "psOff";
+            const stateClass = isConn
+              ? (isSel ? "psOn" : "psOff")
+              : needsReconnect ? "psLocked psReconnect" : "psLocked";
 
             return (
-              <div
+              <button
+                type="button"
                 key={key}
                 className={`psCard ${stateClass} ${isConn ? "psClickable" : ""}`}
                 onClick={() => toggle(key)}
-                role={isConn ? "button" : undefined}
-                aria-pressed={isConn ? isSel : undefined}
+                disabled={!isConn}
+                aria-pressed={isSel}
+                aria-label={`${meta.name}: ${isConn ? isSel ? "selected for distribution" : "connected, not selected" : needsReconnect ? "linked but needs reconnecting to publish" : "not linked"}`}
                 style={{
                   "--pcColor":  meta.color,
                   "--pcBg":     meta.bg,
@@ -332,12 +348,18 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
                 <div style={{ flex:1, minWidth:0 }}>
                   <p className="psPName">{meta.name}</p>
                   <p className="psPSub">
-                    {isConn ? (isSel ? "Will distribute" : "Tap to include") : "Not linked"}
+                    {isConn
+                      ? (isSel ? "Will distribute" : "Connected · tap to include")
+                      : needsReconnect
+                        ? "Linked · reconnect to publish"
+                        : loadError
+                          ? "Status unavailable · retry below"
+                          : isRefreshing && !hasLoadedRef.current ? "Checking connection…" : "Not linked"}
                   </p>
                 </div>
 
                 <div className="psToggle" />
-              </div>
+              </button>
             );
           })}
         </div>
@@ -372,12 +394,16 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
               ? <>{loadError}</>
               : selected.length > 0
               ? <><strong>{selected.length} destination{selected.length !== 1 ? "s" : ""}</strong> selected for this post</>
+              : isRefreshing && !hasLoadedRef.current
+                ? <>Checking linked destinations…</>
+              : hasReconnectableAccounts
+                ? <>A linked account needs reconnecting before it can publish.</>
               : noneConnected
                 ? <>No linked destinations yet. This post stays on Xeevia.</>
                 : <>No destinations selected. This post stays on Xeevia.</>
             }
           </p>
-          {noneConnected && (
+          {(!isRefreshing || hasLoadedRef.current) && (
             <button
               className="psLinkBtn"
               onClick={() => {
@@ -387,7 +413,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
                 }
               }}
             >
-              <Link2 size={10} /> Link accounts
+              <Link2 size={10} /> {hasReconnectableAccounts ? "Manage linked accounts" : "Link accounts"}
             </button>
           )}
           {loadError && <button className="psLinkBtn" onClick={load}>Retry</button>}
