@@ -9,6 +9,7 @@ import { Clock, Bell, HelpCircle, Gamepad2, Coins, Radio, BarChart2, TrendingUp 
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
+import { fetchDirectMessageUnreadSummary } from "../../services/messages/unreadMessageService";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
 import { supabase } from "../../services/config/supabase";
@@ -135,28 +136,6 @@ const TRINITY_TABS = {
   ],
 };
 
-// ── Fetch unread data ─────────────────────────────────────────────────────────
-const fetchUnreadData = async (userId) => {
-  try {
-    const { data: convs, error: convErr } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-    if (convErr || !convs?.length) return { count: 0, convSet: new Set() };
-    const convSet = new Set(convs.map((c) => c.id));
-    const convIds = Array.from(convSet);
-    const { count, error } = await supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .in("conversation_id", convIds)
-      .neq("sender_id", userId)
-      .eq("read", false);
-    return { count: error ? 0 : (count ?? 0), convSet };
-  } catch {
-    return { count: conversationState.getTotalUnreadCount() ?? 0, convSet: new Set() };
-  }
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 const DesktopHeader = ({
   currentUser,
@@ -196,6 +175,7 @@ const DesktopHeader = ({
   const typeIntervalRef = useRef(null);
   const showMessagesRef = useRef(false);
   const myConvSetRef    = useRef(new Set());
+  const refreshingUnreadRef = useRef(false);
   const pollRef         = useRef(null);
 
   useEffect(() => { showMessagesRef.current = showMessages; }, [showMessages]);
@@ -221,10 +201,17 @@ const DesktopHeader = ({
   }, []);
 
   const refreshUnread = useCallback(async () => {
-    if (showMessagesRef.current) return;
-    const { count, convSet } = await fetchUnreadData(userId);
-    myConvSetRef.current = convSet;
-    setUnreadMessages(count);
+    if (!userId || showMessagesRef.current || document.visibilityState === "hidden" || refreshingUnreadRef.current) return;
+    refreshingUnreadRef.current = true;
+    try {
+      const { count, convSet } = await fetchDirectMessageUnreadSummary();
+      myConvSetRef.current = convSet;
+      setUnreadMessages(count);
+    } catch (error) {
+      console.error("Unable to refresh direct-message unread count:", error);
+    } finally {
+      refreshingUnreadRef.current = false;
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -232,7 +219,6 @@ const DesktopHeader = ({
     notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
     refreshUnread();
     const unsubNotif = notificationService.subscribe(syncBadge);
-    const unsubConv  = conversationState.subscribe(() => { refreshUnread(); });
     const msgChannel = supabase
       .channel(`dh-msgs-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
@@ -241,7 +227,9 @@ const DesktopHeader = ({
         if (myConvSetRef.current.has(row.conversation_id)) setUnreadMessages((prev) => prev + 1);
         else refreshUnread();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") refreshUnread();
+      });
     const notifChannel = supabase
       .channel(`dh-notifs-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
@@ -250,13 +238,20 @@ const DesktopHeader = ({
         if (isForMe) setBadgeCount((p) => p + 1);
       })
       .subscribe();
-    pollRef.current = setInterval(refreshUnread, 15_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshUnread();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("online", refreshUnread);
+    pollRef.current = setInterval(refreshUnread, 5 * 60_000);
     onlineStatusService.start(userId);
     return () => {
-      unsubNotif(); unsubConv();
+      unsubNotif();
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(notifChannel);
       clearInterval(pollRef.current);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("online", refreshUnread);
     };
   }, [userId, syncBadge, refreshUnread]);
 
