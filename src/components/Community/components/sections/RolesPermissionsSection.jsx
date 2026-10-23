@@ -81,6 +81,7 @@ const RolesPermissionsSection = ({
   roles = [],
   members = [],
   canManageRoles = false,
+  isCommunityOwner = false,
   onUpdateRole,
   onCreateRole,
   onAssignRole,
@@ -108,7 +109,12 @@ const RolesPermissionsSection = ({
 
   const openRole = (role) => {
     setSelectedRole(role);
-    setEditedPerms(role.permissions || {});
+    const ownerPermissionDefaults = Object.fromEntries(
+      PERM_GROUPS.flatMap((group) => group.perms.map((permission) => [permission.key, true])),
+    );
+    setEditedPerms(String(role.name || "").trim().toLowerCase() === "owner"
+      ? { ...ownerPermissionDefaults, ...(role.permissions || {}) }
+      : role.permissions || {});
     setEditedName(role.name || "");
     setEditedColor(role.color || "#667eea");
     setEditedIcon(role.icon || "♟");
@@ -117,7 +123,9 @@ const RolesPermissionsSection = ({
     setView("edit");
   };
 
-  const memberCount = (roleId) => members.filter((m) => m.role_id === roleId).length;
+  const memberCount = (roleId) => members.filter((member) =>
+    member.role_id === roleId || member.roles?.some((role) => role.id === roleId),
+  ).length;
   const roleGroups = orderedRoles.reduce((groups, role) => {
     const key = role.name?.trim().toLowerCase() || role.id;
     const existing = groups.find((group) => group.key === key);
@@ -129,11 +137,13 @@ const RolesPermissionsSection = ({
     return groups;
   }, []);
   const membersForRole = (role) => members.filter((member) =>
-    member.role_id === role.id || member.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()
+    member.role_id === role.id
+    || member.roles?.some((assignedRole) => assignedRole.id === role.id)
+    || member.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()
   );
 
   const handleSave = async () => {
-    if (!selectedRole || !canManageRoles) return;
+    if (!selectedRole || !canEditSelectedRole) return;
     setSaving(true);
     setError("");
     try {
@@ -166,7 +176,8 @@ const RolesPermissionsSection = ({
     }
   };
 
-  const isOwnerRole = selectedRole?.name === "Owner";
+  const isOwnerRole = selectedRole?.name?.trim().toLowerCase() === "owner";
+  const canEditSelectedRole = canManageRoles && (!isOwnerRole || isCommunityOwner);
 
   const filteredGroups = PERM_GROUPS.map((g) => ({
     ...g,
@@ -256,7 +267,7 @@ const RolesPermissionsSection = ({
         </button>
         <span className="rps-edit-role-dot" style={{ background: editedColor }} />
         <span className="rps-edit-role-name">{selectedRole?.name}</span>
-        {canManageRoles && !isOwnerRole && (
+        {canEditSelectedRole && (
           <button
             className={`rps-save-btn${saved ? " saved" : ""}`}
             onClick={handleSave}
@@ -288,7 +299,7 @@ const RolesPermissionsSection = ({
             className="rps-name-inp"
             value={editedName}
             onChange={(e) => setEditedName(e.target.value)}
-            disabled={!canManageRoles || isOwnerRole}
+            disabled={!canEditSelectedRole || isOwnerRole}
           />
 
           {/* Color */}
@@ -299,7 +310,7 @@ const RolesPermissionsSection = ({
                 key={c}
                 className={`rps-swatch${editedColor === c ? " active" : ""}`}
                 style={{ background: c }}
-                onClick={() => canManageRoles && !isOwnerRole && setEditedColor(c)}
+                onClick={() => canEditSelectedRole && setEditedColor(c)}
               >
                 {editedColor === c && <Check size={9} color="#000" strokeWidth={3} />}
               </button>
@@ -307,7 +318,7 @@ const RolesPermissionsSection = ({
           </div>
 
           <div className="rps-field-label" style={{ marginTop: 14 }}>Role Icon</div>
-          <input className="rps-role-icon-input" value={editedIcon} maxLength={2} onChange={(event) => setEditedIcon(event.target.value)} disabled={!canManageRoles || isOwnerRole} placeholder="♟" />
+          <input className="rps-role-icon-input" value={editedIcon} maxLength={2} onChange={(event) => setEditedIcon(event.target.value)} disabled={!canEditSelectedRole} placeholder="♟" />
 
           {/* Stats */}
           <div className="rps-stats-row">
@@ -325,7 +336,7 @@ const RolesPermissionsSection = ({
             <div className="rps-default-tag">Default role for new members</div>
           )}
           {isOwnerRole && (
-            <div className="rps-owner-tag"><Crown size={12} color="#FFD700" /> Owner has all permissions</div>
+            <div className="rps-owner-tag"><Crown size={12} color="#FFD700" /> Ownership always grants full access. This role controls assigned members after ownership is transferred.</div>
           )}
         </div>
       )}
@@ -349,7 +360,7 @@ const RolesPermissionsSection = ({
 
           {isOwnerRole && (
             <div className="rps-owner-notice">
-              <Crown size={13} color="#FFD700" /> Owner has all permissions permanently
+              <Crown size={13} color="#FFD700" /> Current ownership always grants full access; these role permissions apply to assigned members.
             </div>
           )}
 
@@ -358,7 +369,7 @@ const RolesPermissionsSection = ({
             <div key={group.label} className="rps-perm-group">
               <div className="rps-perm-group-label">{group.label}</div>
               {group.perms.map((perm) => {
-                const enabled = isOwnerRole ? true : !!editedPerms[perm.key];
+                const enabled = !!editedPerms[perm.key];
                 return (
                   <div key={perm.key} className={`rps-perm-row${perm.danger ? " danger" : ""}`}>
                     <div className="rps-perm-info">
@@ -368,7 +379,7 @@ const RolesPermissionsSection = ({
                     <Toggle
                       on={enabled}
                       onChange={() => setEditedPerms((p) => ({ ...p, [perm.key]: !p[perm.key] }))}
-                      disabled={!canManageRoles || isOwnerRole}
+                      disabled={!canEditSelectedRole}
                     />
                   </div>
                 );

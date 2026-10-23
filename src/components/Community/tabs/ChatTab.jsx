@@ -366,6 +366,15 @@ const ChatTab = ({
 
   const handleCommunityMenuUpdate = async (payload) => {
     if (!payload) return;
+    if (payload.type === "ownership_transfer") {
+      const { error } = await supabase.rpc("transfer_community_ownership", {
+        p_community_id: community.id,
+        p_new_owner_id: payload.ownerId,
+      });
+      if (error) throw error;
+      await onCommunityUpdate({ type: "ownership_transfer" });
+      return;
+    }
     if (payload.type === "community") {
       await onCommunityUpdate(payload);
       return;

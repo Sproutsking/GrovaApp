@@ -117,10 +117,11 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
     return <PictureVerificationDashboard value={config} disabled={disabled} onSave={(next) => handleSave({ ...config, ...next })} />;
   }
   if (focusMode === "rules_gate") {
-    return <RulesVerificationDashboard value={config.rulesGate} rulesMethod={config.methods.rules} methods={config.methods} pictureReady={challengeIsReady(config)} channels={channels} disabled={disabled} onSave={async ({ rulesMethod, ...rulesGate }) => {
+    return <RulesVerificationDashboard value={config.rulesGate} rulesMethod={config.methods.rules} methods={config.methods} roleGrant={config.roleGrant} roles={roles} pictureReady={challengeIsReady(config)} channels={channels} disabled={disabled} onSave={async ({ rulesMethod, roleGrant, ...rulesGate }) => {
       const next = {
         ...config,
         rulesGate,
+        roleGrant,
         rulesEnabled: Boolean(rulesGate.enabled),
         methods: { ...config.methods, rules: rulesMethod },
       };

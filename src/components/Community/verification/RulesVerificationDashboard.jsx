@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Check } from "lucide-react";
 
-export default function RulesVerificationDashboard({ value = {}, rulesMethod = {}, methods = {}, pictureReady = false, channels = [], onSave, disabled = false }) {
+const DANGEROUS_PERMS = ["administrator", "manageRoles", "assignRoles", "manageCommunity", "manageChannels", "kickMembers", "banMembers", "manageMessages", "timeoutMembers"];
+
+export default function RulesVerificationDashboard({ value = {}, rulesMethod = {}, methods = {}, roleGrant = {}, roles = [], pictureReady = false, channels = [], onSave, disabled = false }) {
   const [config, setConfig] = useState({
     enabled: false,
     flow: "rules_only",
@@ -23,12 +25,23 @@ export default function RulesVerificationDashboard({ value = {}, rulesMethod = {
         { id: "rule-3", title: "No spam or harassment", body: "" },
       ],
   });
+  const [grant, setGrant] = useState({
+    enabled: Boolean(roleGrant.enabled),
+    roleIds: Array.isArray(roleGrant.roleIds) ? roleGrant.roleIds : [],
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const textChannels = channels.filter((channel) => channel.type !== "voice");
   const patch = (next) => setConfig((current) => ({ ...current, ...next }));
   const patchMethod = (next) => setMethod((current) => ({ ...current, ...next }));
   const rulesText = method.items.map((rule) => rule.title).join("\n");
+  const defaultRole = roles.find((role) => role.is_default);
+  const selectableRoles = roles.filter((role) =>
+    !role.is_default
+    && role.name?.trim().toLowerCase() !== "owner"
+    && !DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true)
+    && (!defaultRole || Number(role.position) < Number(defaultRole.position)),
+  );
 
   const save = async () => {
     const items = rulesText.split("\n").map((title, index) => ({
@@ -44,11 +57,15 @@ export default function RulesVerificationDashboard({ value = {}, rulesMethod = {
       if (!methods[config.secondMethod]?.enabled) return setError(`Enable ${config.secondMethod === "quick" ? "Quick verify" : "Picture check"} before using it after the rules gate.`);
       if (config.secondMethod === "picture" && !pictureReady) return setError("Finish setting up the picture challenge before using it after the rules gate.");
     }
+    if (grant.enabled && !grant.roleIds.some((roleId) => selectableRoles.some((role) => role.id === roleId))) {
+      return setError("Choose at least one safe role members can receive after verification.");
+    }
     setSaving(true);
     setError("");
     try {
       await onSave({
         ...config,
+        roleGrant: grant,
         rulesMethod: { ...method, enabled: config.enabled, requireScroll: true, items },
       });
     } catch (saveError) { setError(saveError.message || "Could not save rules verification."); }
@@ -80,8 +97,33 @@ export default function RulesVerificationDashboard({ value = {}, rulesMethod = {
           <label>Verification step<select value={config.secondMethod} disabled={disabled} onChange={(event) => patch({ secondMethod: event.target.value })}><option value="quick">Quick verify</option><option value="picture">Picture check</option></select></label>
         </>}
       </section>
+      <section>
+        <h3>Role granted after verification</h3>
+        <label className="rules-check"><input type="checkbox" checked={grant.enabled} disabled={disabled} onChange={(event) => setGrant((current) => ({ ...current, enabled: event.target.checked }))} /> Ask members to choose an access role</label>
+        <p className="rules-help">Role permissions and channel access come from the role settings. A member's highest-ranked assigned role determines their access.</p>
+        <div className="rules-role-options">
+          {selectableRoles.map((role) => (
+            <label className="rules-role-option" key={role.id}>
+              <input
+                type="checkbox"
+                checked={grant.roleIds.includes(role.id)}
+                disabled={disabled || !grant.enabled}
+                onChange={(event) => setGrant((current) => ({
+                  ...current,
+                  roleIds: event.target.checked
+                    ? [...new Set([...current.roleIds, role.id])]
+                    : current.roleIds.filter((id) => id !== role.id),
+                }))}
+              />
+              <i style={{ background: role.color || "var(--accent)" }}>{role.icon || "♟"}</i>
+              <span><strong>{role.name}</strong><small>Rank {Number(role.position) + 1}</small></span>
+            </label>
+          ))}
+          {!selectableRoles.length && <p className="rules-help">Create a safe role above the default member role in Roles &amp; Permissions to offer it here.</p>}
+        </div>
+      </section>
       {error && <p className="rules-error">{error}</p>}<button type="button" className="rules-save" disabled={disabled || saving} onClick={save}><Check size={14} /> {saving ? "Saving..." : "Save rules verification"}</button>
-      <style>{`.rules-verification-dashboard{display:flex;flex-direction:column;gap:12px}.rules-verification-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.rules-verification-dashboard h3{margin:0;font-size:13px;color:var(--text)}.rules-verification-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:11px}.rules-verification-dashboard input,.rules-verification-dashboard textarea,.rules-verification-dashboard select{width:100%;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.rules-verification-dashboard textarea{min-height:56px;resize:vertical}.rules-verification-dashboard .rules-text{min-height:130px}.rules-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px}.rules-check input{width:auto}.rules-help{margin:0;color:var(--text-secondary);font-size:10px;line-height:1.45}.rules-error{margin:0;color:var(--danger);font-size:11px}.rules-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}`}</style>
+      <style>{`.rules-verification-dashboard{display:flex;flex-direction:column;gap:12px}.rules-verification-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.rules-verification-dashboard h3{margin:0;font-size:13px;color:var(--text)}.rules-verification-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:11px}.rules-verification-dashboard input,.rules-verification-dashboard textarea,.rules-verification-dashboard select{width:100%;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.rules-verification-dashboard textarea{min-height:56px;resize:vertical}.rules-verification-dashboard .rules-text{min-height:130px}.rules-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px}.rules-check input{width:auto}.rules-help{margin:0;color:var(--text-secondary);font-size:10px;line-height:1.45}.rules-error{margin:0;color:var(--danger);font-size:11px}.rules-role-options{display:grid;gap:6px}.rules-role-option{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;padding:8px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface)}.rules-role-option input{width:auto!important}.rules-role-option i{display:grid;place-items:center;width:25px;height:25px;border-radius:7px;color:#111;font-style:normal}.rules-role-option span{display:flex;flex-direction:column;gap:2px}.rules-role-option strong{color:var(--text);font-size:11px}.rules-role-option small{color:var(--text-secondary);font-size:9px}.rules-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}`}</style>
     </div>
   );
 }

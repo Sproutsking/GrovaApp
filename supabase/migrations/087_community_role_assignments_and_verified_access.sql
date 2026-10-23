@@ -17,6 +17,47 @@ create table if not exists public.community_member_roles (
 create index if not exists community_member_roles_effective_idx
   on public.community_member_roles(community_id, user_id, role_id);
 
+insert into public.community_roles (community_id, name, color, position, permissions, is_default)
+select c.id, 'Owner', '#FFD700', 0,
+  jsonb_build_object(
+    'sendMessages', true,
+    'manageChannels', true,
+    'manageMessages', true,
+    'manageCommunity', true,
+    'manageRoles', true,
+    'administrator', true,
+    'createChannels', true,
+    'viewChannels', true,
+    'viewMembers', true,
+    'inviteMembers', true,
+    'banMembers', true,
+    'assignRoles', true,
+    'manageInvites', true
+  ),
+  false
+from public.communities c
+where c.owner_id is not null
+  and not exists (
+    select 1 from public.community_roles r
+    where r.community_id = c.id and lower(trim(r.name)) = 'owner'
+  );
+
+with owner_roles as (
+  select distinct on (r.community_id) r.community_id, r.id
+  from public.community_roles r
+  where lower(trim(r.name)) = 'owner'
+  order by r.community_id, r.position asc, r.created_at asc, r.id asc
+)
+insert into public.community_members (community_id, user_id, role_id, is_online, last_seen)
+select c.id, c.owner_id, r.id, true, now()
+from public.communities c
+join owner_roles r on r.community_id = c.id
+where c.owner_id is not null
+on conflict (community_id, user_id) do update
+  set role_id = excluded.role_id,
+      is_online = true,
+      last_seen = now();
+
 create table if not exists public.community_verification_completions (
   community_id uuid not null references public.communities(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -57,25 +98,37 @@ $$;
 
 alter table public.community_member_roles enable row level security;
 
+create or replace function public.community_user_can_view_members(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_user_id = auth.uid() and (
+    exists (
+      select 1
+      from public.communities c
+      where c.id = p_community_id and c.owner_id = p_user_id
+    ) or exists (
+      select 1
+      from public.community_roles r
+      where r.community_id = p_community_id
+        and r.id = public.get_effective_community_role_id(p_community_id, p_user_id)
+        and coalesce((r.permissions ->> 'viewMembers')::boolean, false)
+    )
+  )
+$$;
+
 drop policy if exists community_member_roles_read_members on public.community_member_roles;
 create policy community_member_roles_read_members
   on public.community_member_roles for select
   using (
     user_id = auth.uid()
-    or exists (
-      select 1 from public.communities c
-      where c.id = community_member_roles.community_id and c.owner_id = auth.uid()
-    )
-    or exists (
-      select 1 from public.community_members m
-      join public.community_member_roles cmr
-        on cmr.community_id = m.community_id and cmr.user_id = m.user_id
-      join public.community_roles r on r.id = cmr.role_id
-      where m.community_id = community_member_roles.community_id
-        and m.user_id = auth.uid()
-        and cmr.role_id = public.get_effective_community_role_id(m.community_id, m.user_id)
-        and coalesce((r.permissions ->> 'viewMembers')::boolean, false)
-    )
+    or public.community_user_can_view_members(community_id, auth.uid())
   );
 
 insert into public.community_member_roles (community_id, user_id, role_id, assigned_at)
@@ -1197,6 +1250,7 @@ end;
 $$;
 
 alter function public.get_effective_community_role_id(uuid, uuid) owner to postgres;
+alter function public.community_user_can_view_members(uuid, uuid) owner to postgres;
 alter function public.community_user_can_access_channel(uuid, uuid, uuid, text) owner to postgres;
 alter function public.community_user_can_manage_messages(uuid, uuid) owner to postgres;
 alter function public.assign_community_member_role(uuid, uuid, uuid) owner to postgres;
@@ -1206,6 +1260,7 @@ alter function public.update_community_message_reaction(uuid, uuid, text, text) 
 alter function public.get_verification_panel(uuid) owner to postgres;
 alter function public.complete_community_verification(uuid, text, text, boolean, uuid) owner to postgres;
 revoke all on function public.get_effective_community_role_id(uuid, uuid) from public;
+revoke all on function public.community_user_can_view_members(uuid, uuid) from public;
 revoke all on function public.community_user_can_access_channel(uuid, uuid, uuid, text) from public;
 revoke all on function public.community_user_can_manage_messages(uuid, uuid) from public;
 revoke all on function public.assign_community_member_role(uuid, uuid, uuid) from public;
@@ -1215,6 +1270,7 @@ revoke all on function public.update_community_message_reaction(uuid, uuid, text
 revoke all on function public.get_verification_panel(uuid) from public;
 revoke all on function public.complete_community_verification(uuid, text, text, boolean, uuid) from public;
 grant execute on function public.get_effective_community_role_id(uuid, uuid) to authenticated;
+grant execute on function public.community_user_can_view_members(uuid, uuid) to authenticated;
 grant execute on function public.community_user_can_access_channel(uuid, uuid, uuid, text) to authenticated;
 grant execute on function public.community_user_can_manage_messages(uuid, uuid) to authenticated;
 grant execute on function public.assign_community_member_role(uuid, uuid, uuid) to authenticated;

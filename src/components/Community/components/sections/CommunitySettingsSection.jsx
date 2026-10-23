@@ -41,11 +41,15 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
   const [iconPreview, setIconPreview] = useState(null);
   const [error, setError] = useState("");
   const [tools, setTools] = useState([]);
+  const [transferCandidates, setTransferCandidates] = useState([]);
+  const [transferTargetId, setTransferTargetId] = useState("");
+  const [transferringOwnership, setTransferringOwnership] = useState(false);
   const [selectedToolType, setSelectedToolType] = useState(null);
   const [selectedToolMode, setSelectedToolMode] = useState(null);
   const fileInputRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [bannerCategory, setBannerCategory] = useState(CATEGORY_ORDER[0]);
+  const isOwner = community?.owner_id === userId;
 
   const backgroundThemes = [
     {
@@ -149,6 +153,27 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
       .then(({ data }) => setTools(data || []));
   }, [community?.id]);
 
+  useEffect(() => {
+    if (!community?.id || !isOwner) return undefined;
+    let active = true;
+    supabase
+      .from("community_members")
+      .select("user_id,user:profiles!user_id(id,username,full_name)")
+      .eq("community_id", community.id)
+      .then(({ data, error: membersError }) => {
+        if (!active) return;
+        if (membersError) {
+          setError(membersError.message);
+          return;
+        }
+        setTransferCandidates((data || []).filter((member) => member.user_id !== userId && member.user));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "Could not load community members.");
+      });
+    return () => { active = false; };
+  }, [community?.id, isOwner, userId]);
+
   const handleIconChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -186,7 +211,25 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     }
   };
 
-  const isOwner = community?.owner_id === userId;
+  const transferOwnership = async () => {
+    const target = transferCandidates.find((member) => member.user_id === transferTargetId);
+    if (!target) {
+      setError("Choose a community member to become the new owner.");
+      return;
+    }
+    const targetName = target.user.full_name || target.user.username || "this member";
+    if (!window.confirm(`Transfer ownership of ${community.name} to ${targetName}? You will remain a member but will no longer be the owner.`)) return;
+    setTransferringOwnership(true);
+    setError("");
+    try {
+      await onUpdate({ type: "ownership_transfer", ownerId: target.user_id });
+      onClose?.();
+    } catch (transferError) {
+      setError(transferError.message || "Could not transfer community ownership.");
+    } finally {
+      setTransferringOwnership(false);
+    }
+  };
 
   const updateTool = async (tool, patch) => {
     const next = { ...tool, ...patch };
@@ -230,6 +273,19 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         <div className="settings-header">
           <h2>Community Settings</h2>
           <p>Customize your community appearance and privacy</p>
+        </div>
+
+        <div className="setting-group ownership-transfer">
+          <label className="setting-label"><Shield size={16} /> Transfer ownership</label>
+          <p className="setting-hint">The new owner receives full owner access. You remain a member and keep any roles other than Owner.</p>
+          <div className="ownership-transfer-row">
+            <select value={transferTargetId} onChange={(event) => setTransferTargetId(event.target.value)} disabled={transferringOwnership}>
+              <option value="">Choose a community member</option>
+              {transferCandidates.map((member) => <option key={member.user_id} value={member.user_id}>{member.user.full_name || member.user.username || member.user_id}</option>)}
+            </select>
+            <button type="button" onClick={transferOwnership} disabled={transferringOwnership || !transferTargetId}>{transferringOwnership ? "Transferring..." : "Transfer"}</button>
+          </div>
+          {!transferCandidates.length && <p className="setting-hint">There are no other eligible community members yet.</p>}
         </div>
 
         <div className="settings-form">
@@ -487,6 +543,11 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           padding: 0;
           animation: fadeIn 0.3s ease;
         }
+        .ownership-transfer{padding:12px;border:1px solid rgba(255,190,80,.25);border-radius:10px;background:rgba(255,190,80,.04)}
+        .ownership-transfer-row{display:flex;gap:8px}
+        .ownership-transfer-row select{flex:1;min-width:0;padding:9px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface);color:var(--text)}
+        .ownership-transfer-row button{padding:0 14px;border:1px solid rgba(255,110,110,.4);border-radius:8px;background:rgba(255,90,90,.12);color:#ff8b8b;font-weight:800;cursor:pointer}
+        .ownership-transfer-row button:disabled{opacity:.45;cursor:not-allowed}
 
         @keyframes fadeIn {
           from {

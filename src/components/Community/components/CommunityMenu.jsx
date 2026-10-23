@@ -338,10 +338,11 @@ const CommunityMenu = ({
                 roles={roles} members={members}
                 selectedRole={selectedRole} setSelectedRole={setSelectedRole}
                 canManageRoles={canManageRoles}
+                isCommunityOwner={isOwner}
                 onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onReorderRoles={handleReorderRoles}
               />
             )}
-            {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
+            {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" || s.type === "ownership_transfer" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
             {menuView === "analytics" && <AnalyticsSection community={community} />}
             {menuView === "tools" && <ToolsSection
               communityId={community.id}

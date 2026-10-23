@@ -325,18 +325,27 @@ class RoleService {
         .eq("id", roleId)
         .single();
       if (roleError || !existingRole) throw new Error("Role not found");
-      if (String(existingRole.name || "").trim().toLowerCase() === "owner") {
-        throw new Error("The owner role is protected and cannot be edited by other admins.");
-      }
       if (!actorUserId || !(await this.hasPermission(existingRole.community_id, actorUserId, "manageRoles"))) {
         throw new Error("You do not have permission to manage roles");
       }
+      const { data: community, error: communityError } = await supabase
+        .from("communities")
+        .select("owner_id")
+        .eq("id", existingRole.community_id)
+        .single();
+      if (communityError) throw communityError;
+      const isOwnerRole = String(existingRole.name || "").trim().toLowerCase() === "owner";
+      const isCommunityOwner = community?.owner_id === actorUserId;
+      if (isOwnerRole && !isCommunityOwner) {
+        throw new Error("Only the community owner can edit the Owner role.");
+      }
       const actorRole = await this.getUserRole(existingRole.community_id, actorUserId);
       const targetRole = RoleModel.fromAPI(existingRole);
-      if (targetRole.isOwner() || (actorRole && !RoleModel.fromAPI(actorRole).canManageRole(targetRole))) {
+      if (!isCommunityOwner && (targetRole.isOwner() || (actorRole && !RoleModel.fromAPI(actorRole).canManageRole(targetRole)))) {
         throw new Error("You cannot manage this role");
       }
       const allowedUpdates = (({ name, color, icon, permissions }) => ({ name, color, icon, permissions }))(updates || {});
+      if (isOwnerRole) allowedUpdates.name = existingRole.name;
       const { data, error } = await supabase
         .from("community_roles")
         .update({
@@ -435,6 +444,13 @@ class RoleService {
         .select("user_id, role:community_roles!role_id(id,name,color,icon,position,permissions,is_default)")
         .eq("community_id", communityId);
       if (assignmentsError) throw assignmentsError;
+      const [{ data: community, error: communityError }, { data: ownerRoles, error: ownerRoleError }] = await Promise.all([
+        supabase.from("communities").select("owner_id").eq("id", communityId).single(),
+        supabase.from("community_roles").select("id,name,color,icon,position,permissions,is_default").eq("community_id", communityId).ilike("name", "owner").limit(1),
+      ]);
+      if (communityError) throw communityError;
+      if (ownerRoleError) throw ownerRoleError;
+      const ownerRole = ownerRoles?.[0] || { ...RoleModel.createOwnerRole(communityId).toJSON(), id: null };
       const byUser = new Map();
       (assignments || []).forEach((assignment) => {
         if (!assignment.role) return;
@@ -442,7 +458,11 @@ class RoleService {
       });
 
       return members.map((member) => {
-        const assignedRoles = (byUser.get(member.user_id) || [member.role].filter(Boolean))
+        const memberRoles = byUser.get(member.user_id) || [member.role].filter(Boolean);
+        if (member.user_id === community?.owner_id && !memberRoles.some((role) => role.id === ownerRole.id)) {
+          memberRoles.unshift(ownerRole);
+        }
+        const assignedRoles = memberRoles
           .sort((left, right) =>
             Number(String(right.name || "").trim().toLowerCase() === "owner")
             - Number(String(left.name || "").trim().toLowerCase() === "owner")
@@ -508,6 +528,23 @@ class RoleService {
    */
   async getUserRole(communityId, userId) {
     try {
+      const { data: community, error: communityError } = await supabase
+        .from("communities")
+        .select("owner_id")
+        .eq("id", communityId)
+        .single();
+      if (communityError) throw communityError;
+      if (community?.owner_id === userId) {
+        const { data: ownerRole, error: ownerRoleError } = await supabase
+          .from("community_roles")
+          .select("*")
+          .eq("community_id", communityId)
+          .ilike("name", "owner")
+          .limit(1)
+          .maybeSingle();
+        if (ownerRoleError) throw ownerRoleError;
+        return RoleModel.fromAPI(ownerRole || RoleModel.createOwnerRole(communityId));
+      }
       const { data, error } = await supabase
         .from("community_member_roles")
         .select("role:community_roles!role_id(*)")
