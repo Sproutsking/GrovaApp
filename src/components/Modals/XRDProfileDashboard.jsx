@@ -11,6 +11,7 @@ import xrcService from "../../services/xrc";
 import evidenceService from "../../services/evidence/evidenceService";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { syncUserConnectorEvidence } from "../../services/evidence/connectorService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 const XRCOracleExplorer = lazy(() => import("../Oracle/XRCOracleExplorer"));
 
 const NAV = [
@@ -41,9 +42,9 @@ const NAV_GROUPS = [
 ];
 
 const OWNER_ONLY = new Set(["Chains", "Activity", "Audit", "Permissions", "Settings"]);
-const SOURCE_PLATFORMS = [
+export const SOURCE_PLATFORMS = [
   ["github", "GitHub"], ["linkedin", "LinkedIn"], ["x", "X"], ["facebook", "Facebook"],
-  ["instagram", "Instagram"], ["google", "Google"], ["discord", "Discord"], ["tiktok", "TikTok"],
+  ["instagram", "Instagram"], ["google", "Google"], ["discord", "Discord"], ["tiktok", "TikTok"], ["apple", "Apple"],
 ];
 
 const SETTING_GROUPS = {
@@ -85,6 +86,43 @@ const countBySource = (items) => {
 const normalizeStatus = (item) => {
   if (item?.metadata?.status) return String(item.metadata.status);
   return item?.verified ? "Verified" : "Tracked";
+};
+
+export const getXrdProfileAvatarCandidates = (profile) => {
+  const candidates = [
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarUrl, 300),
+    ...(Array.isArray(profile?.avatarFallbackUrls) ? profile.avatarFallbackUrls.flatMap((url) => mediaUrlService.resolveAvatarUrls(url, 300)) : []),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarId || profile?.avatar_id, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarMetadata || profile?.avatar_metadata, 300),
+  ];
+  return [...new Set(candidates.filter((url) => typeof url === "string" && url.trim()))];
+};
+
+export const getXrdIdentityBindings = (profile, connections = []) => {
+  const hasNativeProfile = Boolean(profile?.id || profile?.username || profile?.fullName);
+  const nativeBinding = hasNativeProfile ? [{
+    provider: "Xeevia",
+    account: profile.username ? `@${profile.username}` : "Native profile",
+    status: "Native profile",
+    native: true,
+  }] : [];
+  const externalBindings = connections
+    .filter((connection) => String(connection?.provider || "").toLowerCase() !== "xeevia")
+    .map((connection) => ({
+      provider: connection.provider,
+      account: connection.auth_status === "active"
+        ? (connection.hasValidToken ? "Account + token" : "Account linked")
+        : connection.auth_status || "Unknown",
+      native: false,
+    }));
+  return [...nativeBinding, ...externalBindings];
+};
+
+const XrdProfileAvatar = ({ candidates, initials }) => {
+  const [failedCandidates, setFailedCandidates] = useState([]);
+  const nextCandidate = candidates.find((candidate) => !failedCandidates.includes(candidate));
+  if (!nextCandidate) return <span>{initials}</span>;
+  return <img src={nextCandidate} alt="" onError={() => setFailedCandidates((failed) => [...failed, nextCandidate])} />;
 };
 
 function XrdEvidenceGraph({ items, edges, onPick }) {
@@ -729,13 +767,16 @@ const XRDProfileDashboard = ({
   const evidenceById = useMemo(() => new Map(evidenceItems.filter((item) => item?.id).map((item) => [item.id, item])), [evidenceItems]);
   const photoSources = useMemo(() => {
     const items = [];
-    if (profile?.avatarUrl) items.push({ id: "xeevia-profile", name: "Xeevia", handle: profile.username ? `@${profile.username}` : "Profile image", url: profile.avatarUrl, verified: Boolean(profile.verified) });
+    const profileAvatarUrl = getXrdProfileAvatarCandidates(profile)[0];
+    if (profileAvatarUrl) items.push({ id: "xeevia-profile", name: "Xeevia", handle: profile.username ? `@${profile.username}` : "Profile image", url: profileAvatarUrl, verified: Boolean(profile.verified) });
     evidenceItems.forEach((item) => {
       const url = item?.metadata?.avatarUrl || item?.metadata?.avatar_url || item?.metadata?.profileImageUrl || item?.metadata?.profile_image_url;
       if (typeof url === "string" && /^https?:\/\//i.test(url)) items.push({ id: item.id, name: item.provider || "Connected source", handle: item.metadata?.username || item.metadata?.handle || item.title || "Profile image", url, verified: Boolean(item.verified) });
     });
     return [...new Map(items.map((item) => [item.url, item])).values()];
   }, [evidenceItems, profile]);
+  const profileAvatarCandidates = useMemo(() => getXrdProfileAvatarCandidates(profile), [profile]);
+  const identityBindings = useMemo(() => getXrdIdentityBindings(profile, sourceConnections), [profile, sourceConnections]);
   const visibleEvidenceEdges = useMemo(() => evidenceEdges.filter((edge) => evidenceById.has(edge.source_id) && evidenceById.has(edge.target_id)), [evidenceById, evidenceEdges]);
   const profileName = profile?.fullName || profile?.username || "Xeevia member";
   const initials = profileName.trim().charAt(0).toUpperCase() || "X";
@@ -930,7 +971,7 @@ const XRDProfileDashboard = ({
             <div className="xrd-hero-orbit" aria-hidden="true" />
             <div className="xrd-hero-identity">
               <div className="xrd-hero-avatar">
-                {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <span>{initials}</span>}
+                <XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} />
                 <button type="button" className="xrd-photo-trigger" aria-label={`View ${photoSources.length} connected profile photos`} onClick={() => setPhotoHubOpen(true)}><Images size={14} /><b>{photoSources.length}</b></button>
               </div>
               <div><span className="xrd-kicker">XEEVIA RECORD</span><h2>{profileName}</h2><p>@{profile?.username || "unknown"} · {own ? "Owner workspace" : "Public record"}</p></div>
@@ -990,7 +1031,7 @@ const XRDProfileDashboard = ({
         <>
           <SectionHeading title="Identity" subtitle="Profile identity details and first-party verification evidence." />
           <div className="xrd-identity-panel">
-            <div className="xrd-identity-avatar">{profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}</div>
+            <div className="xrd-identity-avatar"><XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} /></div>
             <div className="xrd-identity-copy"><h3>{profileName} {profile?.verified && <BadgeCheck size={16} />}</h3><p>@{profile?.username || "unknown"}</p>{profile?.bio && <p className="xrd-bio">{profile.bio}</p>}<span>Member since {profile?.joinDate || "date unavailable"}</span></div>
           </div>
           <div className="xrd-assurance-panel">
@@ -1004,9 +1045,9 @@ const XRDProfileDashboard = ({
             <p>Connecting an account proves control of that account only. It does not verify the person's identity or their claims.</p>
           </div>
           <div className="xrd-panel">
-            <div className="xrd-section-heading"><div><span className="xrd-kicker">IDENTITY BINDINGS</span><h3>Connected accounts and evidence</h3></div><span className="xrd-count">{sourceConnections.length + identityItems.length}</span></div>
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">IDENTITY BINDINGS</span><h3>Connected accounts and evidence</h3></div><span className="xrd-count">{identityBindings.length + identityItems.length}</span></div>
             {sourceLoading && own && <div className="xrd-loading"><span />Loading account bindings…</div>}
-            {sourceConnections.length > 0 && <div className="xrd-identity-map"><div className="xrd-identity-core"><Fingerprint size={18} /><span>{profile?.username ? `@${profile.username}` : "XRC identity"}</span></div>{sourceConnections.map((connection) => <div className="xrd-identity-node" key={connection.id || connection.provider}><span>{connection.provider}</span><small>{connection.auth_status === "active" ? (connection.hasValidToken ? "Account + token" : "Account linked") : connection.auth_status || "Unknown"}</small></div>)}</div>}
+            {identityBindings.length > 0 && <div className="xrd-identity-map"><div className="xrd-identity-core"><Fingerprint size={18} /><span>{profile?.username ? `@${profile.username}` : "XRC identity"}</span></div>{identityBindings.map((binding) => <div className={`xrd-identity-node${binding.native ? " xrd-identity-node-native" : ""}`} key={binding.provider}><span>{binding.provider}</span><small>{binding.account}</small></div>)}</div>}
             {sourceConnections.map((connection) => (
               <article className="xrd-identity-source" key={`account-${connection.id || connection.provider}`}>
                 <span className="xrd-source-glyph"><Fingerprint size={16} /></span>
@@ -1092,7 +1133,7 @@ const XRDProfileDashboard = ({
     }
 
     if (section === "Sources") {
-      const sourceRows = new Map(SOURCE_PLATFORMS.map(([provider, label]) => [provider, label]));
+      const sourceRows = new Map([["xeevia", "Xeevia"], ...SOURCE_PLATFORMS]);
       sourceConnections.forEach((connection) => {
         if (!sourceRows.has(connection.provider)) sourceRows.set(connection.provider, connection.provider);
       });
@@ -1109,14 +1150,15 @@ const XRDProfileDashboard = ({
             const connection = sourceConnections.find((entry) => entry.provider === provider);
             const active = connection?.auth_status === "active";
             const count = evidenceItems.filter((item) => String(item.provider || "").toLowerCase() === provider).length;
-            if (!own && count === 0) return null;
+            const nativeProfile = provider === "xeevia";
+            if (!own && count === 0 && !nativeProfile) return null;
             const canConnect = SOURCE_PLATFORMS.some(([configuredProvider]) => configuredProvider === provider);
             return (
               <article className="xrd-source" key={provider}>
                 <span><Database size={17} /></span>
-                <div><strong>{label}</strong><small>{own ? `${connection?.platform_user_id || "Not connected"} · ${count} evidence item${count === 1 ? "" : "s"}` : `${count} evidence item${count === 1 ? "" : "s"}`}</small></div>
+                <div><strong>{label}</strong><small>{nativeProfile ? `${profile?.username ? `@${profile.username}` : "Native profile"} · ${count} evidence item${count === 1 ? "" : "s"}` : own ? `${connection?.platform_user_id || "Not connected"} · ${count} evidence item${count === 1 ? "" : "s"}` : `${count} evidence item${count === 1 ? "" : "s"}`}</small></div>
                 {own && <div className="xrd-source-actions">
-                  {active ? <>
+                  {nativeProfile ? <span className="xrd-status is-verified">Native</span> : active ? <>
                     <span className="xrd-status is-verified">Connected</span>
                     <button type="button" disabled={sourceBusy === provider} onClick={() => syncSource(provider)}>{sourceBusy === provider ? "Working…" : "Sync"}</button>
                     <button type="button" disabled={sourceBusy === provider} onClick={() => disconnectSource(provider)}>Disconnect</button>
