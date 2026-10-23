@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import verificationService from "../../../services/community/verificationService";
 import VerificationPanelView from "./VerificationPanelView";
+import { getMethodsForVerificationChannel } from "./verificationConfig";
 
-export default function VerificationPanel({ communityId, onVerified }) {
+export default function VerificationPanel({ communityId, channelId, onVerified }) {
   const [panel, setPanel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -29,5 +30,6 @@ export default function VerificationPanel({ communityId, onVerified }) {
   if (loading) return note("Loading verification…");
   if (error) return note(error);
   if (!panel?.configured) return note("Verification isn't configured for this community yet.");
-  return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} />;
+  const onlyMethods = getMethodsForVerificationChannel(panel.rulesGate, channelId);
+  return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} onlyMethods={onlyMethods} />;
 }

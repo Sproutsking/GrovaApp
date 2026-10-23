@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Send, Plus, X, Eye, Palette } from "lucide-react";
 import MediaPopup from "../../Messages/MediaPopup";
 import { validateMessageAttachments } from "../../../services/messages/attachmentPolicy";
+import { createCommunityMention } from "../communityMentions";
 
 const ANNOUNCEMENT_BORDER_STYLES = [
   { id: "solid", label: "Solid" },
@@ -46,7 +47,9 @@ const CommunityMessageInput = ({
   const inputRef = useRef(null);
   const plusBtnRef = useRef(null);
   const selectedFilesRef = useRef(selectedFiles);
+  const mentionOptionsRef = useRef([]);
   const [mentionQuery, setMentionQuery] = useState(null);
+  const [mentionCursor, setMentionCursor] = useState(0);
 
   selectedFilesRef.current = selectedFiles;
 
@@ -92,32 +95,43 @@ const CommunityMessageInput = ({
     if (inputRef.current) inputRef.current.focus();
   }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, canManageAnnouncement, canAttachFiles, replyTo, onSend]);
 
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+  const handleKeyDown = useCallback((e) => {
+    if (mentionQuery && mentionOptionsRef.current.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        handleSend();
+        const direction = e.key === "ArrowDown" ? 1 : -1;
+        setMentionCursor((current) => (current + direction + mentionOptionsRef.current.length) % mentionOptionsRef.current.length);
+        return;
       }
-      if (e.key === "Escape" && editingMessage && onCancelEdit) {
-        onCancelEdit();
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectMention(mentionOptionsRef.current[mentionCursor]);
+        return;
       }
-      if (mentionQuery && e.key === "ArrowDown") { e.preventDefault(); return; }
-      if (mentionQuery && e.key === "Tab") { e.preventDefault(); return; }
-    },
-    [handleSend, editingMessage, onCancelEdit, mentionQuery],
-  );
+    }
+    if (e.key === "Escape" && mentionQuery) {
+      setMentionQuery(null);
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+    if (e.key === "Escape" && editingMessage && onCancelEdit) onCancelEdit();
+  }, [handleSend, editingMessage, onCancelEdit, mentionQuery, mentionCursor]);
 
   const handleChange = (event) => {
     const nextValue = event.target.value;
     onChange(nextValue);
     const cursor = event.target.selectionStart;
     const before = nextValue.slice(0, cursor);
-    const match = before.match(/(^|\s)([@#])([^\s@#]*)$/);
-    setMentionQuery(match ? { trigger: match[2], query: match[3].toLowerCase(), start: cursor - match[3].length - 1 } : null);
+    const match = before.match(/(^|\s)([@#])([^\n@#]*)$/);
+    setMentionCursor(0);
+    setMentionQuery(match ? { trigger: match[2], query: match[3].trim().toLowerCase(), start: cursor - match[3].length - 1, end: cursor } : null);
   };
 
   const mentionOptions = mentionQuery ? (mentionQuery.trigger === "#"
-    ? channels.filter((channel) => channel.name.toLowerCase().includes(mentionQuery.query)).slice(0, 6)
+    ? channels.filter((channel) => channel.name.toLowerCase().includes(mentionQuery.query)).slice(0, 8).map((channel) => ({ ...channel, type: "channel" }))
     : [
       { id: "everyone", name: "everyone", type: "everyone" },
       { id: "here", name: "here", type: "here" },
@@ -125,16 +139,20 @@ const CommunityMessageInput = ({
       ...members.map((member) => ({ ...member.user, type: "user" })),
     ].filter((item) => (item.name || item.full_name || item.username || "").toLowerCase().includes(mentionQuery.query)).slice(0, 8)
   ) : [];
+  mentionOptionsRef.current = mentionOptions;
 
   const selectMention = (item) => {
-    const label = item.type === "user" ? (item.username || item.full_name) : item.name;
-    const replacement = `${mentionQuery.trigger}${label} `;
+    if (!item || !mentionQuery) return;
+    const replacement = createCommunityMention(item, mentionQuery.trigger);
     const before = value.slice(0, mentionQuery.start);
-    const cursor = value.length;
-    onChange(`${before}${replacement}${value.slice(cursor)}`);
+    const nextCursor = mentionQuery.start + replacement.length;
+    onChange(`${before}${replacement}${value.slice(mentionQuery.end)}`);
     onMentionSelect?.(item, mentionQuery.trigger);
     setMentionQuery(null);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
   };
 
   const handlePlusClick = () => {
@@ -369,10 +387,11 @@ const CommunityMessageInput = ({
         />
 
         {mentionQuery && mentionOptions.length > 0 && (
-          <div className="comm-mention-menu">
-            {mentionOptions.map((item) => <button key={`${item.type}-${item.id}`} onMouseDown={(event) => { event.preventDefault(); selectMention(item); }}>
-              <span className="comm-mention-icon">{item.type === "user" ? (item.full_name || item.username || "?").charAt(0).toUpperCase() : item.type === "role" ? (item.icon || "♟") : item.type === "channel" ? "#" : "@"}</span>
+          <div className="comm-mention-menu" role="listbox" aria-label="Mention suggestions">
+            {mentionOptions.map((item, index) => <button key={`${item.type}-${item.id}`} role="option" aria-selected={index === mentionCursor} className={index === mentionCursor ? "selected" : ""} onMouseDown={(event) => { event.preventDefault(); selectMention(item); }}>
+              <span className={`comm-mention-icon ${item.type}`}>{item.type === "user" ? (item.full_name || item.username || "?").charAt(0).toUpperCase() : item.type === "role" ? (item.icon || "♟") : item.type === "channel" ? "#" : "@"}</span>
               <span><strong>{item.name || item.full_name || item.username}</strong><small>{item.type === "user" ? `@${item.username || "user"}` : item.type}</small></span>
+              <kbd>{index === mentionCursor ? "↵" : ""}</kbd>
             </button>)}
           </div>
         )}
@@ -584,7 +603,7 @@ const CommunityMessageInput = ({
         .comm-announcement-title{order:-1;flex:1 0 calc(100% - 48px);min-width:0;padding:9px 12px;border:1px solid rgba(156,255,0,.24);border-radius:10px;background:rgba(0,0,0,.2);color:var(--text);font:700 13px inherit;outline:none}
         .comm-announcement-title:focus{border-color:var(--accent-border-strong);box-shadow:0 0 0 3px var(--accent-glow)}
         .comm-announcement-preview-overlay{position:fixed;inset:0;z-index:100200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(2,5,3,.78);backdrop-filter:blur(12px)}.comm-announcement-preview-modal{width:min(680px,100%);overflow:hidden;border:1px solid var(--accent-border);border-radius:18px;background:var(--panel);box-shadow:0 24px 80px rgba(0,0,0,.65),0 0 40px var(--accent-shadow)}.comm-announcement-preview-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid var(--surface-border)}.comm-announcement-preview-header div{display:flex;flex-direction:column;gap:3px}.comm-announcement-preview-header span{color:var(--accent);font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.comm-announcement-preview-header strong{color:var(--text);font-size:17px}.comm-announcement-preview-header button{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface);color:var(--text-secondary);cursor:pointer}.comm-announcement-preview-stage{min-height:250px;display:grid;place-items:center;padding:40px 28px;background:radial-gradient(circle at 50% 10%,rgba(156,255,0,.1),transparent 55%),linear-gradient(145deg,#0d1510,#090d0b)}.comm-announcement-preview-card{width:min(560px,100%);padding:22px 24px 18px;border:1px solid color-mix(in srgb,var(--announcement-color) 32%,transparent);border-top:4px solid var(--announcement-color);border-radius:16px;background:linear-gradient(145deg,rgba(28,42,25,.98),rgba(10,20,13,.98));color:#f1f9e8;box-shadow:0 16px 40px rgba(0,0,0,.3)}.comm-announcement-preview-card h3{margin:0 0 10px;padding-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color) 28%,transparent);font-size:20px}.comm-announcement-preview-card p{margin:0;white-space:pre-wrap;color:#dbe9d8;font-size:15px;line-height:1.7}.comm-announcement-preview-card small{display:block;margin-top:14px;color:#829783;font-size:10px}.announcement-border-double{border-top-style:double;border-top-width:6px}.announcement-border-dashed{border-top-style:dashed}.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color) 26%,transparent),0 16px 40px rgba(0,0,0,.3)}.comm-announcement-preview-modal footer{display:flex;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--surface-border)}.comm-announcement-preview-close{padding:9px 13px;border:1px solid var(--accent-border);border-radius:8px;background:var(--accent-bg-soft);color:var(--accent);font-weight:800;cursor:pointer}
-        .comm-mention-menu{position:absolute;bottom:calc(100% + 8px);left:48px;width:min(280px,calc(100vw - 70px));max-height:240px;overflow-y:auto;padding:6px;background:rgba(9,15,11,.98);border:1px solid rgba(156,255,0,.3);border-radius:11px;box-shadow:0 16px 36px rgba(0,0,0,.65);z-index:20}.comm-mention-menu button{width:100%;display:flex;align-items:center;gap:8px;padding:7px;border:0;border-radius:7px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.comm-mention-menu button:hover{background:rgba(156,255,0,.1)}.comm-mention-icon{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:rgba(156,255,0,.12);color:#9cff00;font-weight:800}.comm-mention-menu button span:nth-child(2){display:flex;flex-direction:column;gap:2px}.comm-mention-menu strong{font-size:11px}.comm-mention-menu small{font-size:9px;color:#6d876f}
+        .comm-mention-menu{position:absolute;bottom:calc(100% + 8px);left:48px;width:min(300px,calc(100vw - 70px));max-height:280px;overflow-y:auto;padding:6px;background:rgba(9,15,11,.98);border:1px solid rgba(156,255,0,.3);border-radius:13px;box-shadow:0 16px 36px rgba(0,0,0,.65),0 0 24px rgba(156,255,0,.06);backdrop-filter:blur(14px);z-index:20}.comm-mention-menu button{width:100%;display:flex;align-items:center;gap:9px;padding:8px;border:1px solid transparent;border-radius:9px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer;transition:background .15s,border-color .15s}.comm-mention-menu button:hover,.comm-mention-menu button.selected{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.15)}.comm-mention-icon{width:29px;height:29px;flex:0 0 29px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(156,255,0,.12);color:#9cff00;font-weight:800}.comm-mention-icon.user{border-radius:50%;background:rgba(59,130,246,.18);color:#a8d3ff}.comm-mention-icon.role{background:rgba(167,139,250,.16);color:#cbb5ff}.comm-mention-icon.channel{background:rgba(56,189,248,.15);color:#8bd8ff}.comm-mention-menu button span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.comm-mention-menu strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.comm-mention-menu small{font-size:9px;color:#8aa08b}.comm-mention-menu kbd{min-width:18px;color:#9cff00;font:700 10px inherit;text-align:center}
 
         .comm-plus-btn {
           width: 38px;

@@ -93,7 +93,7 @@ export default function RoleAccessPanel({ communityId, role, roles = [], canMana
 
   return (
     <div className="rap">
-      <div className="rap-head"><strong>{role.name}</strong><span>{granted} restricted target{granted === 1 ? "" : "s"} unlocked. Rules save instantly.</span></div>
+      <div className="rap-head"><strong>{role.name}</strong><span>{granted} restricted target{granted === 1 ? "" : "s"} unlocked. Rules save instantly. Members are evaluated by their highest-ranked role. Use each channel or category's Permissions settings for independent reactions, attachments, and moderation controls.</span></div>
       {pending && (
         <div className="rap-confirm">
           {pending.kind === "open" ? (
@@ -102,7 +102,7 @@ export default function RoleAccessPanel({ communityId, role, roles = [], canMana
             <>
               <p><b>{pending.target.label}</b> is {pending.target.channel && catOf(pending.target.channel) && rowsOf("category", catOf(pending.target.channel)).length ? "inheriting its category's access" : "open to everyone"} right now. Continuing gives it its own access list. Only these roles will keep access:</p>
               <div className="rap-chips">{[...new Map([...pending.seed.map((r) => [r.roleId, r]), [role.id, { roleId: role.id, canView: pending.level !== "none", canSend: pending.level === "send" }]]).values()].filter((r) => r.canView).map((r) => <span key={r.roleId}>{roleName(r.roleId)}{r.roleId === role.id ? ` (${pending.level === "send" ? "view + send" : "view"})` : ""}</span>)}</div>
-              <p className="rap-muted">Everyone else, including the default role, loses access. Owners and administrators always keep it.</p>
+              <p className="rap-muted">Everyone else, including the default role, loses access. Owners, administrators, and channel managers always keep it. Only a member's highest-ranked role is evaluated.</p>
             </>
           )}
           <div className="rap-actions"><button type="button" onClick={() => setPending(null)}>Cancel</button><button type="button" className="go" onClick={confirm}>Confirm</button></div>

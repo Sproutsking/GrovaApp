@@ -13,6 +13,7 @@ import CreateChannelModal from "../modals/CreateChannelModal";
 import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
 import CommunityMenu from "../components/CommunityMenu";
 import { supabase } from "../../../services/config/supabase";
+import { groupVisibleChannels } from "../utils/groupVisibleChannels";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -93,13 +94,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
   };
 
   const showSkeleton = !channelsReady && channels.length === 0;
-  const groupedChannels = channels.reduce((groups, channel) => {
-    const category = channel.category || "Channels";
-    groups[category] = [...(groups[category] || []), channel];
-    return groups;
-  }, {});
-  const orderedGroups = [...new Set([...categoryOrder, ...Object.keys(groupedChannels)])]
-    .map((category) => [category, groupedChannels[category] || []]);
+  const orderedGroups = groupVisibleChannels(channels, categoryOrder);
 
   return (
     <div

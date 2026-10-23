@@ -8,6 +8,7 @@ import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
 import { MessageReactionArea } from "./ReactionSystem";
 import WelcomeMemberCard, { getWelcomeMemberId } from "../verification/WelcomeMemberCard";
+import { COMMUNITY_MENTION_PATTERN, resolveCommunityMention } from "../communityMentions";
 
 const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
 const ANNOUNCEMENT_COLORS = new Set(["#9cff00", "#38bdf8", "#f59e0b", "#f472b6", "#a78bfa"]);
@@ -88,6 +89,8 @@ const MessageList = ({
   communityId,
   community,
   communityMembers = [],
+  communityRoles = [],
+  communityChannels = [],
   onWelcomeProfileClick,
   onWelcomeIntroduce,
   onWelcomeBrowse,
@@ -160,10 +163,18 @@ const MessageList = ({
       const codeMatch = part.match(/^`([^`]+)`$/s);
       if (codeMatch) return <code key={key} className="msg-inline-code">{codeMatch[1]}</code>;
 
-      return String(part).split(/(#[\w-]+|@[\w.-]+)/g).map((mentionPart, mentionIndex) => {
+      return String(part).split(COMMUNITY_MENTION_PATTERN).map((mentionPart, mentionIndex) => {
         const mentionKey = `${key}-${mentionIndex}`;
-        if (mentionPart.startsWith("#")) return <button key={mentionKey} className="msg-mention channel" onClick={() => onChannelMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
-        if (mentionPart.startsWith("@")) return <button key={mentionKey} className="msg-mention user" onClick={() => onRoleMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
+        const mention = resolveCommunityMention(mentionPart, {
+          members: communityMembers,
+          roles: communityRoles,
+          channels: communityChannels,
+        });
+        if (mention?.type === "channel") return <button key={mentionKey} type="button" className="msg-mention channel" title={mention.entity ? `Open #${mention.entity.name}` : "Channel mention"} onClick={() => onChannelMention?.(mention.entity?.name || mention.slug)}>{mention.label}</button>;
+        if (mention?.type === "role") return <button key={mentionKey} type="button" className="msg-mention role" style={mention.entity ? { "--mention-color": mention.entity.color || "#9cff00" } : undefined} title={mention.entity ? `View members with ${mention.entity.name}` : "Role mention"} onClick={() => onRoleMention?.(mention.entity?.name || mention.slug)}>{mention.label}</button>;
+        if (mention?.type === "user") return <button key={mentionKey} type="button" className="msg-mention user" title={`Open ${mention.entity.full_name || mention.entity.username || "member"}'s profile`} onClick={() => onProfileClick?.(mention.entity)}>{mention.label}</button>;
+        if (mention?.type === "everyone") return <button key={mentionKey} type="button" className="msg-mention everyone" onClick={() => onRoleMention?.(mention.slug)}>{mention.label}</button>;
+        if (mention?.type === "unknown") return <button key={mentionKey} type="button" className="msg-mention user" onClick={() => onRoleMention?.(mention.slug)}>{mention.label}</button>;
         return <React.Fragment key={mentionKey}><LinkifiedText displayMode="string" onNavigate={onNavigate}>{mentionPart}</LinkifiedText></React.Fragment>;
       });
     });
@@ -707,7 +718,7 @@ const MessageList = ({
         }
         .msg-item.me .msg-content { text-align: right; }
         .msg-item.me .msg-reply-quote { text-align: right; }
-        .msg-mention{border:0;border-radius:4px;padding:1px 3px;font:inherit;cursor:pointer}.msg-mention.channel{color:#8fc9ff;background:rgba(96,165,250,.12)}.msg-mention.user{color:#baff82;background:rgba(156,255,0,.1)}.msg-mention:hover{filter:brightness(1.2)}
+        .msg-mention{display:inline-flex;align-items:center;vertical-align:baseline;border:1px solid transparent;border-radius:6px;padding:1px 5px;font:inherit;font-weight:650;line-height:1.35;cursor:pointer;transition:background .16s,border-color .16s,color .16s,transform .16s}.msg-mention:hover{transform:translateY(-1px);filter:brightness(1.18)}.msg-mention:focus-visible{outline:2px solid currentColor;outline-offset:2px}.msg-mention.channel{color:#9bd4ff;background:rgba(79,157,255,.13);border-color:rgba(79,157,255,.12)}.msg-mention.user{color:#c5f7a4;background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.1)}.msg-mention.role{color:var(--mention-color,#c7a7ff);background:color-mix(in srgb,var(--mention-color,#9b75df) 15%,transparent);border-color:color-mix(in srgb,var(--mention-color,#9b75df) 23%,transparent)}.msg-mention.everyone{color:#ffc979;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.12)}
 
         .msg-meta {
           display: flex;

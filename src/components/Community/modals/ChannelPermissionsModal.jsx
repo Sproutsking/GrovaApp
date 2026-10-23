@@ -47,6 +47,8 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const roleGroups = roles.reduce((groups, role) => {
     const key = role.name?.trim().toLowerCase() || role.id;
@@ -64,12 +66,13 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
   const loadOverrides = async () => {
     try {
       setLoading(true);
+      setLoadFailed(false);
       const { data, error } = await supabase
         .from(isCategory ? "category_permission_overrides" : "channel_permission_overrides")
         .select("*")
         .eq(isCategory ? "category_id" : "channel_id", target.id);
 
-      if (error && error.code !== "42P01") throw error; // 42P01 = table not exists
+      if (error) throw error;
 
       const map = {};
       (data || []).forEach((row) => {
@@ -77,9 +80,11 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         map[row.role_id][row.permission] = row.state; // "allow"|"deny"
       });
       setOverrides(map);
+      setErrorMessage("");
     } catch (err) {
       console.error("Load overrides error:", err);
-      setOverrides({});
+      setLoadFailed(true);
+      setErrorMessage(err.message || "Could not load permissions.");
     } finally {
       setLoading(false);
     }
@@ -103,15 +108,12 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
   };
 
   const handleSave = async () => {
+    if (loading || loadFailed) return;
     setSaving(true);
+    setErrorMessage("");
     try {
-      // Delete existing overrides for this channel
-      await supabase
-        .from(isCategory ? "category_permission_overrides" : "channel_permission_overrides")
-        .delete()
-        .eq(isCategory ? "category_id" : "channel_id", target.id);
-
-      // Build rows for non-inherit states
+      const table = isCategory ? "category_permission_overrides" : "channel_permission_overrides";
+      const targetColumn = isCategory ? "category_id" : "channel_id";
       const rows = [];
       Object.entries(overrides).forEach(([roleId, perms]) => {
         Object.entries(perms).forEach(([permKey, state]) => {
@@ -122,20 +124,38 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
               role_id: roleId,
               permission: permKey,
               state,
+              updated_at: new Date().toISOString(),
             });
           }
         });
       });
 
       if (rows.length > 0) {
-        await supabase.from(isCategory ? "category_permission_overrides" : "channel_permission_overrides").insert(rows);
+        const { error: upsertError } = await supabase
+          .from(table)
+          .upsert(rows, { onConflict: `${targetColumn},role_id,permission` });
+        if (upsertError) throw upsertError;
+      }
+
+      const { data: existingRows, error: existingError } = await supabase
+        .from(table)
+        .select("id,role_id,permission")
+        .eq(targetColumn, target.id);
+      if (existingError) throw existingError;
+      const desiredKeys = new Set(rows.map((row) => `${row.role_id}:${row.permission}`));
+      const staleIds = (existingRows || [])
+        .filter((row) => !desiredKeys.has(`${row.role_id}:${row.permission}`))
+        .map((row) => row.id);
+      if (staleIds.length > 0) {
+        const { error: deleteError } = await supabase.from(table).delete().in("id", staleIds);
+        if (deleteError) throw deleteError;
       }
 
       if (onSave) onSave();
       onClose();
     } catch (err) {
       console.error("Save overrides error:", err);
-      alert("Failed to save permissions: " + err.message);
+      setErrorMessage(err.message || "Could not save permissions.");
     } finally {
       setSaving(false);
     }
@@ -221,6 +241,7 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
                   })
                 )}
               </div>
+              {errorMessage && <p className="perm-error" role="alert">{errorMessage}</p>}
 
               <div className="perm-legend">
                 <span className="leg-item"><span className="dot allow" />Allow</span>
@@ -233,7 +254,7 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
 
         <div className="cp-footer">
           <button className="cancel-btn" onClick={onClose}>Cancel</button>
-          <button className="save-btn" onClick={handleSave} disabled={saving}>
+          <button className="save-btn" onClick={handleSave} disabled={saving || loading || loadFailed}>
             {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
@@ -361,6 +382,7 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
 
         .perm-list { display:flex; flex-direction:column; gap:6px; }
         .perm-loading { color:#555; font-size:13px; padding:20px 0; text-align:center; }
+        .perm-error { margin:8px 0 0; color:#ff8b8b; font-size:11px; line-height:1.45; }
 
         .perm-row {
           display:flex; align-items:center; justify-content:space-between;

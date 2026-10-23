@@ -1,4 +1,4 @@
-import { resolveAccessForRole } from "../accessService";
+import { accessRuleAllowsPermission, resolveAccessForRole } from "../accessService";
 import { isCommunityMemberOnline } from "../communityOnlineStatusService";
 
 describe("community access rule enforcement", () => {
@@ -42,6 +42,14 @@ describe("community access rule enforcement", () => {
 
     expect(result.canView).toBe(true);
     expect(result.canSend).toBe(false);
+  });
+
+  it("keeps reaction access independent from message-send access", () => {
+    const viewOnlyAccess = { restricted: true, canView: true, canSend: false };
+
+    expect(accessRuleAllowsPermission(viewOnlyAccess, "addReactions")).toBe(true);
+    expect(accessRuleAllowsPermission(viewOnlyAccess, "sendMessages")).toBe(false);
+    expect(accessRuleAllowsPermission({ ...viewOnlyAccess, canView: false }, "addReactions")).toBe(false);
   });
 
   it("treats recent last_seen as online even when is_online is false", () => {

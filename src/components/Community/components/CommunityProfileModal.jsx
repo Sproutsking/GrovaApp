@@ -207,7 +207,12 @@ const CommunityProfileModal = ({
     onClose?.();
   };
 
-  const currentRole = member?.role || memberships.find((item) => item.community?.id === community?.id)?.role;
+  const isCommunityOwner = user?.id === community?.owner_id;
+  const ownerRole = roles.find((role) => role.name?.trim().toLowerCase() === "owner");
+  const currentRole = isCommunityOwner
+    ? ownerRole || member?.role || memberships.find((item) => item.community?.id === community?.id)?.role
+    : member?.role || memberships.find((item) => item.community?.id === community?.id)?.role;
+  const canAssignRoles = canManageRoles && !isCommunityOwner;
   const communityNameColor = currentRole?.color || nameDesign.color?.color || "#fff";
   const uniqueRoleMap = new Map();
   const addUniqueRole = (role, fallbackLabel) => {
@@ -299,11 +304,11 @@ const CommunityProfileModal = ({
             <div><span className="membership-icon community">{communityIcon?.startsWith?.("http") ? <img src={communityIcon} alt="Community" /> : <strong>{String(community?.name || "Community").split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("")}</strong>}</span><span><small>Community member since</small><strong>{formatMemberDate(communityJoinedAt || member?.created_at || member?.joinedAt)}</strong></span></div>
           </div>
           <div className="community-profile-glow-divider" aria-hidden="true" />
-          <div className="community-profile-role-head"><span>Roles in {community?.name || "this community"}</span>{canManageRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
+          <div className="community-profile-role-head"><span>Roles in {community?.name || "this community"}</span>{canAssignRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
           <div className="community-profile-roles">
             {dedupedRoleBadges.length ? dedupedRoleBadges.map((role, index) => (
               <span className="community-profile-role" key={`${role.id}-${index}`} style={{ "--role-color": role.color || "#9cff00" }}>
-                <span className="community-profile-role-icon">{role.icon || "♟"}</span>{role.name}
+                <span className="community-profile-role-icon">{role.name?.trim().toLowerCase() === "owner" ? <Crown size={12} /> : role.icon || "♟"}</span>{role.name}
                 {role.communityName && <small>{role.communityName}</small>}
               </span>
             )) : <span className="community-profile-empty"><Shield size={13} /> No roles assigned</span>}
@@ -313,7 +318,7 @@ const CommunityProfileModal = ({
             <button type="button" onClick={() => setRelationshipPopup("follows")}><UserCheck size={13} /><span>Mutual follow</span><b>{mutualFollow ? 1 : 0}</b></button>
             <button type="button" onClick={() => setRelationshipPopup("communities")}><Users size={13} /><span>Mutual communities</span><b>{mutualCommunities.length}</b></button>
           </div>
-          {showRolePicker && canManageRoles && member && (
+          {showRolePicker && canAssignRoles && member && (
             <div className="community-profile-assign">
               <span>Assign a community role</span>
               <div className="community-role-picker">

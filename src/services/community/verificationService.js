@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase";
+import { METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "../../components/Community/verification/verificationConfig";
 
 function normalizeVerificationData(invoice) {
   const result = invoice || { configured: false };
@@ -9,20 +10,66 @@ const verificationService = {
   async getPanel(communityId) {
     try {
       const { data, error } = await supabase.rpc("get_verification_panel", { p_community_id: communityId });
-      if (error) {
-        if (error.message && /does not exist|function/i.test(error.message)) {
-          const { data: toolRow, error: rowError } = await supabase
-            .from("community_tool_settings")
-            .select("config")
+      if (error) throw error;
+      if (!data?.configured) return { configured: false };
+
+      const config = {
+        ...normalizeVerificationConfig(data.config),
+        _pictureChallengeReady: Boolean(data.picture_challenge_ready),
+      };
+      const roleIds = [...new Set([
+        ...(config.roleGrant.enabled ? config.roleGrant.roleIds : []),
+        ...METHOD_ORDER.map((method) => config.methods[method]?.roleId).filter(Boolean),
+      ])];
+      let roles = [];
+      if (roleIds.length) {
+        const [rolesResult, defaultRoleResult] = await Promise.all([
+          supabase
+          .from("community_roles")
+          .select("id,name,color,icon,position,is_default,permissions")
+          .eq("community_id", communityId)
+          .in("id", roleIds),
+          supabase
+            .from("community_roles")
+            .select("id,name,color,icon,position,is_default,permissions")
             .eq("community_id", communityId)
-            .eq("tool_type", "verification")
-            .maybeSingle();
-          if (rowError) throw rowError;
-          return normalizeVerificationData(toolRow?.config || { configured: false });
-        }
-        throw error;
+            .eq("is_default", true)
+            .limit(1),
+        ]);
+        if (rolesResult.error) throw rolesResult.error;
+        if (defaultRoleResult.error) throw defaultRoleResult.error;
+        roles = [
+          ...(rolesResult.data || []),
+          ...(defaultRoleResult.data || []).filter((role) => !(rolesResult.data || []).some((chosen) => chosen.id === role.id)),
+        ];
+      } else {
+        const { data: defaultRoles, error: defaultRoleError } = await supabase
+          .from("community_roles")
+          .select("id,name,color,icon,position,is_default,permissions")
+          .eq("community_id", communityId)
+          .eq("is_default", true)
+          .limit(1);
+        if (defaultRoleError) throw defaultRoleError;
+        roles = defaultRoles || [];
       }
-      return normalizeVerificationData(data || { configured: false });
+      const roleMap = new Map(roles.map((role) => [role.id, role]));
+      const panel = toPublicPanel(config, roleMap, { targetLabel: data.picture_target_label || "" });
+      const completions = Array.isArray(data.completions) ? data.completions : [];
+      return normalizeVerificationData({
+        ...panel,
+        configured: Boolean(data.configured),
+        state: {
+          completed: completions
+            .filter((item) => item.status === "completed" || item.status === "rules_accepted")
+            .map((item) => item.method),
+          pending: completions
+            .filter((item) => item.status === "role_selection_pending")
+            .map((item) => item.method),
+          rulesAccepted: completions.some((item) =>
+            item.method === "rules" && ["rules_accepted", "completed"].includes(item.status),
+          ),
+        },
+      });
     } catch (error) {
       console.error("Verification panel load failed:", error);
       throw error;
@@ -36,6 +83,7 @@ const verificationService = {
         p_method: method,
         p_answer: payload?.answer ?? null,
         p_accepted: Boolean(payload?.accepted),
+        p_role_id: payload?.roleId ?? null,
       });
       if (error) throw error;
       return data || { success: false, error: "Verification failed." };

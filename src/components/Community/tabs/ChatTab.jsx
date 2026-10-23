@@ -18,6 +18,7 @@ import uploadService from "../../../services/upload/uploadService";
 import { validateMessageAttachments } from "../../../services/messages/attachmentPolicy";
 import ChannelButton from "../utils/channelStyles";
 import CategoryGroup from "../utils/CategoryGroup";
+import { groupVisibleChannels } from "../utils/groupVisibleChannels";
 import channelService from "../../../services/community/channelService";
 import communityMessageService from "../../../services/community/communityMessageService";
 import communityState from "../../../services/community/CommunityStateManager";
@@ -33,6 +34,7 @@ import CommunityProfileModal from "../components/CommunityProfileModal";
 import ForwardMessageModal from "../components/ForwardMessageModal";
 import TicketToolPanel from "../tools/TicketToolPanel";
 import VerificationPanel from "../verification/VerificationPanel";
+import verificationService from "../../../services/community/verificationService";
 import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
 import { supabase } from "../../../services/config/supabase";
 import { useUserBoostTier } from "../../../hooks/useUserBoostTier";
@@ -52,6 +54,7 @@ const ChatTab = ({
   onNavigate,
 }) => {
   const [channels, setChannels] = useState([]);
+  const [verificationRouting, setVerificationRouting] = useState(null);
   const [channelUnreadCounts, setChannelUnreadCounts] = useState({});
   const [channelsReady, setChannelsReady] = useState(false);
   const [channelsRefreshing, setChannelsRefreshing] = useState(false);
@@ -232,8 +235,9 @@ const ChatTab = ({
       loadPermissions();
       loadRoles();
       loadMembers();
+      loadVerificationRouting();
     }
-  }, [community?.id]);
+  }, [community?.id, userId]);
 
   useEffect(() => {
     let active = true;
@@ -317,6 +321,20 @@ const ChatTab = ({
     } finally {
       setChannelsRefreshing(false);
     }
+  };
+
+  const loadVerificationRouting = async () => {
+    try {
+      const panel = await verificationService.getPanel(community.id);
+      setVerificationRouting(panel.configured ? panel : null);
+    } catch (error) {
+      console.error("Error loading verification routing:", error);
+      setVerificationRouting(null);
+    }
+  };
+
+  const refreshAfterVerification = async () => {
+    await Promise.all([loadChannels(), loadMessages(), loadVerificationRouting()]);
   };
 
   const loadPermissions = async () => {
@@ -545,7 +563,7 @@ const ChatTab = ({
   const handleSendMessage = async (announcement = undefined, selectedFiles = []) => {
     const content = messageInput.trim();
     if ((!content && !selectedFiles?.length) || sending || !selectedChannel?.id) return;
-    if (selectedChannel?.is_locked) {
+    if (selectedChannel?.is_locked && !userPermissions.administrator && community?.owner_id !== userId) {
       alert("This channel is locked. You can only read messages here.");
       return;
     }
@@ -686,7 +704,8 @@ const ChatTab = ({
   const canManageRoles = userPermissions.manageRoles || hasAdminOverride || isOwner;
   const canManageCommunity = userPermissions.manageCommunity || hasAdminOverride || isOwner;
   const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
-  const canSendMessages = isOwner || (
+  const isChannelLocked = Boolean(selectedChannel?.is_locked && !hasAdminOverride && !isOwner);
+  const canSendMessages = isOwner || hasAdminOverride || (
     Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages")
       ? channelPermissions.sendMessages === true
       : userPermissions.sendMessages === true
@@ -702,24 +721,22 @@ const ChatTab = ({
       : userPermissions.addReactions === true
   );
 
+  const rulesChannelId = verificationRouting?.rulesGate?.rulesChannelId;
+  const verificationChannelId = verificationRouting?.rulesGate?.verificationChannelId;
+  const isVerificationChannel = Boolean(
+    selectedChannel
+    && (
+      selectedChannel.tool_type === "verification"
+      || (rulesChannelId && selectedChannel.id === rulesChannelId)
+      || (verificationChannelId && selectedChannel.id === verificationChannelId)
+    ),
+  );
   const showSkeleton = !channelsReady && channels.length === 0;
 
-  const groupedChannels = channels.reduce((groups, channel) => {
-    const category = channel.category || "Channels";
-    groups[category] = [...(groups[category] || []), channel];
-    return groups;
-  }, {});
-  const visibleCategoryNames = [...new Set([...categoryOrder, ...Object.keys(groupedChannels)])];
-  const orderedGroups = visibleCategoryNames
-    .map((category) => [category, groupedChannels[category] || []])
-    .sort(([a], [b]) => {
-      const ai = categoryOrder.indexOf(a);
-      const bi = categoryOrder.indexOf(b);
-      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b);
-    });
+  const orderedGroups = groupVisibleChannels(channels, categoryOrder);
   const reorderCategory = async (target) => {
     if (!draggedCategory || draggedCategory === target || !isOwner) return;
-    const next = [...(categoryOrder.length ? categoryOrder : Object.keys(groupedChannels))];
+    const next = [...(categoryOrder.length ? categoryOrder : orderedGroups.map(([name]) => name))];
     const from = next.indexOf(draggedCategory);
     const to = next.indexOf(target);
     if (from < 0 || to < 0) return;
@@ -938,7 +955,7 @@ const ChatTab = ({
         )}
 
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={communityBackgroundStyle}>
-          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
+          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : isVerificationChannel ? <VerificationPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onVerified={refreshAfterVerification} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
@@ -984,6 +1001,8 @@ const ChatTab = ({
               communityId={community.id}
               community={community}
               communityMembers={members}
+              communityRoles={roles}
+              communityChannels={channels}
               onWelcomeProfileClick={(member) => member?.id && setCommunityProfileTarget(member)}
               onWelcomeIntroduce={openWelcomeIntroduction}
               onWelcomeBrowse={startWelcomeBrowse}
@@ -1042,9 +1061,9 @@ const ChatTab = ({
             value={messageInput}
             onChange={setMessageInput}
             onSend={handleSendMessage}
-            disabled={sending || selectedChannel?.is_locked || !canSendMessages}
+            disabled={sending || isChannelLocked || !canSendMessages}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
-            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages ? "Your role cannot send messages in this channel" : undefined}
+            title={isChannelLocked ? "This channel is locked - read only" : !canSendMessages ? "Your role cannot send messages in this channel" : undefined}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}
@@ -1181,7 +1200,9 @@ const ChatTab = ({
             </div>
             <p>Members with this role</p>
             <div className="mentioned-role-list">
-              {members.filter((member) => member.role_id === mentionedRole.id || member.role?.name?.toLowerCase() === mentionedRole.name?.toLowerCase()).map((member) => (
+              {members.filter((member) => member.roles?.some((role) => role.id === mentionedRole.id)
+                || member.role_id === mentionedRole.id
+                || member.role?.name?.toLowerCase() === mentionedRole.name?.toLowerCase()).map((member) => (
                 <button key={member.id} onClick={() => { setCommunityProfileTarget(member.user); setMentionedRole(null); }}>
                   <span>{member.user?.full_name?.charAt(0)?.toUpperCase() || "?"}</span><b>{member.user?.full_name || member.user?.username || "Unknown"}</b><small>@{member.user?.username || "user"}</small>
                 </button>

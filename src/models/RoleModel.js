@@ -82,7 +82,7 @@ class RoleModel {
   hasPermission(permission) {
     // Administrators have all permissions
     if (this.permissions?.administrator === true) {
-      return permission !== "administrator";
+      return true;
     }
     return this.permissions?.[permission] === true;
   }
@@ -91,14 +91,8 @@ class RoleModel {
    * Get role hierarchy level (lower = more powerful)
    */
   getHierarchyLevel() {
-    const hierarchy = {
-      Owner: 0,
-      Admin: 1,
-      Moderator: 2,
-      Member: 3,
-      Guest: 4,
-    };
-    return hierarchy[this.name] ?? this.position ?? 99;
+    if (this.isOwner()) return -1;
+    return Number.isFinite(Number(this.position)) ? Number(this.position) : 99;
   }
 
   /**
@@ -107,6 +101,8 @@ class RoleModel {
    */
   canManageRole(targetRole) {
     if (!(targetRole instanceof RoleModel)) return false;
+    if (this.isOwner()) return !targetRole.isOwner();
+    if (targetRole.isOwner()) return false;
 
     // Administrator can manage any role except other administrators
     if (this.hasPermission("administrator")) {
@@ -121,7 +117,7 @@ class RoleModel {
    * Check if this is an owner role
    */
   isOwner() {
-    return this.name === "Owner";
+    return this.name.trim().toLowerCase() === "owner";
   }
 
   /**

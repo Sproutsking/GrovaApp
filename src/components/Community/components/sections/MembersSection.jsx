@@ -60,7 +60,16 @@ const MembersSection = ({ community, userId }) => {
         .order("position", { ascending: true });
 
       if (rolesError) throw rolesError;
-      setRoles(rolesData || []);
+      const normalizedRoles = (rolesData || []).map((role) =>
+        role.name?.trim().toLowerCase() === "owner"
+          ? { ...role, name: "Owner" }
+          : role,
+      ).sort((left, right) =>
+        Number(String(right.name || "").trim().toLowerCase() === "owner")
+        - Number(String(left.name || "").trim().toLowerCase() === "owner")
+        || (left.position ?? 99) - (right.position ?? 99),
+      );
+      setRoles(normalizedRoles);
 
       // Load members with user data and role
       const { data: membersData, error: membersError } = await supabase
@@ -90,11 +99,37 @@ const MembersSection = ({ community, userId }) => {
         .order("joined_at", { ascending: false });
 
       if (membersError) throw membersError;
-      setMembers(membersData || []);
+      const ownerRole = normalizedRoles.find(
+        (role) => role.name?.trim().toLowerCase() === "owner",
+      );
+      const { data: assignmentRows, error: assignmentError } = await supabase
+        .from("community_member_roles")
+        .select("user_id,role:community_roles!role_id(id,name,color,icon,position,is_default)")
+        .eq("community_id", community.id);
+      if (assignmentError) throw assignmentError;
+      const assignmentsByUser = new Map();
+      (assignmentRows || []).forEach((assignment) => {
+        if (!assignment.role) return;
+        assignmentsByUser.set(assignment.user_id, [...(assignmentsByUser.get(assignment.user_id) || []), assignment.role]);
+      });
+      const normalizedMembers = (membersData || []).map((member) => {
+        const memberRoles = (assignmentsByUser.get(member.user_id) || [member.role].filter(Boolean))
+          .sort((left, right) =>
+            Number(String(right.name || "").trim().toLowerCase() === "owner")
+            - Number(String(left.name || "").trim().toLowerCase() === "owner")
+            || (left.position ?? 99) - (right.position ?? 99),
+          );
+        if (member.user_id === community.owner_id && ownerRole && !memberRoles.some((role) => role.id === ownerRole.id)) {
+          memberRoles.unshift(ownerRole);
+        }
+        const role = member.user_id === community.owner_id && ownerRole ? ownerRole : memberRoles[0] || member.role;
+        return { ...member, role_id: role?.id || null, role, roles: memberRoles };
+      });
+      setMembers(normalizedMembers);
 
       // Fetch online statuses for all members
-      if (membersData && membersData.length > 0) {
-        const memberIds = membersData.map((m) => m.user_id);
+      if (normalizedMembers.length > 0) {
+        const memberIds = normalizedMembers.map((m) => m.user_id);
         const statuses =
           await communityOnlineStatusService.fetchMemberStatuses(memberIds);
         setOnlineStatuses(statuses);
@@ -112,7 +147,7 @@ const MembersSection = ({ community, userId }) => {
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       member.user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === "all" || member.role_id === filterRole;
+    const matchesRole = filterRole === "all" || member.roles?.some((role) => role.id === filterRole) || member.role_id === filterRole;
     return matchesSearch && matchesRole;
   });
 
@@ -120,7 +155,9 @@ const MembersSection = ({ community, userId }) => {
     const key = role.name?.trim().toLowerCase() || role.id;
     const existing = groups.find((group) => group.key === key);
     const roleMembers = filteredMembers.filter((member) =>
-      member.role_id === role.id || member.role?.name?.trim().toLowerCase() === key
+      member.roles?.some((assignedRole) => assignedRole.id === role.id)
+      || member.role_id === role.id
+      || member.role?.name?.trim().toLowerCase() === key
     );
     if (existing) {
       existing.members.push(...roleMembers.filter((member) => !existing.members.some((item) => item.id === member.id)));
@@ -236,7 +273,9 @@ const MembersSection = ({ community, userId }) => {
                     />
                     <span>{role.name}</span>
                     <span className="option-count">
-                      {members.filter((m) => m.role_id === role.id || m.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()).length}
+                      {members.filter((m) => m.roles?.some((assignedRole) => assignedRole.id === role.id)
+                        || m.role_id === role.id
+                        || m.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()).length}
                     </span>
                   </button>
                 ))}
@@ -262,7 +301,9 @@ const MembersSection = ({ community, userId }) => {
           groupedMembers.map(({ role, members: roleMembers }) => (
             <div key={role.id} className="role-group">
               <div className="role-group-header" style={{ color: role.color }}>
-                <span className="role-group-icon">{role.icon || "♟"}</span>
+                <span className="role-group-icon">
+                  {role.name?.trim().toLowerCase() === "owner" ? <Crown size={15} /> : role.icon || "♟"}
+                </span>
                 <span>{role.name}</span>
                 <div
                   className="role-member-count"
@@ -371,7 +412,7 @@ const MembersSection = ({ community, userId }) => {
           onlineStatus={onlineStatuses[selectedMember.user_id] || { online: false, lastSeenText: "Offline" }}
           community={community}
           roles={roles}
-          canManageRoles={community.owner_id === userId}
+          canManageRoles={community.owner_id === userId && selectedMember.user_id !== community.owner_id}
           currentUserId={userId}
           onAssignRole={async (memberId, roleId) => {
             await roleService.updateMemberRole(memberId, roleId);

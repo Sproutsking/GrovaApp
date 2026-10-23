@@ -110,13 +110,6 @@ class CommunityMessageService {
       communityState.addMessage(channelId, optimisticMessage);
       this.pendingMessages.set(tempId, optimisticMessage);
 
-      const channel = supabase.channel(`channel:${channelId}`);
-      await channel.send({
-        type: "broadcast",
-        event: "new_message",
-        payload: optimisticMessage
-      });
-
       return await this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id, options.attachments || []);
     } catch (error) {
       console.error("❌ Error sending message:", error);
@@ -175,21 +168,6 @@ class CommunityMessageService {
 
     const channel = supabase
       .channel(channelKey)
-      .on("broadcast", { event: "new_message" }, (payload) => {
-        if (this.pendingMessages.has(payload.payload.tempId) ||
-            this.pendingMessages.has(payload.payload._tempId)) {
-          return;
-        }
-        if (payload.payload.user) {
-          communityState.addMessage(channelId, payload.payload);
-          callback(payload.payload);
-        } else {
-          this.fetchUserForMessage(payload.payload).then(enrichedMsg => {
-            communityState.addMessage(channelId, enrichedMsg);
-            callback(enrichedMsg);
-          });
-        }
-      })
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
@@ -340,24 +318,12 @@ class CommunityMessageService {
 
   async addReaction(messageId, userId, emoji) {
     try {
-      const { data: msg } = await supabase
-        .from("community_messages")
-        .select("reactions")
-        .eq("id", messageId)
-        .single();
-
-      const reactions = msg?.reactions || {};
-      if (!reactions[emoji]) reactions[emoji] = { count: 0, users: [] };
-      if (!reactions[emoji].users.includes(userId)) {
-        reactions[emoji].count++;
-        reactions[emoji].users.push(userId);
-      }
-
-      const { error } = await supabase
-        .from("community_messages")
-        .update({ reactions })
-        .eq("id", messageId);
-
+      const { data: reactions, error } = await supabase.rpc("update_community_message_reaction", {
+        p_message_id: messageId,
+        p_user_id: userId,
+        p_emoji: emoji,
+        p_action: "add",
+      });
       if (error) throw error;
       return reactions;
     } catch (error) {
@@ -368,24 +334,12 @@ class CommunityMessageService {
 
   async removeReaction(messageId, userId, emoji) {
     try {
-      const { data: msg } = await supabase
-        .from("community_messages")
-        .select("reactions")
-        .eq("id", messageId)
-        .single();
-
-      const reactions = msg?.reactions || {};
-      if (reactions[emoji] && reactions[emoji].users.includes(userId)) {
-        reactions[emoji].count--;
-        reactions[emoji].users = reactions[emoji].users.filter(id => id !== userId);
-        if (reactions[emoji].count === 0) delete reactions[emoji];
-      }
-
-      const { error } = await supabase
-        .from("community_messages")
-        .update({ reactions })
-        .eq("id", messageId);
-
+      const { data: reactions, error } = await supabase.rpc("update_community_message_reaction", {
+        p_message_id: messageId,
+        p_user_id: userId,
+        p_emoji: emoji,
+        p_action: "remove",
+      });
       if (error) throw error;
       return reactions;
     } catch (error) {

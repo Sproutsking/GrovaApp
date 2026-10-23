@@ -22,7 +22,7 @@ class PermissionService {
         .select(
           `
           *,
-          member_count:community_members(count)
+          member_count:community_member_roles(count)
         `,
         )
         .eq("community_id", communityId)
@@ -33,7 +33,11 @@ class PermissionService {
       return (data || []).map((role) => ({
         ...role,
         member_count: role.member_count?.[0]?.count || 0,
-      }));
+      })).sort((left, right) =>
+        Number(String(right.name || "").trim().toLowerCase() === "owner")
+        - Number(String(left.name || "").trim().toLowerCase() === "owner")
+        || (left.position ?? 99) - (right.position ?? 99),
+      );
     } catch (error) {
       console.error("Error fetching roles:", error);
       throw error;
@@ -59,16 +63,35 @@ class PermissionService {
 
       if (error) throw error;
 
-      // Transform avatars
-      return (data || []).map((member) => ({
-        ...member,
-        user: member.user
-          ? {
-              ...member.user,
-              avatar: getAvatarUrl(member.user.avatar_id),
-            }
-          : null,
-      }));
+      const { data: assignments, error: assignmentError } = await supabase
+        .from("community_member_roles")
+        .select("user_id,role:community_roles!role_id(id,name,color,icon,position,permissions,is_default)")
+        .eq("community_id", communityId);
+      if (assignmentError) throw assignmentError;
+      const roleByUser = new Map();
+      (assignments || []).forEach((assignment) => {
+        if (!assignment.role) return;
+        roleByUser.set(assignment.user_id, [...(roleByUser.get(assignment.user_id) || []), assignment.role]);
+      });
+
+      return (data || []).map((member) => {
+        const roles = (roleByUser.get(member.user_id) || [member.role].filter(Boolean))
+          .sort((left, right) =>
+            Number(String(right.name || "").trim().toLowerCase() === "owner")
+            - Number(String(left.name || "").trim().toLowerCase() === "owner")
+            || (left.position ?? 99) - (right.position ?? 99),
+          );
+        const role = roles[0] || member.role;
+        return {
+          ...member,
+          role_id: role?.id || null,
+          role,
+          roles,
+          user: member.user
+            ? { ...member.user, avatar: getAvatarUrl(member.user.avatar_id) }
+            : null,
+        };
+      });
     } catch (error) {
       console.error("Error fetching members:", error);
       throw error;
@@ -247,11 +270,18 @@ class PermissionService {
         );
       }
 
-      const { error } = await supabase
+      const { data: membership, error: memberError } = await supabase
         .from("community_members")
-        .update({ role_id: newRoleId })
-        .eq("id", memberId);
-
+        .select("community_id,user_id")
+        .eq("id", memberId)
+        .single();
+      if (memberError) throw memberError;
+      if (!membership || membership.community_id !== communityId) throw new Error("Member not found");
+      const { error } = await supabase.rpc("assign_community_member_role", {
+        p_community_id: communityId,
+        p_user_id: membership.user_id,
+        p_role_id: newRoleId,
+      });
       if (error) throw error;
       return true;
     } catch (error) {
@@ -266,14 +296,19 @@ class PermissionService {
   async getUserRole(communityId, userId) {
     try {
       const { data, error } = await supabase
-        .from("community_members")
+        .from("community_member_roles")
         .select(`role:community_roles!role_id(*)`)
         .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .single();
+        .eq("user_id", userId);
 
-      if (error) return null;
-      return data?.role || null;
+      if (error) throw error;
+      const roles = (data || []).map((row) => row.role).filter(Boolean);
+      roles.sort((left, right) =>
+        Number(String(right.name || "").trim().toLowerCase() === "owner")
+        - Number(String(left.name || "").trim().toLowerCase() === "owner")
+        || (left.position ?? 99) - (right.position ?? 99),
+      );
+      return roles[0] || null;
     } catch (error) {
       console.error("Error getting user role:", error);
       return null;

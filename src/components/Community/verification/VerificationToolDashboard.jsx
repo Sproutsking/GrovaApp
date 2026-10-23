@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Check, Upload, X } from "lucide-react";
-import { DEFAULT_VERIFICATION_CONFIG, normalizeVerificationConfig } from "./verificationConfig";
+import { challengeIsReady, DANGEROUS_PERMS, DEFAULT_VERIFICATION_CONFIG, normalizeVerificationConfig } from "./verificationConfig";
 import VerificationModeDashboard from "./VerificationModeDashboard";
 import PictureVerificationDashboard from "./PictureVerificationDashboard";
 import RulesVerificationDashboard from "./RulesVerificationDashboard";
@@ -32,11 +32,20 @@ const resizeImage = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-function RoleGrantPage({ config, disabled, saving, error, onPatch, onSave }) {
+function RoleGrantPage({ config, roles, disabled, saving, error, onPatch, onSave }) {
+  const defaultRole = roles.find((role) => role.is_default);
+  const safeRoles = roles.filter((role) =>
+    !role.is_default
+    && role.name?.trim().toLowerCase() !== "owner"
+    && !DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true),
+  );
+  const selectableRoles = safeRoles.filter((role) => !defaultRole || Number(role.position) < Number(defaultRole.position));
+  const selectedRoleIds = config.roleGrant?.roleIds || [];
   return (
     <div className="verification-role-dashboard">
       <section>
-        <h3>Role grant</h3>
+        <h3>Roles members can unlock</h3>
+        <p>Choose safe, existing roles. If you select more than one, members choose one after passing verification. The highest-ranked role they hold determines their access.</p>
         <label className="verification-check">
           <input
             type="checkbox"
@@ -44,43 +53,39 @@ function RoleGrantPage({ config, disabled, saving, error, onPatch, onSave }) {
             disabled={disabled}
             onChange={(event) => onPatch({ roleGrant: { ...config.roleGrant, enabled: event.target.checked } })}
           />
-          Grant a role after successful verification
+          Enable verified role selection
         </label>
-        <label>
-          Role name
-          <input
-            value={config.roleGrant?.roleName || "Verified"}
-            disabled={disabled || !config.roleGrant?.enabled}
-            onChange={(event) => onPatch({ roleGrant: { ...config.roleGrant, roleName: event.target.value } })}
-          />
-        </label>
-        <label>
-          Role ID or reference
-          <input
-            value={config.roleGrant?.roleId || ""}
-            disabled={disabled || !config.roleGrant?.enabled}
-            onChange={(event) => onPatch({ roleGrant: { ...config.roleGrant, roleId: event.target.value } })}
-            placeholder="Optional role reference"
-          />
-        </label>
-        <label>
-          Access scope
-          <textarea
-            value={(config.roleGrant?.channelAccess || []).join(", ")}
-            disabled={disabled || !config.roleGrant?.enabled}
-            onChange={(event) => onPatch({ roleGrant: { ...config.roleGrant, channelAccess: event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean) } })}
-            placeholder="channel ids or access labels"
-          />
-        </label>
+        <div className="verification-role-options">
+          {selectableRoles.map((role) => (
+            <label key={role.id} className="verification-role-option">
+              <input
+                type="checkbox"
+                checked={selectedRoleIds.includes(role.id)}
+                disabled={disabled || !config.roleGrant?.enabled}
+                onChange={(event) => {
+                  const roleIds = event.target.checked
+                    ? [...selectedRoleIds, role.id]
+                    : selectedRoleIds.filter((id) => id !== role.id);
+                  onPatch({ roleGrant: { ...config.roleGrant, roleIds } });
+                }}
+              />
+              <span className="verification-role-dot" style={{ background: role.color || "#84cc16" }}>{role.icon || "♟"}</span>
+              <span><strong>{role.name}</strong><small>Rank {role.position + 1} · permissions and channel access are managed in Roles</small></span>
+            </label>
+          ))}
+          {!selectableRoles.length && <p>{safeRoles.length
+            ? "Move a safe role above the default member role in Roles to make it selectable."
+            : "No safe roles are available yet. Create a non-default role without management permissions first."}</p>}
+        </div>
       </section>
       <button type="button" className="verification-dashboard-save" disabled={disabled || saving} onClick={onSave}>{saving ? "Saving..." : "Save role grant"}</button>
       {error && <p className="verification-dashboard-error">{error}</p>}
-      <style>{`.verification-role-dashboard{display:flex;flex-direction:column;gap:12px}.verification-role-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-role-dashboard h3{margin:0;font-size:13px;color:var(--text)}.verification-role-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:11px}.verification-role-dashboard input,.verification-role-dashboard textarea{width:100%;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.verification-role-dashboard textarea{min-height:68px;resize:vertical}.verification-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px}.verification-check input{width:auto}.verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}.verification-dashboard-error{margin:0;color:var(--danger);font-size:11px}.`}</style>
+      <style>{`.verification-role-dashboard{display:flex;flex-direction:column;gap:12px}.verification-role-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-role-dashboard h3{margin:0;font-size:13px;color:var(--text)}.verification-role-dashboard p{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.verification-role-options{display:grid;gap:6px}.verification-role-option{display:flex!important;flex-direction:row!important;align-items:center;gap:9px;padding:9px;border:1px solid var(--surface-border);border-radius:9px;background:var(--surface);cursor:pointer}.verification-role-option input,.verification-check input{width:auto;accent-color:var(--accent)}.verification-role-option>span:last-child{display:flex;flex-direction:column;gap:3px}.verification-role-option strong{color:var(--text);font-size:11px}.verification-role-option small{color:var(--text-secondary);font-size:9px}.verification-role-dot{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;color:#111;font-size:13px}.verification-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px;color:var(--text-secondary);font-size:11px}.verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}.verification-dashboard-error{margin:0;color:var(--danger);font-size:11px}.`}</style>
     </div>
   );
 }
 
-export default function VerificationToolDashboard({ value, onSave, disabled = false, focusMode = null, channels = [], onModeSelect }) {
+export default function VerificationToolDashboard({ value, onSave, disabled = false, focusMode = null, channels = [], roles = [], onModeSelect }) {
   const initial = normalizeVerificationConfig(value || DEFAULT_VERIFICATION_CONFIG);
   const [config, setConfig] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -112,13 +117,18 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
     return <PictureVerificationDashboard value={config} disabled={disabled} onSave={(next) => handleSave({ ...config, ...next })} />;
   }
   if (focusMode === "rules_gate") {
-    return <RulesVerificationDashboard value={config.rules} channels={channels} disabled={disabled} onSave={async (rulesConfig) => {
-      const next = { ...config, rules: { ...config.rules, ...rulesConfig }, rulesEnabled: Boolean(rulesConfig.enabled) };
+    return <RulesVerificationDashboard value={config.rulesGate} rulesMethod={config.methods.rules} methods={config.methods} pictureReady={challengeIsReady(config)} channels={channels} disabled={disabled} onSave={async ({ rulesMethod, ...rulesGate }) => {
+      const next = {
+        ...config,
+        rulesGate,
+        rulesEnabled: Boolean(rulesGate.enabled),
+        methods: { ...config.methods, rules: rulesMethod },
+      };
       await handleSave(next);
     }} />;
   }
   if (focusMode === "role_grant") {
-    return <RoleGrantPage config={config} disabled={disabled} saving={saving} error={error} onPatch={patch} onSave={() => handleSave({ ...config, roleGrant: { ...config.roleGrant, enabled: Boolean(config.roleGrant?.enabled) } })} />;
+    return <RoleGrantPage config={config} roles={roles} disabled={disabled} saving={saving} error={error} onPatch={patch} onSave={() => handleSave(config)} />;
   }
 
   const modes = [

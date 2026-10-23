@@ -2,6 +2,12 @@ import { supabase } from "../config/supabase";
 
 export const targetKey = (type, id) => `${type}:${id}`;
 
+export function accessRuleAllowsPermission(access, permission) {
+  if (!access?.restricted) return true;
+  if (!access.canView) return false;
+  return !["sendMessages", "attachFiles", "mentionEveryone"].includes(permission) || access.canSend;
+}
+
 export function resolveAccessForRole({ roleId, channel, categoryId, rules = [], defaultOpen = true }) {
   const normalizedRules = Array.isArray(rules) ? rules : [];
   const channelId = channel?.id ?? channel?.channel_id ?? null;
@@ -110,5 +116,6 @@ export default {
   openTarget,
   notifyAccessChanged,
   targetKey,
+  accessRuleAllowsPermission,
   resolveAccessForRole,
 };

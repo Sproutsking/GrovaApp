@@ -1,7 +1,7 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
-import { resolveAccessForRole } from "./accessService";
+import { accessRuleAllowsPermission, resolveAccessForRole } from "./accessService";
 
 function getAvatarUrl(avatarId) {
   if (!avatarId || typeof avatarId !== "string") {
@@ -28,7 +28,7 @@ class RoleService {
         .select(
           `
           *,
-          member_count:community_members(count)
+          member_count:community_member_roles(count)
         `,
         )
         .eq("community_id", communityId)
@@ -39,7 +39,11 @@ class RoleService {
       return (data || []).map((role) => ({
         ...role,
         members: role.member_count?.[0]?.count || 0,
-      }));
+      })).sort((left, right) =>
+        Number(String(right.name || "").trim().toLowerCase() === "owner")
+        - Number(String(left.name || "").trim().toLowerCase() === "owner")
+        || (left.position ?? 99) - (right.position ?? 99),
+      );
     } catch (error) {
       console.error("Error fetching roles:", error);
       throw error;
@@ -156,7 +160,7 @@ class RoleService {
   async canViewChannel(communityId, userId, channelName) {
     try {
       const role = await this.getUserRole(communityId, userId);
-      if (!role) return true;
+      if (!role) return false;
 
       const roleModel = RoleModel.fromAPI(role);
 
@@ -164,14 +168,7 @@ class RoleService {
         return true;
       }
 
-      const { data: membership } = await supabase
-        .from("community_members")
-        .select("role_id")
-        .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (!membership?.role_id) return roleModel.hasPermission("viewChannels");
+      if (!role.id) return roleModel.hasPermission("viewChannels");
 
       const { data: allChannels } = await supabase
         .from("community_channels")
@@ -181,7 +178,7 @@ class RoleService {
       const targetChannel = (allChannels || []).find((channel) => channel.id === channelName || channel.name === channelName) || null;
       const rules = await this.getAccessRulesForCommunity(communityId);
       const access = resolveAccessForRole({
-        roleId: membership.role_id,
+        roleId: role.id,
         channel: targetChannel,
         categoryId: targetChannel?.category_id ?? targetChannel?.category ?? null,
         rules,
@@ -208,30 +205,42 @@ class RoleService {
       return data || [];
     } catch (error) {
       console.error("Error loading community access rules:", error);
-      return [];
+      throw error;
     }
   }
 
   async getVisibleChannels(communityId, userId, allChannels) {
     try {
       const role = await this.getUserRole(communityId, userId);
-      if (!role) return (allChannels || []).filter((channel) => !channel.is_private);
+      if (!role) return [];
 
       const roleModel = RoleModel.fromAPI(role);
       if (roleModel.hasPermission("administrator")) return allChannels || [];
 
-      const { data: membership } = await supabase
-        .from("community_members")
-        .select("role_id")
-        .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!membership?.role_id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
+      if (!role.id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
 
-      const rules = await this.getAccessRulesForCommunity(communityId);
+      const [rules, verificationResult] = await Promise.all([
+        this.getAccessRulesForCommunity(communityId),
+        supabase.rpc("get_verification_panel", { p_community_id: communityId }),
+      ]);
+      if (verificationResult.error) throw verificationResult.error;
+      const verificationConfig = verificationResult.data?.configured
+        ? verificationResult.data.config || {}
+        : {};
+      const rulesGate = verificationConfig.rulesGate || {};
+      const rulesAccepted = (verificationResult.data?.completions || []).some((completion) =>
+        completion.method === "rules" && ["rules_accepted", "completed"].includes(completion.status),
+      );
       return (allChannels || []).filter((channel) => {
+        if (rulesGate.enabled && channel.id === rulesGate.rulesChannelId) return true;
+        if (
+          rulesGate.enabled
+          && rulesGate.flow === "rules_then_verify"
+          && rulesAccepted
+          && channel.id === rulesGate.verificationChannelId
+        ) return true;
         const access = resolveAccessForRole({
-          roleId: membership.role_id,
+          roleId: role.id,
           channel,
           categoryId: channel.category_id ?? channel.category ?? null,
           rules,
@@ -241,7 +250,7 @@ class RoleService {
       });
     } catch (error) {
       console.error("Error getting visible channels:", error);
-      return (allChannels || []).filter((channel) => !channel.is_private);
+      return [];
     }
   }
 
@@ -252,54 +261,49 @@ class RoleService {
       if (!role) return false;
       const roleModel = RoleModel.fromAPI(role);
       if (roleModel.hasPermission("administrator")) return true;
-      const { data: membership } = await supabase
-        .from("community_members")
-        .select("role_id")
-        .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!membership?.role_id) return true;
+      if (!role.id) return true;
 
       const rules = await this.getAccessRulesForCommunity(communityId);
       const access = resolveAccessForRole({
-        roleId: membership.role_id,
+        roleId: role.id,
         channel,
         categoryId: channel.category_id ?? channel.category ?? null,
         rules,
         defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
       });
 
-      if (access.restricted && !access.canView) return false;
-      if (permission === "sendMessages" && access.restricted && !access.canSend) return false;
-      if (permission === "attachFiles" && access.restricted && !access.canSend) return false;
-      if (permission === "addReactions" && access.restricted && !access.canSend) return false;
-      if (permission === "mentionEveryone" && access.restricted && !access.canSend) return false;
+      if (!accessRuleAllowsPermission(access, permission)) return false;
 
-      const { data: channelOverride } = await supabase
+      const { data: channelOverride, error: channelOverrideError } = await supabase
         .from("channel_permission_overrides")
         .select("state")
         .eq("channel_id", channel.id)
-        .eq("role_id", membership.role_id)
+        .eq("role_id", role.id)
         .eq("permission", permission)
         .maybeSingle();
+      if (channelOverrideError) throw channelOverrideError;
       if (channelOverride?.state) return channelOverride.state === "allow";
 
-      if (channel.category) {
-        const { data: category } = await supabase
+      if (channel.category_id || channel.category) {
+        let categoryQuery = supabase
           .from("community_channel_categories")
           .select("id")
-          .eq("community_id", communityId)
-          .eq("name", channel.category)
-          .maybeSingle();
+          .eq("community_id", communityId);
+        categoryQuery = channel.category_id
+          ? categoryQuery.eq("id", channel.category_id)
+          : categoryQuery.eq("name", channel.category);
+        const { data: category, error: categoryError } = await categoryQuery.maybeSingle();
+        if (categoryError) throw categoryError;
         if (category?.id) {
-          const { data: categoryOverride } = await supabase
+          const { data: categoryOverride, error: categoryOverrideError } = await supabase
             .from("category_permission_overrides")
             .select("state")
             .eq("category_id", category.id)
-            .eq("role_id", membership.role_id)
+            .eq("role_id", role.id)
             .eq("permission", permission)
             .eq("apply_to_channels", true)
             .maybeSingle();
+          if (categoryOverrideError) throw categoryOverrideError;
           if (categoryOverride?.state) return categoryOverride.state === "allow";
         }
       }
@@ -356,12 +360,15 @@ class RoleService {
       throw new Error("You do not have permission to manage roles");
     }
     const orderedRoles = (roles || []).filter((role) => role.community_id === communityId);
-    const owner = orderedRoles.find((role) => role.name === "Owner");
+    const owner = orderedRoles.find((role) => String(role.name || "").trim().toLowerCase() === "owner");
     const actorRole = await this.getUserRole(communityId, actorUserId);
     if (owner && actorRole && !RoleModel.fromAPI(actorRole).isOwner() && !RoleModel.fromAPI(actorRole).canManageRole(RoleModel.fromAPI(owner))) {
       throw new Error("You cannot reorder the Owner role");
     }
-    const results = await Promise.all(orderedRoles.map((role, position) =>
+    const fixedOrder = owner
+      ? [owner, ...orderedRoles.filter((role) => role.id !== owner.id)]
+      : orderedRoles;
+    const results = await Promise.all(fixedOrder.map((role, position) =>
       supabase.from("community_roles").update({ position, updated_at: new Date().toISOString() }).eq("id", role.id).eq("community_id", communityId),
     ));
     const failed = results.find((result) => result.error);
@@ -422,16 +429,36 @@ class RoleService {
 
       if (error) throw error;
 
-      // Transform raw avatar_id → full public URL
-      return (data || []).map((member) => ({
-        ...member,
-        user: member.user
-          ? {
-              ...member.user,
-              avatar: getAvatarUrl(member.user.avatar_id),
-            }
-          : null,
-      }));
+      const members = data || [];
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from("community_member_roles")
+        .select("user_id, role:community_roles!role_id(id,name,color,icon,position,permissions,is_default)")
+        .eq("community_id", communityId);
+      if (assignmentsError) throw assignmentsError;
+      const byUser = new Map();
+      (assignments || []).forEach((assignment) => {
+        if (!assignment.role) return;
+        byUser.set(assignment.user_id, [...(byUser.get(assignment.user_id) || []), assignment.role]);
+      });
+
+      return members.map((member) => {
+        const assignedRoles = (byUser.get(member.user_id) || [member.role].filter(Boolean))
+          .sort((left, right) =>
+            Number(String(right.name || "").trim().toLowerCase() === "owner")
+            - Number(String(left.name || "").trim().toLowerCase() === "owner")
+            || (left.position ?? 99) - (right.position ?? 99),
+          );
+        const role = assignedRoles[0] || member.role;
+        return {
+          ...member,
+          role_id: role?.id || null,
+          role,
+          roles: assignedRoles,
+          user: member.user
+            ? { ...member.user, avatar: getAvatarUrl(member.user.avatar_id) }
+            : null,
+        };
+      });
     } catch (error) {
       console.error("Error fetching members:", error);
       throw error;
@@ -443,28 +470,31 @@ class RoleService {
    */
   async updateMemberRole(memberId, roleId, actorUserId) {
     try {
-      const { data: member } = await supabase
+      const { data: member, error: memberError } = await supabase
         .from("community_members")
         .select("community_id, user_id")
         .eq("id", memberId)
         .single();
+      if (memberError) throw memberError;
       if (!member) throw new Error("Member not found");
       if (actorUserId) {
         const allowed = await this.hasPermission(member.community_id, actorUserId, "assignRoles");
         if (!allowed) throw new Error("You do not have permission to assign roles");
         if (member.user_id === actorUserId) throw new Error("You cannot change your own role");
       }
-      const { data: targetRole } = await supabase
+      const { data: targetRole, error: targetRoleError } = await supabase
         .from("community_roles")
         .select("name")
         .eq("id", roleId)
+        .eq("community_id", member.community_id)
         .single();
+      if (targetRoleError) throw targetRoleError;
       if (targetRole?.name?.toLowerCase() === "owner") throw new Error("The Owner role cannot be assigned");
-      const { error } = await supabase
-        .from("community_members")
-        .update({ role_id: roleId })
-        .eq("id", memberId);
-
+      const { error } = await supabase.rpc("assign_community_member_role", {
+        p_community_id: member.community_id,
+        p_user_id: member.user_id,
+        p_role_id: roleId,
+      });
       if (error) throw error;
       return true;
     } catch (error) {
@@ -479,18 +509,19 @@ class RoleService {
   async getUserRole(communityId, userId) {
     try {
       const { data, error } = await supabase
-        .from("community_members")
-        .select(
-          `
-          role:community_roles!role_id(*)
-        `,
-        )
+        .from("community_member_roles")
+        .select("role:community_roles!role_id(*)")
         .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .single();
+        .eq("user_id", userId);
 
       if (error) throw error;
-      return data?.role ? RoleModel.fromAPI(data.role) : null;
+      const roles = (data || []).map((row) => row.role).filter(Boolean);
+      roles.sort((left, right) =>
+        Number(String(right.name || "").trim().toLowerCase() === "owner")
+        - Number(String(left.name || "").trim().toLowerCase() === "owner")
+        || (left.position ?? 99) - (right.position ?? 99),
+      );
+      return roles[0] ? RoleModel.fromAPI(roles[0]) : null;
     } catch (error) {
       console.error("Error getting user role:", error);
       return null;
