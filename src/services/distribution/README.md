@@ -13,6 +13,36 @@ A unified publishing engine that allows users to create content once and distrib
 
 ## 📦 System Architecture
 
+### Shared account-linking experience
+
+Account linking is opened through `useAccountLinking()` from the app-level
+`AccountLinkingProvider`. Identity management, Create's Manage accounts route,
+XRD sources, and community social-update tools use the same dialog.
+
+- Supabase OAuth provider IDs are explicit: X uses `x` (OAuth 2.0, not the
+  deprecated `twitter` OAuth 1.0a provider). GitLab, Bitbucket, Figma, Notion,
+  Twitch, and Spotify each use their matching Supabase provider IDs.
+- GitHub was already supported. These developer/design/workspace integrations
+  establish an OAuth connection; provider setup and allowed scopes still
+  determine whether any API data can be read. OAuth linking alone does not
+  implement project, design, workspace, or page synchronization.
+- Instagram is not a separate Supabase OAuth provider. It uses Meta's
+  `facebook` provider with Instagram/Page permissions, then the callback finds
+  and asks the user to select the actual Instagram Professional account linked
+  to a Facebook Page. Facebook linking similarly selects a managed Page.
+- Enable and configure each OAuth provider in Supabase Authentication >
+  Providers and configure its provider-side callback URL. App code cannot
+  enable dashboard providers or supply the provider client credentials.
+- OAuth runs in an isolated popup and returns through
+  `/auth-social-callback.html`; the current app view and session remain in place.
+- Add `/auth-social-callback.html` to the Supabase Auth redirect URL allowlist
+  for each deployment origin.
+- OAuth providers prove control of the account that authorized the app. The
+  requested scopes still determine whether the credential can publish.
+- Profile-only connectors accept HTTPS URLs only from their configured
+  platform hosts. These links are user-provided and are not proof of ownership;
+  never treat them as publishing credentials or verified identity evidence.
+
 ### Database Layer (`supabase/migrations/002_create_distribution_tables.sql`)
 
 ```
@@ -45,9 +75,9 @@ distribution_deep_links
 
 - `distributePost(postId, userId, selectedPlatforms)` - Main pipeline
   - Determines target platforms
-  - Creates distribution records
-  - Publishes to all platforms in parallel
-  - Handles retries and fallbacks
+  - Upserts per-platform distribution records
+  - Calls the authenticated Edge Function for each selected provider
+  - Reports provider errors and manual-share fallbacks
 
 - `getPublishTargets(userId, selectedPlatforms, overrideDefaults)` - Smart platform selection
   - Respects user preferences
@@ -55,9 +85,7 @@ distribution_deep_links
   - Supports one-time overrides
 
 - `publishToSinglePlatform(postId, userId, post, platform)` - Individual platform publishing
-  - Gets platform adapter
-  - Fetches encrypted token
-  - Executes publishing with 3-attempt retry logic
+  - Invokes `publish-social-post`; provider credentials remain server-side
   - Falls back to deep link on failure
 
 - `getDistributionStatus(postId)` - Status tracking
@@ -70,7 +98,10 @@ distribution_deep_links
 
 #### Platform Adapters (`src/services/distribution/adapters/`)
 
-Each social platform gets a dedicated adapter extending `BaseAdapter`:
+`BaseAdapter` implementations remain for platform deep links and older clients.
+The current distribution orchestration does not call their browser-side
+`publishPost()` implementations; provider API publishing is performed by
+`supabase/functions/publish-social-post`.
 
 **`BaseAdapter.js` - Common Patterns**
 - `publishPost()` - Platform API publishing (must implement)
@@ -196,6 +227,23 @@ Low-level database operations for distribution tables:
 
 ## 🔄 Publishing Flow
 
+### Current execution and provider limits
+
+The Create destination panel checks server-calculated connection readiness through
+`get_distribution_connection_states`; it does not need to fetch provider tokens
+to decide whether a destination can be selected. Publishing runs through the
+authenticated `publish-social-post` Edge Function so provider credentials and
+provider API calls stay on the server. Apply
+`supabase/migrations/091_distribution_publish_support.sql` and deploy the
+function before using this flow.
+
+The publisher currently supports text-only posts on X and LinkedIn, text or a
+single image on Facebook Pages, and one image on an Instagram Professional
+account. It intentionally rejects unsupported media formats rather than
+silently omitting media. Facebook and Instagram require exactly one authorized
+publishing target; ambiguous account/page selection is reported as an error.
+Provider scopes, approvals, and deployment configuration are still required.
+
 ```
 1. User creates content in CreateView
    ↓
@@ -210,12 +258,11 @@ Low-level database operations for distribution tables:
 6. Distribution pipeline starts (parallel, non-blocking):
    For each selected platform:
    ├─ Check connection & permissions
-   ├─ Get encrypted token
-   ├─ Call platform API
-   ├─ Retry up to 3 times with exponential backoff
-   └─ If all retries fail:
-      ├─ Generate deep link fallback
-      └─ Notify user with recovery option
+   ├─ Edge Function verifies the signed-in owner and active connection
+   ├─ Edge Function reads the credential and calls the provider API
+   └─ If publishing fails:
+      ├─ Record the error and generate a manual-share link when available
+      └─ Notify the user and allow a retry from distribution status
    ↓
 7. DistributionStatus dashboard shows results
    ↓
@@ -225,13 +272,11 @@ Low-level database operations for distribution tables:
 ## 🛡️ Failure Handling
 
 ### Retry Strategy
-- **Automatic retries:** 3 attempts per platform
-- **Backoff:** Exponential (1s, 2s, 4s)
-- **Triggers:** Network errors, server errors (5xx)
-- **Skips:** Authentication errors (401/403)
+- **Manual retry:** Users can retry failed destinations from distribution status.
+- **Automatic provider retries:** Not currently enabled; transient provider failures require a manual retry.
 
 ### Fallback Deep Links
-When API publishing fails after retries:
+When API publishing fails:
 1. Generate platform-specific deep link
 2. Store in `distribution_deep_links` table
 3. User can manually complete posting

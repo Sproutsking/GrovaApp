@@ -65,11 +65,13 @@ import { ToastProvider }           from "./contexts/ToastContext";
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import LinkIdentityCallback      from "./components/Auth/LinkIdentityCallback";
+import { AccountLinkingProvider } from "./contexts/AccountLinkingContext";
 
 // Shared UI
 import DesktopHeader from "./components/Shared/DesktopHeader";
 import MobileHeader from "./components/Shared/MobileHeader";
 import MobileBottomNav from "./components/Shared/MobileBottomNav";
+import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
 import Sidebar from "./components/Shared/Sidebar";
 import AdminSidebar from "./components/Shared/AdminSidebar";
 import HomeViewRouter from "./components/Home/HomeViewRouter";
@@ -80,7 +82,6 @@ const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
 const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitchPrompt"));
-const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
 const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
@@ -803,7 +804,7 @@ const MainApp = memo(() => {
     loadWalletAndAvatar(user.id, profile).catch(() => {});
   }, [isOnline, lastRefreshTime, user?.id, profile]); // eslint-disable-line
 
-  const { containerRef, isPulling, pullDistance, isRefreshing } =
+  const { containerRef, indicatorRef, isRefreshing } =
     usePullToRefresh(handleRefresh, isMobile && !!user);
 
   const handleProfileUpdate = useCallback((up) => {
@@ -875,6 +876,15 @@ const MainApp = memo(() => {
     setShowAdminDashboard(false);
     setMountedTabs((p) => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
   }, [isAdmin, isMobile]);
+
+  useEffect(() => {
+    const openIdentitySection = () => {
+      setAccountSection("identity");
+      handleTabChange("account");
+    };
+    window.addEventListener("xeevia:open-identity", openIdentitySection);
+    return () => window.removeEventListener("xeevia:open-identity", openIdentitySection);
+  }, [handleTabChange]);
 
   useEffect(() => {
     const handleProfileShortcut = (event) => {
@@ -1359,12 +1369,10 @@ const MainApp = memo(() => {
 
       {isMobile && (
         <main ref={containerRef} className="main-content-mobile">
-          <Suspense fallback={null}>
-            <PullToRefreshIndicator
-              pullDistance={pullDistance}
-              isRefreshing={isRefreshing || isPulling}
-            />
-          </Suspense>
+          <PullToRefreshIndicator
+            indicatorRef={indicatorRef}
+            isRefreshing={isRefreshing}
+          />
           {renderContent()}
         </main>
       )}
@@ -1591,8 +1599,10 @@ function AppRouter() {
 const App = () => (
   <ToastProvider>
     <AuthProvider>
-      <BoostStyles />
-      <AppRouter />
+      <AccountLinkingProvider>
+        <BoostStyles />
+        <AppRouter />
+      </AccountLinkingProvider>
     </AuthProvider>
   </ToastProvider>
 );

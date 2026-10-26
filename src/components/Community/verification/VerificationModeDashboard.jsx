@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { normalizeVerificationConfig } from "./verificationConfig";
+import CreateVerificationRoleControl from "./CreateVerificationRoleControl";
+import VerificationRoleSelector from "./VerificationRoleSelector";
 
-export default function VerificationModeDashboard({ mode = "quick", value = {}, onSave, disabled = false }) {
+export default function VerificationModeDashboard({ mode = "quick", value = {}, roles = [], onCreateRole, onPromoteRole, onManageRole, onDeleteRole, canManageRoles = false, onSave, onConfigChange, disabled = false }) {
   const [config, setConfig] = useState(() => normalizeVerificationConfig(value));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -9,15 +11,16 @@ export default function VerificationModeDashboard({ mode = "quick", value = {}, 
   const method = config.methods[mode];
 
   const patchMethod = (next) => {
-    setConfig((current) => ({
-      ...current,
+    const nextConfig = {
+      ...config,
       methods: {
-        ...current.methods,
-        [mode]: { ...current.methods[mode], ...next },
+        ...config.methods,
+        [mode]: { ...config.methods[mode], ...next },
       },
-    }));
+    };
+    setConfig(nextConfig);
+    onConfigChange?.(nextConfig);
   };
-
   const save = async () => {
     setSaving(true);
     setError("");
@@ -56,6 +59,21 @@ export default function VerificationModeDashboard({ mode = "quick", value = {}, 
           Description
           <textarea value={method.description || ""} disabled={disabled} onChange={(event) => patchMethod({ description: event.target.value })} />
         </label>
+        <div className="mode-role-select" role="group" aria-label="Role granted after this check">
+          <span className="mode-help">Role granted after this check</span>
+          <VerificationRoleSelector
+            roles={roles}
+            selectedRoleId={method.roleId}
+            onSelect={(roleId) => patchMethod({ roleId })}
+            onPromoteRole={onPromoteRole}
+            onManageRole={onManageRole}
+            onDeleteRole={onDeleteRole}
+            canManageRoles={canManageRoles}
+            disabled={disabled || Boolean(config.roleGrant?.enabled)}
+          />
+          {config.roleGrant?.enabled && <small className="mode-help">Access roles are configured below as member-selectable choices.</small>}
+        </div>
+          {!config.roleGrant?.enabled && <CreateVerificationRoleControl disabled={disabled} onCreateRole={onCreateRole} onCreated={(role) => patchMethod({ roleId: role.id })} />}
         {isQuick ? (
           <>
             <label>
@@ -93,7 +111,7 @@ export default function VerificationModeDashboard({ mode = "quick", value = {}, 
       <button type="button" className="mode-save" disabled={disabled || saving} onClick={save}>
         {saving ? "Saving..." : `Save ${isQuick ? "Quick Verify" : "Picture Check"}`}
       </button>
-      <style>{`.verification-mode-dashboard{display:flex;flex-direction:column;gap:12px}.verification-mode-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-mode-dashboard h3,.verification-mode-dashboard h4{margin:0;font-size:13px;color:var(--text)}.verification-mode-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:11px}.verification-mode-dashboard input,.verification-mode-dashboard textarea{width:100%;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.verification-mode-dashboard textarea{min-height:65px}.verification-mode-dashboard .mode-check{display:flex;flex-direction:row;align-items:center;gap:7px}.verification-mode-dashboard .mode-check input{width:auto}.mode-help,.mode-challenge-help p{margin:0;color:var(--text-secondary);font-size:10px;line-height:1.5}.verification-mode-dashboard .mode-challenge-help{padding:10px;background:var(--surface);border-radius:8px}.mode-error{margin:0;color:var(--danger);font-size:11px}.mode-save{padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}`}</style>
+      <style>{`.verification-mode-dashboard{display:flex;flex-direction:column;gap:12px}.verification-mode-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-mode-dashboard h3,.verification-mode-dashboard h4{margin:0;font-size:13px;color:var(--text)}.verification-mode-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:11px}.verification-mode-dashboard input,.verification-mode-dashboard textarea,.verification-mode-dashboard select{width:100%;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.verification-mode-dashboard textarea{min-height:65px}.verification-mode-dashboard .mode-check{display:flex;flex-direction:row;align-items:center;gap:7px}.verification-mode-dashboard .mode-check input{width:auto}.mode-help,.mode-challenge-help p{margin:0;color:var(--text-secondary);font-size:10px;line-height:1.5}.mode-role-select{display:grid;gap:5px}.verification-mode-dashboard .mode-challenge-help{padding:10px;background:var(--surface);border-radius:8px}.mode-error{margin:0;color:var(--danger);font-size:11px}.mode-save{padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}`}</style>
     </div>
   );
 }

@@ -3,19 +3,19 @@
 // PlatformSelector — connection-aware distribution destinations
 //
 // DESIGN:
-//   - Publishing-ready platforms are selectable; linked accounts needing a
-//     token or reconnect are visibly distinguished from accounts not linked.
+//   - Linked platforms are selectable; unlinked platforms remain disabled.
+//   - Publishing readiness is reported separately from the user's selection.
 //   - Community destinations are selectable only when their integration is active.
 //   - Manual refresh preserves the user's destination choices.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Bot, Link2, RefreshCw } from "lucide-react";
+import { Bot, Check, Link2, RefreshCw } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import distributionService from "../../services/distribution/distributionService";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
-import { PLATFORMS } from "../Account/IdentitySection";
+import { PLATFORMS, PLATFORM_ICONS } from "../Account/IdentitySection";
 
 export async function resolveCommunityQuery(query) {
   try {
@@ -27,150 +27,63 @@ export async function resolveCommunityQuery(query) {
 
 // ── Scoped styles ─────────────────────────────────────────────────────────────
 const CSS = `
-  @keyframes psIn   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes psSpin { to{transform:rotate(360deg)} }
-
-  .psWrap {
-    display:flex; flex-direction:column; gap:10px;
-  }
-
-  .psHeader {
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:2px 1px 0;
-  }
+  @keyframes psSpin { to { transform:rotate(360deg) } }
+  .psWrap { display:flex; flex-direction:column; gap:12px; color:#f5f5f5; }
+  .psHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .psHeaderCopy { min-width:0; }
-  .psEyebrow { margin:0; color:#e5e5e5; font-size:12.5px; font-weight:800; letter-spacing:.01em; }
-  .psDescription { margin:3px 0 0; color:#777; font-size:10.5px; line-height:1.45; }
-  .psRefresh {
-    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
-    width:30px; height:30px; border:1px solid rgba(132,204,22,.24); border-radius:9px;
-    color:#84cc16; background:rgba(132,204,22,.07); cursor:pointer;
-    transition:background .18s, border-color .18s, transform .18s;
-  }
-  .psRefresh:hover { background:rgba(132,204,22,.14); border-color:rgba(132,204,22,.48); transform:translateY(-1px); }
-  .psRefresh:disabled { opacity:.55; cursor:wait; transform:none; }
-  .psRefreshIcon { animation:psSpin .8s linear infinite; }
-
-  /* ── Platform grid ── */
-  .psGrid {
-    display:grid; grid-template-columns:repeat(2,1fr); gap:8px;
-  }
-  @media(max-width:400px) { .psGrid { grid-template-columns:1fr; } }
-
-  /* ── Platform toggle card ── */
-  .psCard {
-    position:relative;
-    border:1px solid rgba(255,255,255,.07);
-    border-radius:12px; padding:10px 12px;
-    display:flex; align-items:center; gap:11px;
-    width:100%; text-align:left; color:inherit; font:inherit;
-    transition:border-color .18s, background .18s, opacity .18s, transform .12s;
-    user-select:none;
-  }
+  .psEyebrow { margin:0; color:#f4f4f5; font-size:13px; font-weight:750; letter-spacing:-.01em; }
+  .psDescription { margin:3px 0 0; color:#87878f; font-size:11px; line-height:1.5; }
+  .psRefresh { display:grid; place-items:center; width:32px; height:32px; flex:none; border:1px solid rgba(255,255,255,.11); border-radius:9px; color:#c4f075; background:transparent; cursor:pointer; transition:background .16s ease,border-color .16s ease,color .16s ease; }
+  .psRefresh:hover:not(:disabled) { border-color:rgba(190,242,100,.4); background:rgba(190,242,100,.08); }
+  .psRefresh:disabled { opacity:.48; cursor:wait; }
+  .psRefreshIcon,.psSpin { animation:psSpin .8s linear infinite; }
+  .psGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .psCard { min-width:0; min-height:56px; padding:8px 10px; display:flex; align-items:center; gap:9px; color:inherit; font:inherit; text-align:left; border:1px solid rgba(255,255,255,.085); border-radius:10px; background:rgba(255,255,255,.018); transition:border-color .16s ease,background .16s ease; }
   .psCard.psClickable { cursor:pointer; }
-  .psCard.psClickable:hover { border-color:rgba(255,255,255,.16); transform:translateY(-1px); }
-  .psCard.psClickable:active { transform:scale(.97); }
+  .psCard.psClickable:hover { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.035); }
+  .psCard.psOn { border-color:rgba(190,242,100,.48); background:rgba(190,242,100,.075); }
+  .psCard.psOn:hover { border-color:rgba(190,242,100,.68); background:rgba(190,242,100,.1); }
   .psCard:disabled { cursor:not-allowed; }
-
-  /* Connected + selected (ON) */
-  .psCard.psOn {
-    border-color:var(--pcBorder,rgba(255,255,255,.18));
-    background:var(--pcBg,rgba(255,255,255,.04));
-  }
-  /* Connected + deselected (OFF) */
-  .psCard.psOff {
-    background:rgba(255,255,255,.015);
-    border-color:rgba(255,255,255,.06);
-    opacity:.65;
-  }
-  /* Not connected */
-  .psCard.psLocked {
-    background:rgba(255,255,255,.01);
-    border-color:rgba(255,255,255,.04);
-    opacity:.38; cursor:not-allowed;
-  }
-  .psCard.psReconnect {
-    background:rgba(245,158,11,.035);
-    border-color:rgba(245,158,11,.18);
-    opacity:.72;
-  }
-  .psCard.psReconnect .psPSub { color:#fbbf24; }
-
-  /* Icon badge */
-  .psIcon {
-    width:36px; height:36px; border-radius:10px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:15px; font-weight:900; border:1px solid;
-    font-style:normal; transition:transform .18s;
-  }
-  .psCard.psOn .psIcon { transform:scale(1.05); }
-
-  /* Text */
-  .psPName { font-size:12.5px; font-weight:800; color:#efefef; margin:0 0 2px; }
-  .psPSub  { font-size:10.5px; color:#858585; margin:0; }
-  .psCard.psLocked .psPSub { color:#777; }
-
-  /* Toggle indicator */
-  .psToggle {
-    margin-left:auto; flex-shrink:0;
-    width:28px; height:16px; border-radius:8px; border:1px solid;
-    position:relative; transition:background .18s, border-color .18s;
-    flex-shrink:0;
-  }
-  .psToggle::after {
-    content:""; position:absolute; top:2px; left:2px;
-    width:10px; height:10px; border-radius:50%; background:#fff;
-    transition:transform .18s, background .18s;
-  }
-  .psCard.psOn .psToggle {
-    background:var(--pcColor,#84cc16);
-    border-color:var(--pcColor,#84cc16);
-  }
-  .psCard.psOn .psToggle::after { transform:translateX(12px); }
-  .psCard.psOff .psToggle {
-    background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12);
-  }
-  .psCard.psLocked .psToggle {
-    background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.07);
-  }
-  .psCard.psLocked .psToggle::after { background:rgba(255,255,255,.2); }
-
-  /* ── Summary row ── */
-  .psSummary {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:9px 12px;
-    background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);
-    border-radius:10px; gap:8px;
-  }
-  .psSummaryText { font-size:11.5px; color:#525252; flex:1; }
-  .psSummaryText strong { color:#a3a3a3; }
-  .psSectionLabel { display:flex; align-items:center; gap:6px; margin:2px 1px 0; color:#a3a3a3; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-  .psSectionLabel svg { color:#84cc16; }
+  .psCard.psLocked { border-color:rgba(255,255,255,.055); background:rgba(255,255,255,.012); opacity:.48; }
+  .psCard.psReconnect:not(.psOn) { border-color:rgba(251,191,36,.2); background:rgba(251,191,36,.025); }
+  .psIcon { width:34px; height:34px; display:grid; place-items:center; flex:none; border:1px solid; border-radius:9px; font-size:14px; font-weight:800; }
+  .psCopy { min-width:0; flex:1; }
+  .psPName { margin:0; color:#f3f4f6; font-size:12px; font-weight:720; letter-spacing:-.01em; }
+  .psPSub { margin:3px 0 0; overflow:hidden; color:#8c8c94; font-size:10px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+  .psReconnect .psPSub { color:#d6a843; }
+  .psState { width:19px; height:19px; display:grid; place-items:center; padding:0; flex:none; border:1px solid rgba(255,255,255,.15); border-radius:50%; color:#73737b; background:transparent; }
+  button.psState { cursor:pointer; }
+  button.psState:disabled { cursor:not-allowed; opacity:.55; }
+  .psOn .psState,.psCommunityCard.psOn .psState { border-color:#bef264; color:#17220a; background:#bef264; }
+  .psToggle { position:relative; width:30px; height:18px; flex:none; border:1px solid rgba(255,255,255,.16); border-radius:10px; background:rgba(255,255,255,.06); transition:background .18s ease,border-color .18s ease; }
+  .psToggle::after { position:absolute; top:3px; left:3px; width:10px; height:10px; border-radius:50%; background:#8b8b94; content:""; transition:transform .18s ease,background .18s ease; }
+  .psCard.psOn .psToggle { border-color:#bef264; background:#bef264; }
+  .psCard.psOn .psToggle::after { transform:translateX(12px); background:#17220a; }
+  .psCard:disabled .psToggle { border-color:rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
+  .psCard:disabled .psToggle::after { background:#62626a; }
+  .psNotice { display:flex; align-items:flex-start; gap:7px; padding:8px 10px; border:1px solid rgba(255,255,255,.07); border-radius:9px; color:#a1a1aa; font-size:10.5px; line-height:1.45; }
+  .psNotice svg { flex:none; margin-top:1px; color:#fbbf24; }
+  .psNotice.psError { border-color:rgba(248,113,113,.24); color:#fca5a5; }
+  .psNotice.psError svg { color:#f87171; }
+  .psSummary { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:36px; padding:7px 9px; border-top:1px solid rgba(255,255,255,.07); }
+  .psSummaryText { margin:0; flex:1; color:#96969e; font-size:10.5px; line-height:1.4; }
+  .psSummaryText strong { color:#d9f99d; font-weight:700; }
+  .psCopy { display:block; min-width:0; flex:1; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+  .psCard:focus-visible,.psLinkBtn:focus-visible,.psRefresh:focus-visible,.psState:focus-visible { outline:2px solid #bef264; outline-offset:2px; }
+  .psLinkBtn { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:28px; padding:0 8px; flex:none; border:1px solid rgba(190,242,100,.23); border-radius:7px; color:#d9f99d; background:rgba(190,242,100,.045); font-family:inherit; font-size:10px; font-weight:650; text-decoration:none; white-space:nowrap; cursor:pointer; transition:background .16s ease,border-color .16s ease; }
+  .psLinkBtn:hover { border-color:rgba(190,242,100,.42); background:rgba(190,242,100,.09); }
+  .psSectionLabel { display:flex; align-items:center; gap:6px; margin:2px 0 -4px; color:#c4c4cc; font-size:10px; font-weight:700; }
+  .psSectionLabel svg { color:#bef264; }
   .psCommunityGrid { display:grid; grid-template-columns:1fr; gap:7px; }
-  .psCommunityCard { display:flex; align-items:center; gap:10px; min-height:48px; padding:8px 10px; border:1px solid rgba(255,255,255,.07); border-radius:10px; background:rgba(255,255,255,.015); }
-  .psCommunityCard.psOn { border-color:rgba(132,204,22,.4); background:rgba(132,204,22,.07); }
-  .psCommunityCard.psOff { opacity:.62; }
-  .psCommunityIcon { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; flex-shrink:0; color:#84cc16; background:rgba(132,204,22,.1); }
+  .psCommunityCard { min-height:46px; padding:7px 9px; display:flex; align-items:center; gap:9px; border:1px solid rgba(255,255,255,.08); border-radius:9px; background:rgba(255,255,255,.015); }
+  .psCommunityCard.psOn { border-color:rgba(190,242,100,.4); background:rgba(190,242,100,.055); }
+  .psCommunityIcon { width:28px; height:28px; display:grid; place-items:center; flex:none; border-radius:8px; color:#bef264; background:rgba(190,242,100,.09); }
   .psCommunityCopy { min-width:0; flex:1; }
-  .psCommunityName { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#ededed; font-size:11.5px; font-weight:800; }
-  .psCommunitySub { margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#666; font-size:10px; }
-  .psCommunityStatus { flex-shrink:0; color:#84cc16; font-size:9px; font-weight:800; }
-  .psCommunityCard .psToggle { margin-left:0; appearance:none; padding:0; cursor:pointer; }
-  .psCommunityCard.psOn .psToggle { background:#84cc16; border-color:#84cc16; }
-  .psCommunityCard.psOn .psToggle::after { background:#111; transform:translateX(12px); }
-  .psCommunityCard.psOff .psToggle { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); }
-  .psCommunityCard.psLocked .psToggle { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.07); cursor:not-allowed; }
-  .psLinkBtn {
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:11px; font-weight:700; color:#c4b5fd;
-    background:rgba(139,92,246,.1); border:1px solid rgba(139,92,246,.3);
-    border-radius:7px; padding:5px 10px; cursor:pointer;
-    font-family:inherit; transition:background .14s;
-    text-decoration:none; white-space:nowrap;
-  }
-  .psLinkBtn:hover { background:rgba(139,92,246,.18); }
-
-  .psSpin { animation:psSpin .8s linear infinite; }
+  .psCommunityName { margin:0; overflow:hidden; color:#ededf0; font-size:11px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+  .psCommunitySub { margin:2px 0 0; overflow:hidden; color:#85858d; font-size:9.5px; text-overflow:ellipsis; white-space:nowrap; }
+  .psCommunityStatus { flex:none; color:#bef264; font-size:9px; font-weight:750; }
+  .psCommunityCard .psState { width:18px; height:18px; border-radius:6px; }
+  @media(max-width:460px) { .psGrid { grid-template-columns:1fr; } .psCard { min-height:52px; } }
 `;
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -179,9 +92,10 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
   const [communityTargets, setCommunityTargets] = useState([]);
   const [selected,    setSelected]    = useState(() => selectedPlatforms);
   const [loadError,   setLoadError]   = useState("");
+  const [connectionLoadError, setConnectionLoadError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(true);
   const hasLoadedRef = React.useRef(false);
-  const identitySyncAttemptedRef = React.useRef(false);
+  const identitySyncUserIdRef = React.useRef(null);
   const selectedRef = React.useRef(selected);
   const externalSelectedRef = React.useRef(selectedPlatforms);
   externalSelectedRef.current = selectedPlatforms;
@@ -198,14 +112,22 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
   // ── Load connected platforms ───────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!userId) {
+      setConnectionStates({});
+      setCommunityTargets([]);
+      setSelected([]);
+      selectedRef.current = [];
+      onSelection?.([]);
+      setLoadError("");
+      setConnectionLoadError("");
       setIsRefreshing(false);
       return;
     }
     setIsRefreshing(true);
     setLoadError("");
+    setConnectionLoadError("");
     try {
-      if (!identitySyncAttemptedRef.current) {
-        identitySyncAttemptedRef.current = true;
+      if (identitySyncUserIdRef.current !== userId) {
+        identitySyncUserIdRef.current = userId;
         await socialConnectService.checkAndImportExistingIdentities(userId);
       }
       const [platformStates, ownedCommunities] = await Promise.all([
@@ -251,13 +173,15 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
       // Auto-select only on the first successful load. Manual refreshes keep
       // the user's explicit on/off choices and remove only disconnected ones.
       const connectedPlatforms = Object.keys(nextConnectionStates)
+        .filter((platform) => ["ready", "reconnect"].includes(nextConnectionStates[platform]?.status));
+      const initiallySelectedPlatforms = connectedPlatforms
         .filter((platform) => nextConnectionStates[platform]?.status === "ready");
       const availableTargets = [...connectedPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       const nextSelection = hasLoadedRef.current
         ? selectedRef.current.filter((platform) => availableTargets.includes(platform))
         : externalSelectedRef.current.length > 0
           ? externalSelectedRef.current.filter((platform) => availableTargets.includes(platform))
-          : availableTargets;
+          : [...initiallySelectedPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       hasLoadedRef.current = true;
       selectedRef.current = nextSelection;
       setSelected(nextSelection);
@@ -265,18 +189,33 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
 
     } catch (err) {
       console.warn("[PlatformSelector] load error:", err?.message);
-      setLoadError(err?.message || "Could not check connected platforms.");
+      const message = err?.message || "Could not check connected platforms.";
+      setConnectionLoadError(message);
+      setLoadError(message);
     } finally {
       setIsRefreshing(false);
     }
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("xeevia:connections-changed", load);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("xeevia:connections-changed", load);
+    };
+  }, [load]);
 
   // ── Toggle a platform ──────────────────────────────────────────────────────
   const toggle = useCallback((platform) => {
     const communityTarget = communityTargets.find((destination) => destination.target === platform);
-    if (connectionStates[platform]?.status !== "ready" && !communityTarget?.ready) return;
+    if (!["ready", "reconnect"].includes(connectionStates[platform]?.status) && !communityTarget?.ready) return;
     setSelected(prev => {
       const next = prev.includes(platform)
         ? prev.filter(p => p !== platform)
@@ -287,10 +226,13 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
     });
   }, [connectionStates, communityTargets, onSelection]);
 
+  const manageConnections = () => {
+    window.dispatchEvent(new Event("xeevia:open-identity"));
+    if (typeof window.__xvNavigate === "function") window.__xvNavigate("account");
+  };
+
   const readyPlatforms = Object.keys(connectionStates)
-    .filter((platform) => connectionStates[platform]?.status === "ready");
-  const hasReconnectableAccounts = Object.values(connectionStates)
-    .some((connection) => connection?.status === "reconnect");
+    .filter((platform) => ["ready", "reconnect"].includes(connectionStates[platform]?.status));
   const readyCommunityTargets = communityTargets.filter((destination) => destination.ready);
   const noneConnected = readyPlatforms.length === 0 && readyCommunityTargets.length === 0;
 
@@ -302,7 +244,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
         <div className="psHeader">
           <div className="psHeaderCopy">
             <p className="psEyebrow">Distribution destinations</p>
-            <p className="psDescription">Choose the linked platforms that should receive this post.</p>
+            <p className="psDescription">Choose linked platforms to include. Turn a platform on to share this post there.</p>
           </div>
           <button className="psRefresh" type="button" onClick={load} disabled={isRefreshing} aria-label="Refresh linked platforms" title="Refresh linked platforms">
             <RefreshCw size={14} className={isRefreshing ? "psRefreshIcon" : ""} />
@@ -315,50 +257,41 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
             const meta       = PLATFORMS[key];
             if (!meta) return null;
             const connection = connectionStates[key];
-            const isConn     = connection?.status === "ready";
-            const needsReconnect = connection?.status === "reconnect";
+            const isLinked = !isRefreshing && !connectionLoadError
+              && ["ready", "reconnect"].includes(connection?.status);
+            const canPublish = connection?.canPublish ?? connection?.status === "ready";
+            const needsReconnect = !connectionLoadError && connection?.status === "reconnect";
             const isSel      = selected.includes(key);
-            const stateClass = isConn
+            const stateClass = isLinked
               ? (isSel ? "psOn" : "psOff")
-              : needsReconnect ? "psLocked psReconnect" : "psLocked";
+              : "psLocked";
 
             return (
               <button
                 type="button"
                 key={key}
-                className={`psCard ${stateClass} ${isConn ? "psClickable" : ""}`}
+                className={`psCard ${stateClass} ${isLinked ? "psClickable" : ""} ${needsReconnect ? "psReconnect" : ""}`}
                 onClick={() => toggle(key)}
-                disabled={!isConn}
-                aria-pressed={isSel}
-                aria-label={`${meta.name}: ${isConn ? isSel ? "selected for distribution" : "connected, not selected" : needsReconnect ? "linked but needs reconnecting to publish" : "not linked"}`}
-                style={{
-                  "--pcColor":  meta.color,
-                  "--pcBg":     meta.bg,
-                  "--pcBorder": meta.border,
-                }}
+                disabled={!isLinked}
+                aria-pressed={isLinked && isSel}
+                aria-label={`${meta.name}: ${isLinked ? isSel ? "included in this post" : "linked, not included" : "not linked"}`}
+                style={{ "--pcColor": meta.color, "--pcBg": meta.bg, "--pcBorder": meta.border }}
               >
-                <div className="psIcon" style={{
-                  background:  meta.bg,
-                  borderColor: meta.border,
-                  color:       meta.color,
-                }}>
-                  {meta.letter}
+                <div className="psIcon" style={{ background:meta.bg, borderColor:meta.border, color:meta.color }}>
+                  {(() => {
+                    const Icon = PLATFORM_ICONS[key];
+                    return Icon ? <Icon size={15} /> : meta.letter;
+                  })()}
                 </div>
-
-                <div style={{ flex:1, minWidth:0 }}>
+                <div className="psCopy">
                   <p className="psPName">{meta.name}</p>
                   <p className="psPSub">
-                    {isConn
-                      ? (isSel ? "Will distribute" : "Connected · tap to include")
-                      : needsReconnect
-                        ? "Linked · reconnect to publish"
-                        : loadError
-                          ? "Status unavailable · retry below"
-                          : isRefreshing && !hasLoadedRef.current ? "Checking connection…" : "Not linked"}
+                    {connectionLoadError ? "Connection status unavailable" : isLinked
+                      ? isSel ? "Included in this post" : canPublish ? "Connected · tap to include" : "Linked · publishing access may need refresh"
+                      : isRefreshing ? "Checking connection…" : "Not linked"}
                   </p>
                 </div>
-
-                <div className="psToggle" />
+                <span className="psToggle" aria-hidden="true" />
               </button>
             );
           })}
@@ -379,7 +312,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
                       <p className="psCommunitySub">{destination.provider === "discord" ? "Discord channel" : destination.provider === "telegram" ? "Telegram chat" : "Bot destination"} · {isReady ? isSelected ? "Will receive this post" : "Available" : "Bot setup required"}</p>
                     </div>
                     <span className="psCommunityStatus">{isReady ? isSelected ? "ON" : "OFF" : "SETUP"}</span>
-                    <button type="button" className="psToggle" disabled={!isReady} onClick={() => toggle(destination.target)} aria-label={`Toggle ${destination.display_name}`} />
+                    <button type="button" className={`psState${isSelected ? " psStateOn" : ""}`} disabled={!isReady || isRefreshing || Boolean(loadError)} onClick={() => toggle(destination.target)} aria-label={`Toggle ${destination.display_name}`} aria-pressed={isSelected}>{isSelected && <Check size={12} strokeWidth={3} />}</button>
                   </div>
                 );
               })}
@@ -387,17 +320,18 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
           </>
         )}
 
-        {/* ── Summary + link to Identity ── */}
+        {(connectionLoadError || loadError) && (
+          <div className={`psNotice ${(connectionLoadError || loadError).toLowerCase().includes("could not") ? "psError" : ""}`} role="status">
+            {connectionLoadError || loadError}
+          </div>
+        )}
+
         <div className="psSummary">
           <p className="psSummaryText">
-            {loadError
-              ? <>{loadError}</>
-              : selected.length > 0
+            {selected.length > 0
               ? <><strong>{selected.length} destination{selected.length !== 1 ? "s" : ""}</strong> selected for this post</>
               : isRefreshing && !hasLoadedRef.current
                 ? <>Checking linked destinations…</>
-              : hasReconnectableAccounts
-                ? <>A linked account needs reconnecting before it can publish.</>
               : noneConnected
                 ? <>No linked destinations yet. This post stays on Xeevia.</>
                 : <>No destinations selected. This post stays on Xeevia.</>
@@ -406,17 +340,12 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
           {(!isRefreshing || hasLoadedRef.current) && (
             <button
               className="psLinkBtn"
-              onClick={() => {
-                // Navigate to Identity tab — works with App.jsx's handleTabChange
-                if (typeof window.__xvNavigate === "function") {
-                  window.__xvNavigate("account");
-                }
-              }}
+              onClick={manageConnections}
             >
-              <Link2 size={10} /> {hasReconnectableAccounts ? "Manage linked accounts" : "Link accounts"}
+              <Link2 size={12} /> Manage accounts
             </button>
           )}
-          {loadError && <button className="psLinkBtn" onClick={load}>Retry</button>}
+          {(loadError || connectionLoadError) && <button className="psLinkBtn" onClick={load}><RefreshCw size={11} /> Retry</button>}
         </div>
 
       </div>

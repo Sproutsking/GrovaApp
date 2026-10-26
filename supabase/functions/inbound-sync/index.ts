@@ -28,8 +28,20 @@ const sourceHandle = (value: string | null) => {
 
 const sourcePath = (connection: Record<string, unknown>) => String(connection.source_url || connection.platform_user_id || "");
 
+const decodeStoredToken = (value: unknown) => {
+  if (typeof value !== "string" || !value) return "";
+  const bytea = value.match(/^\\x([0-9a-f]+)$/i);
+  if (!bytea) return value;
+  const bytes = new Uint8Array(bytea[1].match(/.{2}/g)?.map((part) => parseInt(part, 16)) || []);
+  return new TextDecoder().decode(bytes);
+};
+
 const fetchJson = async (url: string, init: RequestInit = {}) => {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
+  const requestUrl = new URL(url);
+  if (/^\/2\/users\/[^/]+\/tweets$/.test(requestUrl.pathname) && requestUrl.hostname === "api.x.com") {
+    requestUrl.searchParams.set("media.fields", "type,url,preview_image_url");
+  }
+  const response = await fetch(requestUrl.toString(), { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
   if (!response.ok) throw new Error(`Inbound provider returned ${response.status}`);
   return response.json();
 };
@@ -67,9 +79,25 @@ async function fetchYouTube(connection: Record<string, unknown>) {
 async function fetchXeevia(connection: Record<string, unknown>) {
   const userId = String(connection.provider_account_id || "");
   if (!userId) throw new Error("Xeevia requires a connected account");
-  const { data, error } = await supabase.from("posts").select("id,user_id,content,created_at,image_ids,video_ids").eq("user_id", userId).is("deleted_at", null).order("created_at", { ascending: false }).limit(25);
+  const { data, error } = await supabase.from("posts")
+    .select("id,user_id,content,created_at,image_ids,video_ids,audience,profiles:user_id(full_name,username)")
+    .eq("user_id", userId)
+    .eq("audience", "public")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(25);
   if (error) throw error;
-  return (data || []).map((item: any) => ({ external_id: item.id, activity_type: "post", status: "published", author_name: userId, content: item.content, media: { image_ids: item.image_ids, video_ids: item.video_ids }, permalink: null, published_at: item.created_at, raw_payload: item }));
+  return (data || []).map((item: any) => ({
+    external_id: item.id,
+    activity_type: "post",
+    status: "published",
+    author_name: item.profiles?.full_name || item.profiles?.username || userId,
+    content: item.content,
+    media: { image_ids: item.image_ids, video_ids: item.video_ids },
+    permalink: null,
+    published_at: item.created_at,
+    raw_payload: item,
+  }));
 }
 
 async function fetchX(connection: Record<string, unknown>) {
@@ -78,7 +106,25 @@ async function fetchX(connection: Record<string, unknown>) {
   if (!token || !username) throw new Error("X requires an OAuth token and public username");
   const user = await fetchJson(`https://api.x.com/2/users/by/username/${encodeURIComponent(username)}`, { headers: { Authorization: `Bearer ${token}` } });
   const payload = await fetchJson(`https://api.x.com/2/users/${user.data.id}/tweets?${new URLSearchParams({ max_results: "25", "tweet.fields": "created_at,attachments", expansions: "attachments.media_keys", "media.fields": "url,preview_image_url" })}`, { headers: { Authorization: `Bearer ${token}` } });
-  return (payload.data || []).map((item: any) => ({ external_id: item.id, activity_type: "post", status: "published", author_name: username, content: item.text, permalink: `https://x.com/${username}/status/${item.id}`, published_at: item.created_at, raw_payload: item }));
+  const mediaByKey = new Map((payload.includes?.media || []).map((media: any) => [media.media_key, media]));
+  return (payload.data || []).map((item: any) => {
+    const attachedMedia = (item.attachments?.media_keys || []).map((key: string) => mediaByKey.get(key)).filter(Boolean);
+    const imageUrls = attachedMedia
+      .filter((media: any) => media.type === "photo" && media.url)
+      .map((media: any) => media.url);
+    const thumbnail = attachedMedia.find((media: any) => media.type === "video" || media.type === "animated_gif")?.preview_image_url;
+    return {
+      external_id: item.id,
+      activity_type: "post",
+      status: "published",
+      author_name: username,
+      content: item.text,
+      media: { image_urls: imageUrls, thumbnail },
+      permalink: `https://x.com/${username}/status/${item.id}`,
+      published_at: item.created_at,
+      raw_payload: item,
+    };
+  });
 }
 
 async function fetchFacebook(connection: Record<string, unknown>) {
@@ -171,11 +217,32 @@ serve(async (req) => {
     const results = [];
     for (const route of routes || []) {
       const connection = { ...(route.connection || {}) };
-      const { data: token } = await supabase.from("tokens").select("encrypted_token, expires_at").eq("connection_id", connection.id).eq("revoked", false).maybeSingle();
-      if (token && (!token.expires_at || new Date(token.expires_at).getTime() > Date.now())) connection.__access_token = token.encrypted_token;
       const { data: run, error: runError } = await supabase.from("community_sync_runs").insert({ community_id: route.community_id, connection_id: route.connection_id, status: "running" }).select().single();
       if (runError) throw runError;
       try {
+        if (connection.provider !== "xeevia" && connection.connected_by) {
+          const providers = connection.provider === "x" ? ["x", "twitter"] : [connection.provider];
+          const { data: account, error: accountError } = await supabase.from("connections")
+            .select("id")
+            .eq("user_id", connection.connected_by)
+            .in("provider", providers)
+            .eq("auth_status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (accountError) throw accountError;
+          if (account) {
+            const { data: token, error: tokenError } = await supabase.from("tokens")
+              .select("encrypted_token, expires_at")
+              .eq("connection_id", account.id)
+              .eq("revoked", false)
+              .maybeSingle();
+            if (tokenError) throw tokenError;
+            if (token && (!token.expires_at || new Date(token.expires_at).getTime() > Date.now())) {
+              connection.__access_token = decodeStoredToken(token.encrypted_token);
+            }
+          }
+        }
         const activities = await fetchActivities(connection);
         const allowed = new Set(route.content_types || ["post", "video", "live"]);
         const filtered = activities.filter((activity: any) => allowed.has(activity.activity_type));
@@ -189,16 +256,24 @@ serve(async (req) => {
             ...activity,
             updated_at: new Date().toISOString(),
           }, { onConflict: "connection_id,external_id,activity_type" });
-          if (!activityError) written += 1;
+          if (activityError) throw new Error(`Could not save ${connection.provider} activity: ${activityError.message}`);
+          written += 1;
         }
-        await supabase.from("community_channel_sources").update({ last_synced_at: new Date().toISOString() }).eq("id", route.id);
-        await supabase.from("community_social_connections").update({ last_synced_at: new Date().toISOString(), status: "active" }).eq("id", route.connection_id);
-        await supabase.from("community_sync_runs").update({ status: "succeeded", items_seen: activities.length, items_written: written, finished_at: new Date().toISOString() }).eq("id", run.id);
+        const syncedAt = new Date().toISOString();
+        const { error: routeUpdateError } = await supabase.from("community_channel_sources").update({ last_synced_at: syncedAt }).eq("id", route.id);
+        if (routeUpdateError) throw routeUpdateError;
+        const { error: connectionUpdateError } = await supabase.from("community_social_connections").update({ last_synced_at: syncedAt, status: "active" }).eq("id", route.connection_id);
+        if (connectionUpdateError) throw connectionUpdateError;
+        const { error: runUpdateError } = await supabase.from("community_sync_runs").update({ status: "succeeded", items_seen: activities.length, items_written: written, finished_at: syncedAt }).eq("id", run.id);
+        if (runUpdateError) throw runUpdateError;
         results.push({ connectionId: route.connection_id, status: "succeeded", itemsSeen: activities.length, itemsWritten: written });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await supabase.from("community_sync_runs").update({ status: "failed", error_message: message, finished_at: new Date().toISOString() }).eq("id", run.id);
-        await supabase.from("community_social_connections").update({ status: "error", updated_at: new Date().toISOString() }).eq("id", route.connection_id);
+        const failedAt = new Date().toISOString();
+        const { error: runUpdateError } = await supabase.from("community_sync_runs").update({ status: "failed", error_message: message, finished_at: failedAt }).eq("id", run.id);
+        const { error: connectionUpdateError } = await supabase.from("community_social_connections").update({ status: "error", updated_at: failedAt }).eq("id", route.connection_id);
+        if (runUpdateError) throw runUpdateError;
+        if (connectionUpdateError) throw connectionUpdateError;
         results.push({ connectionId: route.connection_id, status: "failed", error: message });
       }
     }

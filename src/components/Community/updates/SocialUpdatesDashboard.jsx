@@ -1,16 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import { Check, ChevronDown, Link2, Plus, RefreshCw, Wifi } from "lucide-react";
-import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
+import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS, SOCIAL_PUBLIC_PROFILE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
 import channelService from "../../../services/community/channelService";
-import { getPlatformCapabilities } from "../../../services/community/platformCapabilities";
+import { getInboundReadyPlatforms, getPlatformCapabilities } from "../../../services/community/platformCapabilities";
 import CreateChannelModal from "../modals/CreateChannelModal";
 import { PLATFORM_ICONS } from "../../Account/IdentitySection";
 
-export default function SocialUpdatesDashboard({ communityId, userId, channels = [], linkedSources = [], canManage = false, onCreateChannel }) {
+export default function SocialUpdatesDashboard({
+  communityId,
+  userId,
+  channels = [],
+  linkedSources = [],
+  canManage = false,
+  onCreateChannel,
+  sourceConnected = false,
+  onConnectXeevia,
+  sourceProvider = "",
+  onSourceProviderChange,
+  availableProviders = [],
+  onLinkSocialSource,
+  sourceError = "",
+}) {
   const [connections, setConnections] = useState([]);
   const [routes, setRoutes] = useState([]);
-  const [syncRuns, setSyncRuns] = useState([]);
   const [provider, setProvider] = useState("youtube");
   const [profileUrl, setProfileUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,27 +32,43 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
   const [notice, setNotice] = useState("");
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [openRouteMenu, setOpenRouteMenu] = useState(null);
+  const [linkingAccount, setLinkingAccount] = useState(false);
 
   const textChannels = useMemo(() => channels.filter((channel) => channel.type !== "voice"), [channels]);
+  const inboundProviderLabels = getInboundReadyPlatforms()
+    .map((providerId) => getPlatformCapabilities(providerId)?.label)
+    .filter(Boolean)
+    .join(", ");
+  const liveProviderLabels = getInboundReadyPlatforms()
+    .filter((providerId) => getPlatformCapabilities(providerId)?.canDetectLive)
+    .map((providerId) => getPlatformCapabilities(providerId)?.label)
+    .filter(Boolean)
+    .join(", ");
 
-  const refresh = async () => {
-    const [nextConnections, nextRoutes, nextRuns] = await Promise.all([
+  const refresh = useCallback(async () => {
+    const [nextConnections, nextRoutes] = await Promise.all([
       socialUpdatesService.listConnections(communityId),
       socialUpdatesService.listRouting(communityId),
-      socialUpdatesService.listRecentSyncRuns(communityId),
     ]);
     setConnections(nextConnections);
     setRoutes(nextRoutes);
-    setSyncRuns(nextRuns);
-  };
+  }, [communityId]);
 
   useEffect(() => {
     refresh().catch((loadError) => setError(loadError.message || "Could not load social sources."));
-  }, [communityId]);
+  }, [refresh]);
 
   const inboundProviders = new Set(SOCIAL_UPDATE_PROVIDER_IDS);
-  const allConnections = connections.filter((connection) => inboundProviders.has(connection.provider));
-  const knownKeys = new Set(connections.map((connection) => `${connection.provider}:${connection.provider_account_id}`));
+  const linkedSourceKeys = new Set(linkedSources
+    .filter((source) => source.auth_status === "active")
+    .map((source) => `${source.provider}:${source.platform_user_id}`));
+  const allConnections = connections.filter((connection) => {
+    if (!inboundProviders.has(connection.provider) || !["active", "error"].includes(connection.status)) return false;
+    if (connection.source_url) return true;
+    if (connection.provider === "xeevia") return true;
+    return linkedSourceKeys.has(`${connection.provider}:${connection.provider_account_id}`);
+  });
+  const knownKeys = new Set(allConnections.map((connection) => `${connection.provider}:${connection.provider_account_id}`));
   linkedSources.forEach((source) => {
     const key = `${source.provider}:${source.platform_user_id}`;
     if (!knownKeys.has(key)) {
@@ -96,19 +125,23 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
     });
   };
 
-  const saveRoute = async (connection, channelId) => {
+  const saveRoute = async (connection, channelId, enabled = false) => {
     if (!channelId || !canManage) return;
     setBusy(true);
     setError("");
     try {
       const persisted = await ensureConnection(connection);
       const capability = getPlatformCapabilities(connection.provider);
+      if (!capability?.inboundReady || !capability.inboundAdapter) {
+        throw new Error(`${capability?.label || connection.provider} inbound updates are not available yet.`);
+      }
       await socialUpdatesService.saveRouting({
         communityId,
         channelId,
         connectionId: persisted.id,
         contentTypes: capability?.inboundReady ? ["post", "video", "clip", "live"] : [],
         includeInLiveFeed: Boolean(capability?.canDetectLive),
+        enabled,
       });
       await refresh();
       setNotice(`Route saved to #${textChannels.find((channel) => channel.id === channelId)?.name || "channel"}.`);
@@ -119,16 +152,17 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
     }
   };
 
-  const removeRoute = async (route) => {
+  const setProviderRoutesEnabled = async (providerId, enabled) => {
     if (!canManage) return;
     setBusy(true);
     setError("");
     try {
-      await socialUpdatesService.removeRouting(route.id);
+      const providerRoutes = routesByProvider.get(providerId) || [];
+      await Promise.all(providerRoutes.map((route) => socialUpdatesService.setRoutingEnabled(route.id, enabled)));
       await refresh();
-      setNotice("Source route removed.");
-    } catch (removeError) {
-      setError(removeError.message || "Could not remove route.");
+      setNotice(enabled ? "Updates are active for this platform." : "Updates are paused. Your channel route is saved.");
+    } catch (routeError) {
+      setError(routeError.message || "Could not update this platform route.");
     } finally {
       setBusy(false);
     }
@@ -144,7 +178,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
       const failed = (result?.results || []).filter((item) => item.status === "failed");
       setNotice(
         failed.length
-          ? `${failed.length} source${failed.length > 1 ? "s" : ""} could not sync. See status below.`
+          ? `${failed.length} source${failed.length > 1 ? "s" : ""} could not sync.${failed[0]?.error ? ` ${failed[0].error}` : ""}`
           : "Sync completed. New activity will appear in routed channels.",
       );
     } catch (syncError) {
@@ -154,18 +188,50 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
     }
   };
 
+  const linkAccount = async () => {
+    if (!onLinkSocialSource) return;
+    setLinkingAccount(true);
+    setError("");
+    try {
+      await onLinkSocialSource();
+    } catch (linkError) {
+      setError(linkError.message || "The account could not be linked.");
+    } finally {
+      setLinkingAccount(false);
+    }
+  };
+
+  const connectXeevia = async () => {
+    if (!onConnectXeevia) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onConnectXeevia();
+      await refresh();
+    } catch (connectError) {
+      setError(connectError.message || "Could not connect Xeevia.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const togglePlatform = async (providerId) => {
     if (!canManage) return;
+    const capability = getPlatformCapabilities(providerId);
+    if (!capability?.inboundReady || !capability.inboundAdapter) {
+      setError(`${capability?.label || providerId} inbound updates are not available yet.`);
+      return;
+    }
     const connection = byProvider.get(providerId)?.[0];
-    if (!connection) {
-      setError("Link this platform in Account → Identity before activating it.");
+    if (!connection) return;
+    const providerRoutes = routesByProvider.get(providerId) || [];
+    if (providerRoutes.some((route) => route.enabled !== false)) {
+      await setProviderRoutesEnabled(providerId, false);
       return;
     }
 
-    const activeRoute = (routesByProvider.get(providerId) || []).find((route) => route.enabled !== false);
-
-    if (activeRoute) {
-      await removeRoute(activeRoute);
+    if (providerRoutes.length) {
+      await setProviderRoutesEnabled(providerId, true);
       return;
     }
 
@@ -179,7 +245,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
       return;
     }
 
-    await saveRoute(connection, textChannels[0].id);
+    await saveRoute(connection, textChannels[0].id, true);
   };
 
   const openCreateChannel = () => {
@@ -193,12 +259,41 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
   return (
     <div className="social-updates-dashboard">
       <div className="social-dashboard-summary-row">
-        <span><Check size={12} /> Ready inbound: Xeevia, X, Facebook, Instagram, YouTube, Twitch, Reddit, GitHub</span>
-        <span><Wifi size={12} /> Live detection: YouTube, Twitch, Facebook, Instagram</span>
+        <span><Check size={12} /> Ready inbound: {inboundProviderLabels}</span>
+        <span><Wifi size={12} /> Live detection: {liveProviderLabels}</span>
         <button type="button" className="social-dashboard-refresh" onClick={() => refresh().catch((loadError) => setError(loadError.message))} aria-label="Refresh sources">
           <RefreshCw size={14} />
         </button>
       </div>
+
+      {canManage && (
+        <div className="social-dashboard-link-controls">
+          <div>
+            <strong>Connect an account</strong>
+            <small>Authorize a supported platform or enable updates from your Xeevia account.</small>
+          </div>
+          <div className="social-dashboard-link-actions">
+            <select
+              aria-label="Platform to connect"
+              value={sourceProvider}
+              onChange={(event) => onSourceProviderChange?.(event.target.value)}
+              disabled={!availableProviders.length}
+            >
+              {availableProviders.map((providerId) => {
+                const platform = SOCIAL_PROVIDERS.find((item) => item.id === providerId);
+                return <option key={providerId} value={providerId}>{platform?.label || providerId}</option>;
+              })}
+            </select>
+            <button type="button" onClick={linkAccount} disabled={!sourceProvider || !availableProviders.includes(sourceProvider) || linkingAccount}>
+              <Link2 size={14} /> {linkingAccount ? "Linking..." : "Link account"}
+            </button>
+            <button type="button" onClick={connectXeevia} disabled={sourceConnected || busy}>
+              <Check size={14} /> {sourceConnected ? "Xeevia connected" : "Connect Xeevia"}
+            </button>
+          </div>
+        </div>
+      )}
+      {sourceError && <div className="social-dashboard-error" role="alert">{sourceError}</div>}
 
       {canManage && (
         <form className="social-dashboard-form" onSubmit={addProfile}>
@@ -208,7 +303,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           </div>
           <div className="social-dashboard-form-row">
             <select value={provider} onChange={(event) => setProvider(event.target.value)}>
-              {SOCIAL_PROVIDERS.filter((item) => item.id !== "xeevia").map((item) => (
+              {SOCIAL_PROVIDERS.filter((item) => SOCIAL_PUBLIC_PROFILE_PROVIDER_IDS.includes(item.id)).map((item) => (
                 <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
@@ -223,11 +318,14 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
       <div className="social-platform-grid">
         {SOCIAL_PROVIDERS.map((item) => {
           const connection = byProvider.get(item.id)?.[0];
-          const activeRoute = (routesByProvider.get(item.id) || []).find((route) => route.enabled !== false);
-          const active = Boolean(activeRoute);
+          const platformRoutes = routesByProvider.get(item.id) || [];
+          const configuredRoute = platformRoutes[0];
+          const capability = getPlatformCapabilities(item.id);
+          const available = Boolean(capability?.inboundReady && capability.inboundAdapter);
           const connected = Boolean(connection);
-          const status = active ? "Active" : "Inactive";
-          const routeChannel = activeRoute ? textChannels.find((channel) => channel.id === activeRoute.channel_id) : null;
+          const active = Boolean(available && platformRoutes.some((route) => route.enabled !== false) && connected);
+          const status = !available ? "Unavailable" : !connected ? "Not linked" : connection.status === "error" ? "Sync error" : active ? "Active" : "Inactive";
+          const routeChannel = configuredRoute ? textChannels.find((channel) => channel.id === configuredRoute.channel_id) : null;
           const PlatformIcon = PLATFORM_ICONS[item.id] || null;
 
           return (
@@ -247,7 +345,7 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
 
               <div className="social-platform-actions">
                 <div className="social-platform-meta">
-                  <span>{connected ? "Source linked" : "Source missing"}</span>
+                  <span>{!available ? "Inbound adapter unavailable" : connected ? "Source linked" : "Source missing"}</span>
                   {active && routeChannel && <span>#{routeChannel.name}</span>}
                 </div>
 
@@ -255,8 +353,11 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
                   type="button"
                   className={`social-platform-toggle ${active ? "on" : "off"}`}
                   onClick={() => togglePlatform(item.id)}
-                  disabled={!canManage}
+                  disabled={!canManage || !available || !connected || busy}
                   aria-label={`${item.label} ${active ? "active" : "inactive"}`}
+                  aria-checked={active}
+                  role="switch"
+                  title={!available ? `${item.label} inbound updates are not available yet` : connected ? `${active ? "Deactivate" : "Activate"} ${item.label} updates` : `Link ${item.label} before activating updates`}
                 >
                   <span />
                 </button>
@@ -266,14 +367,14 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
                 <div className="route-menu-wrap">
                   <button
                     type="button"
-                    className={`route-menu-trigger${activeRoute ? " selected" : ""}`}
+                    className={`route-menu-trigger${configuredRoute ? " selected" : ""}`}
                     onClick={() => setOpenRouteMenu((current) => current === item.id ? null : item.id)}
-                    disabled={!canManage || !connected || busy}
+                    disabled={!canManage || !available || !connected || busy}
                     aria-expanded={openRouteMenu === item.id}
                     aria-haspopup="listbox"
                   >
                     <span className="route-menu-trigger-copy">
-                      <span className="route-menu-label">{activeRoute ? "Sending updates to" : "Route updates to"}</span>
+                      <span className="route-menu-label">{configuredRoute ? "Sending updates to" : "Route updates to"}</span>
                       <strong>{routeChannel ? `#${routeChannel.name}` : "Choose a channel"}</strong>
                     </span>
                     <ChevronDown size={14} className={openRouteMenu === item.id ? "route-menu-chevron open" : "route-menu-chevron"} />
@@ -285,17 +386,17 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
                         <button
                           type="button"
                           role="option"
-                          aria-selected={activeRoute?.channel_id === channel.id}
-                          className={`route-menu-option${activeRoute?.channel_id === channel.id ? " selected" : ""}`}
+                          aria-selected={configuredRoute?.channel_id === channel.id}
+                          className={`route-menu-option${configuredRoute?.channel_id === channel.id ? " selected" : ""}`}
                           key={channel.id}
                           onClick={() => {
                             setOpenRouteMenu(null);
-                            saveRoute(connection || { provider: item.id }, channel.id);
+                            saveRoute(connection || { provider: item.id }, channel.id, active);
                           }}
                         >
                           <span className="route-menu-channel-icon">#</span>
                           <span className="route-menu-option-copy"><strong>{channel.name}</strong><small>Community channel</small></span>
-                          {activeRoute?.channel_id === channel.id && <Check size={14} />}
+                          {configuredRoute?.channel_id === channel.id && <Check size={14} />}
                         </button>
                       )) : (
                         <div className="route-menu-empty">Create a channel to receive updates.</div>
@@ -307,11 +408,6 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
                   )}
                 </div>
 
-                {canManage && (
-                  <button type="button" className="social-platform-create" onClick={openCreateChannel}>
-                    <Plus size={13} /> Create channel
-                  </button>
-                )}
               </div>
             </article>
           );
@@ -421,6 +517,60 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
         .social-dashboard-summary-row .social-dashboard-refresh {
           margin-left: auto;
         }
+        .social-dashboard-link-controls {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 12px;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          background: rgba(255,255,255,0.02);
+        }
+        .social-dashboard-link-controls > div:first-child {
+          display: grid;
+          gap: 4px;
+        }
+        .social-dashboard-link-controls strong {
+          color: #f2f2f2;
+          font-size: 12px;
+        }
+        .social-dashboard-link-controls small {
+          color: rgba(255,255,255,0.65);
+          font-size: 10px;
+          line-height: 1.45;
+        }
+        .social-dashboard-link-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+          align-items: center;
+        }
+        .social-dashboard-link-actions select,
+        .social-dashboard-link-actions button {
+          min-height: 36px;
+          padding: 0 10px;
+          border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 8px;
+          background: rgba(10,12,14,0.8);
+          color: #f5f5f5;
+          font-size: 10px;
+        }
+        .social-dashboard-link-actions button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          border-color: rgba(154,230,180,0.3);
+          background: rgba(134,239,172,0.08);
+          color: #b9f7cc;
+          cursor: pointer;
+          font-weight: 700;
+        }
+        .social-dashboard-link-actions button:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
         .social-dashboard-form {
           display: flex;
           flex-direction: column;
@@ -482,11 +632,12 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
         }
         .social-platform-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
           gap: 10px;
         }
         .social-platform-card {
           position: relative;
+          min-width: 0;
           display: flex;
           flex-direction: column;
           gap: 10px;
@@ -624,10 +775,12 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           display: flex;
           gap: 8px;
           align-items: center;
+          min-width: 0;
         }
         .route-menu-wrap {
           position: relative;
           flex: 1;
+          min-width: 0;
         }
         .route-menu-trigger {
           width: 100%;
@@ -851,6 +1004,15 @@ export default function SocialUpdatesDashboard({ communityId, userId, channels =
           }
           .social-dashboard-form-row {
             flex-direction: column;
+          }
+          .social-dashboard-link-controls,
+          .social-dashboard-link-actions {
+            align-items: stretch;
+            flex-direction: column;
+          }
+          .social-dashboard-link-actions select,
+          .social-dashboard-link-actions button {
+            width: 100%;
           }
           .social-dashboard-form-row select,
           .social-dashboard-form-row input,

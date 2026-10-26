@@ -120,19 +120,23 @@ const CommunityMenu = ({
 }) => {
   const [menuView, setMenuView] = useState("main");
   const [selectedRole, setSelectedRole] = useState(null);
+  const [roleToOpen, setRoleToOpen] = useState(null);
+  const [roleActionError, setRoleActionError] = useState("");
   const [userPermissions, setUserPermissions] = useState({});
   const [liveCounts, setLiveCounts] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, title: "", message: "", onConfirm: ()=>{}, isDanger: false });
 
   useEffect(() => {
-    if (show && community) {
+    if (show && community?.id) {
       setMenuView("main");
       setSelectedRole(null);
       setLiveCounts(null);
       loadUserPermissions();
       loadLiveCounts();
     }
-  }, [show, community]);
+    // Refreshing the community object must not eject an admin from their open section.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, community?.id, userId]);
 
   useEffect(() => {
     if (!show) return undefined;
@@ -177,10 +181,24 @@ const CommunityMenu = ({
     setConfirmDialog({ show: true, title, message, onConfirm, isDanger });
   };
 
-  const handleUpdateRole = async (roleId, updates) => { await onUpdate({ type: "role", roleId, updates }); };
-  const handleCreateRole = async (roleData) => { await onUpdate({ type: "createRole", roleData }); };
+  const handleUpdateRole = async (roleId, updates) => onUpdate({ type: "role", roleId, updates });
+  const handleCreateRole = async (roleData) => onUpdate({ type: "createRole", roleData });
+  const handleDeleteRole = async (roleId) => {
+    setRoleActionError("");
+    try {
+      await onUpdate({ type: "deleteRole", roleId });
+    } catch (error) {
+      setRoleActionError(error.message || "Could not delete this role.");
+      throw error;
+    }
+  };
+  const openRoleManagement = (roleId) => {
+    setRoleActionError("");
+    setRoleToOpen(roleId);
+    setMenuView("roles");
+  };
   const handleAssignRole = async (memberId, roleId) => { await onUpdate({ type: "assignRole", memberId, roleId }); };
-  const handleReorderRoles = async (nextRoles) => { await onUpdate({ type: "reorderRoles", roles: nextRoles }); };
+  const handleReorderRoles = async (nextRoles) => onUpdate({ type: "reorderRoles", roles: nextRoles });
 
   if (!show) return null;
 
@@ -333,14 +351,19 @@ const CommunityMenu = ({
             )}
             {menuView === "notifications" && <NotificationsSection community={community} onUpdateNotifications={async(s)=>onUpdate({type:"notifications",settings:s})} />}
             {menuView === "roles"         && (
+              <>
+              {roleActionError && <div className="cm-role-action-error" role="alert">{roleActionError}</div>}
               <RolesPermissionsSection
                 communityId={community.id}
                 roles={roles} members={members}
                 selectedRole={selectedRole} setSelectedRole={setSelectedRole}
+                initialRoleId={roleToOpen}
+                onInitialRoleOpened={() => setRoleToOpen(null)}
                 canManageRoles={canManageRoles}
                 isCommunityOwner={isOwner}
                 onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onReorderRoles={handleReorderRoles}
               />
+              </>
             )}
             {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" || s.type === "ownership_transfer" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
             {menuView === "analytics" && <AnalyticsSection community={community} />}
@@ -352,6 +375,12 @@ const CommunityMenu = ({
               onOpenInvite={() => { onClose(); onOpenInvite?.(); }}
               onOpenUpgrade={() => setMenuView("settings")}
               onOpenModeration={() => setMenuView("roles")}
+              onManageRole={openRoleManagement}
+              onDeleteRole={handleDeleteRole}
+              canManageRoles={canManageRoles}
+              onCreateRole={handleCreateRole}
+              onReorderRoles={handleReorderRoles}
+              onUpdateRole={handleUpdateRole}
               onCreateChannel={() => { onClose(); onCreateChannel?.(); }}
             />}
             {menuView === "channels" && <ChannelManagementSection

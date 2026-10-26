@@ -385,20 +385,26 @@ const ChatTab = ({
       return;
     }
     if (payload.type === "role") {
-      await roleService.updateRole(payload.roleId, payload.updates, userId);
+      const updatedRole = await roleService.updateRole(payload.roleId, payload.updates, userId);
       await loadRoles();
       await loadMembers();
-      return;
+      return updatedRole;
+    }
+    if (payload.type === "deleteRole") {
+      await permissionService.deleteRole(payload.roleId, userId);
+      await loadRoles();
+      await loadMembers();
+      return true;
     }
     if (payload.type === "createRole") {
-      await roleService.createRole(payload.roleData, community.id, userId);
+      const createdRole = await roleService.createRole(payload.roleData, community.id, userId);
       await loadRoles();
-      return;
+      return createdRole;
     }
     if (payload.type === "reorderRoles") {
       await roleService.reorderRoles(payload.roles, community.id, userId);
       await loadRoles();
-      return;
+      return true;
     }
     if (payload.type === "assignRole") {
       await roleService.updateMemberRole(payload.memberId, payload.roleId, userId);

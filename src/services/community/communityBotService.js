@@ -1,5 +1,21 @@
 import { supabase } from "../config/supabase";
 
+async function unwrapBotFunctionResult(result, error) {
+  if (!error) return result;
+  const response = error.context;
+  let detail = "";
+  if (response && typeof response.json === "function") {
+    try {
+      const body = await response.clone().json();
+      detail = body?.error || body?.message || "";
+    } catch {
+      detail = "";
+    }
+  }
+  if (!detail && response?.status) detail = `Community bot request failed (${response.status}).`;
+  throw new Error(detail || error.message || "Community bot request failed.");
+}
+
 const communityBotService = {
   async listIntegrations(communityId) {
     const [{ data: integrations, error: integrationsError }, { data: destinations, error: destinationsError }] = await Promise.all([
@@ -51,16 +67,15 @@ const communityBotService = {
   },
 
   async checkBot(provider, communityId) {
-    const { data, error } = await supabase.functions.invoke("community-bot", { body: { action: "check", provider, communityId } });
-    if (error) throw error;
-    return data;
+    const result = await supabase.functions.invoke("community-bot", { body: { action: "check", provider, communityId } });
+    return unwrapBotFunctionResult(result.data, result.error);
   },
 
   async discoverDiscordTargets(communityId) {
-    const { data, error } = await supabase.functions.invoke("community-bot", {
+    const result = await supabase.functions.invoke("community-bot", {
       body: { action: "discover", provider: "discord", communityId },
     });
-    if (error) throw error;
+    const data = await unwrapBotFunctionResult(result.data, result.error);
     return data?.guilds || [];
   },
 };

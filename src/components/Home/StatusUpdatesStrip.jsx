@@ -29,12 +29,37 @@ const getStatusMediaUrl = (imageId, isVideo = false) => {
   return getMediaUrl(imageId);
 };
 
-const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) => {
+const getProfileAvatarUrls = (profile) => {
+  const profileAvatar = profile?.avatar;
+  const isImageUrl = (value) => typeof value === "string" && /^(https?:\/\/|data:image\/|blob:)/i.test(value);
+  const avatarIsImage = profileAvatar && (
+    typeof profileAvatar === "object" || isImageUrl(profileAvatar)
+  );
+  const sources = [
+    profile?.avatar_url,
+    profile?.avatarUrl,
+    avatarIsImage ? profileAvatar : null,
+    profile?.avatar_id,
+    profile?.avatarId,
+    profile?.user_metadata?.avatar_url,
+    profile?.user_metadata?.picture,
+  ].filter(Boolean);
+
+  return [...new Set(sources.flatMap((source) => {
+    const resolved = mediaUrlService.resolveAvatarUrls?.(source, 120);
+    return resolved?.length ? resolved : [mediaUrlService.getAvatarUrl?.(source, 120)];
+  }).filter(Boolean))];
+};
+
+export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) => {
   const [imageError, setImageError] = useState(false);
+  const [avatarIndex, setAvatarIndex] = useState(0);
   const status = group.latest;
   useEffect(() => setImageError(false), [status?.id]);
   const profile = group.profile || status?.profile || currentUser;
-  const avatar = mediaUrlService.getAvatarUrl?.(profile?.avatar_id, 120) || getMediaUrl(profile?.avatar_id);
+  const avatarUrls = getProfileAvatarUrls(profile);
+  const avatar = avatarUrls[avatarIndex] || null;
+  useEffect(() => setAvatarIndex(0), [profile?.avatar, profile?.avatar_id, profile?.avatarId, profile?.avatar_url, profile?.avatarUrl]);
   const videoStatus = isVideoStatus(status);
   const statusMedia = !imageError ? getStatusMediaUrl(status?.image_id, videoStatus) : null;
   const videoPoster = videoStatus && statusMedia
@@ -43,30 +68,36 @@ const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) 
   const label = isMe ? "Your status" : formatDisplayName(profile);
   const statusText = status?.text?.trim();
   const statuses = group.statuses || [];
-  const ringColors = ["#b8ff40", "#58f5c3", "#39c9ff", "#a78bfa"];
-  const ringSize = isCompact ? 58 : 68;
+  const ringSize = isMe ? 64 : isCompact ? 58 : 68;
   const ringCenter = ringSize / 2;
-  const ringRadius = ringCenter - 3;
+  const ringStroke = 3;
+  const ringRadius = ringCenter - ringStroke - 3;
   const circumference = 2 * Math.PI * ringRadius;
-  const gap = statuses.length > 1 ? Math.min(5, circumference / statuses.length * 0.18) : 0;
-  const segment = statuses.length ? circumference / statuses.length - gap : circumference;
+  const gapDegrees = statuses.length > 1 ? (statuses.length <= 4 ? 4 : 3) : 0;
+  const segmentDegrees = statuses.length ? (360 - gapDegrees * statuses.length) / statuses.length : 360;
+  const segment = segmentDegrees / 360 * circumference;
 
   return (
     <button
       type="button"
+      className={isMe ? "status-owner-card" : undefined}
       onClick={onClick}
       aria-label={`${label}${statuses.length ? `, ${statuses.length} active ${statuses.length === 1 ? "status" : "statuses"}` : ", create a status"}`}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 8,
+        gap: isMe ? 0 : 6,
         background: "transparent",
         border: "none",
+        borderRadius: 0,
         padding: 0,
         cursor: "pointer",
         color: "inherit",
-        minWidth: isCompact ? 64 : 74,
+        minWidth: isMe ? ringSize : isCompact ? 48 : 74,
+        minHeight: ringSize,
+        textAlign: "center",
+        flexShrink: 0,
       }}
     >
       <div
@@ -82,7 +113,7 @@ const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) 
         }}
       >
         <svg aria-hidden="true" viewBox={`0 0 ${ringSize} ${ringSize}`} style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
-          <circle cx={ringCenter} cy={ringCenter} r={ringRadius} fill="none" stroke="rgba(148,163,184,.34)" strokeWidth="2.5" />
+          <circle cx={ringCenter} cy={ringCenter} r={ringRadius} fill="none" stroke="rgba(132,204,22,.25)" strokeWidth={ringStroke} />
           {statuses.length ? statuses.map((item, index) => (
             <circle
               key={item.id || index}
@@ -90,29 +121,32 @@ const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) 
               cy={ringCenter}
               r={ringRadius}
               fill="none"
-              stroke={ringColors[index % ringColors.length]}
-              strokeWidth="3"
+              stroke="#84cc16"
+              strokeWidth={ringStroke}
               strokeDasharray={`${segment} ${circumference - segment}`}
-              strokeDashoffset={-(index * circumference / statuses.length)}
-              strokeLinecap="round"
+              strokeDashoffset={-(index * (segmentDegrees + gapDegrees) / 360) * circumference}
+              strokeLinecap="butt"
+              opacity=".95"
             />
-          )) : <circle cx={ringCenter} cy={ringCenter} r={ringRadius} fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" strokeDasharray="2 4"/>}
+          )) : <circle cx={ringCenter} cy={ringCenter} r={ringRadius} fill="none" stroke="rgba(132,204,22,.25)" strokeWidth={ringStroke} strokeDasharray="4 4"/>}
         </svg>
         <div
           style={{
             position: "absolute",
-            inset: 5,
+            inset: ringStroke + 3,
             borderRadius: "50%",
             background: "#121416",
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid rgba(148,163,184,.34)",
-            boxShadow: "0 2px 12px rgba(0,0,0,.45)",
+            border: "none",
           }}
         >
-          {statusMedia && videoStatus ? (
+          {isMe ? (avatar && !imageError
+            ? <img src={avatar} alt="" onError={() => setAvatarIndex((index) => index + 1)} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
+            : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", background: "linear-gradient(145deg,rgba(132,204,22,.2),rgba(255,255,255,.04))", color: "#d7f9ad", fontWeight: 800 }}>{(label || "U").charAt(0).toUpperCase()}</div>
+          ) : statusMedia && videoStatus ? (
             <video
               src={statusMedia}
               poster={videoPoster || undefined}
@@ -155,7 +189,7 @@ const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) 
               {statusText || (status.media_type === "video" ? "▶" : "Status")}
             </div>
           ) : avatar ? (
-            <img src={avatar} alt="" onError={() => setImageError(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={avatar} alt="" onError={() => setAvatarIndex((index) => index + 1)} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
           ) : (
             <div
               style={{
@@ -170,25 +204,31 @@ const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = false }) 
                 fontSize: 16,
               }}
             >
-              {isMe && statuses.length === 0 ? <Plus size={18} /> : (label || "U").charAt(0).toUpperCase()}
+              {(label || "U").charAt(0).toUpperCase()}
             </div>
           )}
         </div>
-        {isMe && statuses.length === 0 && <span aria-hidden="true" style={{ position: "absolute", right: -1, bottom: -1, width: 20, height: 20, borderRadius: "50%", display: "grid", placeItems: "center", color: "#071000", background: "#a3e635", border: "2px solid #07090b" }}><Plus size={12}/></span>}
+        {isMe && statuses.length === 0 && (
+          <span aria-hidden="true" style={{ position:"absolute", right:1, bottom:1, width:19, height:19, display:"grid", placeItems:"center", border:"2px solid #080a07", borderRadius:"50%", color:"#17210b", background:"#bef264" }}>
+            <Plus size={9} strokeWidth={3} />
+          </span>
+        )}
       </div>
-      <span
-        style={{
-          fontSize: 10,
-          color: "#dfe7f2",
-          lineHeight: 1.2,
-          maxWidth: isCompact ? 58 : 60,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
+      {!isMe && (
+        <span
+          style={{
+            fontSize: 9,
+            color: "#dfe7f2",
+            lineHeight: 1.2,
+            maxWidth: isCompact ? 52 : 60,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </span>
+      )}
     </button>
   );
 };
@@ -280,24 +320,26 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
 
   return (
     <div style={{
-      padding: "5px 16px 5px",
-      background: "linear-gradient(90deg,rgba(132,204,22,.035),rgba(6,8,10,.3) 36%,rgba(34,211,238,.025))",
+      padding: "4px 12px",
+      background: "rgba(6,8,10,.16)",
       borderBottom: "1px solid var(--surface-border)",
     }}>
+      <style>{`.status-owner-card{border-radius:50%;}.status-owner-card:hover{filter:brightness(1.08)}.status-owner-card:focus-visible{outline:2px solid #bef264;outline-offset:3px;border-radius:50%;}`}</style>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 14,
+          gap: 10,
           overflowX: "auto",
-          padding: "2px 2px 5px",
+          padding: "1px 1px",
           scrollbarWidth: "none",
         }}
       >
         {loading ? (
-          <div style={{ display: "flex", gap: 12 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} style={{ width: 68, height: 68, borderRadius: 999, background: "rgba(255,255,255,0.05)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.035)" }} />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ width: 42, height: 42, borderRadius: 999, background: "rgba(255,255,255,0.035)" }} />
             ))}
           </div>
         ) : (

@@ -1,32 +1,51 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import RoleAccessReview from "./RoleAccessReview";
 
+jest.mock("../components/sections/RoleAccessPanel", () => function MockRoleAccessPanel({ canManage }) {
+  return <div>{canManage ? "Editable channel access" : "Read-only channel access"}</div>;
+});
+
 describe("RoleAccessReview", () => {
-  it("previews inherited category access and channel-specific overrides", () => {
+  it("edits the role's shared permission state and saves it", async () => {
+    const role = {
+      id: "verified",
+      name: "Verified",
+      permissions: { viewChannels: true },
+    };
+    const onUpdateRole = jest.fn().mockResolvedValue(role);
     render(
       <RoleAccessReview
-        role={{
-          id: "verified",
-          name: "Verified",
-          permissions: { viewChannels: true, sendMessages: true },
-        }}
-        categories={[{ id: "general-category", name: "General" }]}
-        channels={[
-          { id: "rules", name: "rules", type: "text", category_id: "general-category" },
-          { id: "private", name: "private", type: "text", category_id: "general-category" },
-        ]}
-        accessRules={[
-          { target_type: "category", target_id: "general-category", role_id: "verified", can_view: true, can_send: false },
-          { target_type: "channel", target_id: "private", role_id: "verified", can_view: false, can_send: false },
-        ]}
+        role={role}
+        communityId="community"
+        roles={[role]}
+        canManage
+        onUpdateRole={onUpdateRole}
       />,
     );
 
-    expect(screen.getByText("1 of 2 text channels")).not.toBeNull();
-    expect(screen.getByText("#rules")).not.toBeNull();
-    expect(screen.getByText("Read only")).not.toBeNull();
-    expect(screen.getByText("#private")).not.toBeNull();
-    expect(screen.getByText("Hidden")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "View Channels permission On" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Send Messages permission On" }));
+    expect(screen.getByRole("button", { name: "Send Messages permission On" }).getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save role permissions" }));
+    await screen.findByText("Saved");
+    expect(onUpdateRole).toHaveBeenCalledWith("verified", {
+      permissions: expect.objectContaining({ viewChannels: true, sendMessages: true }),
+    });
+    expect(screen.getByText("Editable channel access")).not.toBeNull();
+  });
+
+  it("keeps permission controls read-only without role-management access", () => {
+    render(
+      <RoleAccessReview
+        role={{ id: "verified", name: "Verified", permissions: {} }}
+        communityId="community"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "View Channels permission On" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Save role permissions" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("Read-only channel access")).not.toBeNull();
   });
 });

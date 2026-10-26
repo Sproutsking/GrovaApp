@@ -7,26 +7,25 @@
 // HOW IT WORKS:
 //   Users sign in to Xeevia via Google/X/Facebook/Discord OAuth.
 //   Those same OAuth providers issue tokens we can store in `connections`.
-//   For platforms where users didn't use that provider to sign up,
-//   we open a popup OAuth flow specifically for *linking* (not signing in),
-//   using Supabase's linkIdentity or a custom popup that gets an auth token
-//   and posts it back via window.postMessage.
+//   OAuth connections use an isolated popup session; profile-only connectors
+//   use validated public URLs. Neither flow changes the signed-in app session.
 //
 // ARCHITECTURE:
 //   1. If user signed in via X → we already have an X token. Mark as connected.
-//   2. For other platforms → open popup OAuth, capture token, store in connections.
+//   2. OAuth providers → capture the provider identity and token in a popup.
 //   3. `connections` table stores: user_id, provider, auth_status, platform_user_id
 //   4. `tokens` table stores: connection_id, encrypted_token, expires_at, revoked
 //
 // SECURITY:
 //   - Tokens stored in `tokens` table (not connections) for separation
 //   - All postMessage validated against window.location.origin
-//   - Popup completes OAuth in its own context, main session untouched
+//   - Popup OAuth uses sessionStorage and a nonce-bound same-origin callback
+//   - Profile URLs are platform-host validated but explicitly not ownership proof
 //
 // NOTE ON REAL API KEYS:
 //   Each platform requires a registered app with redirect URIs pointing
 //   to your domain. Set these in your Supabase project OAuth settings.
-//   For X: https://developer.twitter.com/
+//   For X: https://developer.x.com/
 //   For Facebook/Instagram: https://developers.facebook.com/
 //   For LinkedIn: https://developer.linkedin.com/
 // ============================================================================
@@ -36,7 +35,6 @@ import { syncUserConnectorEvidence } from "../evidence/connectorService";
 
 const POPUP_W = 520;
 const POPUP_H = 620;
-const PENDING_LINK_KEY = "xeevia_pending_identity_link";
 
 export function resolveProviderLinkState({ platform, identities = [], connections = {} } = {}) {
   const safeIdentities = Array.isArray(identities) ? identities : [];
@@ -97,7 +95,7 @@ export function resolveProviderLinkState({ platform, identities = [], connection
 // These are standard OAuth scopes needed for posting
 const PLATFORM_CONFIGS = {
   x: {
-    provider: "twitter",           // Supabase provider name
+    provider: "x",
     scopes:   "tweet.read tweet.write users.read offline.access",
     label:    "X (Twitter)",
   },
@@ -119,7 +117,7 @@ const PLATFORM_CONFIGS = {
   instagram: {
     // Instagram uses Facebook's OAuth
     provider:      "facebook",
-    scopes:        "email public_profile instagram_basic instagram_content_publish",
+    scopes:        "email public_profile pages_show_list pages_read_engagement instagram_basic instagram_content_publish",
     label:         "Instagram",
     subPlatform:   true,  // needs extra step to get IG account ID
   },
@@ -133,15 +131,40 @@ const PLATFORM_CONFIGS = {
     scopes: "read:user user:email",
     label: "GitHub",
   },
+  gitlab: {
+    provider: "gitlab",
+    scopes: "read_user",
+    label: "GitLab",
+  },
+  bitbucket: {
+    provider: "bitbucket",
+    scopes: "account email",
+    label: "Bitbucket",
+  },
+  figma: {
+    provider: "figma",
+    scopes: "current_user:read",
+    label: "Figma",
+  },
+  notion: {
+    provider: "notion",
+    scopes: "",
+    label: "Notion",
+  },
   apple: {
     provider: "apple",
     scopes: "name email",
     label: "Apple",
   },
-  tiktok: {
-    provider: "tiktok",
-    scopes: "user.info.basic",
-    label: "TikTok",
+  twitch: {
+    provider: "twitch",
+    scopes: "user:read:email",
+    label: "Twitch",
+  },
+  spotify: {
+    provider: "spotify",
+    scopes: "user-read-private user-read-email user-top-read user-follow-read",
+    label: "Spotify",
   },
 };
 
@@ -150,6 +173,8 @@ const READ_ONLY_SCOPES = {
   facebook: "email public_profile",
   instagram: "email public_profile instagram_basic",
   linkedin: "openid profile email",
+  twitch: "user:read:email",
+  spotify: "user-read-private user-read-email",
 };
 
 export function getPlatformConfig(platform, options = {}) {
@@ -158,6 +183,47 @@ export function getPlatformConfig(platform, options = {}) {
   return options.readOnly
     ? { ...baseConfig, scopes: READ_ONLY_SCOPES[platform] || baseConfig.scopes }
     : baseConfig;
+}
+
+const PROFILE_HOSTS = {
+  wallet: ["etherscan.io", "solscan.io", "polygonscan.com", "bscscan.com"],
+  youtube: ["youtube.com", "youtu.be"],
+  tiktok: ["tiktok.com"],
+  snapchat: ["snapchat.com"],
+  threads: ["threads.net"],
+  pinterest: ["pinterest.com"],
+  reddit: ["reddit.com"],
+  telegram: ["t.me", "telegram.me"],
+  twitch: ["twitch.tv"],
+  kick: ["kick.com"],
+  roblox: ["roblox.com"],
+  steam: ["steamcommunity.com"],
+  xbox: ["xbox.com"],
+  playstation: ["playstation.com"],
+  epic: ["epicgames.com"],
+  spotify: ["spotify.com"],
+  substack: ["substack.com"],
+};
+
+export function validateProfileUrl(platform, value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("Enter a valid public profile URL.");
+  }
+  if (parsed.protocol !== "https:") throw new Error("Use a secure HTTPS profile link.");
+  const hosts = PROFILE_HOSTS[platform];
+  if (!hosts) throw new Error(`Profile links are not configured for ${platform}.`);
+  const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+  if (!hosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))) {
+    throw new Error(`Use a profile URL from ${hosts.join(", ")}.`);
+  }
+  if (parsed.pathname === "/" || parsed.pathname.length < 2) {
+    throw new Error("Enter a link to a specific public profile, channel, or account.");
+  }
+  parsed.hash = "";
+  return parsed.toString();
 }
 
 class SocialConnectService {
@@ -283,7 +349,7 @@ class SocialConnectService {
 
     if (linkedState.alreadyConnected) {
       const platformUserId = linkedState.platformUserId || connectionMap[platform]?.platform_user_id || user.email || user.id;
-      await supabase
+      const { error } = await supabase
         .from("connections")
         .upsert({
           user_id: userId,
@@ -292,68 +358,52 @@ class SocialConnectService {
           auth_status: "active",
           connected_via: linkedState.source || "supabase_identity",
         }, { onConflict: "user_id,provider" });
+      if (error) throw new Error(`The ${config.label} connection could not be confirmed: ${error.message}`);
       return { redirecting: false, alreadyConnected: true, platform };
     }
 
-    if (linkedState.source === "supabase_identity") {
-      return this._openOAuthPopup(userId, platform, config);
-    }
-
-    if (!supabase.auth.linkIdentity) throw new Error("Account linking is unavailable in this Supabase client.");
-    const nonce = crypto.randomUUID();
-    sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify({ userId, platform, nonce, startedAt: Date.now() }));
-    const { error: linkError } = await supabase.auth.linkIdentity({
-      provider: config.provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/link-callback`,
-        scopes: config.scopes,
-        queryParams: { prompt: "select_account", xeevia_link_nonce: nonce },
-      },
-    });
-    if (linkError) {
-      sessionStorage.removeItem(PENDING_LINK_KEY);
-      const linkMessage = linkError.message || "";
-      if (/manual linking is disabled|linking.*disabled/i.test(linkMessage)) {
-        throw new Error("Supabase blocked account linking. In Supabase Dashboard open Authentication > Settings > User Signups, enable Manual Linking, and confirm this provider is enabled. This is separate from the provider's OAuth login setting.");
-      }
-      if (/provider.*already.*connected|already.*identity/i.test(linkMessage)) {
-        if (linkedState.source === "supabase_identity") {
-          throw new Error(`This ${config.label} identity is linked for sign-in, but has no valid publishing token. Reconnect it with posting permissions enabled.`);
-        }
-        throw new Error("This provider is already connected to another Xeevia account or identity. Sign in to that account before managing it.");
-      }
-      throw linkError;
-    }
-    return { redirecting: true, platform };
+    return this._openOAuthPopup(userId, platform, config, options.popup);
   }
 
-  _openOAuthPopup(userId, platform, config) {
+  _openOAuthPopup(userId, platform, config, existingPopup = null) {
     return new Promise((resolve, reject) => {
-      const left = Math.round(window.screenX + (window.outerWidth - POPUP_W) / 2);
-      const top = Math.round(window.screenY + (window.outerHeight - POPUP_H) / 2);
-      const features = `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`;
-      const popup = window.open("about:blank", `xeevia_link_${platform}`, features);
+      const nonce = crypto.randomUUID();
+      const popup = existingPopup || (() => {
+        const left = Math.round(window.screenX + (window.outerWidth - POPUP_W) / 2);
+        const top = Math.round(window.screenY + (window.outerHeight - POPUP_H) / 2);
+        const features = `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`;
+        return window.open("about:blank", `xeevia_link_${platform}`, features);
+      })();
       if (!popup || popup.closed) {
         reject(new Error("Popup was blocked. Please allow popups for this site."));
         return;
       }
 
       popup.document.open();
-      popup.document.write(this._buildLinkPopupHTML(platform, config));
+      popup.document.write(this._buildLinkPopupHTML(platform, config, nonce));
       popup.document.close();
 
-      const onMessage = async (event) => {
-        if (event.origin !== window.location.origin || event.source !== popup
-          || event.data?.type !== "XEEVIA_SOCIAL_LINKED"
-          || event.data?.platformKey !== platform) return;
+      let completed = false;
+      const channel = typeof BroadcastChannel === "function"
+        ? new BroadcastChannel(`xeevia-social-link-${nonce}`)
+        : null;
+      const cleanup = () => {
         window.removeEventListener("message", onMessage);
+        channel?.removeEventListener("message", onChannelMessage);
+        channel?.close();
         clearInterval(pollInterval);
+      };
+      const handlePayload = async (payload) => {
+        if (completed || payload?.type !== "XEEVIA_SOCIAL_LINKED"
+          || payload?.platformKey !== platform || payload?.nonce !== nonce) return;
+        completed = true;
+        cleanup();
 
-        if (event.data.error) {
-          reject(new Error(event.data.error));
+        if (payload.error) {
+          reject(new Error(payload.error));
           return;
         }
-        if (typeof event.data.accessToken !== "string" || !event.data.accessToken) {
+        if (typeof payload.accessToken !== "string" || !payload.accessToken) {
           reject(new Error(`The ${config.label} provider did not return a publishing token.`));
           return;
         }
@@ -362,37 +412,44 @@ class SocialConnectService {
           await this._storeConnection(
             userId,
             platform,
-            event.data.platformUserId,
-            event.data.accessToken,
-            event.data.refreshToken,
+            payload.platformUserId,
+            payload.accessToken,
+            payload.refreshToken,
           );
           await syncUserConnectorEvidence(userId, platform).catch((error) => {
             console.warn(`[SocialConnect] Evidence sync failed for ${platform}:`, error?.message);
           });
-          resolve({ platform, platformUserId: event.data.platformUserId });
+          resolve({ platform, platformUserId: payload.platformUserId });
         } catch (error) {
           reject(error);
         }
       };
+      const onMessage = (event) => {
+        if (event.origin !== window.location.origin || event.source !== popup) return;
+        handlePayload(event.data);
+      };
+      const onChannelMessage = (event) => {
+        handlePayload(event.data);
+      };
 
       window.addEventListener("message", onMessage);
+      channel?.addEventListener("message", onChannelMessage);
       const pollInterval = setInterval(() => {
         if (!popup.closed) return;
-        clearInterval(pollInterval);
-        window.removeEventListener("message", onMessage);
+        cleanup();
         reject(new Error("Sign-in was cancelled."));
       }, 600);
     });
   }
 
   async saveProfileLink(userId, platform, profileUrl) {
-    let parsed;
-    try { parsed = new URL(profileUrl); } catch { throw new Error("Enter a valid public profile URL."); }
-    if (!/^https?:$/.test(parsed.protocol)) throw new Error("Enter a valid public profile URL.");
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user || user.id !== userId) throw new Error("Your session expired. Sign in again before linking a profile.");
+    const normalizedUrl = validateProfileUrl(platform, profileUrl);
     const { error } = await supabase.from("connections").upsert({
       user_id: userId,
       provider: platform,
-      platform_user_id: parsed.toString(),
+      platform_user_id: normalizedUrl,
       auth_status: "active",
       connected_via: "profile_link",
     }, { onConflict: "user_id,provider" });
@@ -400,7 +457,7 @@ class SocialConnectService {
     await syncUserConnectorEvidence(userId, platform).catch((syncError) => {
       console.warn(`[SocialConnect] Connection proof sync failed for ${platform}:`, syncError?.message);
     });
-    return { platform, profileUrl: parsed.toString() };
+    return { platform, profileUrl: normalizedUrl, ownershipVerified: false };
   }
 
   // ── Store connection and token in database ────────────────────────────────
@@ -537,12 +594,19 @@ class SocialConnectService {
   // ── Map Supabase provider names to our platform keys ─────────────────────
   _providerToPlatform(provider) {
     const map = {
+      x:             "x",
       twitter:       "x",
       facebook:      "facebook",
       google:        "google",
       discord:       "discord",
+      twitch:        "twitch",
+      spotify:       "spotify",
       linkedin_oidc: "linkedin",
       github:        "github",
+      gitlab:        "gitlab",
+      bitbucket:     "bitbucket",
+      figma:         "figma",
+      notion:        "notion",
       apple:         "apple",
       tiktok:        "tiktok",
       // Instagram shares Facebook's OAuth
@@ -551,11 +615,13 @@ class SocialConnectService {
   }
 
   // ── Build popup HTML for the OAuth link flow ──────────────────────────────
-  _buildLinkPopupHTML(platform, config) {
+  _buildLinkPopupHTML(platform, config, nonce) {
     const SUPA_URL = process.env.REACT_APP_SUPABASE_URL || "";
     const SUPA_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
     const origin   = window.location.origin;
-    const callbackUrl = `${origin}/auth/social-callback`;
+    const callbackUrl = `${origin}/auth-social-callback.html?platform=${encodeURIComponent(platform)}&nonce=${encodeURIComponent(nonce)}`;
+    const storageKey = `xeevia-social-link-${platform}`;
+    const safeNonce = JSON.stringify(nonce);
 
     const platformIcons = {
       x:         "𝕏",
@@ -622,7 +688,7 @@ class SocialConnectService {
   <div class="logo">XEEVIA</div>
   <div class="platform-icon">${platformIcons[platform] || "?"}</div>
   <div class="title">Connect ${config.label}</div>
-  <div class="sub">Authorize Xeevia to publish on your behalf.<br/>You can disconnect at any time.</div>
+  <div class="sub">Authorize Xeevia to connect this account.<br/>You can disconnect at any time.</div>
   <div class="spinner" id="sp"></div>
   <p class="status" id="msg">Starting authorization…</p>
 
@@ -630,69 +696,47 @@ class SocialConnectService {
     import{createClient}from'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
     const sb = createClient('${SUPA_URL}','${SUPA_KEY}',{
-      auth:{persistSession:false,autoRefreshToken:false}
+      auth:{persistSession:true,autoRefreshToken:false,storage:window.sessionStorage,storageKey:'${storageKey}',detectSessionInUrl:true}
     });
 
     const platform = '${platform}';
     const provider = '${config.provider}';
-    const origin   = '${origin}';
-
-    // Check if we're returning from OAuth (session in URL hash)
-    const{data:{session}}=await sb.auth.getSession();
-
-    if(session?.user){
-      // We have a session from the OAuth redirect — extract what we need
-      document.getElementById('msg').textContent='Saving connection…';
-
-      const identity = session.user.identities?.find(i=>i.provider===provider) || {};
-      const platformUserId = identity.identity_data?.user_name
-        || identity.identity_data?.preferred_username
-        || identity.identity_data?.sub
-        || session.user.id;
-
-      // Get the provider token if available
-      const accessToken = session.provider_token || null;
-      const refreshToken = session.provider_refresh_token || null;
-
-      // Sign out this popup session only
-      await sb.auth.signOut({scope:'local'}).catch(()=>{});
-
-      // Post result to main window
+    const nonce = ${safeNonce};
+    const origin = '${origin}';
+    const notifyParent = (payload) => {
       if(window.opener&&!window.opener.closed){
-        window.opener.postMessage({
-          type:         'XEEVIA_SOCIAL_LINKED',
-          platformKey:  platform,
-          accessToken,
-          refreshToken,
-          platformUserId,
-          ...(!accessToken ? { error: 'The provider did not return a publishing token. Confirm posting scopes are enabled and reconnect.' } : {}),
-        }, origin);
-        document.getElementById('sp').style.display='none';
-        document.getElementById('msg').textContent='Connected! Closing…';
-        setTimeout(()=>window.close(),800);
+        window.opener.postMessage(payload,origin);
       }
-    } else {
-      // Initiate OAuth
-      document.getElementById('msg').textContent='Opening ${config.label} authorization…';
-      const{error}=await sb.auth.signInWithOAuth({
-        provider,
-        options:{
-          redirectTo:'${callbackUrl}',
-          skipBrowserRedirect:false,
-          scopes:'${config.scopes}',
-          queryParams:{
-            ${platform === "x" ? "force_login:'true'," : ""}
-            ${platform === "facebook" ? "auth_type:'rerequest'," : ""}
-            access_type:'offline',
-          }
+      if(typeof BroadcastChannel==='function'){
+        const channel=new BroadcastChannel('xeevia-social-link-'+nonce);
+        channel.postMessage(payload);
+        channel.close();
+      }
+    };
+    sessionStorage.setItem('xeevia-social-link-config-${platform}', JSON.stringify({
+      url: '${SUPA_URL}',
+      key: '${SUPA_KEY}',
+    }));
+    document.getElementById('msg').textContent='Opening ${config.label} authorization…';
+    const{error}=await sb.auth.signInWithOAuth({
+      provider,
+      options:{
+        redirectTo:'${callbackUrl}',
+        skipBrowserRedirect:false,
+        scopes:'${config.scopes}',
+        queryParams:{
+          ${platform === "x" ? "force_login:'true'," : ""}
+          ${platform === "facebook" ? "auth_type:'rerequest'," : ""}
+          access_type:'offline',
         }
-      });
-      if(error){
-        document.getElementById('sp').style.display='none';
-        document.getElementById('msg').className='err';
-        document.getElementById('msg').textContent='Error: '+error.message;
-        setTimeout(()=>window.close(),4000);
       }
+    });
+    if(error){
+      document.getElementById('sp').style.display='none';
+      document.getElementById('msg').className='err';
+      document.getElementById('msg').textContent='Error: '+error.message;
+      notifyParent({type:'XEEVIA_SOCIAL_LINKED',platformKey:platform,nonce,error:error.message});
+      setTimeout(()=>window.close(),1200);
     }
   </script>
 </body>

@@ -10,6 +10,7 @@ import { supabase } from "../../services/config/supabase";
 import xrcService from "../../services/xrc";
 import evidenceService from "../../services/evidence/evidenceService";
 import socialConnectService from "../../services/distribution/socialConnectService";
+import { useAccountLinking } from "../../contexts/AccountLinkingContext";
 import { syncUserConnectorEvidence } from "../../services/evidence/connectorService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 const XRCOracleExplorer = lazy(() => import("../Oracle/XRCOracleExplorer"));
@@ -236,6 +237,7 @@ const XRDProfileDashboard = ({
   initialSection = "Overview",
   onClose,
 }) => {
+  const { openAccountLink } = useAccountLinking();
   const viewerId = currentUser?.id || currentUser?.uid || currentUser?.userId || currentUser?.user_id;
   const own = Boolean(viewerId && targetId && String(viewerId) === String(targetId));
   const requestedInitialSection = initialSection === "XRC Oracle" ? "Oracle" : initialSection;
@@ -449,13 +451,10 @@ const XRDProfileDashboard = ({
     setSourceBusy(provider);
     setSourceNotice("");
     try {
-      const result = await socialConnectService.linkPlatform(targetId, provider, { readOnly: true });
-      if (result?.redirecting) {
-        setSourceNotice(`Continue authorization for ${provider} in the opened window.`);
-      } else {
-        await loadSourceConnections();
-        setSourceNotice(result?.alreadyConnected ? `${provider} is already connected.` : `${provider} connected.`);
-      }
+      const result = await openAccountLink({ userId: targetId, platform: provider, readOnly: true, purpose: "evidence" });
+      if (result?.cancelled) return;
+      await loadSourceConnections();
+      setSourceNotice(`${provider} connected for identity evidence.`);
     } catch (error) {
       setSourceNotice(error?.message || `Could not connect ${provider}.`);
     } finally {

@@ -1,32 +1,14 @@
 // src/services/distribution/distributionService.js
 // ============================================================================
-// Xeevia Social Distribution Service — v2 PRECISE FIX
-//
-// ROOT CAUSES FIXED:
-//
-// [BUG-A] getPlatformPreferences() called .single() which throws PGRST116
-//   when no row exists for a new user. New users ALWAYS have no row. This
-//   caused PlatformSelector to crash on load for every first-time user.
-//   Fix: use .maybeSingle() + safe default. Also wrapped in try/catch so a
-//   missing table (42P01) returns safe defaults instead of throwing.
-//
-// [BUG-B] getConnectedPlatforms() did not guard against the connections table
-//   having RLS restrictions or not existing. Now returns [] on any error.
-//
-// [BUG-C] distributePost(postId, userId, selectedPlatforms) — the calling
-//   code in useDistribution passed only postId. The userId is now optional
-//   in this function signature and is resolved internally from the post row
-//   when not supplied. This makes the hook call site simpler and correct.
-//
-// [BUG-D] publishToSinglePlatform fetched the tokens table with .single()
-//   which throws if 0 rows. Changed to .maybeSingle() with explicit guard.
-//
-// All existing logic preserved. New: distributePost accepts (postId) with
-// userId resolved from the post row, or (postId, userId) explicitly.
+// Social Distribution Service
+// Connection readiness comes from a token-presence RPC; provider tokens are
+// read and used only by the authenticated publish-social-post Edge Function.
+// Distribution rows are upserted so a failed destination can be retried.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 import adapters from "./platformAdapterFactory";
+import socialConnectService from "./socialConnectService";
 
 // Safe error handler — keeps service from swallowing useful errors
 const handleError = (err, msg) => {
@@ -125,55 +107,55 @@ class DistributionService {
       const providerAliases = { twitter: "x", linkedin_oidc: "linkedin" };
       const supportedPlatforms = new Set(adapters.getSupportedPlatforms());
       const { data, error } = await withTimeout(
-        supabase
-          .from("connections")
-          .select("id, provider, auth_status, platform_user_id")
-          .eq("user_id", userId),
+        supabase.rpc("get_distribution_connection_states", { p_user_id: userId }),
         10000
       );
+      if (error) {
+        const missingReadinessFunction = error.code === "PGRST202"
+          || /get_distribution_connection_states.*(schema cache|not found|does not exist)/i.test(error.message || "");
+        if (!missingReadinessFunction) throw handleError(error, "Could not load connected platforms");
 
-      if (error?.code === "42P01") throw new Error("Platform connections are not configured in the database.");
-      if (error) throw handleError(error, "Could not load connected platforms");
+        const connections = await socialConnectService.getConnections(userId);
+        return Object.entries(connections)
+          .map(([provider, connection]) => ({
+            provider: providerAliases[provider] || provider,
+            auth_status: connection.auth_status,
+            platform_user_id: connection.platform_user_id,
+            has_valid_token: connection.hasValidToken === true,
+          }))
+          .filter((connection) => supportedPlatforms.has(connection.provider) && connection.auth_status !== "revoked")
+          .reduce((states, connection) => {
+            const current = states[connection.provider];
+            const canPublish = connection.auth_status === "active" && connection.has_valid_token;
+            if (!current || canPublish) {
+              states[connection.provider] = {
+                status: canPublish ? "ready" : "reconnect",
+                canPublish,
+                platformUserId: connection.platform_user_id || null,
+              };
+            }
+            return states;
+          }, {});
+      }
 
-      const activeConnections = (data || [])
+      return (data || [])
         .map((connection) => ({
           ...connection,
           provider: providerAliases[connection.provider] || connection.provider,
         }))
-        .filter((connection) => supportedPlatforms.has(connection.provider));
-      if (!activeConnections.length) return {};
-
-      const connectionIds = activeConnections.map((connection) => connection.id);
-      const { data: tokens, error: tokenError } = await withTimeout(
-        supabase
-          .from("tokens")
-          .select("connection_id, encrypted_token, expires_at")
-          .in("connection_id", connectionIds)
-          .eq("revoked", false),
-        10000
-      );
-      if (tokenError) throw handleError(tokenError, "Could not verify platform publishing tokens");
-
-      const now = Date.now();
-      const validTokenConnections = new Set();
-      for (const token of tokens || []) {
-        const expiresAt = token.expires_at ? Date.parse(token.expires_at) : null;
-        if (token.encrypted_token && (!token.expires_at || (Number.isFinite(expiresAt) && expiresAt > now))) {
-          validTokenConnections.add(token.connection_id);
-        }
-      }
-
-      return activeConnections.reduce((states, connection) => {
-        const ready = connection.auth_status === "active" && validTokenConnections.has(connection.id);
-        const current = states[connection.provider];
-        if (!current || ready) {
-          states[connection.provider] = {
-            status: ready ? "ready" : "reconnect",
-            platformUserId: connection.platform_user_id || null,
-          };
-        }
-        return states;
-      }, {});
+        .filter((connection) => supportedPlatforms.has(connection.provider) && connection.auth_status !== "revoked")
+        .reduce((states, connection) => {
+          const ready = connection.auth_status === "active" && connection.has_valid_token === true;
+          const current = states[connection.provider];
+          if (!current || ready) {
+            states[connection.provider] = {
+              status: ready ? "ready" : "reconnect",
+              canPublish: ready,
+              platformUserId: connection.platform_user_id || null,
+            };
+          }
+          return states;
+        }, {});
     } catch (err) {
       throw handleError(err, "Could not load connected platforms");
     }
@@ -181,7 +163,7 @@ class DistributionService {
 
   async getConnectedPlatforms(userId) {
     const states = await this.getPlatformConnectionStates(userId);
-    return Object.keys(states).filter((platform) => states[platform].status === "ready");
+    return Object.keys(states).filter((platform) => states[platform].canPublish === true);
   }
 
   // ── Determine which platforms to target ───────────────────────────────────
@@ -282,18 +264,22 @@ class DistributionService {
         console.warn("[Distribution] Queue insert failed (non-fatal):", e?.message);
       }
 
-      // Init distribution records
-      await Promise.all(
-        targets.map(async (platform) => {
-          const { error } = await supabase.from("post_distribution").insert({
+      const { error: distributionRecordError } = await supabase
+        .from("post_distribution")
+        .upsert(
+          targets.map((platform) => ({
             post_id: postId,
             user_id: resolvedUserId,
             platform,
             status: "pending",
-          });
-          if (error) throw handleError(error, `Could not prepare distribution to ${platform}`);
-        })
-      );
+            error_message: null,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: "post_id,platform" }
+        );
+      if (distributionRecordError) {
+        throw handleError(distributionRecordError, "Could not prepare distribution records");
+      }
 
       // Publish in parallel
       const results = await Promise.allSettled(
@@ -305,7 +291,7 @@ class DistributionService {
       const summary = results.map((r, i) => ({
         platform: targets[i],
         ok: r.status === "fulfilled" && r.value?.status === "success",
-        error: r.status === "rejected" ? r.reason?.message : r.value?.status === "fallback" ? "Manual sharing is required" : undefined,
+        error: r.status === "rejected" ? r.reason?.message : r.value?.status === "fallback" ? (r.value.error || "Manual sharing is required") : undefined,
         deepLink: r.status === "fulfilled" ? r.value?.deepLink : undefined,
       }));
 
@@ -394,7 +380,7 @@ class DistributionService {
       const summary = results.map((result, index) => ({
         platform: targets[index],
         ok: result.status === "fulfilled" && result.value?.status === "success",
-        error: result.status === "rejected" ? result.reason?.message : result.value?.status === "fallback" ? "Manual sharing is required" : undefined,
+        error: result.status === "rejected" ? result.reason?.message : result.value?.status === "fallback" ? (result.value.error || "Manual sharing is required") : undefined,
         deepLink: result.status === "fulfilled" ? result.value?.deepLink : undefined,
       }));
       return { success: summary.every((result) => result.ok), targets, results: summary };
@@ -434,92 +420,56 @@ class DistributionService {
         await this._updateDistributionStatus(contentType, postId, platform, { status: "success", external_post_id: result?.externalMessageId || null, published_at: new Date().toISOString(), updated_at: new Date().toISOString() });
         return { platform, status: "success", externalId: result?.externalMessageId || null };
       }
-      const adapter = adapters.getAdapter(platform);
-      if (!adapter) throw new Error(`No adapter for: ${platform}`);
-
-      // Get connection
-      const providerAliases = {
-        x: ["x", "twitter"],
-        linkedin: ["linkedin", "linkedin_oidc"],
-      };
-      const { data: conn, error: connErr } = await withTimeout(
-        supabase
-          .from("connections")
-          .select("id, provider, platform_user_id")
-          .eq("user_id", userId)
-          .in("provider", providerAliases[platform] || [platform])
-          .eq("auth_status", "active")
-          .limit(1)
-          .maybeSingle(),
-        10000
-      );
-      if (connErr || !conn) throw new Error(`Not connected to ${platform}`);
-
-      // [BUG-D FIX] .maybeSingle() + guard instead of .single()
-      const { data: tokenRow, error: tokenErr } = await withTimeout(
-        supabase
-          .from("tokens")
-          .select("encrypted_token, expires_at")
-          .eq("connection_id", conn.id)
-          .eq("revoked", false)
-          .maybeSingle(),
-        10000
-      );
-      if (tokenErr) throw new Error(`Unable to verify the ${platform} publishing token. Please reconnect the platform and try again.`);
-      const tokenExpiry = tokenRow?.expires_at ? Date.parse(tokenRow.expires_at) : null;
-      if (!tokenRow?.encrypted_token
-        || tokenRow.revoked
-        || (tokenRow.expires_at && (!Number.isFinite(tokenExpiry) || tokenExpiry <= Date.now()))) {
-        throw new Error(`No valid publishing token for ${platform}. Reconnect the platform with posting permissions.`);
-      }
-
-      // Publish with retry (exponential backoff)
-      let externalId = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      if (!adapters.getAdapter(platform)) throw new Error(`No adapter for: ${platform}`);
+      if (!userId) throw new Error("A signed-in user is required to distribute content.");
+      const { data, error } = await supabase.functions.invoke("publish-social-post", {
+        body: { contentType, contentId: postId, platform },
+      });
+      if (error) {
+        let message = error.message;
         try {
-          externalId = await adapter.publishPost(
-            tokenRow.encrypted_token,
-            post,
-            conn.platform_user_id
-          );
-          break;
-        } catch (e) {
-          console.warn(`[Distribution] ${platform} attempt ${attempt}/3:`, e.message);
-          if (attempt < 3) {
-            await new Promise(r => setTimeout(r, 800 * Math.pow(2, attempt - 1)));
+          const response = error.context;
+          if (response && typeof response.json === "function") {
+            const payload = await response.json();
+            message = payload?.error || message;
           }
+        } catch {
+          // Keep the original Functions error when its response has no JSON body.
         }
+        throw new Error(message);
+      }
+      if (!data?.externalId) {
+        throw new Error(data?.error || `The ${platform} publisher returned no post ID.`);
       }
 
-      if (externalId) {
+      if (data.externalId) {
         await this._updateDistributionStatus(contentType, postId, platform, {
             status: "success",
-            external_post_id: externalId,
+            external_post_id: data.externalId,
             published_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
 
-        return { platform, status: "success", externalId };
+        return { platform, status: "success", externalId: data.externalId };
       }
-
-      // All retries failed — generate deep link as fallback
-      const deepLink = await this.generateDeepLink(platform, post).catch(() => null);
-      await this._updateDistributionStatus(contentType, postId, platform, {
-          status: "failed",
-          error_message: "All publish attempts failed; deep link generated",
-          updated_at: new Date().toISOString(),
-        });
-
-      return { platform, status: "fallback", deepLink };
     } catch (err) {
+      const deepLink = await this.generateDeepLink(platform, post).catch(() => null);
       try {
         await this._updateDistributionStatus(contentType, postId, platform, {
             status: "failed",
-            error_message: err.message,
+            error_message: err?.message || String(err),
             updated_at: new Date().toISOString(),
           });
       } catch (statusUpdateError) {
         console.warn("[Distribution] Failed to record platform error:", statusUpdateError?.message);
+      }
+      if (deepLink?.url) {
+        return {
+          platform,
+          status: "fallback",
+          deepLink,
+          error: err?.message || String(err),
+        };
       }
       throw err;
     }

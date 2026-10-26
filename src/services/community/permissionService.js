@@ -191,16 +191,16 @@ class PermissionService {
    */
   async deleteRole(roleId, userId) {
     try {
-      // Get role details
-      const { data: role } = await supabase
+      const { data: role, error: roleError } = await supabase
         .from("community_roles")
         .select("community_id, is_default, name")
         .eq("id", roleId)
         .single();
 
+      if (roleError) throw roleError;
       if (!role) throw new Error("Role not found");
       if (role.is_default) throw new Error("Cannot delete default role");
-      if (role.name === "Owner") throw new Error("Cannot delete Owner role");
+      if (String(role.name || "").trim().toLowerCase() === "owner") throw new Error("Cannot delete Owner role");
 
       const hasPermission = await this.checkPermission(
         role.community_id,
@@ -214,12 +214,19 @@ class PermissionService {
       }
 
       // Check if any members have this role
-      const { count } = await supabase
+      const { count: memberCount, error: memberError } = await supabase
         .from("community_members")
         .select("id", { count: "exact", head: true })
         .eq("role_id", roleId);
+      if (memberError) throw memberError;
 
-      if (count > 0) {
+      const { count: assignmentCount, error: assignmentError } = await supabase
+        .from("community_member_roles")
+        .select("role_id", { count: "exact", head: true })
+        .eq("role_id", roleId);
+      if (assignmentError) throw assignmentError;
+
+      if ((memberCount || 0) + (assignmentCount || 0) > 0) {
         throw new Error("Cannot delete role that is assigned to members");
       }
 

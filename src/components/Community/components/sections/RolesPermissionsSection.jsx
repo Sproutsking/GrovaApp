@@ -1,72 +1,16 @@
 // src/components/Community/components/sections/RolesPermissionsSection.jsx
 // Designed for NARROW sidebar context (~360-400px wide).
 // Layout: role list on top → editor below (vertical stack, not side-by-side)
-// Toggle switches for each permission, grouped & searchable.
-import React, { useState, useEffect } from "react";
+// Selectable permission cards, grouped and searchable.
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Plus, Search, Shield, ChevronRight, ChevronLeft,
-  Check, X, Users, Crown, Save, Trash2,
+  Plus, Shield, ChevronRight, ChevronLeft,
+  Check, X, Users, Crown, Save,
 } from "lucide-react";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
 import RoleAccessPanel from "./RoleAccessPanel";
-
-// ─── Permission groups (Discord-style but ours) ───────────────────────────────
-const PERM_GROUPS = [
-  {
-    label: "General",
-    perms: [
-      { key: "viewChannels",    label: "View Channels",    desc: "See channels & read messages" },
-      { key: "manageChannels",  label: "Manage Channels",  desc: "Create, edit, delete channels" },
-      { key: "manageRoles",     label: "Manage Roles",     desc: "Create & edit roles below this" },
-      { key: "viewAuditLog",    label: "View Audit Log",   desc: "See community action history" },
-      { key: "manageCommunity", label: "Manage Community", desc: "Change community settings" },
-      { key: "manageInvites",   label: "Manage Invites",   desc: "Create, revoke and view invites" },
-      { key: "administrator",   label: "Administrator",    desc: "All permissions — use carefully", danger: true },
-    ],
-  },
-  {
-    label: "Members",
-    perms: [
-      { key: "viewMembers",       label: "View Members",       desc: "See the member list" },
-      { key: "inviteMembers",     label: "Invite Members",     desc: "Create invite links" },
-      { key: "kickMembers",       label: "Kick Members",       desc: "Remove members" },
-      { key: "banMembers",        label: "Ban Members",        desc: "Permanently ban members" },
-      { key: "manageNicknames",   label: "Manage Nicknames",   desc: "Change any member's nickname" },
-      { key: "changeOwnNickname", label: "Change Own Nickname",desc: "Change your display name" },
-      { key: "timeoutMembers",    label: "Timeout Members",    desc: "Temporarily mute members" },
-      { key: "assignRoles",       label: "Assign Roles",       desc: "Give members roles below yours" },
-    ],
-  },
-  {
-    label: "Messages",
-    perms: [
-      { key: "sendMessages",       label: "Send Messages",      desc: "Post in text channels" },
-      { key: "attachFiles",        label: "Attach Files",       desc: "Upload images & files" },
-      { key: "embedLinks",         label: "Embed Links",        desc: "Show link previews" },
-      { key: "addReactions",       label: "Add Reactions",      desc: "React to messages" },
-      { key: "useExternalEmojis",  label: "External Emojis",    desc: "Use emojis from other communities" },
-      { key: "mentionEveryone",    label: "@everyone / @here",  desc: "Ping all / online members" },
-      { key: "useSlashCommands",   label: "Slash Commands",     desc: "Use / commands" },
-      { key: "manageMessages",     label: "Manage Messages",    desc: "Delete / pin others' messages" },
-      { key: "pinMessages",        label: "Pin Messages",       desc: "Pin messages in channels" },
-      { key: "readMessageHistory", label: "Message History",    desc: "View past messages" },
-      { key: "bypassSlowMode",     label: "Bypass Slow Mode",   desc: "Send without slow mode limit" },
-    ],
-  },
-];
-
-// ─── Tiny toggle switch ───────────────────────────────────────────────────────
-const Toggle = ({ on, onChange, disabled }) => (
-  <button
-    className={`rps-tog${on ? " on" : ""}${disabled ? " dis" : ""}`}
-    onClick={() => !disabled && onChange(!on)}
-    disabled={disabled}
-    role="switch"
-    aria-checked={on}
-  >
-    <span className="rps-tog-thumb" />
-  </button>
-);
+import RolePermissionCards from "./RolePermissionCards";
+import { ROLE_PERMISSION_GROUPS } from "./rolePermissionCatalog";
 
 // ─── Role color swatches ──────────────────────────────────────────────────────
 const COLORS = [
@@ -82,6 +26,8 @@ const RolesPermissionsSection = ({
   members = [],
   canManageRoles = false,
   isCommunityOwner = false,
+  initialRoleId = null,
+  onInitialRoleOpened,
   onUpdateRole,
   onCreateRole,
   onAssignRole,
@@ -99,18 +45,20 @@ const RolesPermissionsSection = ({
   const [editedName, setEditedName]     = useState("");
   const [editedColor, setEditedColor]   = useState("#667eea");
   const [editedIcon, setEditedIcon]     = useState("♟");
-  const [permSearch, setPermSearch]     = useState("");
   const [activeTab, setActiveTab]       = useState("display");
   const [saving, setSaving]             = useState(false);
   const [saved, setSaved]               = useState(false);
+  const savedTimeout = useRef(null);
   const [showCreate, setShowCreate]     = useState(false);
   const [newName, setNewName]           = useState("");
   const [error, setError]               = useState("");
 
-  const openRole = (role) => {
+  useEffect(() => () => window.clearTimeout(savedTimeout.current), []);
+
+  const openRole = useCallback((role) => {
     setSelectedRole(role);
     const ownerPermissionDefaults = Object.fromEntries(
-      PERM_GROUPS.flatMap((group) => group.perms.map((permission) => [permission.key, true])),
+      ROLE_PERMISSION_GROUPS.flatMap((group) => group.perms.map((permission) => [permission.key, true])),
     );
     setEditedPerms(String(role.name || "").trim().toLowerCase() === "owner"
       ? { ...ownerPermissionDefaults, ...(role.permissions || {}) }
@@ -118,10 +66,17 @@ const RolesPermissionsSection = ({
     setEditedName(role.name || "");
     setEditedColor(role.color || "#667eea");
     setEditedIcon(role.icon || "♟");
-    setPermSearch("");
     setActiveTab("display");
     setView("edit");
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialRoleId) return;
+    const role = roles.find((candidate) => candidate.id === initialRoleId);
+    if (!role) return;
+    openRole(role);
+    onInitialRoleOpened?.();
+  }, [initialRoleId, roles, onInitialRoleOpened, openRole]);
 
   const memberCount = (roleId) => members.filter((member) =>
     member.role_id === roleId || member.roles?.some((role) => role.id === roleId),
@@ -147,14 +102,23 @@ const RolesPermissionsSection = ({
     setSaving(true);
     setError("");
     try {
-      await onUpdateRole(selectedRole.id, {
+      const updatedRole = await onUpdateRole(selectedRole.id, {
+        permissions: editedPerms,
+        name: editedName,
+        color: editedColor,
+        icon: editedIcon,
+      });
+      setSelectedRole({
+        ...selectedRole,
+        ...(updatedRole && typeof updatedRole === "object" ? updatedRole : {}),
         permissions: editedPerms,
         name: editedName,
         color: editedColor,
         icon: editedIcon,
       });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      window.clearTimeout(savedTimeout.current);
+      savedTimeout.current = window.setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       setError(err?.message || "Unable to save role");
       console.error("Save role error:", err);
@@ -178,15 +142,6 @@ const RolesPermissionsSection = ({
 
   const isOwnerRole = selectedRole?.name?.trim().toLowerCase() === "owner";
   const canEditSelectedRole = canManageRoles && (!isOwnerRole || isCommunityOwner);
-
-  const filteredGroups = PERM_GROUPS.map((g) => ({
-    ...g,
-    perms: g.perms.filter((p) =>
-      !permSearch ||
-      p.label.toLowerCase().includes(permSearch.toLowerCase()) ||
-      p.desc.toLowerCase().includes(permSearch.toLowerCase())
-    ),
-  })).filter((g) => g.perms.length > 0);
 
   // ── LIST VIEW ──────────────────────────────────────────────────────────────
   if (view === "list") {
@@ -344,59 +299,25 @@ const RolesPermissionsSection = ({
       {/* ── Permissions tab ── */}
       {activeTab === "permissions" && (
         <div className="rps-perms">
-          {/* Search */}
-          <div className="rps-perm-search">
-            <Search size={12} color="#555" />
-            <input
-              className="rps-perm-search-inp"
-              placeholder="Search permissions…"
-              value={permSearch}
-              onChange={(e) => setPermSearch(e.target.value)}
-            />
-            {permSearch && (
-              <button className="rps-perm-clear" onClick={() => setPermSearch("")}><X size={11} /></button>
-            )}
-          </div>
-
           {isOwnerRole && (
             <div className="rps-owner-notice">
               <Crown size={13} color="#FFD700" /> Current ownership always grants full access; these role permissions apply to assigned members.
             </div>
           )}
-
-          {/* Permission groups */}
-          {filteredGroups.map((group) => (
-            <div key={group.label} className="rps-perm-group">
-              <div className="rps-perm-group-label">{group.label}</div>
-              {group.perms.map((perm) => {
-                const enabled = !!editedPerms[perm.key];
-                return (
-                  <div key={perm.key} className={`rps-perm-row${perm.danger ? " danger" : ""}`}>
-                    <div className="rps-perm-info">
-                      <div className="rps-perm-label">{perm.label}</div>
-                      <div className="rps-perm-desc">{perm.desc}</div>
-                    </div>
-                    <Toggle
-                      on={enabled}
-                      onChange={() => setEditedPerms((p) => ({ ...p, [perm.key]: !p[perm.key] }))}
-                      disabled={!canEditSelectedRole}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-
-          {filteredGroups.length === 0 && (
-            <div className="rps-no-match">No permissions match "{permSearch}"</div>
-          )}
+          <RolePermissionCards value={editedPerms} onChange={setEditedPerms} disabled={!canEditSelectedRole} />
 
           {selectedRole && communityId && (
             <div className="rps-access-panel">
               <div className="rps-field-label" style={{ marginTop: 14 }}>Channel access</div>
               <RoleAccessPanel
                 communityId={communityId}
-                role={selectedRole}
+                role={{
+                  ...selectedRole,
+                  permissions: editedPerms,
+                  name: editedName,
+                  color: editedColor,
+                  icon: editedIcon,
+                }}
                 roles={roles}
                 canManage={canManageRoles}
                 onChanged={() => {}}
@@ -536,35 +457,8 @@ const rpsStyles = `
   .rps-perms{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:0}
   .rps-perms::-webkit-scrollbar{width:3px}
   .rps-perms::-webkit-scrollbar-thumb{background:rgba(156,255,0,.18);border-radius:2px}
-
-  .rps-perm-search{display:flex;align-items:center;gap:6px;padding:7px 10px;background:rgba(12,12,12,.98);border:1px solid rgba(36,36,36,.9);border-radius:8px;margin-bottom:10px}
-  .rps-perm-search-inp{flex:1;background:transparent;border:none;color:#fff;font-size:12px;outline:none}
-  .rps-perm-search-inp::placeholder{color:#444}
-  .rps-perm-clear{background:none;border:none;color:#555;cursor:pointer;display:flex;align-items:center;padding:0}
-
   .rps-owner-notice{display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:8px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.15);color:#FFD700;font-size:11px;font-weight:700;margin-bottom:10px}
 
-  .rps-perm-group{margin-bottom:14px}
-  .rps-perm-group-label{font-size:9px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;padding:0 1px}
-
-  .rps-perm-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:rgba(13,13,13,.95);border:1px solid rgba(28,28,28,.9);border-radius:8px;margin-bottom:3px;transition:border-color .12s}
-  .rps-perm-row:hover{border-color:rgba(156,255,0,.12)}
-  .rps-perm-row.danger{border-color:rgba(255,107,107,.1)}
-  .rps-perm-row.danger:hover{border-color:rgba(255,107,107,.25)}
-  .rps-perm-info{flex:1;min-width:0}
-  .rps-perm-label{font-size:12px;font-weight:700;color:#ccc;margin-bottom:1px}
-  .rps-perm-row.danger .rps-perm-label{color:#ffaaaa}
-  .rps-perm-desc{font-size:10px;color:#444;line-height:1.35}
-
-  .rps-no-match{text-align:center;color:#444;font-size:12px;padding:20px 0}
-
-  /* Toggle switch */
-  .rps-tog{width:38px;height:20px;border-radius:10px;background:rgba(40,40,40,.9);border:none;cursor:pointer;position:relative;flex-shrink:0;padding:0;transition:background .22s}
-  .rps-tog.on{background:rgba(156,255,0,.75)}
-  .rps-tog.dis{opacity:.38;cursor:not-allowed}
-  .rps-perm-row.danger .rps-tog.on{background:rgba(255,107,107,.7)}
-  .rps-tog-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .22s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
-  .rps-tog.on .rps-tog-thumb{transform:translateX(18px)}
 `;
 
 export default RolesPermissionsSection;

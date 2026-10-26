@@ -1,6 +1,6 @@
 # Xeevia Capability Status
 
-**Status date:** 2026-09-15
+**Status date:** 2026-10-25
 
 This document is the source of truth for whether a capability is shipped, partial, planned, or dependent on external configuration. A feature is not considered production-ready merely because a component or guide exists.
 
@@ -19,14 +19,16 @@ This document is the source of truth for whether a capability is shipped, partia
 | Human-readable verification dashboard | Shipped | Verification dashboard components and model |
 | XRC record verification utilities | Present and usable where records are written correctly | `src/services/xrc/verificationService.js`, hashing and chain services |
 | Ripple engagement genealogy | First settlement slice implemented in migration and client service; deployment and hardening required | `supabase/migrations/052_recursive_engagement_economy.sql`, `src/services/economy/epEconomyService.js` |
-| Community verification modes | Shipped at the configured feature level | Community verification components and migrations |
 
 ## Partial or Limited
 
 | Capability | Current limitation | Required proof before calling it complete |
 |---|---|---|
 | Native multi-platform evidence ingestion | Native coverage is narrower than the platform registry; many providers currently produce identity-level evidence | Provider-specific connectors, fixtures, scopes, rate-limit handling, and live sync metrics |
-| Cross-platform publishing | Adapters exist for a limited set of providers and require valid external credentials | End-to-end tests with real provider sandboxes, permission checks, media handling, retries, and failure recovery |
+| Cross-platform publishing | Create uses a readiness RPC and authenticated `publish-social-post` Edge Function. Current payload support: X/LinkedIn text; Facebook Page text or one image; Instagram Professional one image. Provider approval, credentials, migration/function deployment, and live testing are still required. | Provider sandbox tests, explicit Page/account selection for multi-target users, refresh/revocation handling, broader media support, retries, and failure recovery |
+| Community verification and role rewards | Quick, picture, rules, and letter-choice reaction flows are implemented locally. Role grants enforce hierarchy and permission checks. The new reaction and bot-manager migrations still require database deployment; live RPC behavior has not been verified. | Apply migrations `092` and `093`, exercise each verification flow against a test community, and verify role-choice completion and authorization in the deployed project |
+| Community social updates | Xeevia public-post sync and several provider adapters are implemented. Sync still depends on deployed Edge Functions, account scopes/tokens, provider APIs, and a real routed-channel test. | Deploy inbound-sync, test Xeevia and each enabled provider, and confirm media, public-only filtering, route delivery, failures, and retry behavior |
+| Community bots | Discord/Telegram bot setup and delivery surfaces exist. Provider secrets, deployed Edge Function, database policies, permissions, and real destination delivery are external operational dependencies. | Apply migration `093`, configure secrets, deploy `community-bot`, and test check/discovery/delivery with a permitted manager |
 | Evidence verification | Some records are tracked rather than verified; confidence is not yet a full policy engine | Source-specific verification rules, freshness, revocation, contradiction handling, and explainable decisions |
 | XRC integrity | Hash and chain verification utilities exist, but all event writers and field names must be audited together | Consistent schema contract, append-only enforcement, integration tests, and tamper tests |
 | Advertising engine | Foundation and campaign surface exist; delivery, attribution, fraud scoring, and settlement are not complete | Live measured campaigns and reconciliation tests |

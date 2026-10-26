@@ -1,14 +1,24 @@
 import distributionService from './distributionService';
 import { supabase } from '../config/supabase';
+import socialConnectService from './socialConnectService';
 
 jest.mock('../config/supabase', () => ({
   __esModule: true,
   supabase: {
     from: jest.fn(),
+    rpc: jest.fn(),
+    functions: {
+      invoke: jest.fn(),
+    },
     auth: {
       getUser: jest.fn(),
     },
   },
+}));
+
+jest.mock('./socialConnectService', () => ({
+  __esModule: true,
+  default: { getConnections: jest.fn() },
 }));
 
 afterEach(() => {
@@ -21,27 +31,7 @@ describe('distributionService.getConnectedPlatforms', () => {
   });
 
   it('does not treat a Supabase auth identity without a publishing token as connected', async () => {
-    supabase.from.mockImplementation((table) => {
-      if (table === 'connections') {
-        return {
-          select: () => ({
-            eq: async () => ({ data: [], error: null }),
-          }),
-        };
-      }
-
-      if (table === 'tokens') {
-        return {
-          select: () => ({
-            in: () => ({
-              eq: async () => ({ data: [], error: null }),
-            }),
-          }),
-        };
-      }
-
-      throw new Error(`Unexpected table: ${table}`);
-    });
+    supabase.rpc.mockResolvedValue({ data: [], error: null });
 
     supabase.auth.getUser.mockResolvedValue({
       data: {
@@ -57,43 +47,38 @@ describe('distributionService.getConnectedPlatforms', () => {
   });
 
   it('returns only active connections with an unexpired publishing token', async () => {
-    supabase.from.mockImplementation((table) => {
-      if (table === 'connections') {
-        return {
-          select: () => ({
-            eq: async () => ({
-              data: [
-                { id: 'x-connection', provider: 'twitter', auth_status: 'active', platform_user_id: 'xuser' },
-                { id: 'fb-connection', provider: 'facebook', auth_status: 'active', platform_user_id: null },
-              ],
-              error: null,
-            }),
-          }),
-        };
-      }
-
-      if (table === 'tokens') {
-        return {
-          select: () => ({
-            in: () => ({
-              eq: async () => ({
-                data: [
-                  { connection_id: 'x-connection', encrypted_token: 'x-token', expires_at: null },
-                  { connection_id: 'fb-connection', encrypted_token: 'expired-token', expires_at: '2000-01-01T00:00:00.000Z' },
-                ],
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-
-      throw new Error(`Unexpected table: ${table}`);
+    supabase.rpc.mockResolvedValue({
+      data: [
+        { provider: 'twitter', auth_status: 'active', platform_user_id: 'xuser', has_valid_token: true },
+        { provider: 'facebook', auth_status: 'active', platform_user_id: null, has_valid_token: false },
+      ],
+      error: null,
     });
 
     await expect(distributionService.getPlatformConnectionStates('user-1')).resolves.toEqual({
-      x: { status: 'ready', platformUserId: 'xuser' },
-      facebook: { status: 'reconnect', platformUserId: null },
+      x: { status: 'ready', canPublish: true, platformUserId: 'xuser' },
+      facebook: { status: 'reconnect', canPublish: false, platformUserId: null },
+    });
+    await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual(['x']);
+  });
+
+  it('falls back cleanly when the readiness RPC has not been deployed yet', async () => {
+    supabase.rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find the function public.get_distribution_connection_states(p_user_id) in the schema cache',
+      },
+    });
+    socialConnectService.getConnections.mockResolvedValue({
+      x: { auth_status: 'active', platform_user_id: 'xuser', hasValidToken: true },
+      facebook: { auth_status: 'expired', platform_user_id: 'page-1', hasValidToken: false },
+      linkedin: { auth_status: 'revoked', platform_user_id: 'member-1', hasValidToken: false },
+    });
+
+    await expect(distributionService.getPlatformConnectionStates('user-1')).resolves.toEqual({
+      x: { status: 'ready', canPublish: true, platformUserId: 'xuser' },
+      facebook: { status: 'reconnect', canPublish: false, platformUserId: 'page-1' },
     });
     await expect(distributionService.getConnectedPlatforms('user-1')).resolves.toEqual(['x']);
   });
@@ -160,6 +145,39 @@ describe('distributionService publishing', () => {
     });
   });
 
+  it('upserts per-platform rows so repeated distribution does not duplicate records', async () => {
+    const postQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: 'post-1', user_id: 'user-1', content: 'hello' },
+        error: null,
+      }),
+    };
+    const upsert = jest.fn().mockResolvedValue({ error: null });
+    const updateQuery = {
+      eq: jest.fn().mockReturnThis(),
+      then: (resolve) => Promise.resolve({ error: null }).then(resolve),
+    };
+    const update = jest.fn(() => updateQuery);
+    supabase.from.mockImplementation((table) => {
+      if (table === 'posts') return postQuery;
+      if (table === 'post_distribution') return { upsert, update };
+      if (table === 'distribution_queue') throw new Error('queue unavailable');
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    supabase.functions.invoke.mockResolvedValue({ data: { externalId: 'remote-post-1' }, error: null });
+    jest.spyOn(distributionService, 'getPublishTargets').mockResolvedValue(['x']);
+
+    await expect(
+      distributionService.distributePost('post-1', 'user-1', ['x']),
+    ).resolves.toMatchObject({ success: true, targets: ['x'] });
+    expect(upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ post_id: 'post-1', user_id: 'user-1', platform: 'x', status: 'pending' })],
+      { onConflict: 'post_id,platform' },
+    );
+  });
+
   it('records a failed connection without calling catch on a Supabase thenable', async () => {
     const statusQuery = {
       then: (resolve) => Promise.resolve({ error: null }).then(resolve),
@@ -189,11 +207,42 @@ describe('distributionService publishing', () => {
 
       throw new Error(`Unexpected table: ${table}`);
     });
+    supabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: { message: 'No active x publishing connection was found.' },
+    });
 
     await expect(
       distributionService._publishToSinglePlatform('post-1', 'user-1', {}, 'x'),
-    ).rejects.toThrow('Not connected to x');
-    expect(supabase.from).toHaveBeenCalledWith('post_distribution');
+    ).resolves.toMatchObject({
+      platform: 'x',
+      status: 'fallback',
+      error: 'No active x publishing connection was found.',
+    });
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('publish-social-post', {
+      body: { contentType: 'post', contentId: 'post-1', platform: 'x' },
+    });
+    expect(supabase.from).not.toHaveBeenCalledWith('tokens');
     expect(statusQuery.catch).toBeUndefined();
+  });
+
+  it('records the server-published post ID and returns success', async () => {
+    const statusQuery = {
+      then: (resolve) => Promise.resolve({ error: null }).then(resolve),
+    };
+    supabase.from.mockImplementation((table) => {
+      if (table === 'post_distribution') {
+        return { update: () => ({ eq: () => ({ eq: () => statusQuery }) }) };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    supabase.functions.invoke.mockResolvedValue({ data: { externalId: 'remote-post-1' }, error: null });
+
+    await expect(
+      distributionService._publishToSinglePlatform('post-1', 'user-1', {}, 'x'),
+    ).resolves.toMatchObject({ platform: 'x', status: 'success', externalId: 'remote-post-1' });
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('publish-social-post', {
+      body: { contentType: 'post', contentId: 'post-1', platform: 'x' },
+    });
   });
 });

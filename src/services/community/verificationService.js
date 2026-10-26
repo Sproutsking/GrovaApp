@@ -78,13 +78,19 @@ const verificationService = {
 
   async complete(communityId, method, payload = {}) {
     try {
-      const { data, error } = await supabase.rpc("complete_community_verification", {
-        p_community_id: communityId,
-        p_method: method,
-        p_answer: payload?.answer ?? null,
-        p_accepted: Boolean(payload?.accepted),
-        p_role_id: payload?.roleId ?? null,
-      });
+      const { data, error } = method === "reaction"
+        ? await supabase.rpc("complete_community_reaction_verification", {
+          p_community_id: communityId,
+          p_answer: payload?.answer ?? null,
+          p_role_id: payload?.roleId ?? null,
+        })
+        : await supabase.rpc("complete_community_verification", {
+          p_community_id: communityId,
+          p_method: method,
+          p_answer: payload?.answer ?? null,
+          p_accepted: Boolean(payload?.accepted),
+          p_role_id: payload?.roleId ?? null,
+        });
       if (error) throw error;
       return data || { success: false, error: "Verification failed." };
     } catch (error) {

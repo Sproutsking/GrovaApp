@@ -77,10 +77,12 @@ import {
 } from "react-icons/fa6";
 import {
   SiTiktok, SiSubstack, SiPlaystation, SiEpicgames, SiRoblox,
+  SiGitlab, SiNotion, SiFigma, SiBitbucket,
 } from "react-icons/si";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
+import { useAccountLinking } from "../../contexts/AccountLinkingContext";
 
 // ── Real brand icon per platform key ──────────────────────────────────────────
 // Keyed to match CONNECTOR_DEFINITIONS keys. Add new entries here as new
@@ -90,6 +92,10 @@ export const PLATFORM_ICONS = {
   google:     FaGoogle,
   apple:      FaApple,
   github:     Github,
+  gitlab:     SiGitlab,
+  bitbucket:  SiBitbucket,
+  figma:      SiFigma,
+  notion:     SiNotion,
   linkedin:   FaLinkedinIn,
   discord:    FaDiscord,
   reddit:     FaRedditAlien,
@@ -126,9 +132,19 @@ const safeTimeout = (promise, ms = 12000) => {
 // ── Platform definitions (single source of truth) ────────────────────────────
 export const PLATFORMS = CONNECTOR_DEFINITIONS;
 
+export const getIdentityConnectionStatus = (connection) => {
+  if (!connection) return "none";
+  if (connection.auth_status === "revoked") return "revoked";
+  if (connection.auth_status === "active"
+    && (connection.connected_via === "profile_link" || connection.hasValidToken === true)) {
+    return "active";
+  }
+  return "expired";
+};
+
 const STATUS_CFG = {
   active:  { label: "Connected",     color: "#84cc16", Icon: CheckCircle },
-  expired: { label: "Token expired", color: "#f59e0b", Icon: AlertCircle },
+  expired: { label: "Reconnect to publish", color: "#f59e0b", Icon: AlertCircle },
   revoked: { label: "Disconnected",  color: "#ef4444", Icon: AlertCircle },
   none:    { label: "Not linked",    color: "#6b7280", Icon: Clock       },
 };
@@ -273,6 +289,7 @@ const CSS = `
   .idCard > .idSoonBadge {
     grid-column:3; grid-row:1; justify-self:end; margin:0;
   }
+  .idActions { grid-column:3; grid-row:1; justify-self:end; display:flex; align-items:center; gap:4px; }
 
   /* ── Action buttons ──
      Fixed width so Link / Reconnect / Unlink / Soon all read as the same
@@ -424,6 +441,7 @@ const IdentitySection = ({ userId }) => {
   const [toast,        setToast]        = useState(null);  // { type, message }
   const [fetchError,   setFetchError]   = useState(null);
   const toastTimer = useRef(null);
+  const { openAccountLink } = useAccountLinking();
 
   // ── Show toast ─────────────────────────────────────────────────────────────
   const showToast = useCallback((type, message, duration = 4000) => {
@@ -463,7 +481,7 @@ const IdentitySection = ({ userId }) => {
       setDistStats(statsMap);
 
       setSummary({
-        connected: Object.values(connMap).filter(c => c.auth_status === "active").length,
+        connected: Object.values(connMap).filter(c => getIdentityConnectionStatus(c) === "active").length,
         published: distRows.filter(d => d.status === "success").length,
       });
     } catch (err) {
@@ -479,28 +497,20 @@ const IdentitySection = ({ userId }) => {
   const handleConnect = async (platform) => {
     setConnecting(platform);
     try {
-      if (PLATFORMS[platform]?.connectionMode === "profile_link") {
-        const existing = connections[platform]?.platform_user_id || "";
-        const profileUrl = window.prompt(`Paste your public ${PLATFORMS[platform].name} profile URL`, existing);
-        if (!profileUrl) return;
-        await socialConnectService.saveProfileLink(userId, platform, profileUrl);
-        showToast("success", `${PLATFORMS[platform]?.name || platform} profile linked.`);
-        await load();
-        return;
-      }
-      const result = await socialConnectService.linkPlatform(userId, platform);
-      if (result?.redirecting) return;
-      if (result?.alreadyConnected) {
-        showToast("success", `${PLATFORMS[platform]?.name || platform} is already connected to this account.`);
-      } else {
-        showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
-      }
+      const result = await openAccountLink({
+        userId,
+        platform,
+        profileUrl: connections[platform]?.connected_via === "profile_link"
+          ? connections[platform]?.platform_user_id
+          : "",
+      });
+      if (result?.cancelled) return;
+      showToast("success", `${PLATFORMS[platform]?.name || platform} connection updated.`);
       await load();
+      window.dispatchEvent(new Event("xeevia:connections-changed"));
     } catch (err) {
       const msg = err?.message || "Connection failed";
-      if (msg.includes("cancelled") || msg.includes("cancelled")) {
-        // Cancelled — no toast needed
-      } else if (msg.includes("Popup was blocked")) {
+      if (msg.includes("Popup was blocked")) {
         showToast("error", "Popup blocked — please allow popups and try again.", 6000);
       } else if (msg.toLowerCase().includes("already linked") || msg.toLowerCase().includes("already exists")) {
         showToast("error", "That provider account is already connected to another Xeevia account. Sign in to that account before managing it.", 7000);
@@ -522,6 +532,7 @@ const IdentitySection = ({ userId }) => {
       await socialConnectService.unlinkPlatform(userId, platform);
       showToast("success", `${meta?.name} disconnected.`);
       await load();
+      window.dispatchEvent(new Event("xeevia:connections-changed"));
     } catch (err) {
       showToast("error", err.message || "Failed to disconnect.");
     } finally {
@@ -642,7 +653,7 @@ const IdentitySection = ({ userId }) => {
             <div className="idGrid">
               {pairs.map(([key, meta]) => {
                 const conn    = connections[key];
-                const status  = conn?.auth_status || "none";
+                const status  = getIdentityConnectionStatus(conn);
                 const cfg     = STATUS_CFG[status] || STATUS_CFG.none;
                 const Ic      = cfg.Icon;
                 const isConnecting = connecting === key;
@@ -693,6 +704,15 @@ const IdentitySection = ({ userId }) => {
                     {/* Top action: link state. The lower action shows the exact linked account or URL. */}
                     {!meta.live ? (
                       <span className="idSoonBadge">Soon</span>
+                    ) : status === "active" && conn?.connected_via === "profile_link" ? (
+                      <div className="idActions">
+                        <button className="idBtn btnLink" onClick={() => handleConnect(key)} disabled={isBusy || isConnecting}>
+                          {isConnecting ? "Working…" : "Edit link"}
+                        </button>
+                        <button className="idBtn btnDisconnect" onClick={() => handleDisconnect(key)} disabled={isBusy || isConnecting}>
+                          {isBusy ? "Working…" : "Unlink"}
+                        </button>
+                      </div>
                     ) : status === "active" ? (
                       <button
                         className="idBtn btnDisconnect"

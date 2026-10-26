@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finishing account connection</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: #080a07; color: #f4f4f5; font-family: system-ui, sans-serif; text-align: center; }
+    main { width: min(380px, 100%); }
+    .mark { color: #bef264; font-size: 12px; font-weight: 800; letter-spacing: .2em; }
+    h1 { margin: 22px 0 8px; font-size: 20px; }
+    p { margin: 0; color: #a1a1aa; font-size: 13px; line-height: 1.6; }
+    .spinner { width: 32px; height: 32px; margin: 28px auto 0; border: 2px solid #33382d; border-top-color: #bef264; border-radius: 50%; animation: spin .8s linear infinite; }
+    .error { color: #fca5a5; }
+    button { margin-top: 22px; padding: 9px 14px; border: 1px solid #45483e; border-radius: 9px; background: transparent; color: #e5e7eb; font: inherit; cursor: pointer; }
+    select { width: 100%; margin-top: 20px; padding: 11px; border: 1px solid #45483e; border-radius: 9px; background: #11140f; color: #f4f4f5; font: inherit; }
+    #account-picker button { width: 100%; background: #bef264; border-color: #bef264; color: #18210d; font-weight: 700; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark">XEEVIA</div>
+    <h1 id="title">Finishing connection</h1>
+    <p id="message">Confirming the authorized account and returning you to the app…</p>
+    <div id="spinner" class="spinner" aria-hidden="true"></div>
+    <button id="close" type="button" hidden>Close this window</button>
+    <div id="account-picker" hidden>
+      <select id="account-select" aria-label="Account to connect"></select>
+      <button id="account-confirm" type="button">Connect selected account</button>
+    </div>
+  </main>
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const params = new URLSearchParams(window.location.search);
+    const platform = params.get("platform");
+    const nonce = params.get("nonce");
+    const origin = window.location.origin;
+    const title = document.getElementById("title");
+    const message = document.getElementById("message");
+    const spinner = document.getElementById("spinner");
+    const closeButton = document.getElementById("close");
+    const accountPicker = document.getElementById("account-picker");
+    const accountSelect = document.getElementById("account-select");
+    const accountConfirm = document.getElementById("account-confirm");
+    const notifyParent = (payload) => {
+      if (window.opener && !window.opener.closed) window.opener.postMessage(payload, origin);
+      if (typeof BroadcastChannel === "function") {
+        const channel = new BroadcastChannel(`xeevia-social-link-${nonce}`);
+        channel.postMessage(payload);
+        channel.close();
+      }
+    };
+    const fail = (reason) => {
+      if (platform && nonce) {
+        notifyParent({
+          type: "XEEVIA_SOCIAL_LINKED",
+          platformKey: platform,
+          nonce,
+          error: reason,
+        });
+        window.setTimeout(() => window.close(), 900);
+      }
+      title.textContent = "Connection not completed";
+      message.textContent = reason;
+      message.className = "error";
+      spinner.hidden = true;
+      closeButton.hidden = false;
+      accountPicker.hidden = true;
+    };
+
+    closeButton.addEventListener("click", () => window.close());
+
+    try {
+      if (!platform || !/^[a-z0-9_-]+$/i.test(platform) || !nonce) {
+        throw new Error("The connection request could not be verified. Close this window and try again.");
+      }
+      const configKey = `xeevia-social-link-config-${platform}`;
+      const config = JSON.parse(sessionStorage.getItem(configKey) || "null");
+      if (!config?.url || !config?.key) throw new Error("The connection session expired. Close this window and try again.");
+
+      const callbackError = params.get("error_description") || params.get("error");
+      if (callbackError) throw new Error(callbackError.replace(/\+/g, " "));
+
+      const client = createClient(config.url, config.key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: false,
+          storage: window.sessionStorage,
+          storageKey: `xeevia-social-link-${platform}`,
+          detectSessionInUrl: true,
+        },
+      });
+      const { data, error } = await client.auth.getSession();
+      if (error) throw error;
+      const session = data?.session;
+      if (!session?.user) throw new Error("The provider did not return a verified account session.");
+
+      const providerAliases = { instagram: ["facebook"] };
+      const expected = providerAliases[platform] || [platform === "linkedin" ? "linkedin_oidc" : platform];
+      const identity = (session.user.identities || []).find((item) => expected.includes(item.provider));
+      if (!identity) throw new Error("The authorized identity did not match the platform requested.");
+      let platformUserId = identity.identity_data?.user_name
+        || identity.identity_data?.preferred_username
+        || identity.identity_data?.login
+        || identity.identity_data?.sub
+        || identity.id;
+      const accessToken = session.provider_token || null;
+      const refreshToken = session.provider_refresh_token || null;
+
+      if (!accessToken) throw new Error("The provider did not return an account credential. Check that the required access is enabled and retry.");
+      if ((!window.opener || window.opener.closed) && typeof BroadcastChannel !== "function") {
+        throw new Error("The app window is no longer open. Close this window and start the connection again.");
+      }
+
+      const finish = async (selectedAccountId = platformUserId) => {
+        await client.auth.signOut({ scope: "local" });
+        sessionStorage.removeItem(configKey);
+        notifyParent({
+          type: "XEEVIA_SOCIAL_LINKED",
+          platformKey: platform,
+          platformUserId: selectedAccountId,
+          accessToken,
+          refreshToken,
+          nonce,
+        });
+        title.textContent = "Account connected";
+        message.textContent = "Returning you to the app…";
+        window.setTimeout(() => window.close(), 450);
+      };
+
+      if (platform === "facebook" || platform === "instagram") {
+        const query = new URLSearchParams({
+          fields: "id,name,instagram_business_account{id,username}",
+          access_token: accessToken,
+        });
+        const response = await fetch(`https://graph.facebook.com/v21.0/me/accounts?${query}`);
+        const pageResult = await response.json();
+        if (!response.ok || pageResult.error) {
+          throw new Error(pageResult.error?.message || "Meta could not list the Pages this account can manage.");
+        }
+        const pages = Array.isArray(pageResult.data) ? pageResult.data : [];
+        const targets = platform === "instagram"
+          ? pages.flatMap((page) => page.instagram_business_account?.id
+            ? [{
+              id: String(page.instagram_business_account.id),
+              label: `${page.instagram_business_account.username ? `@${page.instagram_business_account.username}` : "Instagram account"} — ${page.name || "Facebook Page"}`,
+            }]
+            : [])
+          : pages.map((page) => ({ id: String(page.id), label: page.name || "Facebook Page" }));
+
+        if (!targets.length) {
+          throw new Error(platform === "instagram"
+            ? "No Instagram Professional account linked to a Facebook Page was found. Link your Instagram Professional account to a Facebook Page, then try again."
+            : "No Facebook Page you can manage was found. Grant Page access in Meta, then try again.");
+        }
+        if (targets.length === 1) {
+          platformUserId = targets[0].id;
+          await finish(platformUserId);
+        } else {
+          for (const target of targets) {
+            const option = document.createElement("option");
+            option.value = target.id;
+            option.textContent = target.label;
+            accountSelect.append(option);
+          }
+          spinner.hidden = true;
+          accountPicker.hidden = false;
+          message.textContent = platform === "instagram"
+            ? "Choose the Instagram account to connect."
+            : "Choose the Facebook Page to connect.";
+          accountConfirm.addEventListener("click", () => {
+            accountConfirm.disabled = true;
+            finish(accountSelect.value).catch((error) => fail(error?.message || "The connection could not be completed."));
+          }, { once: true });
+        }
+      }
+
+      if (platform !== "facebook" && platform !== "instagram") await finish(platformUserId);
+    } catch (error) {
+      fail(error?.message || "The account could not be connected.");
+    }
+  </script>
+</body>
+</html>

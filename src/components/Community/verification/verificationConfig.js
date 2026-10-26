@@ -1,8 +1,9 @@
-export const METHOD_ORDER = ["rules", "quick", "picture"];
+export const METHOD_ORDER = ["rules", "quick", "picture", "reaction"];
 export const METHOD_META = {
   rules: { label: "Rules gate", blurb: "Members read your rules and accept them to earn the role." },
   quick: { label: "Quick verify", blurb: "One tap, backed by account checks the server enforces." },
   picture: { label: "Picture check", blurb: "Members pick the right image from a shuffled grid." },
+  reaction: { label: "Reaction check", blurb: "Members choose the correct labeled answer." },
 };
 export const DANGEROUS_PERMS = ["administrator", "manageRoles", "assignRoles", "manageCommunity", "manageChannels", "kickMembers", "banMembers", "manageMessages", "timeoutMembers"];
 export const SAFE_MEMBER_PERMS = { viewChannels: true, sendMessages: true, attachFiles: true, embedLinks: true, addReactions: true, readMessageHistory: true, viewMembers: true, changeOwnNickname: true, useSlashCommands: true };
@@ -15,9 +16,13 @@ export const DEFAULT_VERIFICATION_CONFIG = {
   accentColor: "#9cff00",
   icon: "shield",
   message: "Complete a check below to unlock the rest of the community.",
+  completion: {
+    title: "Congratulations, you're verified!",
+    message: "Your role is ready. Enjoy your adventure here with us.",
+  },
   unverifiedRoleId: "",
   rulesGate: { enabled: false, flow: "rules_only", rulesChannelId: "", verificationChannelId: "", secondMethod: "quick" },
-  panel: { layout: "tabs", corners: "soft", cardStyle: "glass", density: "comfy", showProgress: true, showReward: true, badgeText: "", footerText: "" },
+  panel: { layout: "tabs", corners: "soft", cardStyle: "glass", density: "comfy", theme: "midnight", showProgress: true, showReward: true, badgeText: "", footerText: "" },
   panels: {
     rules: { enabled: true, label: "Rules", text: "Real people only. One account per person." },
     info: { enabled: true, label: "How it works", text: "Verification confirms access. It never reads your messages or files." },
@@ -53,6 +58,18 @@ export const DEFAULT_VERIFICATION_CONFIG = {
       cards: [], correctId: "", maxAttempts: 5,
       successTitle: "You are verified", successDescription: "Your access has been updated.",
     },
+    reaction: {
+      enabled: false, roleId: "", requires: [],
+      title: "Choose the correct answer",
+      instruction: "Choose the letter that starts the word apple.",
+      choices: [
+        { id: "A", label: "A" },
+        { id: "B", label: "B" },
+        { id: "C", label: "C" },
+      ],
+      correctId: "A",
+      successTitle: "You are verified", successDescription: "Your access has been updated.",
+    },
   },
 };
 
@@ -81,6 +98,14 @@ export function normalizeVerificationConfig(saved = {}) {
     merged.requires = (Array.isArray(merged.requires) ? merged.requires : []).filter((r) => METHOD_ORDER.includes(r) && r !== id);
     if (id === "rules") merged.items = (Array.isArray(merged.items) ? merged.items : []).map((item) => ({ id: item.id || newId(), title: item.title || "", body: item.body || "" }));
     if (id === "picture") merged.cards = Array.isArray(merged.cards) ? merged.cards : [];
+    if (id === "reaction") {
+      merged.choices = Array.isArray(merged.choices)
+        ? merged.choices.slice(0, 5).map((choice, index) => ({
+          id: String.fromCharCode(65 + index),
+          label: String(choice?.label || String.fromCharCode(65 + index)).slice(0, 60),
+        }))
+        : d.methods.reaction.choices;
+    }
     methods[id] = merged;
   });
   return {
@@ -90,6 +115,12 @@ export function normalizeVerificationConfig(saved = {}) {
     accentColor: s.accentColor || d.accentColor,
     icon: s.icon || avatarIcon || d.icon,
     message: s.message || d.message,
+    completion: {
+      ...d.completion,
+      ...defined(s.completion),
+      title: String(s.completion?.title ?? d.completion.title).slice(0, 80),
+      message: String(s.completion?.message ?? d.completion.message).slice(0, 280),
+    },
     unverifiedRoleId: s.unverifiedRoleId || "",
     rulesGate: {
       ...d.rulesGate,
@@ -110,7 +141,13 @@ export function normalizeVerificationConfig(saved = {}) {
         ? [...new Set(s.roleGrant.roleIds.filter((id) => typeof id === "string" && id))]
         : s.roleGrant?.roleId ? [s.roleGrant.roleId] : [],
     },
-    panel: { ...d.panel, ...defined(s.panel) },
+    panel: {
+      ...d.panel,
+      ...defined(s.panel),
+      theme: ["midnight", "aurora", "obsidian"].includes(s.panel?.theme)
+        ? s.panel.theme
+        : d.panel.theme,
+    },
     panels: Object.fromEntries(Object.keys(d.panels).map((k) => [k, { ...d.panels[k], ...defined(obj(s.panels)[k]) }])),
     methods,
     pictureEnabled: typeof s.pictureEnabled === "boolean" ? s.pictureEnabled : Boolean(methods.picture.enabled),
@@ -133,14 +170,35 @@ export function isVerificationConfigEnabled(config = {}) {
   return METHOD_ORDER.some((method) => normalized.methods[method]?.enabled === true);
 }
 
+export function getVerificationRoleCandidates(roles = []) {
+  return roles;
+}
+
+export function getVerificationRoleIssue(role, roles = []) {
+  if (!role) return "missing";
+  if (role.is_default) return "default";
+  if (role.name?.trim().toLowerCase() === "owner") return "owner";
+  if (DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true)) return "permissions";
+  const defaultRole = roles.find((candidate) => candidate.is_default);
+  if (defaultRole && Number(role.position) >= Number(defaultRole.position)) return "rank";
+  return null;
+}
+
 export function getSelectableVerificationRoles(roles = []) {
-  const defaultRole = roles.find((role) => role.is_default);
-  return roles.filter((role) =>
-    !role.is_default
-    && role.name?.trim().toLowerCase() !== "owner"
-    && !DANGEROUS_PERMS.some((permission) => role.permissions?.[permission] === true)
-    && (!defaultRole || Number(role.position) < Number(defaultRole.position)),
-  );
+  return getVerificationRoleCandidates(roles).filter((role) => !getVerificationRoleIssue(role, roles));
+}
+
+export function moveRoleAboveDefault(roles = [], roleId) {
+  const ordered = [...roles].sort((left, right) => Number(left.position) - Number(right.position));
+  const defaultIndex = ordered.findIndex((role) => role.is_default);
+  const roleIndex = ordered.findIndex((role) => role.id === roleId);
+  if (defaultIndex < 0 || roleIndex < 0 || roleIndex < defaultIndex) return null;
+  const role = ordered[roleIndex];
+  if (getVerificationRoleIssue(role, roles) !== "rank") return null;
+  ordered.splice(roleIndex, 1);
+  const nextDefaultIndex = ordered.findIndex((item) => item.is_default);
+  ordered.splice(nextDefaultIndex, 0, role);
+  return ordered;
 }
 
 export function getMethodsForVerificationChannel(rulesGate, channelId) {
@@ -194,6 +252,13 @@ export function methodIssues(id, m, roleMap, methods = {}, config = {}) {
     if (ok.length < 2) out.push({ level: "error", text: "Add at least two labelled images." });
     else if (!ok.some((c) => c.id === m.correctId) && !config._pictureChallengeReady) out.push({ level: "error", text: "Mark which card is the correct answer." });
   }
+  if (id === "reaction") {
+    if (!Array.isArray(m.choices) || m.choices.length < 1 || m.choices.length > 5) {
+      out.push({ level: "error", text: "Add between one and five answer choices." });
+    } else if (!m.choices.some((choice) => choice.id === m.correctId)) {
+      out.push({ level: "error", text: "Choose the correct reaction answer." });
+    }
+  }
   (m.requires || []).forEach((r) => { if (methods[r] && !methods[r].enabled) out.push({ level: "warn", text: `Requires ${METHOD_META[r].label}, which is switched off (it will be skipped).` }); });
   return out;
 }
@@ -214,6 +279,7 @@ export function toPublicPanel(config, roleMap = new Map(), { preview = false, ta
       if (preview) base.previewCorrectId = m.correctId;
       delete base.correctId;
     }
+    if (id === "reaction") delete base.correctId;
     methods[id] = base;
   });
   const selectableRoleIds = new Set(getSelectableVerificationRoles([...roleMap.values()]).map((role) => role.id));
@@ -226,5 +292,5 @@ export function toPublicPanel(config, roleMap = new Map(), { preview = false, ta
     icon: role.icon,
     position: role.position,
   }));
-  return { configured: true, name: c.name, accentColor: c.accentColor, icon: c.icon, message: c.message, panel: c.panel, panels: c.panels, rulesGate: c.rulesGate, methods, roleChoices };
+  return { configured: true, name: c.name, accentColor: c.accentColor, icon: c.icon, message: c.message, completion: c.completion, panel: c.panel, panels: c.panels, rulesGate: c.rulesGate, methods, roleChoices };
 }

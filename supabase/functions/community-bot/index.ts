@@ -39,10 +39,15 @@ Deno.serve(async (request) => {
     const provider = String(body.provider || "");
     const communityId = String(body.communityId || "");
     const config = getProviderConfig(provider);
-    if (!config?.token) return json({ error: `${provider} bot secret is not configured` }, 503);
+    if (!config) return json({ error: "Unsupported bot provider" }, 400);
 
-    const { data: community } = await admin.from("communities").select("owner_id").eq("id", communityId).maybeSingle();
-    if (!community || community.owner_id !== user.id) return json({ error: "Only the community owner can manage this bot" }, 403);
+    const { data: canManageBots, error: permissionError } = await userClient.rpc(
+      "community_user_can_manage_bots",
+      { p_community_id: communityId },
+    );
+    if (permissionError) throw permissionError;
+    if (!canManageBots) return json({ error: "You do not have permission to manage bots for this community" }, 403);
+    if (!config?.token) return json({ error: `${provider} bot secret is not configured` }, 503);
 
     if (body.action === "check") {
       const endpoint = provider === "discord" ? `${config.api}/users/@me` : `${config.api}/bot${config.token}/getMe`;
@@ -50,17 +55,21 @@ Deno.serve(async (request) => {
       const result = await response.json();
       if (!response.ok || (provider === "telegram" && !result.ok)) {
         const message = result?.message || "Bot provider rejected the request";
-        await admin.from("community_bot_integrations").update({ status: "error", last_error: message, last_checked_at: new Date().toISOString() }).eq("community_id", communityId).eq("provider", provider);
+        const { error: updateError } = await admin.from("community_bot_integrations").update({ status: "error", last_error: message, last_checked_at: new Date().toISOString() }).eq("community_id", communityId).eq("provider", provider);
+        if (updateError) throw updateError;
         return json({ error: message }, 502);
       }
-      await admin.from("community_bot_integrations").update({ status: "active", last_error: null, last_checked_at: new Date().toISOString() }).eq("community_id", communityId).eq("provider", provider);
+      const { error: updateError } = await admin.from("community_bot_integrations").update({ status: "active", last_error: null, last_checked_at: new Date().toISOString() }).eq("community_id", communityId).eq("provider", provider);
+      if (updateError) throw updateError;
       return json({ ok: true, provider, bot: provider === "telegram" ? result.result : result });
     }
 
     if (body.action === "discover" && provider === "discord") {
-      const { data: connection } = await admin.from("connections").select("id").eq("user_id", user.id).eq("provider", "discord").eq("auth_status", "active").maybeSingle();
+      const { data: connection, error: connectionError } = await admin.from("connections").select("id").eq("user_id", user.id).eq("provider", "discord").eq("auth_status", "active").maybeSingle();
+      if (connectionError) throw connectionError;
       if (!connection) return json({ error: "Link Discord in Account > Identity first." }, 400);
-      const { data: tokenRow } = await admin.from("tokens").select("encrypted_token").eq("connection_id", connection.id).eq("revoked", false).maybeSingle();
+      const { data: tokenRow, error: tokenError } = await admin.from("tokens").select("encrypted_token").eq("connection_id", connection.id).eq("revoked", false).maybeSingle();
+      if (tokenError) throw tokenError;
       if (!tokenRow?.encrypted_token) return json({ error: "Reconnect Discord with the guilds scope before discovering servers." }, 400);
 
       const userGuildResponse = await fetch("https://discord.com/api/v10/users/@me/guilds", { headers: { Authorization: `Bearer ${tokenRow.encrypted_token}` } });
@@ -87,6 +96,9 @@ Deno.serve(async (request) => {
       if (body.destinationId) destinationQuery = destinationQuery.eq("id", body.destinationId);
       const { data: destinations, error } = await destinationQuery;
       if (error) throw error;
+      if (!destinations?.length) {
+        return json({ ok: false, error: "No enabled bot destinations are configured for this community." }, 400);
+      }
       const results = [];
       for (const destination of destinations || []) {
         let response: Response;
@@ -97,8 +109,10 @@ Deno.serve(async (request) => {
         }
         const result = await response.json();
         const ok = response.ok && (provider !== "telegram" || result.ok);
-        await admin.from("community_bot_deliveries").insert({ community_id: communityId, destination_id: destination.id, source_id: body.sourceId || null, source_type: body.sourceType || "xeevia", status: ok ? "sent" : "failed", external_message_id: ok ? String(result.id || result.result?.message_id || result.result?.id || "") : null, error_message: ok ? null : result.message || "Delivery failed", delivered_at: ok ? new Date().toISOString() : null });
-        results.push({ destinationId: destination.id, ok, error: ok ? null : result.message });
+        const externalMessageId = ok ? String(result.id || result.result?.message_id || result.result?.id || "") : null;
+        const { error: deliveryError } = await admin.from("community_bot_deliveries").insert({ community_id: communityId, destination_id: destination.id, source_id: body.sourceId || null, source_type: body.sourceType || "xeevia", status: ok ? "sent" : "failed", external_message_id: externalMessageId, error_message: ok ? null : result.message || "Delivery failed", delivered_at: ok ? new Date().toISOString() : null });
+        if (deliveryError) throw deliveryError;
+        results.push({ destinationId: destination.id, ok, error: ok ? null : result.message, externalMessageId });
       }
       return json({ ok: results.every((item) => item.ok), results });
     }

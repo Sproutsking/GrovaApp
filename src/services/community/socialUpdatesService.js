@@ -5,6 +5,7 @@ export const SOCIAL_UPDATE_PROVIDER_IDS = [
   "xeevia", "x", "facebook", "instagram", "youtube", "twitch", "kick",
   "discord", "reddit", "telegram", "github", "linkedin", "snapchat",
 ];
+export const SOCIAL_PUBLIC_PROFILE_PROVIDER_IDS = ["youtube", "github", "reddit"];
 
 export const SOCIAL_PROVIDERS = [
   { id: "xeevia", label: "Xeevia", ready: true },
@@ -34,6 +35,9 @@ const socialUpdatesService = {
     if (!/^https?:$/.test(parsed.protocol)) throw new Error("Enter a valid public profile URL.");
     const capabilities = getPlatformCapabilities(provider);
     if (!capabilities) throw new Error("Choose a supported platform.");
+    if (!SOCIAL_PUBLIC_PROFILE_PROVIDER_IDS.includes(provider)) {
+      throw new Error(`${capabilities.label} requires a linked account; public profile sources are not supported.`);
+    }
     const { data, error } = await supabase.from("community_social_connections").upsert({
       community_id: communityId,
       connected_by: userId,
@@ -104,7 +108,7 @@ const socialUpdatesService = {
     if (error) throw error;
     return data || [];
   },
-  async saveRouting({ communityId, channelId, connectionId, contentTypes = ["post", "video", "live"], includeInLiveFeed = false }) {
+  async saveRouting({ communityId, channelId, connectionId, contentTypes = ["post", "video", "live"], includeInLiveFeed = false, enabled = true }) {
     const { data: connection, error: connectionError } = await supabase
       .from("community_social_connections")
       .select("provider")
@@ -112,6 +116,9 @@ const socialUpdatesService = {
       .single();
     if (connectionError) throw connectionError;
     const capabilities = getPlatformCapabilities(connection.provider);
+    if (!capabilities?.inboundReady || !capabilities.inboundAdapter) {
+      throw new Error(`${capabilities?.label || connection.provider} inbound updates are not available yet.`);
+    }
     const acceptedTypes = contentTypes.filter((type) => type !== "live" || capabilities?.canDetectLive);
     const { data, error } = await supabase.from("community_channel_sources").upsert({
       community_id: communityId,
@@ -119,7 +126,7 @@ const socialUpdatesService = {
       connection_id: connectionId,
       content_types: acceptedTypes,
       include_in_live_feed: Boolean(includeInLiveFeed && capabilities?.canDetectLive),
-      enabled: true,
+      enabled: Boolean(enabled),
       updated_at: new Date().toISOString(),
     }, { onConflict: "channel_id,connection_id" }).select("*, connection:community_social_connections(*)").single();
     if (error) throw error;
@@ -127,6 +134,12 @@ const socialUpdatesService = {
   },
   async removeRouting(routingId) {
     const { error } = await supabase.from("community_channel_sources").delete().eq("id", routingId);
+    if (error) throw error;
+  },
+  async setRoutingEnabled(routingId, enabled) {
+    const { error } = await supabase.from("community_channel_sources")
+      .update({ enabled: Boolean(enabled), updated_at: new Date().toISOString() })
+      .eq("id", routingId);
     if (error) throw error;
   },
   async requestSync(communityId, connectionId = null) {

@@ -1,31 +1,7 @@
 // src/hooks/usePullToRefresh.js — v2
 // ============================================================================
-// Spring-physics pull-to-refresh + global refresh registry.
-//
-// MODEL:
-//   Each tab/sub-section registers its own async refresh function via
-//   refreshRegistry.register(key, fn). PTR gesture detects the active
-//   tab + sub-tab and calls ONLY that handler — no broadcast.
-//
-//   Key hierarchy (most → least specific):
-//     'home:reels'   → reels-specific refresh
-//     'home'         → generic home refresh
-//     'wallet'       → wallet overview refresh
-//     etc.
-//
-// PHYSICS:
-//   Rubber-band resistance formula creates authentic iOS-like feel.
-//   Direction-lock prevents accidental triggers during horizontal swipes.
-//   All DOM listeners are in a single useEffect — zero memory leaks.
-//
-// INTEGRATION (in each view):
-//   import { refreshRegistry } from '../../hooks/usePullToRefresh';
-//
-//   useEffect(() => {
-//     // Use a stable ref so the registry always calls the latest closure
-//     const fnRef = { current: myRefreshFn };
-//     return refreshRegistry.register('home', () => fnRef.current());
-//   }, []);
+// Spring-physics pull-to-refresh with a passive touchmove listener to keep
+// native mobile scrolling responsive.
 //
 // ============================================================================
 
@@ -94,8 +70,9 @@ export const refreshRegistry = {
 };
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
-export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
+export function usePullToRefresh(onRefresh, enabled = true) {
   const containerRef = useRef(null);
+  const indicatorRef = useRef(null);
 
   // Use refs for values read inside event handlers to avoid stale closures
   const startYRef        = useRef(0);
@@ -107,30 +84,31 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
   const rafRef           = useRef(null);
 
   // State for rendering
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isPulling,    setIsPulling]    = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Keep activeTab/subTab accessible in event handlers via refs
-  const activeTabRef    = useRef(activeTab);
-  const activeSubTabRef = useRef(activeSubTab);
-  useEffect(() => { activeTabRef.current    = activeTab;    }, [activeTab]);
-  useEffect(() => { activeSubTabRef.current = activeSubTab; }, [activeSubTab]);
+  const refreshHandlerRef = useRef(onRefresh);
+  refreshHandlerRef.current = onRefresh;
 
   // ── Trigger refresh ────────────────────────────────────────────────────────
   const triggerRefresh = useCallback(async () => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     setIsRefreshing(true);
-    setIsPulling(false);
-    setPullDistance(0);
     pullDistRef.current = 0;
+    if (indicatorRef.current) {
+      indicatorRef.current.style.display = "flex";
+      indicatorRef.current.style.opacity = "1";
+      indicatorRef.current.style.transform = "translateX(-50%) scale(1)";
+    }
 
-    // Satisfying haptic: quick double-pulse
     try { navigator.vibrate?.([12, 40, 18]); } catch {}
 
     try {
-      await refreshRegistry.call(activeTabRef.current, activeSubTabRef.current);
+      if (typeof refreshHandlerRef.current === "function") {
+        await refreshHandlerRef.current();
+      } else if (typeof refreshHandlerRef.current === "string") {
+        await refreshRegistry.call(refreshHandlerRef.current);
+      }
     } catch (e) {
       console.warn('[PTR] Refresh handler error:', e);
     }
@@ -140,12 +118,17 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
 
     isRefreshingRef.current = false;
     setIsRefreshing(false);
+    if (indicatorRef.current) {
+      indicatorRef.current.style.display = "none";
+      indicatorRef.current.style.opacity = "0";
+    }
   }, []);
 
   // ── Touch event handlers ───────────────────────────────────────────────────
   useEffect(() => {
     if (!enabled) return;
     const el = containerRef.current;
+    const indicator = indicatorRef.current;
     if (!el) return;
 
     const onTouchStart = (e) => {
@@ -190,23 +173,30 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
           isActiveRef.current  = false;
           pullDistRef.current  = 0;
           cancelAnimationFrame(rafRef.current);
-          setIsPulling(false);
-          setPullDistance(0);
+          rafRef.current = null;
+          if (indicator) {
+            indicator.style.display = "none";
+            indicator.style.opacity = "0";
+          }
         }
         return;
       }
-
-      // Prevent native scroll while we're handling PTR
-      e.preventDefault();
 
       const display = applyRubberBand(dy);
       pullDistRef.current = display;
       isActiveRef.current = true;
 
-      cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
-        setPullDistance(display);
-        setIsPulling(display > 8);
+        rafRef.current = null;
+        const indicator = indicatorRef.current;
+        if (!indicator) return;
+        const progress = Math.min(pullDistRef.current / 100, 1);
+        indicator.style.display = pullDistRef.current >= 10 ? "flex" : "none";
+        indicator.style.opacity = String(Math.min(progress * 1.5, 1));
+        indicator.style.transform = `translateX(-50%) scale(${0.8 + progress * 0.2})`;
+        const icon = indicator.querySelector("[data-pull-refresh-icon]");
+        if (icon) icon.style.transform = `rotate(${progress * 360}deg)`;
       });
     };
 
@@ -218,6 +208,7 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
       pullDistRef.current  = 0;
       dirLockRef.current   = null;
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
 
       // The rubber-band compresses the visual distance, so 70% of the
       // display threshold is roughly the full raw threshold.
@@ -225,8 +216,11 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
         triggerRefresh();
       } else {
         // Snap back — CSS transition handles the animation
-        setIsPulling(false);
-        setPullDistance(0);
+        if (indicatorRef.current) {
+          indicatorRef.current.style.opacity = "0";
+          indicatorRef.current.style.transform = "translateX(-50%) scale(.8)";
+          indicatorRef.current.style.display = "none";
+        }
       }
     };
 
@@ -234,12 +228,16 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
       isActiveRef.current = false;
       pullDistRef.current = 0;
       dirLockRef.current  = null;
-      setIsPulling(false);
-      setPullDistance(0);
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      if (indicator) {
+        indicator.style.display = "none";
+        indicator.style.opacity = "0";
+      }
     };
 
     el.addEventListener('touchstart',  onTouchStart,  { passive: true  });
-    el.addEventListener('touchmove',   onTouchMove,   { passive: false });
+    el.addEventListener('touchmove',   onTouchMove,   { passive: true  });
     el.addEventListener('touchend',    onTouchEnd,    { passive: true  });
     el.addEventListener('touchcancel', onTouchCancel, { passive: true  });
 
@@ -249,10 +247,15 @@ export function usePullToRefresh(activeTab, activeSubTab, enabled = true) {
       el.removeEventListener('touchend',    onTouchEnd);
       el.removeEventListener('touchcancel', onTouchCancel);
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      if (indicator) {
+        indicator.style.display = "none";
+        indicator.style.opacity = "0";
+      }
     };
   }, [enabled, triggerRefresh]);
 
   // Expose triggerRefresh so the app can programmatically pull-to-refresh
   // (e.g. from a desktop "refresh" button or after coming back online).
-  return { containerRef, pullDistance, isPulling, isRefreshing, triggerRefresh };
+  return { containerRef, indicatorRef, isRefreshing, triggerRefresh };
 }

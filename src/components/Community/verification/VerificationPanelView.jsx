@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BadgeCheck, Check, Fingerprint, Info, Lock, ScanFace, Shuffle, ShieldCheck, Star, X } from "lucide-react";
+import { BadgeCheck, Check, Fingerprint, Info, Lock, ScanFace, Shuffle, ShieldCheck, Sparkles, Star, X } from "lucide-react";
 import { DEFAULT_VERIFICATION_CONFIG, METHOD_META, METHOD_ORDER } from "./verificationConfig";
 
 const ICONS = { shield: ShieldCheck, lock: Lock, badge: BadgeCheck, fingerprint: Fingerprint, scan: ScanFace };
@@ -82,6 +82,28 @@ function PictureBody({ m, locked, busy, onSubmit }) {
   );
 }
 
+function ReactionBody({ m, locked, busy, onSubmit }) {
+  const [selected, setSelected] = useState(null);
+  const choose = async (choice) => {
+    if (busy || locked) return;
+    setSelected(choice.id);
+    await onSubmit({ answer: choice.id });
+  };
+  return (
+    <div className="vp-body">
+      <h2>{m.title}</h2>
+      <p className="vp-desc">{m.instruction}</p>
+      <div className="vp-reaction-choices" role="group" aria-label="Choose an answer">
+        {(m.choices || []).map((choice) => (
+          <button type="button" key={choice.id} aria-pressed={selected === choice.id} onClick={() => choose(choice)} disabled={busy || locked}>
+            {choice.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function VerificationPanelView({ panel, state = {}, busy = false, onComplete, focusMethod = null, onlyMethods = null }) {
   const completed = state.completed || [];
   const pending = state.pending || [];
@@ -93,6 +115,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
   const [errors, setErrors] = useState({});
   const [selectedRoleIds, setSelectedRoleIds] = useState({});
   const [openInfo, setOpenInfo] = useState(null);
+  const [congratulations, setCongratulations] = useState(null);
   useEffect(() => { setActive(null); }, [focusMethod]);
 
   const current = (active && ready.includes(active) && active) || (focusMethod && ready.includes(focusMethod) && focusMethod) || ready.find((id) => !completed.includes(id)) || ready[0];
@@ -105,6 +128,10 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
     setErrors((e) => ({ ...e, [id]: null }));
     const res = await onComplete?.(id, payload);
     if (res && !res.success) setErrors((e) => ({ ...e, [id]: res.error || "Could not verify." }));
+    if (res?.success && !res.needs_role_selection && (res.role_id || res.preserved_role || res.already_completed)) {
+      const role = panel.roleChoices?.find((choice) => choice.id === res.role_id);
+      setCongratulations({ roleName: role?.name || "", roleColor: role?.color || accent });
+    }
     return res;
   };
 
@@ -161,7 +188,13 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
       <div className="vp-method" key={id}>
         {missing.length > 0 && <div className="vp-lock"><Lock size={12} />Complete {missing.map((x) => METHOD_META[x].label).join(" and ")} first.</div>}
         {timeLocked && <div className="vp-lock"><Lock size={12} />Locked until {new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.</div>}
-        {id === "rules" ? <RulesBody {...props} /> : id === "quick" ? <QuickBody {...props} /> : <PictureBody key={m.cards.map((card) => `${card.id}:${card.image}`).join("|")} {...props} />}
+        {id === "rules"
+          ? <RulesBody {...props} />
+          : id === "quick"
+            ? <QuickBody {...props} />
+            : id === "picture"
+              ? <PictureBody key={m.cards.map((card) => `${card.id}:${card.image}`).join("|")} {...props} />
+              : <ReactionBody key={m.choices.map((choice) => choice.id).join("|")} {...props} />}
         {cfg.showReward && !rulesLeadToVerification && <Reward m={m} />}
         {errors[id] && <div className="vp-err">{errors[id]}</div>}
       </div>
@@ -169,10 +202,11 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
   };
 
   return (
-    <section className={`vp vp-${cfg.corners} vp-${cfg.cardStyle} vp-${cfg.density}`} style={{ "--a": accent }}>
+    <>
+    <section className={`vp vp-${cfg.corners} vp-${cfg.cardStyle} vp-${cfg.density} vp-theme-${cfg.theme}`} style={{ "--a": accent }}>
       <header className="vp-head">
         <div className="vp-icon"><Icon size={22} /></div>
-        <div><div className="vp-kicker">{panel?.name}{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
+        <div><div className="vp-kicker">SECURE COMMUNITY ACCESS{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
       </header>
 
       {!ready.length ? <p className="vp-empty">The community owner is still setting up verification. Please check back later or contact a moderator.</p> : (
@@ -191,8 +225,23 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
       {infoPanels.map(([key, p]) => openInfo === key && <div className="vp-info" key={key}><b>{p.label}</b><span>{p.text}</span><button type="button" aria-label="Close" onClick={() => setOpenInfo(null)}><X size={12} /></button></div>)}
       {cfg.footerText && <footer className="vp-foot">{cfg.footerText}</footer>}
 
+      {congratulations && (
+        <div className="vp-congrats-overlay">
+          <section className={`vp-congrats-card vp-theme-${cfg.theme}`} role="dialog" aria-modal="true" aria-labelledby="vp-congrats-title" aria-describedby="vp-congrats-message" style={{ "--a": accent }}>
+            <span className="vp-congrats-icon"><Sparkles size={24} /></span>
+            <span className="vp-congrats-kicker">COMMUNITY ACCESS UNLOCKED</span>
+            <h2 id="vp-congrats-title">{panel.completion?.title || "Congratulations, you're verified!"}</h2>
+            {congratulations.roleName && <span className="vp-congrats-role" style={{ "--role-color": congratulations.roleColor }}>{congratulations.roleName}</span>}
+            <p id="vp-congrats-message">{panel.completion?.message || "Your role is ready. Enjoy your adventure here with us."}</p>
+            <button type="button" onClick={() => setCongratulations(null)}>Continue to community</button>
+          </section>
+        </div>
+      )}
+
       <style>{`.vp{--r:16px;--gap:14px;--card-bg:rgba(255,255,255,.04);--card-bd:rgba(255,255,255,.1);width:min(100%,620px);margin:14px auto;padding:20px;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--a) 32%,transparent);border-radius:var(--r);background:linear-gradient(150deg,rgba(20,29,22,.97),rgba(8,12,10,.98));color:#eef6ec;box-shadow:0 18px 50px rgba(0,0,0,.35)}.vp-sharp{--r:4px}.vp-pill{--r:28px}.vp-compact{--gap:9px;padding:14px}.vp-solid{--card-bg:#141a15;--card-bd:#1f2a21}.vp-outline{--card-bg:transparent;--card-bd:color-mix(in srgb,var(--a) 45%,transparent)}.vp *{box-sizing:border-box}.vp-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:var(--gap)}.vp-icon{width:44px;height:44px;flex-shrink:0;display:grid;place-items:center;border-radius:calc(var(--r)*.7);color:var(--a);background:color-mix(in srgb,var(--a) 14%,transparent);border:1px solid color-mix(in srgb,var(--a) 45%,transparent)}.vp-kicker{display:flex;gap:6px;align-items:center;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--a)}.vp-kicker em{font-style:normal;padding:2px 6px;border-radius:99px;background:color-mix(in srgb,var(--a) 20%,transparent)}.vp h1{margin:3px 0;font-size:21px}.vp-head p,.vp-desc{margin:0;color:#98ab98;font-size:12px;line-height:1.55}.vp h2{margin:0 0 5px;font-size:16px}.vp-empty{color:#98ab98;font-size:12px}.vp-progress{display:flex;align-items:center;gap:9px;margin-bottom:var(--gap)}.vp-progress>div{flex:1;height:5px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden}.vp-progress i{display:block;height:100%;background:var(--a);transition:width .3s}.vp-progress span{font-size:10px;color:#98ab98}.vp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--gap)}.vp-tabs button{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border:1px solid var(--card-bd);border-radius:calc(var(--r)*.6);background:transparent;color:#98ab98;font:700 11px inherit;cursor:pointer}.vp-tabs button.on{color:var(--a);border-color:var(--a);background:color-mix(in srgb,var(--a) 10%,transparent)}.vp-method{margin-bottom:var(--gap);padding:var(--gap);border:1px solid var(--card-bd);border-radius:calc(var(--r)*.8);background:var(--card-bg)}.vp-body{display:flex;flex-direction:column;gap:9px}.vp-rules{max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:2px}.vp-rule{display:flex;gap:10px;align-items:flex-start;padding:9px;border-radius:calc(var(--r)*.5);background:rgba(0,0,0,.2)}.vp-rule>div{flex:1}.vp-rule-n{font:800 11px monospace;color:var(--a)}.vp-rule strong{font-size:12px}.vp-rule p{margin:3px 0 0;color:#98ab98;font-size:11px;line-height:1.5}.vp-hint{margin:0;color:#e2b04a;font-size:10px}.vp-agree{display:flex;gap:8px;align-items:flex-start;font-size:11px;color:#c8d6c8;line-height:1.45}.vp-btn{align-self:flex-start;padding:10px 20px;border:0;border-radius:calc(var(--r)*.6);background:var(--a);color:#071000;font:900 12px inherit;cursor:pointer}.vp-btn:disabled{opacity:.4;cursor:not-allowed}.vp-reqs{display:flex;flex-wrap:wrap;gap:5px}.vp-reqs span{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.06);color:#c8d6c8;font-size:10px}.vp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.vp-card{position:relative;aspect-ratio:1;padding:0;overflow:hidden;border:1px solid var(--card-bd);border-radius:calc(var(--r)*.5);background:#000;cursor:pointer}.vp-card img{width:100%;height:100%;object-fit:cover}.vp-card span{position:absolute;top:5px;right:5px;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.65);font:800 10px inherit;color:#fff}.vp-card.wrong{border-color:#e2555c;animation:vpShake .35s}@keyframes vpShake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}.vp-letters{display:grid;grid-template-columns:repeat(auto-fit,minmax(34px,1fr));gap:6px}.vp-letters button{height:32px;border:1px solid var(--card-bd);border-radius:calc(var(--r)*.4);background:transparent;color:#c8d6c8;font-weight:800;cursor:pointer}.vp-letters button:hover:not(:disabled){border-color:var(--a)}.vp-letters button.wrong{border-color:#e2555c;color:#e2555c}.vp-link{align-self:flex-start;display:inline-flex;gap:5px;align-items:center;border:0;background:none;color:#98ab98;font-size:11px;cursor:pointer}.vp-reward{display:inline-flex;align-items:center;gap:6px;margin-top:9px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.06);font-size:10px;color:#98ab98}.vp-reward i{width:8px;height:8px;border-radius:50%}.vp-reward b{color:#eef6ec}.vp-lock{display:flex;align-items:center;gap:6px;margin-bottom:9px;padding:8px 10px;border-radius:calc(var(--r)*.5);background:rgba(226,176,74,.1);color:#e2b04a;font-size:11px}.vp-err{margin-top:9px;padding:9px 10px;border-radius:calc(var(--r)*.5);background:rgba(255,75,65,.1);color:#ffaaa3;font-size:11px}.vp-success{display:flex;gap:12px;align-items:flex-start;margin-bottom:var(--gap);padding:var(--gap);border-radius:calc(var(--r)*.8);background:rgba(63,185,111,.12);border:1px solid rgba(63,185,111,.35)}.vp-success>span{width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;background:rgba(63,185,111,.25);color:#7ff0a8}.vp-success p{margin:0;color:#b8f0c8;font-size:12px}.vp-info-row{display:flex;gap:7px}.vp-info-row button{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--card-bd);border-radius:calc(var(--r)*.5);background:transparent;cursor:pointer}.vp-info-row button.on{border-color:currentColor}.vp-info{display:flex;gap:8px;align-items:flex-start;margin-top:8px;padding:10px;border:1px solid var(--card-bd);border-radius:calc(var(--r)*.5);font-size:11px;color:#98ab98}.vp-info span{flex:1}.vp-info b{color:#eef6ec}.vp-info button{border:0;background:none;color:#98ab98;cursor:pointer}.vp-foot{margin-top:var(--gap);font-size:10px;color:#6c7f6d;text-align:center}@media(max-width:520px){.vp{margin:8px;padding:14px}}`}</style>
-      <style>{`.vp-role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:14px}.vp-role-option{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.035);color:#dce9de;text-align:left;cursor:pointer;transition:transform .16s,border-color .16s,background .16s}.vp-role-option:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--role-color) 65%,transparent)}.vp-role-option.selected{border-color:var(--role-color);background:color-mix(in srgb,var(--role-color) 12%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--role-color) 10%,transparent)}.vp-role-option>span{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:color-mix(in srgb,var(--role-color) 20%,transparent);color:var(--role-color)}.vp-role-option strong{font-size:11px}.vp-role-option small{color:#91a394;font-size:9px}`}</style>
+      <style>{`.vp-role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:14px}.vp-role-option{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.035);color:#dce9de;text-align:left;cursor:pointer;transition:transform .16s,border-color .16s,background .16s}.vp-role-option:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--role-color) 65%,transparent)}.vp-role-option.selected{border-color:var(--role-color);background:color-mix(in srgb,var(--role-color) 12%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--role-color) 10%,transparent)}.vp-role-option>span{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:color-mix(in srgb,var(--role-color) 20%,transparent);color:var(--role-color)}.vp-role-option strong{font-size:11px}.vp-role-option small{color:#91a394;font-size:9px}.vp-reaction-choices{display:flex;flex-wrap:wrap;gap:8px}.vp-reaction-choices button{display:grid;place-items:center;min-width:48px;min-height:44px;border:1px solid var(--card-bd);border-radius:10px;background:rgba(255,255,255,.04);color:#eaf4e8;font-weight:900;font-size:16px;cursor:pointer}.vp-reaction-choices button:hover:not(:disabled),.vp-reaction-choices button[aria-pressed=true]{border-color:var(--a);background:color-mix(in srgb,var(--a) 14%,transparent);color:var(--a)}.vp-reaction-choices button:disabled{opacity:.55;cursor:not-allowed}`}</style>
     </section>
+    <style>{`.vp-head{position:relative;margin-bottom:var(--gap);padding-bottom:var(--gap)}.vp-head:after{position:absolute;right:-20px;bottom:0;left:-20px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--a) 42%,transparent),rgba(255,255,255,.12) 38%,rgba(255,255,255,.12) 62%,color-mix(in srgb,var(--a) 42%,transparent));content:""}.vp-kicker{color:var(--a)}.vp-theme-midnight{background:linear-gradient(145deg,#0c110d,#050705 68%,#030403);border-color:color-mix(in srgb,var(--a) 50%,transparent);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--a) 65%,transparent)}.vp-theme-aurora{background:radial-gradient(ellipse at 100% 0%,rgba(16,185,129,.24),transparent 38%),linear-gradient(135deg,#07130e,#030806 60%,#06120c);border-color:rgba(35,220,130,.5);box-shadow:inset 0 0 0 1px rgba(35,220,130,.12)}.vp-theme-obsidian{background-color:#050505;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:22px 22px;border-color:color-mix(in srgb,var(--a) 60%,transparent);box-shadow:inset 0 0 0 1px rgba(255,255,255,.025)}.vp-congrats-overlay{position:fixed;inset:0;z-index:100005;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.76);backdrop-filter:blur(8px);animation:vpCongratsFade .18s ease}@keyframes vpCongratsFade{from{opacity:0}to{opacity:1}}.vp-congrats-card{width:min(100%,410px);display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 24px;border:1px solid color-mix(in srgb,var(--a) 58%,transparent);border-radius:20px;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--a) 14%,transparent),transparent 58%),#050705;color:#f2f8ef;text-align:center;animation:vpCongratsPop .28s cubic-bezier(.2,.9,.25,1.1)}@keyframes vpCongratsPop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}.vp-congrats-card.vp-theme-aurora{background:radial-gradient(ellipse at 50% 0%,rgba(16,185,129,.2),transparent 62%),#030705}.vp-congrats-card.vp-theme-obsidian{background:#030303}.vp-congrats-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:color-mix(in srgb,var(--a) 15%,transparent);color:var(--a)}.vp-congrats-kicker{color:var(--a);font-size:9px;font-weight:900;letter-spacing:.15em}.vp-congrats-card h2{margin:0;color:#f2f8ef;font-size:22px;line-height:1.2}.vp-congrats-card p{max-width:310px;margin:0;color:#b7c3b5;font-size:13px;line-height:1.6}.vp-congrats-role{padding:5px 11px;border:1px solid color-mix(in srgb,var(--role-color) 42%,transparent);border-radius:99px;background:color-mix(in srgb,var(--role-color) 12%,transparent);color:var(--role-color);font-size:11px;font-weight:800}.vp-congrats-card>button{margin-top:4px;padding:10px 17px;border:0;border-radius:9px;background:var(--a);color:#071000;font-size:11px;font-weight:900;cursor:pointer}`}</style>
+    </>
   );
 }
