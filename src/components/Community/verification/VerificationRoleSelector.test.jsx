@@ -31,4 +31,17 @@ describe("VerificationRoleSelector", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move Ranked above default role" }));
     expect(onPromoteRole).toHaveBeenCalledWith("ranked");
   });
+
+  it("groups duplicate names and selects the eligible underlying role", () => {
+    const onSelect = jest.fn();
+    render(<VerificationRoleSelector roles={[
+      { id: "default-member", name: "Member", is_default: true, position: 3 },
+      { id: "verified-member", name: "Member", position: 1, permissions: {} },
+    ]} onSelect={onSelect} />);
+
+    const group = screen.getByRole("button", { name: "Select Member role (2 entries)" });
+    expect(group.textContent).toContain("2 matching role entries");
+    fireEvent.click(group);
+    expect(onSelect).toHaveBeenCalledWith("verified-member");
+  });
 });

@@ -8,6 +8,14 @@ export function accessRuleAllowsPermission(access, permission) {
   return !["sendMessages", "attachFiles", "mentionEveryone"].includes(permission) || access.canSend;
 }
 
+export function resolveChannelPermission({ access, permission, channelOverride, categoryOverride, roleDefault }) {
+  if (access?.restricted && !accessRuleAllowsPermission(access, permission)) return false;
+  const override = channelOverride?.state ? channelOverride : categoryOverride;
+  if (override?.state) return override.state === "allow";
+  if (access?.restricted) return true;
+  return Boolean(roleDefault);
+}
+
 export function resolveAccessForRole({ roleId, channel, categoryId, rules = [], defaultOpen = true }) {
   const normalizedRules = Array.isArray(rules) ? rules : [];
   const channelId = channel?.id ?? channel?.channel_id ?? null;
@@ -117,5 +125,6 @@ export default {
   notifyAccessChanged,
   targetKey,
   accessRuleAllowsPermission,
+  resolveChannelPermission,
   resolveAccessForRole,
 };

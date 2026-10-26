@@ -611,13 +611,20 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       const raw = p || {};
       const userAvatarSource = [user?.avatar_url, user?.avatarUrl, user?.avatar]
         .find((value) => typeof value === "string" && value.trim().length > 1);
+      const userMetadata = user?.user_metadata || user?.userMetadata || currentUser?.user_metadata || currentUser?.userMetadata || {};
+      const identityMetadata = Array.isArray(user?.identities)
+        ? user.identities.map((identity) => identity?.identity_data || identity?.identityData || {})
+        : [];
 
       const avatarCandidates = [...new Set([
         ...mediaUrlService.resolveAvatarUrls(raw.avatar_id, 300),
         ...mediaUrlService.resolveAvatarUrls(raw.avatar_metadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(userMetadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(identityMetadata, 300),
         ...mediaUrlService.resolveAvatarUrls(user?.avatar_id, 300),
         ...mediaUrlService.resolveAvatarUrls(user?.avatar_metadata || user?.avatarMetadata, 300),
         ...mediaUrlService.resolveAvatarUrls(userAvatarSource, 300),
+        ...mediaUrlService.resolveAvatarUrls(currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.avatar, 300),
       ])];
       const [avatarUrl, ...avatarFallbackUrls] = avatarCandidates;
       const bannerImageUrl = raw.banner_image_id
@@ -639,7 +646,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           username:      raw.username  || user?.username  || "unknown",
           avatarUrl,
           avatarFallbackUrls,
-          avatarId:      raw.avatar_id || user?.avatar_id || null,
+          avatarId:      raw.avatar_id || user?.avatar_id || currentUser?.avatar_id || null,
+          avatarMetadata: raw.avatar_metadata || userMetadata || null,
           bannerImageUrl,
           bannerImageId: raw.banner_image_id || null,
           bio:           raw.bio       || null,

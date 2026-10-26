@@ -293,7 +293,7 @@ const CommunityMenu = ({
                     ...(canManageRoles ? [{ label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true }] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
                     { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
-                    ...(canCreateChannels ? [{ label:"Manage Channels", desc:"Edit channels and organize categories", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),
+                    ...(canManageChannels ? [{ label:"Manage Channels", desc:"Edit channels and manage access", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),
                     ...(canManageCommunity ? [{ label:"Manage Categories", desc:"Create and arrange channel groups", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#fbbf24,#f97316)", onClick:()=>setMenuView("categories"), arrow:true }] : []),
                   ].map((item, i) => (
                     <div key={i} className="cm-item" onClick={item.onClick}>
@@ -384,9 +384,13 @@ const CommunityMenu = ({
               onCreateChannel={() => { onClose(); onCreateChannel?.(); }}
             />}
             {menuView === "channels" && <ChannelManagementSection
+              communityId={community.id}
               channels={channels}
+              roles={roles}
+              canCreate={canCreateChannels}
               onCreate={() => { onClose(); onCreateChannel?.(); }}
               onEdit={(channel) => { onClose(); window.dispatchEvent(new CustomEvent("community:edit-channel", { detail: channel })); }}
+              onPermissionsChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))}
             />}
             {menuView === "categories" && <CategoryManagementSection communityId={community?.id} onChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))} />}
           </div>

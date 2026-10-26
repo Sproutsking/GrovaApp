@@ -177,12 +177,6 @@ class DistributionService {
       // User explicitly chose platforms → intersect with connected
       if (selectedPlatforms && selectedPlatforms.length > 0) {
         const platformTargets = selectedPlatforms.filter((platform) => connected.includes(platform));
-        const missingPlatforms = selectedPlatforms.filter((platform) => (
-          !platform.startsWith("community:") && !connected.includes(platform)
-        ));
-        if (missingPlatforms.length) {
-          throw new Error(`Selected platform connection or publishing token is unavailable: ${missingPlatforms.join(", ")}`);
-        }
         const communityIds = selectedPlatforms
           .filter((platform) => platform.startsWith("community:"))
           .map((platform) => platform.slice("community:".length));

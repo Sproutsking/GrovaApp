@@ -3,7 +3,7 @@ jest.mock("../../services/distribution/distributionService", () => ({}));
 jest.mock("../../services/distribution/platformAdapterFactory", () => ({ POSTABLE_PLATFORM_KEYS: [] }));
 jest.mock("../Account/IdentitySection", () => ({ PLATFORMS: [] }));
 
-const { resolveCommunityQuery } = require("./PlatformSelector");
+const { filterReadyDestinations, resolveCommunityQuery } = require("./PlatformSelector");
 
 describe("resolveCommunityQuery", () => {
   it("awaits Supabase thenables without relying on a Promise.catch method", async () => {
@@ -27,5 +27,21 @@ describe("resolveCommunityQuery", () => {
       data: null,
       error: failure,
     });
+  });
+});
+
+describe("filterReadyDestinations", () => {
+  it("drops reconnect-needed platforms and unavailable community destinations", () => {
+    expect(filterReadyDestinations(
+      ["x", "facebook", "community:ready", "community:offline"],
+      {
+        x: { status: "ready", canPublish: true },
+        facebook: { status: "reconnect", canPublish: false },
+      },
+      [
+        { target: "community:ready", ready: true },
+        { target: "community:offline", ready: false },
+      ],
+    )).toEqual(["x", "community:ready"]);
   });
 });

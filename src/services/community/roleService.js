@@ -1,7 +1,7 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
-import { accessRuleAllowsPermission, resolveAccessForRole } from "./accessService";
+import { resolveAccessForRole, resolveChannelPermission } from "./accessService";
 
 function getAvatarUrl(avatarId) {
   if (!avatarId || typeof avatarId !== "string") {
@@ -215,15 +215,21 @@ class RoleService {
       if (!role) return [];
 
       const roleModel = RoleModel.fromAPI(role);
-      if (roleModel.hasPermission("administrator")) return allChannels || [];
+      if (roleModel.hasPermission("administrator") || roleModel.hasPermission("manageChannels") || roleModel.hasPermission("manageCommunity")) return allChannels || [];
 
       if (!role.id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
 
-      const [rules, verificationResult] = await Promise.all([
+      const [rules, verificationResult, channelOverridesResult, categoryOverridesResult] = await Promise.all([
         this.getAccessRulesForCommunity(communityId),
         supabase.rpc("get_verification_panel", { p_community_id: communityId }),
+        supabase.from("channel_permission_overrides").select("channel_id,role_id,permission,state").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel"),
+        supabase.from("category_permission_overrides").select("category_id,role_id,permission,state,apply_to_channels").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel").eq("apply_to_channels", true),
       ]);
       if (verificationResult.error) throw verificationResult.error;
+      if (channelOverridesResult.error) throw channelOverridesResult.error;
+      if (categoryOverridesResult.error) throw categoryOverridesResult.error;
+      const channelOverrides = channelOverridesResult.data || [];
+      const categoryOverrides = categoryOverridesResult.data || [];
       const verificationConfig = verificationResult.data?.configured
         ? verificationResult.data.config || {}
         : {};
@@ -251,7 +257,15 @@ class RoleService {
           rules,
           defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
         });
-        return access.canView;
+        const channelOverride = channelOverrides.find((override) => override.channel_id === channel.id);
+        const categoryOverride = categoryOverrides.find((override) => override.category_id === channel.category_id);
+        return resolveChannelPermission({
+          access,
+          permission: "viewChannel",
+          channelOverride,
+          categoryOverride,
+          roleDefault: roleModel.hasPermission("viewChannels") && !channel.is_private,
+        });
       });
     } catch (error) {
       console.error("Error getting visible channels:", error);
@@ -277,8 +291,6 @@ class RoleService {
         defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
       });
 
-      if (!accessRuleAllowsPermission(access, permission)) return false;
-
       const { data: channelOverride, error: channelOverrideError } = await supabase
         .from("channel_permission_overrides")
         .select("state")
@@ -287,8 +299,7 @@ class RoleService {
         .eq("permission", permission)
         .maybeSingle();
       if (channelOverrideError) throw channelOverrideError;
-      if (channelOverride?.state) return channelOverride.state === "allow";
-
+      let categoryOverride = null;
       if (channel.category_id || channel.category) {
         let categoryQuery = supabase
           .from("community_channel_categories")
@@ -300,7 +311,7 @@ class RoleService {
         const { data: category, error: categoryError } = await categoryQuery.maybeSingle();
         if (categoryError) throw categoryError;
         if (category?.id) {
-          const { data: categoryOverride, error: categoryOverrideError } = await supabase
+          const result = await supabase
             .from("category_permission_overrides")
             .select("state")
             .eq("category_id", category.id)
@@ -308,11 +319,17 @@ class RoleService {
             .eq("permission", permission)
             .eq("apply_to_channels", true)
             .maybeSingle();
-          if (categoryOverrideError) throw categoryOverrideError;
-          if (categoryOverride?.state) return categoryOverride.state === "allow";
+          if (result.error) throw result.error;
+          categoryOverride = result.data;
         }
       }
-      return roleModel.hasPermission(permission);
+      return resolveChannelPermission({
+        access,
+        permission,
+        channelOverride,
+        categoryOverride,
+        roleDefault: roleModel.hasPermission(permission),
+      });
     } catch (error) {
       console.error("Error checking channel permission:", error);
       return false;

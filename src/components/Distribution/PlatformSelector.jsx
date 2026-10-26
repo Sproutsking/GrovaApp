@@ -25,6 +25,13 @@ export async function resolveCommunityQuery(query) {
   }
 }
 
+export function filterReadyDestinations(selection = [], connectionStates = {}, communityTargets = []) {
+  const readyCommunities = new Set(communityTargets.filter((target) => target.ready).map((target) => target.target));
+  return selection.filter((platform) => platform.startsWith("community:")
+    ? readyCommunities.has(platform)
+    : connectionStates[platform]?.status === "ready" && connectionStates[platform]?.canPublish !== false);
+}
+
 // ── Scoped styles ─────────────────────────────────────────────────────────────
 const CSS = `
   @keyframes psSpin { to { transform:rotate(360deg) } }
@@ -172,16 +179,14 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
 
       // Auto-select only on the first successful load. Manual refreshes keep
       // the user's explicit on/off choices and remove only disconnected ones.
-      const connectedPlatforms = Object.keys(nextConnectionStates)
-        .filter((platform) => ["ready", "reconnect"].includes(nextConnectionStates[platform]?.status));
-      const initiallySelectedPlatforms = connectedPlatforms
-        .filter((platform) => nextConnectionStates[platform]?.status === "ready");
-      const availableTargets = [...connectedPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
+      const readyPlatforms = Object.keys(nextConnectionStates)
+        .filter((platform) => nextConnectionStates[platform]?.status === "ready" && nextConnectionStates[platform]?.canPublish !== false);
+      const availableTargets = [...readyPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
       const nextSelection = hasLoadedRef.current
-        ? selectedRef.current.filter((platform) => availableTargets.includes(platform))
+        ? filterReadyDestinations(selectedRef.current, nextConnectionStates, nextCommunityTargets)
         : externalSelectedRef.current.length > 0
-          ? externalSelectedRef.current.filter((platform) => availableTargets.includes(platform))
-          : [...initiallySelectedPlatforms, ...nextCommunityTargets.filter((destination) => destination.ready).map((destination) => destination.target)];
+          ? filterReadyDestinations(externalSelectedRef.current, nextConnectionStates, nextCommunityTargets)
+          : availableTargets;
       hasLoadedRef.current = true;
       selectedRef.current = nextSelection;
       setSelected(nextSelection);
@@ -215,7 +220,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
   // ── Toggle a platform ──────────────────────────────────────────────────────
   const toggle = useCallback((platform) => {
     const communityTarget = communityTargets.find((destination) => destination.target === platform);
-    if (!["ready", "reconnect"].includes(connectionStates[platform]?.status) && !communityTarget?.ready) return;
+    if (!(connectionStates[platform]?.status === "ready" && connectionStates[platform]?.canPublish !== false) && !communityTarget?.ready) return;
     setSelected(prev => {
       const next = prev.includes(platform)
         ? prev.filter(p => p !== platform)
@@ -231,10 +236,12 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
     if (typeof window.__xvNavigate === "function") window.__xvNavigate("account");
   };
 
-  const readyPlatforms = Object.keys(connectionStates)
+  const linkedPlatforms = Object.keys(connectionStates)
     .filter((platform) => ["ready", "reconnect"].includes(connectionStates[platform]?.status));
+  const readyPlatforms = Object.keys(connectionStates)
+    .filter((platform) => connectionStates[platform]?.status === "ready" && connectionStates[platform]?.canPublish !== false);
   const readyCommunityTargets = communityTargets.filter((destination) => destination.ready);
-  const noneConnected = readyPlatforms.length === 0 && readyCommunityTargets.length === 0;
+  const noneConnected = linkedPlatforms.length === 0 && readyCommunityTargets.length === 0;
 
   return (
     <>
@@ -270,11 +277,11 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
               <button
                 type="button"
                 key={key}
-                className={`psCard ${stateClass} ${isLinked ? "psClickable" : ""} ${needsReconnect ? "psReconnect" : ""}`}
+                className={`psCard ${stateClass} ${canPublish ? "psClickable" : ""} ${needsReconnect ? "psReconnect" : ""}`}
                 onClick={() => toggle(key)}
-                disabled={!isLinked}
+                disabled={!canPublish || !isLinked}
                 aria-pressed={isLinked && isSel}
-                aria-label={`${meta.name}: ${isLinked ? isSel ? "included in this post" : "linked, not included" : "not linked"}`}
+                aria-label={`${meta.name}: ${needsReconnect ? "reconnect required" : isLinked ? isSel ? "included in this post" : "linked, not included" : "not linked"}`}
                 style={{ "--pcColor": meta.color, "--pcBg": meta.bg, "--pcBorder": meta.border }}
               >
                 <div className="psIcon" style={{ background:meta.bg, borderColor:meta.border, color:meta.color }}>
@@ -287,7 +294,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
                   <p className="psPName">{meta.name}</p>
                   <p className="psPSub">
                     {connectionLoadError ? "Connection status unavailable" : isLinked
-                      ? isSel ? "Included in this post" : canPublish ? "Connected · tap to include" : "Linked · publishing access may need refresh"
+                      ? isSel ? "Included in this post" : canPublish ? "Connected · tap to include" : "Reconnect to enable publishing"
                       : isRefreshing ? "Checking connection…" : "Not linked"}
                   </p>
                 </div>

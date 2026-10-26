@@ -1,6 +1,6 @@
 import React from "react";
 import { Check } from "lucide-react";
-import { getVerificationRoleCandidates, getVerificationRoleIssue } from "./verificationConfig";
+import { getVerificationRoleCandidates, getVerificationRoleIssue, groupVerificationRoles } from "./verificationConfig";
 import VerificationRoleActions from "./VerificationRoleActions";
 
 const issueLabel = {
@@ -20,20 +20,22 @@ export default function VerificationRoleSelector({
   canManageRoles = false,
   disabled = false,
 }) {
-  const candidates = getVerificationRoleCandidates(roles);
+  const candidates = groupVerificationRoles(getVerificationRoleCandidates(roles));
 
   return (
     <div className="verification-role-picker-grid" role="group" aria-label="Roles available after verification">
-      {candidates.map((role) => {
+      {candidates.map((roleGroup) => {
+        const role = roleGroup.roles.find((candidate) => !getVerificationRoleIssue(candidate, roles)) || roleGroup.role;
         const issue = getVerificationRoleIssue(role, roles);
         const eligible = !issue;
+        const groupSelected = roleGroup.roles.some((entry) => entry.id === selectedRoleId);
         return (
-          <div className={`verification-role-picker-card${selectedRoleId === role.id ? " selected" : ""}${eligible ? "" : " unavailable"}`} key={role.id}>
+          <div className={`verification-role-picker-card${groupSelected ? " selected" : ""}${eligible ? "" : " unavailable"}`} key={roleGroup.key}>
             <button
               type="button"
               className="verification-role-picker-choice"
-              aria-label={`${eligible ? "Select" : "Unavailable"} ${role.name} role`}
-              aria-pressed={selectedRoleId === role.id}
+              aria-label={`${eligible ? "Select" : "Unavailable"} ${role.name} role${roleGroup.roles.length > 1 ? ` (${roleGroup.roles.length} entries)` : ""}`}
+              aria-pressed={groupSelected}
               disabled={disabled || !eligible}
               onClick={() => onSelect?.(role.id)}
             >
@@ -42,6 +44,7 @@ export default function VerificationRoleSelector({
                 {selectedRoleId === role.id && <Check size={12} />}
               </span>
               <strong>{role.name}</strong>
+              {roleGroup.roles.length > 1 && <small>{roleGroup.roles.length} matching role entries</small>}
               <small>Rank {Number(role.position) + 1}</small>
               {!eligible && <small className="verification-role-picker-reason">{issueLabel[issue]}</small>}
             </button>

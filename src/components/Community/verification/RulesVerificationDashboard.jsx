@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Eye, EyeOff } from "lucide-react";
 import RoleAccessReview from "./RoleAccessReview";
-import { getSelectableVerificationRoles, getVerificationRoleIssue, isMethodReady, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
+import { getSelectableVerificationRoles, getVerificationRoleIssue, groupVerificationRoles, isMethodReady, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 import VerificationPanelView from "./VerificationPanelView";
 import CreateVerificationRoleControl from "./CreateVerificationRoleControl";
 import VerificationRoleActions from "./VerificationRoleActions";
@@ -48,6 +48,7 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
   const rulesText = method.items.map((rule) => rule.title).join("\n");
   const selectableRoles = getSelectableVerificationRoles(roles);
   const selectableRoleIds = new Set(selectableRoles.map((role) => role.id));
+  const roleGroups = groupVerificationRoles(roles);
   const createdRole = (role) => setGrant((current) => ({
     enabled: true,
     roleIds: [...new Set([...current.roleIds, role.id])],
@@ -183,27 +184,30 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
         <label className="rules-check"><input type="checkbox" checked={grant.enabled} disabled={disabled} onChange={(event) => setGrant((current) => ({ ...current, enabled: event.target.checked }))} /> Ask members to choose an access role</label>
         <p className="rules-help">Role permissions and channel access come from the role settings. A member's highest-ranked assigned role determines their access.</p>
         <div className="rules-role-options">
-          {roles.map((role) => {
+          {roleGroups.map((roleGroup) => {
+            const role = roleGroup.roles.find((candidate) => selectableRoleIds.has(candidate.id)) || roleGroup.role;
             const issue = getVerificationRoleIssue(role, roles);
             const eligible = !issue;
+            const groupIds = roleGroup.roles.map((candidate) => candidate.id);
+            const groupSelected = groupIds.some((id) => grant.roleIds.includes(id));
             return (
-            <div className={`rules-role-entry${eligible ? "" : " ineligible"}`} key={role.id}>
+            <div className={`rules-role-entry${eligible ? "" : " ineligible"}`} key={roleGroup.key}>
               <VerificationRoleActions role={role} canManage={canManageRoles} onManageRole={onManageRole} onDeleteRole={onDeleteRole} />
               <label className="rules-role-option">
                 <input
                   type="checkbox"
-                  checked={grant.roleIds.includes(role.id)}
-                  disabled={disabled || !grant.enabled || (!eligible && !grant.roleIds.includes(role.id))}
+                  checked={groupSelected}
+                  disabled={disabled || !grant.enabled || (!eligible && !groupSelected)}
                   onChange={(event) => setGrant((current) => ({
                     ...current,
                     roleIds: event.target.checked
-                      ? [...new Set([...current.roleIds, role.id])]
-                      : current.roleIds.filter((id) => id !== role.id),
+                      ? [...new Set([...current.roleIds.filter((id) => !groupIds.includes(id)), role.id])]
+                      : current.roleIds.filter((id) => !groupIds.includes(id)),
                   }))}
                 />
                 <i style={{ background: role.color || "var(--accent)" }}>{role.icon || "♟"}</i>
                 <span>
-                  <strong>{role.name}</strong><small>Rank {Number(role.position) + 1}</small>
+                  <strong>{role.name}</strong>{roleGroup.roles.length > 1 && <small>{roleGroup.roles.length} matching role entries</small>}<small>Rank {Number(role.position) + 1}</small>
                   {!eligible && <small className="rules-role-reason">
                     {issue === "default" ? "Default member role cannot be granted."
                       : issue === "owner" ? "Owner role is protected."

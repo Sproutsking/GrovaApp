@@ -1,6 +1,6 @@
 import { getConnector, listConnectors } from "../connectorRegistry";
 import { CONNECTOR_DEFINITIONS } from "../../connectors/connectorRegistry";
-import { registerDefaultConnectors } from "./index";
+import { registerDefaultConnectors, XConnector } from "./index";
 
 describe("evidence connector coverage", () => {
   beforeEach(() => {
@@ -24,5 +24,23 @@ describe("evidence connector coverage", () => {
       verified: false,
     });
     expect(result.activity).toEqual([]);
+  });
+
+  it("requests and preserves X profile image URLs in connector evidence", async () => {
+    const fetcher = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: {
+        id: "x-user-1",
+        username: "sprouts",
+        name: "Sprouts",
+        profile_image_url: "https://images.example/x-avatar.jpg",
+      } }),
+    });
+    const connector = new XConnector({ fetcher, baseUrl: "https://api.example/2" });
+    const rawProfile = await connector.fetchProfile({ username: "sprouts", accessToken: "test-token" });
+    const evidence = connector.normalizeProfile(rawProfile, { username: "sprouts" });
+
+    expect(fetcher.mock.calls[0][0]).toContain("user.fields=profile_image_url");
+    expect(evidence.metadata.avatarUrl).toBe("https://images.example/x-avatar.jpg");
   });
 });

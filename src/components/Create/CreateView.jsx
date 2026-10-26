@@ -248,13 +248,6 @@ const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUse
       : activeTrinityLens === "streaming"
         ? ["Live Highlights", "Stream Clips", "Event Recaps", "Creator Tips", "Community Moments"]
       : reelCategories;
-  const modeCopy = activeTrinityLens === "gaming"
-    ? { title: "Gaming Creator Studio", subtitle: "Share clips, guides, and live gaming moments" }
-    : activeTrinityLens === "web3"
-      ? { title: "Web3 Creator Studio", subtitle: "Publish research, signals, and protocol ideas" }
-      : activeTrinityLens === "streaming"
-        ? { title: "Streaming Creator Studio", subtitle: "Shape the story around your streams and events" }
-        : { title: "Creator Studio", subtitle: "Share your creativity, earn XEV" };
   useEffect(() => {
     setPostCategory(modePostCategories[0]);
     setReelCategory(modeReelCategories[0]);
@@ -820,9 +813,6 @@ const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUse
 
         {/* ── HEADER ── */}
         <div className="studio-header">
-          <h1 className="studio-title">{modeCopy.title}</h1>
-          <p className="studio-subtitle">{modeCopy.subtitle}</p>
-
           <div className="studio-header-actions">
             <button className="drafts-btn" onClick={() => setShowDrafts(true)}>
               <FileText size={14} /><span>My Drafts</span>

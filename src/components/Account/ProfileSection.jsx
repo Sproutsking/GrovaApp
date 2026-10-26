@@ -299,7 +299,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [adminRole, setAdminRole] = useState(null);
   const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
 
-  const { isAdmin: authIsAdmin } = useAuth() || {};
+  const { isAdmin: authIsAdmin, user: authUser } = useAuth() || {};
 
   const isMobile = window.innerWidth <= 768;
 
@@ -398,7 +398,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, banner_image_id, bio, profile_tags, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
+        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
         .eq("id", userId)
         .maybeSingle();
 
@@ -412,14 +412,18 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       }
 
       // Build avatar URL — enhanced with multiple fallback strategies
-      let avatarUrl = null;
-      if (profileData?.avatar_id) {
-        try {
-          avatarUrl = mediaUrlService.resolveAvatarUrl(profileData.avatar_id, 600);
-        } catch (err) {
-          console.warn("Avatar URL generation failed:", err?.message);
-        }
+      let avatarCandidates = [];
+      try {
+        avatarCandidates = [...new Set([
+          ...mediaUrlService.resolveAvatarUrls(profileData?.avatar_id, 600),
+          ...mediaUrlService.resolveAvatarUrls(profileData?.avatar_metadata, 600),
+          ...mediaUrlService.resolveAvatarUrls(authUser?.user_metadata, 600),
+          ...mediaUrlService.resolveAvatarUrls(authUser?.identities?.map((identity) => identity?.identity_data || {}), 600),
+        ])];
+      } catch (err) {
+        console.warn("Avatar URL generation failed:", err?.message);
       }
+      const avatarUrl = avatarCandidates[0] || null;
 
       if (profileData) {
         setProfile({
@@ -428,6 +432,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           username: profileData.username || "user",
           avatar: avatarUrl,
           avatarId: profileData.avatar_id,
+          avatarMetadata: profileData.avatar_metadata || authUser?.user_metadata || null,
           bannerImageUrl: profileData.banner_image_id
             ? mediaUrlService.getOptimizedImageUrl(profileData.banner_image_id, { width: 1500, height: 520, quality: "100", format: "webp", crop: "fill" })
             : null,
@@ -511,6 +516,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         username:         profileData?.username         || "user",
         avatar:           avatarUrl,  // Use the enhanced avatarUrl constructed above
         avatarId:         profileData?.avatar_id,
+        avatarMetadata:   profileData?.avatar_metadata || authUser?.user_metadata || null,
         bio:              profileData?.bio,
         profileTags:      normalizeProfileTags(profileData?.profile_tags),
         verified:         profileData?.verified         || false,
@@ -568,6 +574,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       profileTags: updatedData.profileTags,
       avatar:   updatedData.avatar,
       avatarId: updatedData.avatarId,
+      avatarMetadata: updatedData.avatarMetadata || prev.avatarMetadata,
       bannerImageUrl: updatedData.bannerImageUrl,
       bannerImageId: updatedData.bannerImageId,
     }));
@@ -834,8 +841,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 tier={hasBoostedTier ? profile.subscriptionTier : null}
                 themeId={activeThemeId}
                 size={110}
-                src={profile.avatar && typeof profile.avatar === "string" && profile.avatar.startsWith("http") ? profile.avatar : null}
-                fallbackSrc={mediaUrlService.resolveAvatarUrls(profile.avatarId, 600).slice(1)}
+                src={profile.avatar || null}
+                fallbackSrc={[...new Set([
+                  ...mediaUrlService.resolveAvatarUrls(profile.avatarMetadata, 600),
+                  ...mediaUrlService.resolveAvatarUrls(profile.avatarId, 600),
+                ])].filter((url) => url !== profile.avatar)}
                 letter={profile.fullName?.charAt(0)?.toUpperCase() || "U"}
                 showBadge={false}
                 badgeSize="md"
@@ -1123,7 +1133,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         />
       </div>
 
-      {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, profileTags:profile.profileTags, avatar:profile.avatar, avatarId:profile.avatarId, bannerImageUrl:profile.bannerImageUrl, bannerImageId:profile.bannerImageId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
+      {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, profileTags:profile.profileTags, avatar:profile.avatar, avatarId:profile.avatarId, avatarMetadata:profile.avatarMetadata, bannerImageUrl:profile.bannerImageUrl, bannerImageId:profile.bannerImageId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
       {showSavedModal       && <SavedContentModal currentUser={{id:userId}} onClose={()=>setShowSavedModal(false)} isMobile={isMobile} />}
       {showCommunitiesModal && <CommunitiesModal  currentUser={{id:userId}} onClose={()=>setShowCommunitiesModal(false)} isMobile={isMobile} />}
       {showFollowersModal   && <FollowersModal    currentUser={{id:userId}} onClose={()=>setShowFollowersModal(false)} isMobile={isMobile} defaultTab={followersTab} />}

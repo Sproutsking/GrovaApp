@@ -1,11 +1,14 @@
-import { getXrdIdentityBindings, getXrdProfileAvatarCandidates, SOURCE_PLATFORMS } from "./XRDProfileDashboard";
+import { getXrdIdentityBindings, getXrdPhotoSources, getXrdProfileAvatarCandidates, SOURCE_PLATFORMS } from "./XRDProfileDashboard";
 
 jest.mock("../../services/shared/mediaUrlService", () => ({
   __esModule: true,
   default: {
     resolveAvatarUrls: (source) => {
       if (typeof source === "string" && source) return [source];
-      if (source?.publicUrl) return [source.publicUrl];
+      if (Array.isArray(source)) return source.flatMap((item) => [item?.avatarUrl, item?.avatar_url, item?.picture, item?.publicUrl].filter(Boolean));
+      const direct = source?.publicUrl || source?.avatarUrl || source?.avatar_url || source?.profile_image_url || source?.picture
+        || source?.user_metadata?.avatar_url || source?.user_metadata?.picture;
+      if (direct) return [direct];
       return [];
     },
   },
@@ -30,8 +33,24 @@ describe("getXrdProfileAvatarCandidates", () => {
     })).toEqual(["https://images.example/metadata.png"]);
   });
 
+  it("uses authenticated OAuth metadata as a native Xeevia image fallback", () => {
+    expect(getXrdProfileAvatarCandidates({ user_metadata: { picture: "https://images.example/auth-profile.png" } }))
+      .toEqual(["https://images.example/auth-profile.png"]);
+  });
+
   it("returns no candidate when the profile has no image data", () => {
     expect(getXrdProfileAvatarCandidates({ id: "profile-without-image" })).toEqual([]);
+  });
+
+  it("maps the native profile and connected-source evidence into separate image cards", () => {
+    expect(getXrdPhotoSources({ username: "sprouts", avatarUrl: "https://images.example/xeevia.png" }, [
+      { id: "github-profile", provider: "GitHub", evidence_type: "profile", metadata: { avatarUrl: "https://images.example/github.png", username: "sprouts-dev" } },
+      { id: "github-activity", provider: "GitHub", evidence_type: "activity", metadata: { avatarUrl: "https://images.example/activity.png" } },
+    ], [{ id: "google-connection", provider: "google", platform_user_id: "sprouts@example.com", avatarUrl: "https://images.example/google.png" }])).toEqual([
+      { id: "xeevia-profile", name: "Xeevia", handle: "@sprouts", urls: ["https://images.example/xeevia.png"], verified: false },
+      { id: "github-profile", name: "GitHub", handle: "sprouts-dev", urls: ["https://images.example/github.png"], verified: false },
+      { id: "connection:google-connection", name: "Google", handle: "sprouts@example.com", urls: ["https://images.example/google.png"], verified: false },
+    ]);
   });
 });
 

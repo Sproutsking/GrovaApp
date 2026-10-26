@@ -1,4 +1,4 @@
-import { accessRuleAllowsPermission, resolveAccessForRole } from "../accessService";
+import { accessRuleAllowsPermission, resolveAccessForRole, resolveChannelPermission } from "../accessService";
 import { isCommunityMemberOnline } from "../communityOnlineStatusService";
 
 describe("community access rule enforcement", () => {
@@ -50,6 +50,29 @@ describe("community access rule enforcement", () => {
     expect(accessRuleAllowsPermission(viewOnlyAccess, "addReactions")).toBe(true);
     expect(accessRuleAllowsPermission(viewOnlyAccess, "sendMessages")).toBe(false);
     expect(accessRuleAllowsPermission({ ...viewOnlyAccess, canView: false }, "addReactions")).toBe(false);
+  });
+
+  it("uses channel overrides before category overrides and role defaults", () => {
+    expect(resolveChannelPermission({
+      access: { restricted: false },
+      permission: "viewChannel",
+      channelOverride: { state: "deny" },
+      categoryOverride: { state: "allow" },
+      roleDefault: true,
+    })).toBe(false);
+    expect(resolveChannelPermission({
+      access: { restricted: false },
+      permission: "viewChannel",
+      categoryOverride: { state: "allow" },
+      roleDefault: false,
+    })).toBe(true);
+  });
+
+  it("keeps explicit access rules authoritative while allowing a narrower deny override", () => {
+    const access = { restricted: true, canView: true, canSend: true };
+    expect(resolveChannelPermission({ access, permission: "viewChannel", roleDefault: false })).toBe(true);
+    expect(resolveChannelPermission({ access, permission: "viewChannel", channelOverride: { state: "deny" }, roleDefault: true })).toBe(false);
+    expect(resolveChannelPermission({ access: { ...access, canView: false }, permission: "viewChannel", channelOverride: { state: "allow" }, roleDefault: true })).toBe(false);
   });
 
   it("treats recent last_seen as online even when is_online is false", () => {

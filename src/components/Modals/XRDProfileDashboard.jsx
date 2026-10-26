@@ -11,7 +11,7 @@ import xrcService from "../../services/xrc";
 import evidenceService from "../../services/evidence/evidenceService";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { useAccountLinking } from "../../contexts/AccountLinkingContext";
-import { syncUserConnectorEvidence } from "../../services/evidence/connectorService";
+import { getRegisteredConnectors, syncUserConnectorEvidence } from "../../services/evidence/connectorService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 const XRCOracleExplorer = lazy(() => import("../Oracle/XRCOracleExplorer"));
 
@@ -92,11 +92,62 @@ const normalizeStatus = (item) => {
 export const getXrdProfileAvatarCandidates = (profile) => {
   const candidates = [
     ...mediaUrlService.resolveAvatarUrls(profile?.avatarUrl, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatar, 300),
     ...(Array.isArray(profile?.avatarFallbackUrls) ? profile.avatarFallbackUrls.flatMap((url) => mediaUrlService.resolveAvatarUrls(url, 300)) : []),
     ...mediaUrlService.resolveAvatarUrls(profile?.avatarId || profile?.avatar_id, 300),
     ...mediaUrlService.resolveAvatarUrls(profile?.avatarMetadata || profile?.avatar_metadata, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.user_metadata || profile?.userMetadata, 300),
+    ...(Array.isArray(profile?.authenticatedAvatarCandidates) ? profile.authenticatedAvatarCandidates : []),
   ];
   return [...new Set(candidates.filter((url) => typeof url === "string" && url.trim()))];
+};
+
+export const getXrdPhotoSources = (profile, evidence = [], connections = []) => {
+  const sources = [];
+  const nativeUrls = getXrdProfileAvatarCandidates(profile);
+  if (nativeUrls.length) {
+    sources.push({
+      id: "xeevia-profile",
+      name: "Xeevia",
+      handle: profile?.username ? `@${profile.username}` : "Profile image",
+      urls: nativeUrls,
+      verified: Boolean(profile?.verified),
+    });
+  }
+
+  evidence.forEach((item) => {
+    const type = String(item?.evidence_type || item?.type || "profile").toLowerCase();
+    if (!type.includes("profile") && !type.includes("identity")) return;
+    const urls = [...new Set([
+      ...mediaUrlService.resolveAvatarUrls(item?.metadata, 300),
+      ...mediaUrlService.resolveAvatarUrls(item?.raw, 300),
+      ...mediaUrlService.resolveAvatarUrls(item?.avatar_url || item?.avatarUrl || item?.profile_image_url || item?.profileImageUrl, 300),
+    ].filter((url) => typeof url === "string" && /^https?:\/\//i.test(url)))];
+    if (!urls.length) return;
+    const name = item.provider || "Connected source";
+    sources.push({
+      id: item.id || `${name}:${urls[0]}`,
+      name,
+      handle: item.metadata?.username || item.metadata?.handle || item.title || "Profile image",
+      urls,
+      verified: Boolean(item.verified),
+    });
+  });
+
+  connections.forEach((connection) => {
+    const urls = mediaUrlService.resolveAvatarUrls(connection?.avatarUrl || connection?.avatar_url || connection?.picture, 300);
+    if (!urls.length) return;
+    const name = String(connection.provider || "Connected source");
+    sources.push({
+      id: `connection:${connection.id || name}`,
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      handle: connection.platform_user_id || connection.username || "Connected account",
+      urls,
+      verified: false,
+    });
+  });
+
+  return [...new Map(sources.map((source) => [`${source.name}:${source.urls[0]}`, source])).values()];
 };
 
 export const getXrdIdentityBindings = (profile, connections = []) => {
@@ -124,6 +175,13 @@ const XrdProfileAvatar = ({ candidates, initials }) => {
   const nextCandidate = candidates.find((candidate) => !failedCandidates.includes(candidate));
   if (!nextCandidate) return <span>{initials}</span>;
   return <img src={nextCandidate} alt="" onError={() => setFailedCandidates((failed) => [...failed, nextCandidate])} />;
+};
+
+const XrdPhotoImage = ({ source }) => {
+  const [failedUrls, setFailedUrls] = useState([]);
+  const nextUrl = (source.urls || [source.url]).find((url) => url && !failedUrls.includes(url));
+  if (!nextUrl) return <div className="xrd-photo-fallback" aria-label={`${source.name} image unavailable`}>{source.name.slice(0, 1).toUpperCase()}</div>;
+  return <img src={nextUrl} alt={`${source.name} profile`} loading="lazy" onError={() => setFailedUrls((current) => [...current, nextUrl])} />;
 };
 
 function XrdEvidenceGraph({ items, edges, onPick }) {
@@ -293,6 +351,11 @@ const XRDProfileDashboard = ({
   const [oracleConversation, setOracleConversation] = useState([]);
   const [oracleChatOpen, setOracleChatOpen] = useState(false);
   const [photoHubOpen, setPhotoHubOpen] = useState(false);
+  const [photoSyncing, setPhotoSyncing] = useState(false);
+  const [photoSyncMessage, setPhotoSyncMessage] = useState("");
+  const [photoConnections, setPhotoConnections] = useState([]);
+  const [authenticatedAvatarCandidates, setAuthenticatedAvatarCandidates] = useState([]);
+  const photoSyncAttempted = useRef(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -309,6 +372,24 @@ const XRDProfileDashboard = ({
   useEffect(() => {
     setEvidenceItems(verificationItems);
   }, [verificationItems]);
+
+  useEffect(() => {
+    if (!own || !targetId) return undefined;
+    let active = true;
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error) throw error;
+      if (!active || String(data?.user?.id || "") !== String(targetId)) return;
+      const metadata = data.user.user_metadata || {};
+      const candidates = [...new Set([
+        ...mediaUrlService.resolveAvatarUrls(metadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(data.user.identities?.map((identity) => identity?.identity_data || {}), 300),
+      ])];
+      setAuthenticatedAvatarCandidates(candidates);
+    }).catch((error) => {
+      if (active) console.warn("[XRD] Could not load the authenticated profile image:", error?.message);
+    });
+    return () => { active = false; };
+  }, [own, targetId]);
 
   const loadRecords = useCallback(async () => {
     if (!own) return;
@@ -738,6 +819,34 @@ const XRDProfileDashboard = ({
   }, [evidenceItems]);
 
   const sources = useMemo(() => countBySource(evidenceItems), [evidenceItems]);
+  const identityRows = useMemo(() => {
+    const rows = new Map();
+    sourceConnections.forEach((connection) => {
+      const key = String(connection.provider || "unknown").trim().toLowerCase();
+      rows.set(key, {
+        key,
+        provider: connection.provider || "Connected source",
+        account: connection.platform_user_id || "Account identifier unavailable",
+        connection,
+        evidence: [],
+      });
+    });
+    evidenceItems.forEach((item) => {
+      const provider = item.provider || "Unknown source";
+      const key = String(provider).trim().toLowerCase();
+      const existing = rows.get(key) || { key, provider, account: "", connection: null, evidence: [] };
+      existing.evidence.push(item);
+      if (!existing.account) {
+        existing.account = item.metadata?.username || item.metadata?.handle || item.external_id || item.title || "Profile evidence";
+      }
+      rows.set(key, existing);
+    });
+    return [...rows.values()].sort((left, right) => {
+      if (left.key === "xeevia") return -1;
+      if (right.key === "xeevia") return 1;
+      return left.provider.localeCompare(right.provider);
+    });
+  }, [evidenceItems, sourceConnections]);
   const verifiedCount = evidenceItems.filter((item) => item?.verified).length;
   const institutionCount = new Set(evidenceItems
     .filter((item) => ["institution", "organization"].includes(String(
@@ -764,23 +873,47 @@ const XRDProfileDashboard = ({
     );
   }, [filter, records]);
   const evidenceById = useMemo(() => new Map(evidenceItems.filter((item) => item?.id).map((item) => [item.id, item])), [evidenceItems]);
-  const photoSources = useMemo(() => {
-    const items = [];
-    const profileAvatarUrl = getXrdProfileAvatarCandidates(profile)[0];
-    if (profileAvatarUrl) items.push({ id: "xeevia-profile", name: "Xeevia", handle: profile.username ? `@${profile.username}` : "Profile image", url: profileAvatarUrl, verified: Boolean(profile.verified) });
-    evidenceItems.forEach((item) => {
-      const url = item?.metadata?.avatarUrl || item?.metadata?.avatar_url || item?.metadata?.profileImageUrl || item?.metadata?.profile_image_url;
-      if (typeof url === "string" && /^https?:\/\//i.test(url)) items.push({ id: item.id, name: item.provider || "Connected source", handle: item.metadata?.username || item.metadata?.handle || item.title || "Profile image", url, verified: Boolean(item.verified) });
-    });
-    return [...new Map(items.map((item) => [item.url, item])).values()];
-  }, [evidenceItems, profile]);
-  const profileAvatarCandidates = useMemo(() => getXrdProfileAvatarCandidates(profile), [profile]);
-  const identityBindings = useMemo(() => getXrdIdentityBindings(profile, sourceConnections), [profile, sourceConnections]);
+  const photoProfile = useMemo(() => ({ ...profile, authenticatedAvatarCandidates }), [authenticatedAvatarCandidates, profile]);
+  const photoSources = useMemo(() => getXrdPhotoSources(photoProfile, evidenceItems, photoConnections), [evidenceItems, photoConnections, photoProfile]);
+  const profileAvatarCandidates = useMemo(() => getXrdProfileAvatarCandidates(photoProfile), [photoProfile]);
   const visibleEvidenceEdges = useMemo(() => evidenceEdges.filter((edge) => evidenceById.has(edge.source_id) && evidenceById.has(edge.target_id)), [evidenceById, evidenceEdges]);
   const profileName = profile?.fullName || profile?.username || "Xeevia member";
   const initials = profileName.trim().charAt(0).toUpperCase() || "X";
 
   const openOracle = () => setOracleOpen(true);
+  const loadConnectedProfilePhotos = async (retry = false) => {
+    setPhotoHubOpen(true);
+    if (!own || photoSyncing || (photoSyncAttempted.current && !retry)) return;
+    photoSyncAttempted.current = true;
+    setPhotoSyncing(true);
+    setPhotoSyncMessage("");
+    try {
+      const connections = await socialConnectService.getConnections(targetId);
+      const supportedProviders = new Set(getRegisteredConnectors()
+        .filter((connector) => connector.supportedTypes?.includes("profile") && connector.capabilities?.includes("public-profile"))
+        .map((connector) => String(connector.provider).toLowerCase()));
+      setPhotoConnections(Object.values(connections || {}));
+      const syncableConnections = Object.values(connections || {}).filter((connection) =>
+        connection?.auth_status === "active"
+        && connection.hasValidToken
+        && supportedProviders.has(String(connection.provider || "").toLowerCase()),
+      );
+      const syncResults = await Promise.allSettled(syncableConnections.map((connection) =>
+        syncUserConnectorEvidence(targetId, connection.provider),
+      ));
+      const refreshedEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setEvidenceItems((current) => {
+        const nativeItems = current.filter((item) => String(item.provider || "").toLowerCase() === "xeevia");
+        return [...new Map([...nativeItems, ...refreshedEvidence].map((item) => [item.id, item])).values()];
+      });
+      const failedCount = syncResults.filter((result) => result.status === "rejected").length;
+      if (failedCount) setPhotoSyncMessage(`${failedCount} connected source${failedCount === 1 ? "" : "s"} could not refresh. Saved profile images are still shown.`);
+    } catch (error) {
+      setPhotoSyncMessage(error?.message || "Connected profile images could not be refreshed.");
+    } finally {
+      setPhotoSyncing(false);
+    }
+  };
   const navigateSection = (nextSection) => {
     if (!nextSection || nextSection === section) return;
     setSelectedEvidence(null);
@@ -971,7 +1104,7 @@ const XRDProfileDashboard = ({
             <div className="xrd-hero-identity">
               <div className="xrd-hero-avatar">
                 <XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} />
-                <button type="button" className="xrd-photo-trigger" aria-label={`View ${photoSources.length} connected profile photos`} onClick={() => setPhotoHubOpen(true)}><Images size={14} /><b>{photoSources.length}</b></button>
+                <button type="button" className="xrd-photo-trigger" aria-label={`View ${photoSources.length} connected profile photos`} onClick={() => loadConnectedProfilePhotos()}><Images size={14} /><b>{photoSources.length}</b></button>
               </div>
               <div><span className="xrd-kicker">XEEVIA RECORD</span><h2>{profileName}</h2><p>@{profile?.username || "unknown"} · {own ? "Owner workspace" : "Public record"}</p></div>
             </div>
@@ -980,8 +1113,11 @@ const XRDProfileDashboard = ({
           </div>
           {photoHubOpen && <div className="xrd-photo-modal" role="presentation" onClick={() => setPhotoHubOpen(false)}><section role="dialog" aria-modal="true" aria-label="Profile images across platforms" onClick={(event) => event.stopPropagation()}>
             <header><div><span className="xrd-kicker">IDENTITY MEDIA</span><h2>Profile images</h2><p>Photos from profile and connected-source evidence.</p></div><button type="button" aria-label="Close profile images" onClick={() => setPhotoHubOpen(false)}><X size={18} /></button></header>
+            <style>{`.xrd-photo-loading,.xrd-photo-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(163,230,53,.2);border-radius:10px;background:rgba(163,230,53,.05);color:#b6c0ae;font-size:11px;line-height:1.45}.xrd-photo-notice{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.06)}.xrd-photo-notice button{flex:none;padding:6px 10px;border:1px solid rgba(163,230,53,.3);border-radius:7px;background:rgba(163,230,53,.08);color:#c7f58d;font-size:10px;cursor:pointer}.xrd-photo-fallback{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at 30% 20%,rgba(163,230,53,.16),transparent 56%),#101410;color:#a3e635;font-size:30px;font-weight:800}`}</style>
+            {photoSyncing && <div className="xrd-photo-loading" role="status">Refreshing profile images from connected sources…</div>}
+            {photoSyncMessage && <div className="xrd-photo-notice" role="status">{photoSyncMessage}{own && !photoSyncing && <button type="button" onClick={() => loadConnectedProfilePhotos(true)}>Retry</button>}</div>}
             {photoSources.length ? <div className="xrd-photo-grid">{photoSources.map((source) => <article key={source.id}>
-              <div className="xrd-photo-frame"><img src={source.url} alt={`${source.name} profile`} loading="lazy" />{source.verified && <span><BadgeCheck size={15} />Verified source</span>}</div>
+              <div className="xrd-photo-frame"><XrdPhotoImage source={source} />{source.verified && <span><BadgeCheck size={15} />Verified source</span>}</div>
               <strong>{source.name}</strong><small>{source.handle}</small>
             </article>)}</div> : <EmptyState text="No profile photos were returned by connected sources." />}
           </section></div>}
@@ -1044,26 +1180,28 @@ const XRDProfileDashboard = ({
             <p>Connecting an account proves control of that account only. It does not verify the person's identity or their claims.</p>
           </div>
           <div className="xrd-panel">
-            <div className="xrd-section-heading"><div><span className="xrd-kicker">IDENTITY BINDINGS</span><h3>Connected accounts and evidence</h3></div><span className="xrd-count">{identityBindings.length + identityItems.length}</span></div>
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">IDENTITY BINDINGS</span><h3>Connected accounts and evidence</h3></div><span className="xrd-count">{identityRows.length}</span></div>
+            <p className="xrd-identity-intro">Each account is linked to this profile. Evidence and verification status are shown separately from account ownership.</p>
             {sourceLoading && own && <div className="xrd-loading"><span />Loading account bindings…</div>}
-            {identityBindings.length > 0 && <div className="xrd-identity-map"><div className="xrd-identity-core"><Fingerprint size={18} /><span>{profile?.username ? `@${profile.username}` : "XRC identity"}</span></div>{identityBindings.map((binding) => <div className={`xrd-identity-node${binding.native ? " xrd-identity-node-native" : ""}`} key={binding.provider}><span>{binding.provider}</span><small>{binding.account}</small></div>)}</div>}
-            {sourceConnections.map((connection) => (
-              <article className="xrd-identity-source" key={`account-${connection.id || connection.provider}`}>
-                <span className="xrd-source-glyph"><Fingerprint size={16} /></span>
-                <div><strong>{connection.provider} account</strong><small>{connection.platform_user_id || "Account identifier unavailable"} · {connection.connected_via || "connection record"}</small></div>
-                <span className={`xrd-status${connection.auth_status === "active" ? " is-verified" : ""}`}>{connection.auth_status === "active" ? (connection.hasValidToken ? "Connected" : "Linked") : connection.auth_status}</span>
-              </article>
-            ))}
-            {identityItems.length > 0 && <div className="xrd-identity-sources">
-              {identityItems.map((item, index) => (
-                <article className="xrd-identity-source" key={item.id || `${item.provider}-${index}`}>
+            {identityRows.length > 0 && <div className="xrd-identity-sources">
+              {identityRows.map((row) => {
+                const evidenceVerified = row.evidence.some((item) => item.verified);
+                const state = row.connection
+                  ? row.connection.auth_status === "active" ? row.connection.hasValidToken ? "Connected" : "Linked" : row.connection.auth_status || "Linked"
+                  : evidenceVerified ? "Evidence verified" : "Profile evidence";
+                const stateVerified = evidenceVerified || row.connection?.auth_status === "active";
+                return <article className="xrd-identity-source" key={row.key}>
                   <span className="xrd-source-glyph"><Fingerprint size={16} /></span>
-                  <div><strong>{item.provider || "Identity source"}</strong><small>{item.metadata?.username || item.metadata?.handle || item.url || item.title || "No public account handle supplied"}</small></div>
-                  <span className={`xrd-status${item.verified ? " is-verified" : ""}`}>{normalizeStatus(item)}</span>
-                </article>
-              ))}
+                  <div className="xrd-identity-source-copy">
+                    <strong>{row.provider} account</strong>
+                    <small>{row.account}</small>
+                    <span>{row.connection ? `${row.evidence.length} profile evidence item${row.evidence.length === 1 ? "" : "s"}` : "Evidence source · not an account connection"}</span>
+                  </div>
+                  <span className={`xrd-status${stateVerified ? " is-verified" : ""}`}>{state}</span>
+                </article>;
+              })}
             </div>}
-            {!sourceConnections.length && !identityItems.length && !sourceLoading && <EmptyState text="No connected accounts or identity evidence are available." />}
+            {!identityRows.length && !sourceLoading && <EmptyState text="No connected accounts or identity evidence are available." />}
           </div>
           <div className="xrd-section-heading"><div><span className="xrd-kicker">RELATED RECORDS</span><h3>Identity evidence</h3></div></div>
           {filteredEvidence.filter((item) => ["profile", "identity", "verification"].includes(String(item?.evidence_type || item?.type || "").toLowerCase())).map(evidenceCard)}
@@ -1453,6 +1591,8 @@ const XRDProfileDashboard = ({
         @media(max-width:850px){.xrd-root{grid-template-columns:205px minmax(0,1fr)}.xrd-content{padding:22px 20px 42px}}
         @media(max-width:650px){.xrd-root{display:flex;flex-direction:column}.xrd-sidebar{display:none}.xrd-view{height:100dvh;padding-bottom:60px}.xrd-topbar{height:52px;padding:0 12px;gap:9px}.xrd-owner-tag{font-size:8px}.xrd-content{padding:16px 13px 28px}.xrd-overview-hero{min-height:0;padding:17px}.xrd-hero-identity img,.xrd-hero-identity>span{width:46px;height:46px;font-size:18px}.xrd-hero-identity h2{font-size:17px}.xrd-hero-mark{right:14px;top:14px;width:36px;height:36px;border-radius:11px}.xrd-hero-mark svg{width:22px}.xrd-hero-copy{margin-top:14px!important;font-size:10px}.xrd-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:22px}.xrd-stat{padding:10px}.xrd-stat strong{font-size:16px}.xrd-stat span{font-size:9px}.xrd-page-heading h2{font-size:21px}.xrd-graph-source{grid-template-columns:minmax(0,1fr);gap:9px}.xrd-graph-links{flex-direction:row;padding-left:7px}.xrd-graph-links i{width:18px}.xrd-oracle-card{align-items:flex-start;flex-wrap:wrap;padding:14px}.xrd-oracle-card>div:nth-child(2){min-width:calc(100% - 66px)}.xrd-oracle-search{flex-basis:calc(100% - 60px)}.xrd-oracle-search>div{flex-direction:column}.xrd-oracle-search .xrd-primary{justify-content:center}.xrd-oracle-card>.xrd-secondary{margin-left:60px}.xrd-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-edge{grid-template-columns:minmax(0,1fr);gap:6px}.xrd-edge>span{text-align:left;padding-left:8px}.xrd-integrity{align-items:flex-start;flex-direction:column}.xrd-integrity-actions{width:100%}.xrd-trace-row{grid-template-columns:14px minmax(0,1fr)}.xrd-trace-row>b{grid-column:2;text-align:left}.xrd-source{align-items:flex-start;flex-wrap:wrap}.xrd-source-actions{width:100%;justify-content:flex-end}.xrd-remark-submit,.xrd-remark-reply{align-items:stretch;flex-direction:column}.xrd-remark-reply button{align-self:flex-end}.xrd-mobile-nav{position:fixed;z-index:2;bottom:0;left:0;right:0;display:flex;align-items:stretch;justify-content:space-around;padding:5px 4px calc(5px + env(safe-area-inset-bottom));border-top:1px solid #252a24;background:rgba(5,7,5,.97);backdrop-filter:blur(14px)}.xrd-mobile-nav button{display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:8px;background:transparent;color:#828a7e;font-size:8px;cursor:pointer}.xrd-mobile-nav button.active{background:rgba(163,230,53,.08);color:var(--xrd-ac)}}
       `}</style>
+      <style>{`.xrd-root{width:100vw;min-width:0}.xrd-root>.xrd-view{width:100%;min-width:0}.xrd-content{width:100%;min-width:0;box-sizing:border-box}.xrd-content>*{min-width:0;max-width:100%}@media(max-width:850px){.xrd-root{grid-template-columns:minmax(0,205px) minmax(0,1fr)}.xrd-view{min-width:0}.xrd-content{min-width:0}}@media(max-width:650px){.xrd-root{width:100vw;min-width:0;align-items:stretch}.xrd-view{width:100%;min-width:0;flex:1}.xrd-content{width:100%;min-width:0;flex:1;padding:16px 13px 28px}.xrd-overview-hero,.xrd-panel,.xrd-stats,.xrd-page-heading{width:100%;min-width:0;max-width:100%}.xrd-overview-hero{overflow:hidden}.xrd-hero-identity{min-width:0}.xrd-hero-identity>div:last-child{min-width:0}.xrd-question-grid{grid-template-columns:minmax(0,1fr)}}`}</style>
+      <style>{`.xrd-root{width:100vw;min-width:0}.xrd-root>.xrd-view{width:100%;min-width:0}.xrd-content{width:100%;min-width:0;box-sizing:border-box}.xrd-content>*{min-width:0;max-width:100%}@media(max-width:850px){.xrd-root{grid-template-columns:minmax(0,205px) minmax(0,1fr)}.xrd-sidebar,.xrd-view{min-width:0}.xrd-content{width:100%;min-width:0}}@media(max-width:650px){.xrd-root{width:100vw;min-width:0;align-items:stretch}.xrd-view{width:100%;min-width:0;flex:1}.xrd-content{width:100%;min-width:0;flex:1;padding:16px 13px 28px}.xrd-overview-hero,.xrd-panel,.xrd-stats,.xrd-page-heading{width:100%;min-width:0;max-width:100%}.xrd-overview-hero{overflow:hidden}.xrd-hero-identity,.xrd-hero-identity>div:last-child{min-width:0}.xrd-hero-identity h2{overflow-wrap:anywhere}.xrd-question-grid{grid-template-columns:minmax(0,1fr)}}`}</style>
       <aside className="xrd-sidebar">
         <div className="xrd-brand"><span className="xrd-brand-mark">XRD</span><div><strong>Xeevia Record</strong><small>Profile evidence layer</small></div></div>
         <button type="button" className="xrd-back" onClick={onClose}><ArrowLeft size={14} /> Back to profile</button>

@@ -413,6 +413,7 @@ const BoostAvatarRing = ({
   const imageCandidates = [...new Set([src, ...fallbackSources].filter((candidate) => (
     typeof candidate === "string" && candidate.trim()
   )))];
+  const imageCandidatesKey = imageCandidates.join("\u0000");
   const [imageIndex, setImageIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
   const imageSrc = imageCandidates[imageIndex] || null;
@@ -420,7 +421,7 @@ const BoostAvatarRing = ({
   useEffect(() => {
     setImageIndex(0);
     setImgError(false);
-  }, [src, fallbackSrc]);
+  }, [imageCandidatesKey]);
 
   const visual = getVisual(tier, themeId);
   const showcaseRing = getShowcaseRing(tier, themeId);

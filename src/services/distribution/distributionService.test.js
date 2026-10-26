@@ -84,6 +84,20 @@ describe('distributionService.getConnectedPlatforms', () => {
   });
 });
 
+describe('distributionService.getPublishTargets', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('publishes only to ready selected platforms and skips stale selections', async () => {
+    jest.spyOn(distributionService, 'getPlatformPreferences').mockResolvedValue({});
+    jest.spyOn(distributionService, 'getConnectedPlatforms').mockResolvedValue(['facebook']);
+
+    await expect(distributionService.getPublishTargets('user-1', ['x', 'facebook']))
+      .resolves.toEqual(['facebook']);
+  });
+});
+
 describe('distributionService publishing', () => {
   beforeEach(() => {
     jest.clearAllMocks();

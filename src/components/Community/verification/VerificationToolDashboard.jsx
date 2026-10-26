@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { DEFAULT_VERIFICATION_CONFIG, getSelectableVerificationRoles, getVerificationRoleCandidates, getVerificationRoleIssue, isMethodReady, methodIssues, METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
+import { DEFAULT_VERIFICATION_CONFIG, getSelectableVerificationRoles, getVerificationRoleCandidates, getVerificationRoleIssue, groupVerificationRoles, isMethodReady, methodIssues, METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 import VerificationModeDashboard from "./VerificationModeDashboard";
 import PictureVerificationDashboard from "./PictureVerificationDashboard";
 import ReactionVerificationDashboard from "./ReactionVerificationDashboard";
@@ -26,7 +26,7 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
   const textChannels = channels.filter((channel) => channel.type !== "voice");
 
   return (
-    <div className={`verification-focused-workspace${previewOpen ? "" : " preview-collapsed"}`}>
+    <div className={`verification-focused-workspace verification-focused-workspace-stable${previewOpen ? "" : " preview-collapsed"}`}>
       <div className="verification-focused-editor">
         <section className="verification-focused-channels">
         <div>
@@ -77,6 +77,18 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
         </div>
       </section>}
       {!previewOpen && <button type="button" className="verification-preview-show" onClick={() => setPreviewOpen(true)}>Show member preview</button>}
+      <style>{`
+        .verification-focused-workspace.verification-focused-workspace-stable{flex:1 1 auto;height:620px;max-height:calc(100dvh - 230px);min-height:0;grid-template-rows:minmax(0,1fr)}
+        .verification-focused-workspace-stable .verification-focused-channels,.verification-focused-workspace-stable .verification-member-preview{gap:7px;padding:10px}
+        .verification-focused-workspace-stable .verification-focused-editor{gap:9px}
+        .verification-focused-workspace-stable .verification-focused-editor{min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
+        .verification-focused-workspace-stable .verification-member-preview{min-height:0}
+        @media(max-width:900px){
+          .verification-focused-workspace-stable{flex:0 0 auto;height:auto;max-height:none}
+          .verification-focused-workspace-stable .verification-focused-editor{overflow:visible}
+          .verification-focused-workspace-stable .verification-member-preview{min-height:460px}
+        }
+      `}</style>
       <style>{`.verification-focused-workspace{display:grid;grid-template-columns:minmax(320px,1fr) 8px minmax(330px,42%);gap:0;min-height:calc(100dvh - 170px)}.verification-focused-editor{grid-column:1;min-width:0;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:0 12px 12px 0}.verification-focused-channels,.verification-member-preview{display:flex;flex-direction:column;gap:9px;padding:13px;border:1px solid var(--surface-border);border-radius:11px;background:var(--surface)}.verification-focused-channels strong,.verification-member-preview strong{color:var(--text);font-size:12px}.verification-focused-channels p,.verification-member-preview>div p,.verification-preview-empty{margin:3px 0 0;color:var(--text-secondary);font-size:10px;line-height:1.45}.verification-focused-channel-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:7px}.verification-focused-channel-list button{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface-strong);color:var(--text);text-align:left;font:600 11px inherit;cursor:pointer}.verification-focused-channel-list button.selected{border-color:var(--accent-border);background:var(--accent-bg)}.verification-focused-channel-list button:disabled{opacity:.55;cursor:not-allowed}.verification-focused-channel-list button span{display:grid;place-items:center;width:18px;height:18px;flex-shrink:0;border-radius:5px;background:var(--accent-bg);color:var(--accent)}.verification-focused-channel-list button em{margin-left:auto;color:var(--accent);font-size:9px;font-style:normal}.verification-focused-channel-list>p{margin:0;color:var(--text-secondary);font-size:10px}.verification-member-preview{grid-column:3;grid-row:1;min-width:0;min-height:420px;overflow:hidden;padding-left:12px}.verification-preview-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.verification-preview-actions{display:flex;align-items:center;gap:7px}.verification-preview-toggle{display:flex;padding:2px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface-strong)}.verification-preview-toggle button,.verification-preview-hide{padding:5px 8px;border:0;border-radius:6px;background:transparent;color:var(--text-secondary);font:700 9px inherit;cursor:pointer}.verification-preview-toggle button.selected{background:var(--accent-bg);color:var(--accent)}.verification-preview-hide{border:1px solid var(--surface-border)}.verification-preview-canvas{flex:1;min-height:0;overflow:auto;display:flex;justify-content:center;padding:8px;border-radius:8px;background:var(--app-background,#0b0d0e)}.verification-preview-canvas.mobile .vp{width:min(100%,390px);padding:13px;border-radius:20px}.verification-preview-canvas.desktop .vp{width:100%;max-width:620px}.verification-member-preview .vp{margin:0}.verification-preview-show{align-self:flex-start;grid-column:1;grid-row:1;padding:7px 10px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--accent);font:700 10px inherit;cursor:pointer}.verification-focused-workspace.preview-collapsed{grid-template-columns:minmax(0,1fr)}.verification-focused-workspace.preview-collapsed .verification-focused-editor{grid-column:1;padding-right:0}@media(max-width:900px){.verification-focused-workspace{display:flex;flex-direction:column;min-height:0;gap:12px}.verification-focused-editor{order:1;overflow:visible;padding:0}.verification-preview-show{order:2}.verification-member-preview{order:3;min-height:460px;padding-left:13px}.verification-preview-header{flex-wrap:wrap}.verification-focused-channel-list{grid-template-columns:1fr}}`}</style>
     </div>
   );
@@ -85,7 +97,7 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
 function RoleGrantPage({ communityId, config, roles, channels, categories, accessRules, disabled, canManageRoles, saving, error, onPatch, onSave, onCreateRole, onUpdateRole, onPromoteRole, onManageRole, onDeleteRole }) {
   const [reviewRoleId, setReviewRoleId] = useState(null);
   const [validationError, setValidationError] = useState("");
-  const candidateRoles = getVerificationRoleCandidates(roles);
+  const candidateRoleGroups = groupVerificationRoles(getVerificationRoleCandidates(roles));
   const selectableRoleIds = new Set(getSelectableVerificationRoles(roles).map((role) => role.id));
   const selectedRoleIds = config.roleGrant?.roleIds || [];
   const save = () => {
@@ -118,9 +130,10 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
           Enable verified role selection
         </label>
         <div className="verification-role-options">
-          {candidateRoles.map((role) => {
+          {candidateRoleGroups.map((roleGroup) => {
+            const role = roleGroup.roles.find((candidate) => selectableRoleIds.has(candidate.id)) || roleGroup.role;
             const eligible = selectableRoleIds.has(role.id);
-            const selected = selectedRoleIds.includes(role.id);
+            const selected = roleGroup.roles.some((entry) => selectedRoleIds.includes(entry.id));
             return (
             <div key={role.id} className={`verification-role-entry${eligible ? "" : " ineligible"}`}>
               <VerificationRoleActions role={role} canManage={canManageRoles} onManageRole={onManageRole} onDeleteRole={onDeleteRole} />
@@ -130,15 +143,17 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
                   checked={selected}
                   disabled={disabled || !config.roleGrant?.enabled || (!eligible && !selected)}
                   onChange={(event) => {
+                    const groupIds = roleGroup.roles.map((candidate) => candidate.id);
                     const roleIds = event.target.checked
-                      ? [...selectedRoleIds, role.id]
-                      : selectedRoleIds.filter((id) => id !== role.id);
+                      ? [...new Set([...selectedRoleIds.filter((id) => !groupIds.includes(id)), role.id])]
+                      : selectedRoleIds.filter((id) => !groupIds.includes(id));
                     onPatch({ roleGrant: { ...config.roleGrant, roleIds } });
                   }}
                 />
                 <span className="verification-role-dot" style={{ background: role.color || "#84cc16" }}>{role.icon || "♟"}</span>
                 <span>
                   <strong>{role.name}</strong>
+                  {roleGroup.roles.length > 1 && <small>{roleGroup.roles.length} matching role entries</small>}
                   <small>Rank {Number(role.position) + 1}</small>
                   {!eligible && <small className="verification-role-ineligible-reason">
                     {role.is_default ? "Default member roles cannot be verification rewards."
@@ -173,7 +188,7 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
             </div>
           );
           })}
-          {!candidateRoles.length && <p>No community roles were loaded. Refresh the dashboard or create a role first.</p>}
+          {!candidateRoleGroups.length && <p>No community roles were loaded. Refresh the dashboard or create a role first.</p>}
         </div>
         <CreateVerificationRoleControl disabled={disabled} onCreateRole={onCreateRole} onCreated={(role) => onPatch({
           roleGrant: { enabled: true, roleIds: [...new Set([...selectedRoleIds, role.id])] },

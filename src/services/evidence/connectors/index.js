@@ -128,7 +128,7 @@ export class XConnector extends BaseConnector {
       throw new Error("X access token is required for profile lookup");
     }
 
-    const response = await this.fetcher(`${this.baseUrl}/users/by/username/${encodeURIComponent(username)}`, {
+    const response = await this.fetcher(`${this.baseUrl}/users/by/username/${encodeURIComponent(username)}?user.fields=profile_image_url,verified,description,location`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",

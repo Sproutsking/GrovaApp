@@ -174,6 +174,16 @@ export function getVerificationRoleCandidates(roles = []) {
   return roles;
 }
 
+export function groupVerificationRoles(roles = []) {
+  return roles.reduce((groups, role) => {
+    const key = role.name?.trim().toLowerCase() || role.id;
+    const group = groups.find((candidate) => candidate.key === key);
+    if (group) group.roles.push(role);
+    else groups.push({ key, role, roles: [role] });
+    return groups;
+  }, []);
+}
+
 export function getVerificationRoleIssue(role, roles = []) {
   if (!role) return "missing";
   if (role.is_default) return "default";

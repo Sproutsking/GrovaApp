@@ -18,7 +18,7 @@ describe('BoostAvatarRing', () => {
   });
 
   it('tries the next image source when the primary avatar URL fails', () => {
-    const { container } = render(
+    const { container, rerender } = render(
       <BoostAvatarRing
         size={80}
         src="https://media.example/expired-avatar.jpg"
@@ -31,6 +31,16 @@ describe('BoostAvatarRing', () => {
     expect(avatarImage).not.toBeNull();
     fireEvent.error(avatarImage);
 
+    expect(container.querySelector('img').getAttribute('src')).toBe("https://media.example/storage-avatar.jpg");
+
+    rerender(
+      <BoostAvatarRing
+        size={80}
+        src="https://media.example/expired-avatar.jpg"
+        fallbackSrc={["https://media.example/storage-avatar.jpg"]}
+        letter="D"
+      />
+    );
     expect(container.querySelector('img').getAttribute('src')).toBe("https://media.example/storage-avatar.jpg");
   });
 });

@@ -53,6 +53,17 @@ export function normalizeProfileEvidence({ provider, profile, metadata = {} }) {
   if (!profile) return null;
 
   const username = profile.username || profile.login || profile.handle || profile.id;
+  const avatarUrl = profile.avatar_url
+    || profile.avatarUrl
+    || profile.profile_image_url
+    || profile.profileImageUrl
+    || profile.profile_photo_url
+    || profile.picture
+    || profile.image_url
+    || profile.imageUrl
+    || profile.avatar?.url
+    || profile.avatar?.src
+    || null;
   return createEvidenceItem({
     provider,
     type: "profile",
@@ -69,7 +80,7 @@ export function normalizeProfileEvidence({ provider, profile, metadata = {} }) {
     metadata: {
       ...metadata,
       username,
-      avatarUrl: profile.avatar_url || profile.avatarUrl || profile.profile_image_url || null,
+      avatarUrl,
       location: profile.location || null,
     },
     raw: profile,

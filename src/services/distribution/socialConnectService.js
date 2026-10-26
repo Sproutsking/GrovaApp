@@ -574,10 +574,16 @@ class SocialConnectService {
             || identity.identity_data?.email
             || identity.identity_data?.sub
             || identity.id;
+          const avatarUrl = identity.identity_data?.avatar_url
+            || identity.identity_data?.profile_image_url
+            || identity.identity_data?.picture
+            || identity.identity_data?.image
+            || null;
           map[platform] = {
             ...map[platform],
             provider: platform,
             platform_user_id: map[platform]?.platform_user_id || platformUserId,
+            avatarUrl: map[platform]?.avatarUrl || avatarUrl,
             auth_status: map[platform]?.auth_status || "expired",
             hasValidToken: map[platform]?.hasValidToken === true,
             connected_via: map[platform]?.connected_via || "supabase_identity",
