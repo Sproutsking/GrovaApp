@@ -325,6 +325,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [expandedSidebarCard, setExpandedSidebarCard] = useState(null);
 
   const mounted = useRef(true);
+  const profileLoadSequence = useRef(0);
 
   useEffect(() => {
     if (openVerificationDashboard) setShowDashboard(true);
@@ -524,13 +525,27 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   // ── Data load ─────────────────────────────────────────────────────────────
   useEffect(() => {
     mounted.current = true;
+    const requestId = ++profileLoadSequence.current;
+    setProfile(null);
+    setVerificationItems([]);
+    setVerificationLoading(Boolean(targetId));
+    setIsFollowing(false);
+    setStats({ posts: 0, reels: 0, stories: 0, followers: 0, following: 0 });
+    setPosts([]);
+    setReels([]);
+    setStories([]);
+    setReplies([]);
     if (targetId) {
-      loadProfile();
+      setLoading(true);
+      loadProfile(requestId);
     } else {
       setLoading(false);
       setVerificationLoading(false);
     }
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+      profileLoadSequence.current += 1;
+    };
   }, [targetId]); // eslint-disable-line
 
   useEffect(() => {
@@ -599,7 +614,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     return () => { active = false; };
   }, [targetId, isOwn]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (requestId) => {
     setLoading(true);
     try {
       const { data: p } = await supabase
@@ -607,11 +622,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
         .eq("id", targetId)
         .maybeSingle();
+      if (!mounted.current || profileLoadSequence.current !== requestId) return;
 
       const raw = p || {};
       const userAvatarSource = [user?.avatar_url, user?.avatarUrl, user?.avatar]
         .find((value) => typeof value === "string" && value.trim().length > 1);
-      const userMetadata = user?.user_metadata || user?.userMetadata || currentUser?.user_metadata || currentUser?.userMetadata || {};
+      const currentUserMetadata = isOwn ? currentUser?.user_metadata || currentUser?.userMetadata || {} : {};
+      const userMetadata = user?.user_metadata || user?.userMetadata || currentUserMetadata;
       const identityMetadata = Array.isArray(user?.identities)
         ? user.identities.map((identity) => identity?.identity_data || identity?.identityData || {})
         : [];
@@ -624,7 +641,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         ...mediaUrlService.resolveAvatarUrls(user?.avatar_id, 300),
         ...mediaUrlService.resolveAvatarUrls(user?.avatar_metadata || user?.avatarMetadata, 300),
         ...mediaUrlService.resolveAvatarUrls(userAvatarSource, 300),
-        ...mediaUrlService.resolveAvatarUrls(currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.avatar, 300),
+        ...(isOwn ? mediaUrlService.resolveAvatarUrls(currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.avatar, 300) : []),
       ])];
       const [avatarUrl, ...avatarFallbackUrls] = avatarCandidates;
       const bannerImageUrl = raw.banner_image_id
@@ -639,14 +656,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             }))
         : null;
 
-      if (mounted.current)
+      if (mounted.current && profileLoadSequence.current === requestId)
         setProfile({
           id:            targetId,
           fullName:      raw.full_name || user?.full_name || user?.name || user?.author || "Unknown",
           username:      raw.username  || user?.username  || "unknown",
           avatarUrl,
           avatarFallbackUrls,
-          avatarId:      raw.avatar_id || user?.avatar_id || currentUser?.avatar_id || null,
+          avatarId:      raw.avatar_id || user?.avatar_id || (isOwn ? currentUser?.avatar_id : null) || null,
           avatarMetadata: raw.avatar_metadata || userMetadata || null,
           bannerImageUrl,
           bannerImageId: raw.banner_image_id || null,
@@ -666,7 +683,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
       // The profile shell should not wait for counts, evidence, or the first
       // content grid request before becoming interactive.
-      if (mounted.current) {
+      if (mounted.current && profileLoadSequence.current === requestId) {
         setLoading(false);
         loadContent("posts");
       }
@@ -682,7 +699,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           supabase.from("evidence_items").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }).limit(50),
         ]);
 
-      if (mounted.current) {
+      if (mounted.current && profileLoadSequence.current === requestId) {
         setStats({
           posts:     postsR.status     === "fulfilled" ? (postsR.value.count     ?? 0) : 0,
           reels:     reelsR.status     === "fulfilled" ? (reelsR.value.count     ?? 0) : 0,
@@ -719,14 +736,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       if (myId && targetId && String(myId) !== String(targetId)) {
         followService
           .isFollowing(myId, targetId)
-          .then((res) => { if (mounted.current) setIsFollowing(!!res); })
+          .then((res) => { if (mounted.current && profileLoadSequence.current === requestId) setIsFollowing(!!res); })
           .catch(() => {});
       }
 
     } catch (e) {
       console.warn("[UserProfileModal]", e?.message);
     } finally {
-      if (mounted.current) {
+      if (mounted.current && profileLoadSequence.current === requestId) {
         setVerificationLoading(false);
         setLoading(false);
       }
@@ -734,6 +751,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   };
 
   const loadContent = async (tab) => {
+    const requestId = profileLoadSequence.current;
     setContentLoading(true);
     try {
       if (tab === "posts") {
@@ -742,21 +760,21 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .select("id,user_id,content,image_ids,image_metadata,video_ids,video_metadata,is_text_card,text_card_metadata,card_caption,category,likes,views,comments_count,shares,created_at,updated_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
-        if (mounted.current) setPosts(data || []);
+        if (mounted.current && profileLoadSequence.current === requestId) setPosts(data || []);
       } else if (tab === "reels") {
         const { data } = await supabase
           .from("reels")
           .select("id,user_id,caption,music,category,duration,thumbnail_id,video_id,video_metadata,likes,views,comments_count,shares,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
-        if (mounted.current) setReels(data || []);
+        if (mounted.current && profileLoadSequence.current === requestId) setReels(data || []);
       } else if (tab === "stories") {
         const { data } = await supabase
           .from("stories")
           .select("id,user_id,title,preview,full_content,cover_image_id,cover_image_metadata,category,unlock_cost,max_accesses,current_accesses,likes,views,comments_count,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
-        if (mounted.current) setStories(data || []);
+        if (mounted.current && profileLoadSequence.current === requestId) setStories(data || []);
       } else {
         const { data } = await supabase
           .from("comments")
@@ -764,13 +782,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .eq("user_id", targetId)
           .order("created_at", { ascending: false })
           .limit(12);
-        if (mounted.current) setReplies(data || []);
+        if (mounted.current && profileLoadSequence.current === requestId) setReplies(data || []);
       }
     } catch (e) {
       console.warn("[UserProfileModal] content:", e?.message);
-      if (tab === "replies" && mounted.current) setReplies([]);
+      if (tab === "replies" && mounted.current && profileLoadSequence.current === requestId) setReplies([]);
     } finally {
-      if (mounted.current) setContentLoading(false);
+      if (mounted.current && profileLoadSequence.current === requestId) setContentLoading(false);
     }
   };
 

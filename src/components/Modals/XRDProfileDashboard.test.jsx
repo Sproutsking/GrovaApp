@@ -1,4 +1,4 @@
-import { getXrdIdentityBindings, getXrdPhotoSources, getXrdProfileAvatarCandidates, SOURCE_PLATFORMS } from "./XRDProfileDashboard";
+import { getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrdPhotoSources, getXrdProfileAvatarCandidates, SOURCE_PLATFORMS } from "./XRDProfileDashboard";
 
 jest.mock("../../services/shared/mediaUrlService", () => ({
   __esModule: true,
@@ -69,6 +69,41 @@ describe("getXrdIdentityBindings", () => {
       { provider: "Xeevia", account: "@sprouts", status: "Native profile", native: true },
       { provider: "github", account: "Account + token", native: false },
     ]);
+  });
+});
+
+describe("getXrdIdentityDetails", () => {
+  it("normalizes owner-authored fields without implying verification", () => {
+    expect(getXrdIdentityDetails({ headline: "Builder", bio: "I make things", visibility: "public" })).toEqual({
+      headline: "Builder",
+      bio: "I make things",
+      location: "",
+      pronouns: "",
+      website: "",
+      note: "",
+      availability: "",
+    });
+  });
+});
+
+describe("getXrdIdentityRowStatus", () => {
+  it("does not label an active OAuth connection as verified", () => {
+    expect(getXrdIdentityRowStatus({ connection: { auth_status: "active", hasValidToken: true }, evidence: [] }))
+      .toEqual({ label: "Connected · token active", tone: "connected" });
+  });
+
+  it("labels owner-supplied profile links as unverified", () => {
+    expect(getXrdIdentityRowStatus({ connection: { auth_status: "active", connected_via: "profile_link" }, evidence: [] }))
+      .toEqual({ label: "Profile URL · unverified", tone: "pending" });
+  });
+
+  it("distinguishes source-reported evidence, tracked evidence, and no evidence", () => {
+    expect(getXrdIdentityRowStatus({ evidence: [{ verified: true, source: "connector" }] }))
+      .toEqual({ label: "Source-reported", tone: "source" });
+    expect(getXrdIdentityRowStatus({ evidence: [{ verified: false }] }))
+      .toEqual({ label: "Tracked", tone: "tracked" });
+    expect(getXrdIdentityRowStatus({ evidence: [] }))
+      .toEqual({ label: "No evidence", tone: "neutral" });
   });
 });
 
