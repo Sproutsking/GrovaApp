@@ -582,27 +582,29 @@ const ChatTab = ({
 
   const handleSendMessage = async (announcement = undefined, selectedFiles = []) => {
     const content = messageInput.trim();
-    if ((!content && !selectedFiles?.length) || sending || !selectedChannel?.id) return;
+    if ((!content && !selectedFiles?.length) || sending || !selectedChannel?.id) return false;
     if (selectedChannel?.is_locked && !userPermissions.administrator && community?.owner_id !== userId) {
       alert("This channel is locked. You can only read messages here.");
-      return;
+      return false;
     }
 
     if (editingMessage) {
+      setSending(true);
       try {
-        setSending(true);
         await communityMessageService.editMessage(editingMessage.id, userId, content);
         setEditingMessage(null);
         setMessageInput("");
         await loadMessages();
+        return true;
       } catch (error) {
         console.error("Error editing message:", error);
+        alert(error.message || "Failed to update message. Please try again.");
+        return false;
       } finally {
         setSending(false);
       }
-      return;
     }
-    setMessageInput("");
+    setSending(true);
     stopTyping();
 
     try {
@@ -663,13 +665,18 @@ const ChatTab = ({
           channel: replyChannel,
         }
       );
+      setMessageInput("");
       setReplyTo(null);
       if (isCrossChannelPostReply) setSelectedChannel(replyChannel);
       setTimeout(scrollToBottom, 10);
+      return true;
     } catch (error) {
       console.error("Error sending message:", error);
       setMessageInput(content);
       alert("Failed to send message. Please try again.");
+      return false;
+    } finally {
+      setSending(false);
     }
   };
 
@@ -747,6 +754,7 @@ const ChatTab = ({
     selectedChannel
     && (
       selectedChannel.tool_type === "verification"
+      || verificationRouting?.channelIds?.some((channelId) => String(channelId) === String(selectedChannel.id))
       || (rulesChannelId && selectedChannel.id === rulesChannelId)
       || (verificationChannelId && selectedChannel.id === verificationChannelId)
     ),
@@ -1450,6 +1458,7 @@ const ChatTab = ({
 
         .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 2px; box-sizing: border-box; background: #000; background-image: none; }
         .chat-msgs > section { box-sizing: border-box; width: 100%; }
+        .chat-msgs > .vp, .chat-msgs > .community-ticket-tool, .chat-msgs > .updates-panel { box-sizing: border-box; width: 96% !important; max-width: 96% !important; margin-left: auto !important; margin-right: auto !important; }
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
         .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }

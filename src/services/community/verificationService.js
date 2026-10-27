@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabase";
-import { METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "../../components/Community/verification/verificationConfig";
+import { getVerificationChannelIds, METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "../../components/Community/verification/verificationConfig";
 
 function normalizeVerificationData(invoice) {
   const result = invoice || { configured: false };
@@ -9,8 +9,13 @@ function normalizeVerificationData(invoice) {
 const verificationService = {
   async getPanel(communityId) {
     try {
-      const { data, error } = await supabase.rpc("get_verification_panel", { p_community_id: communityId });
+      const [panelResult, settingsResult] = await Promise.all([
+        supabase.rpc("get_verification_panel", { p_community_id: communityId }),
+        supabase.from("community_tool_settings").select("channel_id").eq("community_id", communityId).eq("tool_type", "verification").maybeSingle(),
+      ]);
+      const { data, error } = panelResult;
       if (error) throw error;
+      if (settingsResult.error) throw settingsResult.error;
       if (!data?.configured) return { configured: false };
 
       const config = {
@@ -58,6 +63,7 @@ const verificationService = {
       return normalizeVerificationData({
         ...panel,
         configured: Boolean(data.configured),
+        channelIds: getVerificationChannelIds(config, settingsResult.data?.channel_id),
         state: {
           completed: completions
             .filter((item) => item.status === "completed" || item.status === "rules_accepted")

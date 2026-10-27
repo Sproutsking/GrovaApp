@@ -52,7 +52,7 @@ const MessageAttachments = ({ message }) => {
     : message?.media_url ? [{ url: message.media_url, type: message.media_type || "file", name: "Attachment" }] : [];
   if (!items.length) return null;
   return (
-    <div style={{ display: "grid", gap: 8, marginTop: 8, maxWidth: "100%" }}>
+    <div style={{ display: "grid", gap: 5, marginTop: 5, maxWidth: "100%" }}>
       {items.map((item, index) => {
         const url = item?.url;
         if (!url) return null;
@@ -216,6 +216,8 @@ const MessageList = ({
           const showAvatar = isAnnouncementMessage || showTail;
           const showSenderHeader = isAnnouncementMessage || Boolean(msg.user);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
+          const hasReactionRow = isReactionChannel || canAddReactions
+            || Object.values(msg.reactions || {}).some((reaction) => Number(reaction?.count) > 0);
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
@@ -274,9 +276,17 @@ const MessageList = ({
               )}
               {!showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel} canReact={canAddReactions}>
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel || canAddReactions} canReact={canAddReactions} footerMeta={hasReactionRow ? (
+                <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
+                  <span className="msg-time">{formatTime(msg.created_at)}</span>
+                  {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
+                    {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
+                  </span>}
+                  {msg.edited && <span className="msg-edited">(edited)</span>}
+                </div>
+              ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
@@ -314,14 +324,16 @@ const MessageList = ({
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
                   <MessageAttachments message={msg} />
-                  <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
-                    <span className="msg-time">{formatTime(msg.created_at)}</span>
-                    {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
-                      {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
-                    </span>}
-                    {msg.edited && <span className="msg-edited">(edited)</span>}
+                  <div className="msg-footer">
+                    {reactionRow}
+                    {!hasReactionRow && <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
+                      <span className="msg-time">{formatTime(msg.created_at)}</span>
+                      {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
+                        {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
+                      </span>}
+                      {msg.edited && <span className="msg-edited">(edited)</span>}
+                    </div>}
                   </div>
-                  {reactionRow}
                 </div>
                 {isAnnouncementMessage && (
                   <button
@@ -395,21 +407,21 @@ const MessageList = ({
           box-sizing: border-box;
           align-items: flex-start;
           gap: 4px;
-          margin: 0 0 6px;
+          margin: 0 0 4px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
-        .msg-item.clustered { margin-bottom: 4px; }
+        .msg-item.clustered { margin-bottom: 2px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
-        .msg-item .msg-bubble { min-width: 0; padding-bottom: 6px; }
-        .msg-item.me .msg-bubble { padding-left: 6px; padding-right: 6px; }
-        .msg-item.them .msg-bubble { padding-left: 6px; padding-right: 6px; }
+        .msg-item .msg-bubble { min-width: 0; padding-bottom: 3px; }
+        .msg-item.me .msg-bubble { padding-left: 3px; padding-right: 3px; }
+        .msg-item.them .msg-bubble { padding-left: 3px; padding-right: 3px; }
         .msg-external-preview{display:block;width:100%;margin:8px 0 0;padding:0 4px;box-sizing:border-box;}
         .msg-external-preview .xeevia-link-card{width:100%;max-width:420px;}
         @media(max-width:768px){.msg-external-preview{width:90%;margin-left:5%;}.msg-external-preview .xeevia-link-card{width:100%;}}
@@ -448,17 +460,17 @@ const MessageList = ({
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
-        .msg-reply-quote{display:flex;flex-direction:column;gap:3px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-bottom:7px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-left:3px solid var(--reply-color,#9cff00);background:linear-gradient(135deg,color-mix(in srgb,var(--reply-color,#9cff00) 13%, transparent),rgba(255,255,255,.035));border-radius:9px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-bottom:4px;padding:6px 8px;border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-left:3px solid var(--reply-color,#9cff00);background:linear-gradient(135deg,color-mix(in srgb,var(--reply-color,#9cff00) 13%, transparent),rgba(255,255,255,.035));border-radius:8px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
         .msg-reply-quote.reply-tier-silver{border-left-color:#cbd5e1;background:linear-gradient(135deg,rgba(148,163,184,.13),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
         .msg-reply-quote.reply-tier-gold{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(251,191,36,.18)}
         .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
-        .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:3px solid var(--announcement-color, var(--accent));border-radius:9px;padding:7px 8px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote span{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .msg-reply-quote strong{display:block;min-width:0;max-width:100%;color:var(--text);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:22px; padding-top:8px; margin-bottom:5px; box-sizing:border-box; gap:12px; }
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:20px; padding-top:3px; margin-bottom:2px; box-sizing:border-box; gap:6px; }
         .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
         .msg-card-header.incoming .msg-user-name { order:1; }
         .msg-card-header.incoming .msg-card-menu-btn { order:2; }
@@ -562,8 +574,8 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 0 2px 4px;
-          border-radius: 14px;
+          padding: 0 2px 2px;
+          border-radius: 12px;
           backdrop-filter: blur(10px);
           position: relative;
           box-shadow: 0 4px 16px rgba(0,0,0,.12);
@@ -574,20 +586,20 @@ const MessageList = ({
         .msg-item.announcement .msg-bubble {
           width: 100%;
           max-width: min(760px, 100%);
-          padding: 0 22px 8px;
-          border-radius: 18px;
+          padding: 0 10px 4px;
+          border-radius: 16px;
           background: linear-gradient(145deg, rgba(14,18,14,.94), rgba(8,12,9,.98));
           border: 1px solid rgba(156,255,0,.28);
           box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
         }
-        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; white-space: normal; }
+        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.55; white-space: normal; }
         .msg-content-blank-line { display: block; height: .85em; }
         .msg-inline-code { padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.08); color: #d9ffaf; font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; }
-        .msg-item.announcement .msg-meta { margin-top: 10px; }
+        .msg-item.announcement .msg-meta { margin-top: 5px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
-        .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 18px; border-bottom-right-radius: 0; }
-        .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 18px; }
-        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
+        .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 16px; border-bottom-right-radius: 0; }
+        .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 16px; }
+        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
@@ -601,19 +613,21 @@ const MessageList = ({
           background: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
           border: 1px solid rgba(196,214,202,.14);
           box-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
+          --message-tail-fill: rgba(19,29,23,.99);
+          --message-tail-edge: rgba(196,214,202,.2);
         }
         .msg-bubble.them {
-          border-bottom-left-radius: 4px;
+          border-bottom-left-radius: 2px;
         }
 
         .msg-bubble.me {
-          border-bottom-right-radius: 4px;
+          border-bottom-right-radius: 2px;
         }
 
         .msg-list-wrapper.text-channel .msg-bubble.them,
         .msg-list-wrapper.text-channel .msg-bubble.me {
-          border-bottom-left-radius: 14px !important;
-          border-bottom-right-radius: 14px !important;
+          border-bottom-left-radius: 12px !important;
+          border-bottom-right-radius: 12px !important;
         }
 
         .msg-bubble.me .msg-content { color: #f1f9e8; }
@@ -628,69 +642,43 @@ const MessageList = ({
           .msg-list-wrapper.announcement-channel .msg-item.announcement.them .msg-bubble { padding-left: 4px; padding-right: 10px; }
         }
 
-        .msg-bubble.them.has-tail {
-          border-top-left-radius: 0;
-        }
-
-        .msg-bubble.them.has-tail::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -7px;
-          width: 0;
-          height: 0;
-          border-style: solid;
-          border-width: 10px 0 0 8px;
-          border-color: rgba(18,20,19,.97) transparent transparent transparent;
-        }
-
-        .msg-bubble.them.has-tail::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -8px;
-          width: 0;
-          height: 0;
-          border-style: solid;
-          border-width: 11px 0 0 9px;
-          border-color: rgba(255,255,255,.08) transparent transparent transparent;
-          z-index: -1;
-        }
-
-        .msg-bubble.me.has-tail {
-          border-top-right-radius: 0;
-        }
-
-        .msg-bubble.me.has-tail::before {
-          content: '';
-          position: absolute;
-          top: 1px;
-          right: -7px;
-          width: 0;
-          height: 0;
-          border-style: solid;
-          border-width: 10px 8px 0 0;
-          border-color: rgba(23,29,26,.98) transparent transparent transparent;
-        }
-
-        .msg-bubble.me.has-tail::after {
-          content: '';
-          position: absolute;
-          top: 1px;
-          right: -8px;
-          width: 0;
-          height: 0;
-          border-style: solid;
-          border-width: 11px 9px 0 0;
-          border-color: rgba(196,214,202,.14) transparent transparent transparent;
-          z-index: -1;
-        }
-
         .msg-item .mra-wrapper { overflow: visible; }
-        .msg-bubble.them.has-tail::before { border-color: rgba(19,29,23,.99) transparent transparent transparent !important; }
-        .msg-bubble.them.has-tail::after { border-color: rgba(156,255,0,.48) transparent transparent transparent !important; z-index: 0; }
-        .msg-bubble.me.has-tail::before { border-color: rgba(31,84,34,.99) transparent transparent transparent !important; }
-        .msg-bubble.me.has-tail::after { border-color: rgba(156,255,0,.68) transparent transparent transparent !important; z-index: 0; }
+        .msg-bubble.them.has-tail { border-top-left-radius: 0; }
+        .msg-bubble.me.has-tail { border-top-right-radius: 0; }
+        .msg-bubble.them.has-tail::before,
+        .msg-bubble.them.has-tail::after,
+        .msg-bubble.me.has-tail::before,
+        .msg-bubble.me.has-tail::after {
+          content: "";
+          position: absolute;
+          top: 1px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          pointer-events: none;
+        }
+        .msg-bubble.them.has-tail::before {
+          left: -8px;
+          border-width: 9px 0 0 8px;
+          border-color: var(--message-tail-edge) transparent transparent transparent;
+        }
+        .msg-bubble.them.has-tail::after {
+          left: -6px;
+          top: 2px;
+          border-width: 7px 0 0 6px;
+          border-color: var(--message-tail-fill) transparent transparent transparent;
+        }
+        .msg-bubble.me.has-tail::before {
+          right: -8px;
+          border-width: 9px 8px 0 0;
+          border-color: var(--message-tail-edge) transparent transparent transparent;
+        }
+        .msg-bubble.me.has-tail::after {
+          right: -6px;
+          top: 2px;
+          border-width: 7px 6px 0 0;
+          border-color: var(--message-tail-fill) transparent transparent transparent;
+        }
 
         .msg-user-name {
           border: 0;
@@ -722,15 +710,18 @@ const MessageList = ({
         .msg-item.me .msg-reply-quote { text-align: right; }
         .msg-mention{display:inline-flex;align-items:center;vertical-align:baseline;border:1px solid transparent;border-radius:6px;padding:1px 5px;font:inherit;font-weight:650;line-height:1.35;cursor:pointer;transition:background .16s,border-color .16s,color .16s,transform .16s}.msg-mention:hover{transform:translateY(-1px);filter:brightness(1.18)}.msg-mention:focus-visible{outline:2px solid currentColor;outline-offset:2px}.msg-mention.channel{color:#9bd4ff;background:rgba(79,157,255,.13);border-color:rgba(79,157,255,.12)}.msg-mention.user{color:#c5f7a4;background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.1)}.msg-mention.role{color:var(--mention-color,#c7a7ff);background:color-mix(in srgb,var(--mention-color,#9b75df) 15%,transparent);border-color:color-mix(in srgb,var(--mention-color,#9b75df) 23%,transparent)}.msg-mention.everyone{color:#ffc979;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.12)}
 
+        .msg-footer {
+          width: 100%;
+          min-width: 0;
+          margin-top: 3px;
+        }
         .msg-meta {
           display: flex;
           align-items: center;
-          gap: 7px;
-          justify-content: flex-end;
           gap: 4px;
-          margin-top: 3px;
+          justify-content: flex-end;
         }
-        .msg-item.me .msg-meta { justify-content: flex-start; }
+        .msg-time { white-space: nowrap; }
         .msg-item.me .announcement-reply-button{align-self:flex-end}
         .msg-item.them .announcement-reply-button{align-self:flex-start}
   .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
@@ -801,7 +792,7 @@ const MessageList = ({
             max-width: 80%;
             min-width: max-content;
             padding: 0 5px 4px;
-            border-radius: 14px;
+            border-radius: 12px;
           }
 
           .msg-user-name {
@@ -817,29 +808,6 @@ const MessageList = ({
             padding-right: 2px;
           }
 
-          .msg-bubble.them.has-tail::before {
-            border-width: 9px 0 0 7px;
-            left: -6px;
-            top: -0.5px;
-          }
-
-          .msg-bubble.them.has-tail::after {
-            border-width: 10px 0 0 8px;
-            left: -7px;
-            top: -0.5px;
-          }
-
-          .msg-bubble.me.has-tail::before {
-            border-width: 9px 7px 0 0;
-            top: -0.5px;
-            right: -6.5px;
-          }
-
-          .msg-bubble.me.has-tail::after {
-            border-width: 10px 8px 0 0;
-            top: -0.5px;
-            right: -7.5px;
-          }
         }
       `}</style>
     </div>

@@ -59,7 +59,7 @@ const CSS = `
   font-family: 'Syne', sans-serif;
   color: rgba(255,255,255,.92);
   background: transparent;
-  padding-bottom: 40px;
+  padding: 0 clamp(12px, 2vw, 20px) 40px;
   animation: dt-fade .3s ease both;
 }
 
@@ -74,7 +74,7 @@ const CSS = `
   border-radius: 14px;
   background: linear-gradient(110deg,rgba(163,230,53,.075),rgba(255,255,255,.025) 58%,rgba(255,255,255,.012));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
-  margin: 10px 16px 14px;
+  margin: 10px 0 14px;
   position: sticky;
   top: 0;
   z-index: 10;

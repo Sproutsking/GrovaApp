@@ -81,7 +81,7 @@ const CSS = `
 @keyframes wd-shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-5px)} 40%,80%{transform:translateX(5px)} }
 * { box-sizing:border-box }
 
-.wd { font-family:'Inter',sans-serif; color:rgba(255,255,255,.9); padding-bottom:48px; animation:wd-in .3s ease both; -webkit-font-smoothing:antialiased }
+.wd { font-family:'Inter',sans-serif; color:rgba(255,255,255,.9); padding:0 clamp(12px, 2vw, 20px) 48px; animation:wd-in .3s ease both; -webkit-font-smoothing:antialiased }
 
 /* HEADER */
 .wd-hdr { display:flex; align-items:center; gap:12px; padding:8px 0 14px; position:sticky; top:0; z-index:20; background:rgba(5,6,8,.97); backdrop-filter:blur(24px); border-bottom:1px solid rgba(255,255,255,.06); margin-bottom:20px }

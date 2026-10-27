@@ -77,7 +77,7 @@ export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {
 /**
  * reactions: { "❤️": { count: 3, users: ["uid1","uid2"] }, ... }
  */
-export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef, canReact = true }) => {
+export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef, canReact = true, footerMeta = null }) => {
   const [burst, setBurst] = useState(null);
   const [pulseKeys, setPulseKeys] = useState({});
   const barRef = useRef(null);
@@ -116,7 +116,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
 
   const entries = Object.entries(reactions).filter(([, v]) => v.count > 0);
   return (
-    <div ref={barRef} className={`rb-bar ${isAnnouncement ? "announcement" : ""}`}>
+    <div ref={barRef} className={`rb-bar ${isAnnouncement ? "announcement" : ""}${footerMeta ? " with-footer-meta" : ""}`}>
       {entries.map(([emoji, data]) => {
         const reacted = data.users?.includes(userId);
         return (
@@ -145,6 +145,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           <span className="rb-emoji"><Smile size={15} /></span>
         </button>
       )}
+      {footerMeta && <span className="rb-footer-meta">{footerMeta}</span>}
 
       {burst && <ReactionBurst key={burst.id} emoji={burst.emoji} x={burst.x} y={burst.y} />}
 
@@ -153,11 +154,13 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           display: flex;
           flex-wrap: wrap;
           align-items: center;
-          gap: 4px;
-          margin-top: 5px;
+          gap: 3px;
+          margin-top: 3px;
           width: 100%;
           min-width: 0;
         }
+        .rb-bar.with-footer-meta .rb-footer-meta { flex: 0 0 auto; align-self: flex-end; margin-left: auto; white-space: nowrap; }
+        .rb-bar.with-footer-meta .rb-footer-meta .msg-meta { margin: 0; }
 
         .rb-bar.announcement {
           gap: 4px;
@@ -333,7 +336,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 /**
  * Full area that wraps a message — shows reaction bar + hover picker trigger
  */
-export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false, canReact = true }) => {
+export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false, canReact = true, footerMeta = null }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const [burst, setBurst] = useState(null);
@@ -376,6 +379,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         onToggle={(emoji) => onToggle?.(message.id, emoji)}
         isAnnouncement={isAnnouncement}
         canReact={canReact}
+        footerMeta={footerMeta}
         triggerRef={triggerRef}
         onOpenPicker={showReactionTrigger ? togglePicker : undefined}
       />
@@ -460,7 +464,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           margin-top: 0;
           justify-content: flex-start;
           flex-wrap: wrap;
-          min-height: 26px;
+          min-height: 22px;
           padding: 0;
         }
         .mra-reaction-trigger { position: relative; right: auto; left: auto; bottom: auto; }

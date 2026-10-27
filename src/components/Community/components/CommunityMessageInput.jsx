@@ -70,18 +70,19 @@ const CommunityMessageInput = ({
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [value]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = value.trim();
     const hasContent = trimmed || selectedEmojis.length > 0 || selectedGif || selectedMeme || selectedFiles.length > 0;
     const isAnnouncementLocked = channelType === "announcement" && !canManageAnnouncement && !replyTo;
 
-    if (!hasContent || disabled || isAnnouncementLocked || (selectedFiles.length > 0 && !canAttachFiles)) return;
+    if (!hasContent || disabled || isAnnouncementLocked || (selectedFiles.length > 0 && !canAttachFiles)) return false;
 
-    onSend(channelType === "announcement" && canManageAnnouncement ? {
+    const sent = await onSend(channelType === "announcement" && canManageAnnouncement ? {
       title: announcementTitle.trim(),
       borderStyle: announcementBorderStyle,
       borderColor: announcementBorderColor,
     } : undefined, selectedFiles);
+    if (sent === false) return false;
 
     selectedFiles.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
     
@@ -93,6 +94,7 @@ const CommunityMessageInput = ({
     if (channelType === "announcement") setAnnouncementTitle("");
     
     if (inputRef.current) inputRef.current.focus();
+    return true;
   }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, canManageAnnouncement, canAttachFiles, replyTo, onSend]);
 
   const handleKeyDown = useCallback((e) => {
@@ -381,7 +383,7 @@ const CommunityMessageInput = ({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={isAnnouncementLocked ? "Locked for members — reply to continue" : placeholder}
+          placeholder={isAnnouncementLocked ? "Locked · Reply to continue" : placeholder}
           rows={1}
           disabled={disabled || isAnnouncementLocked}
         />

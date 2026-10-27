@@ -2,6 +2,19 @@ import { supabase } from "../config/supabase";
 
 export const targetKey = (type, id) => `${type}:${id}`;
 
+export function compareEffectiveRoles(left, right) {
+  const rank = (role) => String(role.name || "").trim().toLowerCase() === "owner"
+    ? -1
+    : role.position == null ? Number.POSITIVE_INFINITY : Number(role.position);
+  const createdAt = (role) => {
+    const timestamp = Date.parse(role.created_at || "");
+    return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+  };
+  return rank(left) - rank(right)
+    || createdAt(left) - createdAt(right)
+    || String(left.id || "").localeCompare(String(right.id || ""));
+}
+
 export function accessRuleAllowsPermission(access, permission) {
   if (!access?.restricted) return true;
   if (!access.canView) return false;

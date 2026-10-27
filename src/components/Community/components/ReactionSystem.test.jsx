@@ -38,4 +38,19 @@ describe("ReactionBar", () => {
     expect(onOpenPicker).not.toHaveBeenCalled();
     expect(screen.getAllByTitle("Reactions are disabled for your role in this channel.")).toHaveLength(2);
   });
+
+  it("keeps footer metadata as the final item after wrapping reactions", () => {
+    const { container } = render(
+      <ReactionBar
+        reactions={{ "🔥": { count: 1, users: ["user-1"] } }}
+        userId="user-1"
+        footerMeta={<span>10:23 AM</span>}
+      />,
+    );
+
+    const bar = container.querySelector(".rb-bar");
+    const footerMeta = bar.querySelector(".rb-footer-meta");
+    expect(footerMeta.textContent).toBe("10:23 AM");
+    expect(footerMeta.previousElementSibling.className).toContain("rb-pill");
+  });
 });

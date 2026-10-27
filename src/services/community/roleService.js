@@ -1,7 +1,8 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
-import { resolveAccessForRole, resolveChannelPermission } from "./accessService";
+import { compareEffectiveRoles, resolveAccessForRole, resolveChannelPermission } from "./accessService";
+import { getVerificationChannelIds } from "../../components/Community/verification/verificationConfig";
 
 function getAvatarUrl(avatarId) {
   if (!avatarId || typeof avatarId !== "string") {
@@ -219,13 +220,15 @@ class RoleService {
 
       if (!role.id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
 
-      const [rules, verificationResult, channelOverridesResult, categoryOverridesResult] = await Promise.all([
+      const [rules, verificationResult, verificationSettingsResult, channelOverridesResult, categoryOverridesResult] = await Promise.all([
         this.getAccessRulesForCommunity(communityId),
         supabase.rpc("get_verification_panel", { p_community_id: communityId }),
+        supabase.from("community_tool_settings").select("channel_id").eq("community_id", communityId).eq("tool_type", "verification").maybeSingle(),
         supabase.from("channel_permission_overrides").select("channel_id,role_id,permission,state").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel"),
         supabase.from("category_permission_overrides").select("category_id,role_id,permission,state,apply_to_channels").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel").eq("apply_to_channels", true),
       ]);
       if (verificationResult.error) throw verificationResult.error;
+      if (verificationSettingsResult.error) throw verificationSettingsResult.error;
       if (channelOverridesResult.error) throw channelOverridesResult.error;
       if (categoryOverridesResult.error) throw categoryOverridesResult.error;
       const channelOverrides = channelOverridesResult.data || [];
@@ -235,7 +238,7 @@ class RoleService {
         : {};
       const rulesGate = verificationConfig.rulesGate || {};
       const verificationChannelIds = new Set([
-        ...(Array.isArray(verificationConfig.channel_ids) ? verificationConfig.channel_ids : []),
+        ...getVerificationChannelIds(verificationConfig, verificationSettingsResult.data?.channel_id),
         ...(allChannels || []).filter((channel) => channel.tool_type === "verification").map((channel) => channel.id),
       ].filter(Boolean).map(String));
       const rulesAccepted = (verificationResult.data?.completions || []).some((completion) =>
@@ -575,11 +578,7 @@ class RoleService {
 
       if (error) throw error;
       const roles = (data || []).map((row) => row.role).filter(Boolean);
-      roles.sort((left, right) =>
-        Number(String(right.name || "").trim().toLowerCase() === "owner")
-        - Number(String(left.name || "").trim().toLowerCase() === "owner")
-        || (left.position ?? 99) - (right.position ?? 99),
-      );
+      roles.sort(compareEffectiveRoles);
       return roles[0] ? RoleModel.fromAPI(roles[0]) : null;
     } catch (error) {
       console.error("Error getting user role:", error);

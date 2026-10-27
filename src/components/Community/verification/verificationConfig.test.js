@@ -1,4 +1,4 @@
-import { getMethodsForVerificationChannel, getSelectableVerificationRoles, getVerificationRoleCandidates, getVerificationRoleIssue, isMethodReady, isVerificationConfigEnabled, moveRoleAboveDefault, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
+import { getMethodsForVerificationChannel, getSelectableVerificationRoles, getVerificationChannelIds, getVerificationRoleCandidates, getVerificationRoleIssue, isMethodReady, isVerificationConfigEnabled, moveRoleAboveDefault, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 
 describe("verification role choices", () => {
   const defaultRole = { id: "default", name: "Novice", position: 2, is_default: true, permissions: {} };
@@ -148,6 +148,12 @@ describe("verification role choices", () => {
     expect(getMethodsForVerificationChannel(gate, "verify-channel")).toEqual(["picture"]);
     expect(getMethodsForVerificationChannel(gate, "other-channel")).toEqual([]);
     expect(getMethodsForVerificationChannel({ enabled: false }, "other-channel")).toBeNull();
+  });
+
+  it("includes legacy verification channels alongside configured channels", () => {
+    expect(getVerificationChannelIds({ channel_ids: ["verify-a", "verify-b"] }, "verify-a"))
+      .toEqual(["verify-a", "verify-b"]);
+    expect(getVerificationChannelIds({}, "legacy-verify")).toEqual(["legacy-verify"]);
   });
 
   it("respects an explicit role-grant disable even when role IDs are saved", () => {

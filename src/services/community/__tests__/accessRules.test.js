@@ -1,7 +1,18 @@
-import { accessRuleAllowsPermission, resolveAccessForRole, resolveChannelPermission } from "../accessService";
+import { accessRuleAllowsPermission, compareEffectiveRoles, resolveAccessForRole, resolveChannelPermission } from "../accessService";
 import { isCommunityMemberOnline } from "../communityOnlineStatusService";
 
 describe("community access rule enforcement", () => {
+  it("selects the same effective role as the database when role positions tie", () => {
+    const roles = [
+      { id: "later", name: "Verified", position: 1, created_at: "2026-02-01T00:00:00Z" },
+      { id: "earlier", name: "Member", position: 1, created_at: "2026-01-01T00:00:00Z" },
+      { id: "owner", name: "Owner", position: 10, created_at: "2026-03-01T00:00:00Z" },
+    ];
+
+    expect(roles.sort(compareEffectiveRoles).map((role) => role.id))
+      .toEqual(["owner", "earlier", "later"]);
+  });
+
   it("blocks role access when category has rules and the user role is not allowed", () => {
     const result = resolveAccessForRole({
       roleId: "member-role",

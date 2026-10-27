@@ -222,6 +222,13 @@ export function getMethodsForVerificationChannel(rulesGate, channelId) {
   return [];
 }
 
+export function getVerificationChannelIds(config = {}, legacyChannelId = null) {
+  return [...new Set([
+    ...(Array.isArray(config.channel_ids) ? config.channel_ids : []),
+    legacyChannelId,
+  ].filter((channelId) => channelId !== null && channelId !== undefined && channelId !== "").map(String))];
+}
+
 export function compactForSave(config) {
   const c = normalizeVerificationConfig(config);
   const cards = c.methods.picture.cards.filter((x) => x.image && String(x.label || "").trim()).map((x) => ({ id: x.id, label: x.label.trim(), image: x.image }));
