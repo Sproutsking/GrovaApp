@@ -961,6 +961,18 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     <>
       <style>{`
         /* ── DESKTOP STICKY RIGHT COLUMN ── */
+        .trending-sidebar, .trending-mobile-fullscreen {
+          --bg:#000;
+          --surface:#000;
+          --surface-strong:#000;
+          --surface-muted:#000;
+          --surface-border:#2f3336;
+          --border:#2f3336;
+          --text:#e7e9ea;
+          --text-secondary:#71767b;
+          background:#000 !important;
+        }
+        .trending-sidebar { border-left:1px solid #2f3336 !important; border-right:0 !important; }
         .trending-sidebar::-webkit-scrollbar       { width:3px; }
         .trending-sidebar::-webkit-scrollbar-track { background:transparent; }
         .trending-sidebar::-webkit-scrollbar-thumb { background:var(--accent-border); border-radius:2px; }
@@ -986,9 +998,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         }
 
         /* ── SECTIONS ── */
-        .ts-section { margin-bottom:18px; }
+        .trending-sidebar .ts-section, .trending-mobile-fullscreen .ts-section { margin-bottom:12px; padding:12px; border:1px solid #2f3336 !important; border-radius:14px; background:#000 !important; }
         .ts-section:last-child { margin-bottom:0; }
-        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08); position:relative; }
+        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; padding-bottom:8px; border-bottom:1px solid #2f3336; position:relative; }
         .ts-header::before { content:""; position:absolute; left:0; bottom:-1px; width:32px; height:2px; background:linear-gradient(90deg,var(--ha,var(--accent)),transparent); border-radius:1px; }
         .ts-header-left { display:flex; align-items:center; gap:9px; }
 
@@ -997,7 +1009,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-icon-pill.gold { background:var(--brand-warning-bg); border-color:var(--brand-warning-border); }
 
         .ts-title-block { display:flex; flex-direction:column; gap:1px; }
-        .ts-title    { font-size:11px; font-weight:800; color: var(--text); letter-spacing:.5px; text-transform:uppercase; line-height:1; }
+        .ts-title    { font-size:12px; font-weight:800; color: var(--text); letter-spacing:.35px; text-transform:uppercase; line-height:1.15; }
         .ts-subtitle { font-size:10px; color: var(--text-secondary); font-weight:500; line-height:1; margin-top:2px; }
 
         .ts-live-count { display:flex; align-items:center; gap:3px; padding:2px 7px; border-radius:5px; background:var(--danger-bg); border:1px solid var(--danger-border); font-size:9px; font-weight:800; color:var(--danger); }
@@ -1010,7 +1022,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-search-header { position:sticky; top:0; z-index:15; display:grid; grid-template-columns:minmax(0,1fr) 30px; align-items:center; gap:8px; min-height:58px; padding:10px 14px; background:var(--bg); }
         .ts-search-header .ts-search-anchor { justify-self:center; width:min(250px,100%); }
         .ts-search-header .ts-search-trigger { max-width:none; }
-        .ts-section > .sh-root { margin-bottom: 8px; padding-bottom: 0; border-bottom: 0; }
+        .ts-section > .sh-root { margin-bottom: 10px; padding: 0 0 10px; border-bottom: 1px solid #2f3336; }
         .ts-section > .sh-root::before { display: none; }
         @keyframes spin { to{transform:rotate(360deg);} }
 
@@ -1035,7 +1047,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .streamer-row:hover .streamer-arrow { color: var(--accent); transform:translateX(2px); }
 
         /* ── LIVE NOW STRIP ── */
-        .ts-live-strip { background:var(--danger-bg); border:1px solid var(--danger-border); border-radius:11px; padding:9px 9px 3px; }
+        .ts-live-strip { background:var(--danger-bg); border-color:var(--danger-border); }
         .sc-scroll { display:flex; flex-direction:row; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; padding:2px 0 8px; }
         .sc-scroll::-webkit-scrollbar { display:none; }
         .sc-card { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; width:54px; background:transparent; border:none; cursor:pointer; padding:2px 0 0; scroll-snap-align:start; -webkit-tap-highlight-color:transparent; transition:transform .18s; }
@@ -1060,8 +1072,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
         /* ── TAG ROWS ── */
         .tag-list { display:flex; flex-direction:column; gap:5px; }
-        .ts-section { margin-bottom:12px; }
-        .ts-section:last-child { margin-bottom:0; }
         .tag-row {
           display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
           background: #030303;
@@ -1173,7 +1183,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         {!isMobile && renderDesktopSearchHeader()}
 
         {/* Inner content wrapper */}
-        <div style={{ padding: "12px 12px 24px" }}>
+        <div style={{ padding: "14px 14px 24px" }}>
 
           {/* ── TOP STREAMERS ── */}
           <div className="ts-section" style={{ "--ha": "var(--danger)" }}>

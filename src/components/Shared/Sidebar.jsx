@@ -288,28 +288,16 @@ const Sidebar = ({
           bottom: 0;
           width: var(--sidebar-w, 300px);
           overflow: hidden;
-          background: linear-gradient(150deg, #07110b 0%, #050a08 42%, #080a0d 72%, #0b0906 100%);
-          border-left: 1px solid var(--surface-border);
-          border-right: 1px solid var(--surface-border);
+          background: #000;
+          border-left: 0;
+          border-right: 1px solid #2f3336;
           font-family: "Manrope", sans-serif;
           z-index: 50;
-          box-shadow: 14px 0 44px rgba(0,0,0,0.18), inset -1px 0 rgba(255,255,255,0.035);
+          box-shadow: none;
         }
 
         .ambient-bg {
-          position: absolute;
-          inset: 0;
-          background:
-            linear-gradient(132deg, transparent 0 18%, rgba(198,255,0,0.11) 18.08%, transparent 18.22% 57%, rgba(56,189,248,0.075) 57.08%, transparent 57.22%),
-            linear-gradient(42deg, transparent 0 34%, rgba(212,175,55,0.075) 34.08%, transparent 34.22% 78%, rgba(198,255,0,0.055) 78.08%, transparent 78.22%),
-            repeating-linear-gradient(0deg, rgba(198,255,0,0.025) 0 1px, transparent 1px 34px),
-            repeating-linear-gradient(90deg, rgba(56,189,248,0.022) 0 1px, transparent 1px 34px),
-            linear-gradient(150deg, #07110b 0%, #050a08 42%, #080a0d 72%, #0b0906 100%);
-          background-size: auto, auto, 34px 34px, 34px 34px, auto;
-          overflow: hidden;
-          pointer-events: none;
-          display: block;
-          mask-image: linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 76%, rgba(0,0,0,0.58) 100%);
+          display: none;
         }
         .ambient-orb {
           position: absolute;
@@ -348,9 +336,7 @@ const Sidebar = ({
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: linear-gradient(180deg, rgba(4,8,6,0.52), rgba(2,4,4,0.78));
-          backdrop-filter: blur(12px);
-          border-right: 1px solid var(--surface-border);
+          background: #000;
           z-index: 1;
         }
 
@@ -375,19 +361,14 @@ const Sidebar = ({
           border-bottom: 1px solid var(--surface-border);
           flex-shrink: 0;
           overflow: hidden;
-          background:
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
-            radial-gradient(ellipse 80% 120% at 0% 0%, color-mix(in srgb, var(--accent-bg-soft) 58%, transparent), transparent 70%),
-            linear-gradient(180deg, var(--surface-strong), var(--surface));
-          background-size: 24px 24px, 24px 24px, auto, auto;
-          box-shadow: inset 0 -1px rgba(255,255,255,0.04), 0 12px 28px rgba(0,0,0,0.14);
+          background: #000;
+          box-shadow: none;
         }
         .logo-backdrop {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, color-mix(in srgb, var(--surface-overlay) 72%, transparent), color-mix(in srgb, var(--accent-bg-soft) 42%, transparent));
-          border-bottom: 1px solid rgba(192,192,192,0.12);
+          background: transparent;
+          border-bottom: 0;
           pointer-events: none;
         }
         .logo-ring-wrap {
@@ -621,15 +602,15 @@ const Sidebar = ({
           position: relative;
           padding: 10px 8px 12px;
           border-top: 1px solid var(--surface-border);
-          background: linear-gradient(180deg, rgba(255,255,255,0.035), var(--surface));
-          box-shadow: 0 -12px 28px rgba(0,0,0,0.16);
+          background: #000;
+          box-shadow: none;
           flex-shrink: 0;
           overflow: hidden;
         }
         .footer-glass {
           position: absolute;
           inset: 0;
-          background: var(--surface-highlight);
+          background: transparent;
           pointer-events: none;
         }
         .social-grid {

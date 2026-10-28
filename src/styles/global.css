@@ -365,7 +365,7 @@ img, video {
   padding: 0;
   background: var(--bg);
   border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
+  border-right: 0;
   z-index: 50;
 }
 
@@ -449,14 +449,15 @@ img, video {
   bottom: 0;
   width: var(--sidebar-w);
   background: var(--bg);
-  border-right: 1px solid var(--border);
+  border-left: 0;
+  border-right: 1px solid #2f3336;
   z-index: 50;
   overflow-y: auto;
 }
 
 @media (min-width: 1200px) and (max-width: 1439px) {
   :root {
-    --trending-w: var(--sidebar-w);
+    --trending-w: clamp(320px, 25vw, 360px);
     --layout-right: calc(var(--trending-w) + var(--layout-gutter));
   }
 }
@@ -465,7 +466,7 @@ img, video {
   :root {
     --app-frame-left: calc((100vw - 1440px) / 2);
     --sidebar-w: 320px;
-    --trending-w: 320px;
+    --trending-w: 360px;
     --layout-left: calc((100vw - 1440px) / 2 + var(--sidebar-w) + var(--layout-gutter));
     --layout-right: calc((100vw - 1440px) / 2 + var(--trending-w) + var(--layout-gutter));
   }
@@ -889,7 +890,7 @@ img, video {
 
 @media (max-width: 1199px) and (min-width: 769px) {
   :root {
-    --trending-w: var(--sidebar-w);
+    --trending-w: clamp(280px, 28vw, 320px);
     --main-content-max-w: 600px;
     --layout-left: calc(var(--sidebar-w) + var(--layout-gutter));
     --layout-right: calc(var(--trending-w) + var(--layout-gutter));
