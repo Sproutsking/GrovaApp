@@ -123,7 +123,7 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
     <div className="verification-role-dashboard">
       <section>
         <h3>Roles members can unlock</h3>
-        <p>Choose safe, existing roles. If you select more than one, members choose one after passing verification. The highest-ranked role they hold determines their access.</p>
+        <p>Choose safe, existing roles. One selected role is granted automatically; with multiple roles, members choose one after passing verification. The highest-ranked role they hold determines their access.</p>
         <label className="verification-check">
           <input
             type="checkbox"

@@ -19,7 +19,13 @@ export default function VerificationPanel({ communityId, channelId, panelType = 
   const complete = async (method, payload) => {
     setBusy(true);
     try {
-      const res = await verificationService.complete(communityId, method, payload);
+      let res = await verificationService.complete(communityId, method, payload);
+      if (res?.success && res.needs_role_selection && panel?.roleChoices?.length === 1) {
+        res = await verificationService.complete(communityId, method, {
+          ...payload,
+          roleId: panel.roleChoices[0].id,
+        });
+      }
       if (res?.success) { await load(); onVerified?.(res); } else if (res?.lockedUntil) await load();
       return res;
     } catch (e) { return { success: false, error: e.message || "Verification failed." }; }
