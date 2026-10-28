@@ -60,6 +60,43 @@ describe("RulesVerificationDashboard previews", () => {
     })));
   });
 
+  it("saves rules and publishes the panel to its selected channel", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    const onPublish = jest.fn().mockResolvedValue(undefined);
+    render(
+      <RulesVerificationDashboard
+        value={{ enabled: true, rulesChannelId: "rules-channel" }}
+        onSave={onSave}
+        onPublish={onPublish}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save and publish rules panel" }));
+
+    await waitFor(() => expect(onPublish).toHaveBeenCalledWith("rules-channel"));
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
+  });
+
+  it("publishes an informational rules panel when verification gating is off", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    const onPublish = jest.fn().mockResolvedValue(undefined);
+    render(
+      <RulesVerificationDashboard
+        value={{ enabled: false, rulesChannelId: "rules-channel" }}
+        onSave={onSave}
+        onPublish={onPublish}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save and publish rules panel" }));
+
+    await waitFor(() => expect(onPublish).toHaveBeenCalledWith("rules-channel"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      enabled: false,
+      rulesPanelEnabled: true,
+    }));
+  });
+
   it("opens role actions for each community role and routes Manage role to role settings", () => {
     const onManageRole = jest.fn();
     render(

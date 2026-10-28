@@ -9,7 +9,7 @@ import CreateVerificationRoleControl from "./CreateVerificationRoleControl";
 import VerificationRoleActions from "./VerificationRoleActions";
 import VerificationExperienceSettings from "./VerificationExperienceSettings";
 
-function FocusedVerificationWorkspace({ focusMode, config, roles, channels, selectedChannelIds, onToggleChannel, channelError, setupError, disabled, onConfigChange, children }) {
+function FocusedVerificationWorkspace({ focusMode, config, roles, channels, selectedChannelIds, onToggleChannel, channelError, setupError, disabled, onConfigChange, onSaveAndPublish, publishStatus, publishing = false, children }) {
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [previewOpen, setPreviewOpen] = useState(true);
   const roleMap = new Map(roles.map((role) => [role.id, role]));
@@ -44,6 +44,10 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
           })}
           {!textChannels.length && <p>Create a text channel before sending a verification panel.</p>}
         </div>
+        <button type="button" className="verification-dashboard-save" disabled={disabled || publishing || !onSaveAndPublish} onClick={onSaveAndPublish}>
+          {publishing ? "Publishing…" : "Save and publish panel"}
+        </button>
+        {publishStatus && <p className="verification-setup-success" role="status">{publishStatus}</p>}
         {channelError && <p className="verification-setup-error" role="alert">{channelError}</p>}
         </section>
         {setupError && <p className="verification-setup-error" role="alert">{setupError}</p>}
@@ -197,12 +201,12 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
       <button type="button" className="verification-dashboard-save" disabled={disabled || saving} onClick={save}>{saving ? "Saving..." : "Save reward roles"}</button>
       {validationError && <p className="verification-dashboard-error" role="alert">{validationError}</p>}
       {error && <p className="verification-dashboard-error">{error}</p>}
-      <style>{`.verification-role-dashboard{display:flex;flex-direction:column;gap:12px}.verification-role-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-role-dashboard h3{margin:0;font-size:13px;color:var(--text)}.verification-role-dashboard p{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.verification-role-options{display:grid;gap:6px}.verification-role-entry{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:6px;padding:7px;border:1px solid var(--surface-border);border-radius:10px;background:var(--surface)}.verification-role-entry.ineligible{border-color:rgba(255,190,92,.32)}.verification-role-entry>.verification-role-actions{grid-column:2;grid-row:1}.verification-role-option{grid-column:1;grid-row:1;display:flex!important;flex-direction:row!important;align-items:center;gap:9px;padding:4px;border:0;border-radius:0;background:transparent;cursor:pointer}.verification-role-option input,.verification-check input{width:auto;accent-color:var(--accent)}.verification-role-option>span:last-child{display:flex;flex-direction:column;gap:3px}.verification-role-option strong{color:var(--text);font-size:11px}.verification-role-option small{color:var(--text-secondary);font-size:9px}.verification-role-option .verification-role-ineligible-reason{color:#eac88e}.verification-role-dot{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;color:#111;font-size:13px}.verification-role-entry>.verification-role-review-toggle,.verification-role-entry>.verification-role-review{grid-column:1/-1}.verification-role-review-toggle{justify-self:start;padding:5px 8px;border:1px solid var(--surface-border);border-radius:7px;background:rgba(156,255,0,.06);color:var(--accent);font:700 10px inherit;cursor:pointer}.verification-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px;color:var(--text-secondary);font-size:11px}.verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}.verification-dashboard-error{margin:0;color:var(--danger);font-size:11px}.`}</style>
+      <style>{`.verification-role-dashboard{display:flex;flex-direction:column;gap:12px}.verification-role-dashboard section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.verification-role-dashboard h3{margin:0;font-size:13px;color:var(--text)}.verification-role-dashboard p{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.verification-role-options{display:grid;gap:6px}.verification-role-entry{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:6px;padding:7px;border:1px solid var(--surface-border);border-radius:10px;background:var(--surface)}.verification-role-entry.ineligible{border-color:rgba(255,190,92,.32)}.verification-role-entry>.verification-role-actions{grid-column:2;grid-row:1}.verification-role-option{grid-column:1;grid-row:1;display:flex!important;flex-direction:row!important;align-items:center;gap:9px;padding:4px;border:0;border-radius:0;background:transparent;cursor:pointer}.verification-role-option input,.verification-check input{width:auto;accent-color:var(--accent)}.verification-role-option>span:last-child{display:flex;flex-direction:column;gap:3px}.verification-role-option strong{color:var(--text);font-size:11px}.verification-role-option small{color:var(--text-secondary);font-size:9px}.verification-role-option .verification-role-ineligible-reason{color:#eac88e}.verification-role-dot{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;color:#111;font-size:13px}.verification-role-entry>.verification-role-review-toggle,.verification-role-entry>.verification-role-review{grid-column:1/-1}.verification-role-review-toggle{justify-self:start;padding:5px 8px;border:1px solid var(--surface-border);border-radius:7px;background:rgba(156,255,0,.06);color:var(--accent);font:700 10px inherit;cursor:pointer}.verification-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px;color:var(--text-secondary);font-size:11px}.verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}.verification-dashboard-error{margin:0;color:var(--danger);font-size:11px}.verification-setup-success{margin:0;color:var(--accent);font-size:10px}.`}</style>
     </div>
   );
 }
 
-export default function VerificationToolDashboard({ communityId, value, onSave, onCreateRole, onUpdateRole, onPromoteRole, onManageRole, onDeleteRole, canManageRoles = false, disabled = false, focusMode = null, channels = [], roles = [], categories = [], accessRules = [], selectedChannelIds = [], onToggleChannel, channelError = "", onModeSelect }) {
+export default function VerificationToolDashboard({ communityId, value, onSave, onPublish, publishStatus = "", publishing = false, onCreateRole, onUpdateRole, onPromoteRole, onManageRole, onDeleteRole, canManageRoles = false, disabled = false, focusMode = null, channels = [], roles = [], categories = [], accessRules = [], selectedChannelIds = [], onToggleChannel, channelError = "", onModeSelect }) {
   const initial = normalizeVerificationConfig(value || DEFAULT_VERIFICATION_CONFIG);
   const [config, setConfig] = useState(initial);
   const experienceConfigRef = useRef(initial);
@@ -223,10 +227,21 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
       await onSave(savedConfig);
       setConfig(savedConfig);
       selectMode(null);
+      return true;
     } catch (saveError) {
       setError(saveError.message || "Could not save verification setup.");
+      return false;
     } finally {
       setSaving(false);
+    }
+  };
+  const saveAndPublish = async () => {
+    const saved = await handleSave(config);
+    if (!saved) return;
+    try {
+      await onPublish?.(config);
+    } catch (publishError) {
+      setError(publishError.message || "Could not publish the verification panel.");
     }
   };
 
@@ -252,28 +267,28 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
 
   if (focusMode === "quick") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <VerificationModeDashboard mode="quick" value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings(next))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "picture") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <PictureVerificationDashboard value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings({ ...config, ...next }))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "reaction") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <ReactionVerificationDashboard value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings(next))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "role_grant") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <RoleGrantPage communityId={communityId} config={config} roles={roles} channels={channels} categories={categories} accessRules={accessRules} disabled={disabled} canManageRoles={canManageRoles} saving={saving} error={error} onPatch={patch} onSave={() => handleSave(mergeExperienceSettings(config))} onCreateRole={onCreateRole} onUpdateRole={onUpdateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} />
       </FocusedVerificationWorkspace>
     );
@@ -311,6 +326,8 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
         <h3>Choose a verification option</h3>
         <p>Open an option to configure its channels, access role, and the panel members will use. Community rules are managed separately in Tools.</p>
       </div>
+      {error && <p className="verification-dashboard-error" role="alert">{error}</p>}
+      {publishStatus && <p className="verification-setup-success" role="status">{publishStatus}</p>}
       <div className="verification-picker-grid">
         {modes.map((mode) => (
           <div className={`verification-mode-card-wrap${mode.live ? "" : " soon"}`} key={mode.id}>

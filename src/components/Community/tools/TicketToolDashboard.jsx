@@ -15,6 +15,9 @@ export default function TicketToolDashboard({
   disabled = false,
   onToggleChannel,
   onSave,
+  onPublish,
+  publishStatus = "",
+  publishing = false,
 }) {
   const [config, setConfig] = useState({ ...DEFAULT_CONFIG, ...value });
   const [previewDevice, setPreviewDevice] = useState("mobile");
@@ -29,10 +32,21 @@ export default function TicketToolDashboard({
     try {
       const saved = await onSave(config);
       if (saved === false) throw new Error("Could not save ticket settings.");
+      return true;
     } catch (saveError) {
       setError(saveError.message || "Could not save ticket settings.");
+      return false;
     } finally {
       setSaving(false);
+    }
+  };
+  const saveAndPublish = async () => {
+    const saved = await save();
+    if (!saved) return;
+    try {
+      await onPublish?.(selectedChannelIds);
+    } catch (publishError) {
+      setError(publishError.message || "Could not publish the ticket panel.");
     }
   };
 
@@ -72,9 +86,15 @@ export default function TicketToolDashboard({
           <label>Description<textarea value={config.closeDescription} maxLength={400} rows={3} disabled={disabled} onChange={(event) => update("closeDescription", event.target.value)} /></label>
         </section>
         {error && <p className="ticket-dashboard-error" role="alert">{error}</p>}
-        <button type="button" className="ticket-dashboard-save" disabled={disabled || saving} onClick={save}>
-          {saving ? "Saving..." : "Save ticket setup"}
-        </button>
+        {publishStatus && <p style={{ margin: 0, color: "var(--accent)", fontSize: 10 }} role="status">{publishStatus}</p>}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button type="button" className="ticket-dashboard-save" style={{ flex: "1 1 160px" }} disabled={disabled || saving || publishing} onClick={save}>
+            {saving ? "Saving..." : "Save ticket setup"}
+          </button>
+          <button type="button" className="ticket-dashboard-save" style={{ flex: "1 1 160px" }} disabled={disabled || saving || publishing || !onPublish} onClick={saveAndPublish}>
+            {publishing ? "Publishing..." : "Save and publish panel"}
+          </button>
+        </div>
       </div>
 
       <section className="ticket-dashboard-preview">

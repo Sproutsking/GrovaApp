@@ -209,7 +209,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
         <div><div className="vp-kicker">SECURE COMMUNITY ACCESS{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
       </header>
 
-      {!ready.length ? <p className="vp-empty">The community owner is still setting up verification. Please check back later or contact a moderator.</p> : (
+      {!ready.length ? <p className="vp-empty">No active verification check has been published to this channel yet. Contact a community moderator if you need access.</p> : (
         <>
           {cfg.showProgress && ready.length > 1 && <div className="vp-progress"><div><i style={{ width: `${(doneCount / ready.length) * 100}%` }} /></div><span>{doneCount} of {ready.length} complete</span></div>}
           {ready.length > 1 && cfg.layout === "tabs" && (

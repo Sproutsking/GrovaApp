@@ -31,4 +31,22 @@ describe("TicketToolDashboard", () => {
     expect(onToggleChannel).toHaveBeenCalledWith("help");
     expect(screen.queryByRole("button", { name: "#voice" })).toBeNull();
   });
+
+  it("saves the ticket setup before publishing it to selected channels", async () => {
+    const onSave = jest.fn().mockResolvedValue(true);
+    const onPublish = jest.fn().mockResolvedValue(undefined);
+    render(
+      <TicketToolDashboard
+        channels={[{ id: "help", name: "help", type: "text" }]}
+        selectedChannelIds={["help"]}
+        onSave={onSave}
+        onPublish={onPublish}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
+
+    await waitFor(() => expect(onPublish).toHaveBeenCalledWith(["help"]));
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
+  });
 });

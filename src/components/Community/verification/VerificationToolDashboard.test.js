@@ -110,6 +110,33 @@ describe("VerificationToolDashboard", () => {
     expect(onToggleChannel).toHaveBeenCalledWith("verify");
   });
 
+  it("saves the configured check before publishing its verification panel", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    const onPublish = jest.fn().mockResolvedValue(undefined);
+    render(
+      <VerificationToolDashboard
+        focusMode="quick"
+        value={{ roleGrant: { enabled: true, roleIds: ["verified"] } }}
+        roles={[
+          { id: "member", name: "Member", position: 2, is_default: true, permissions: {} },
+          { id: "verified", name: "Verified", position: 1, permissions: {} },
+        ]}
+        selectedChannelIds={["verify"]}
+        onSave={onSave}
+        onPublish={onPublish}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Activate Quick Verify"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
+
+    await waitFor(() => expect(onPublish).toHaveBeenCalled());
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
+    expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
+      methods: expect.objectContaining({ quick: expect.objectContaining({ enabled: true }) }),
+    }));
+  });
+
   it("switches the live member preview between mobile and desktop", () => {
     render(
       <VerificationToolDashboard

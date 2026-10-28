@@ -41,6 +41,8 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   const [welcomeDashboardOpen, setWelcomeDashboardOpen] = useState(false);
   const [draft, setDraft] = useState({});
   const [focusedVerificationMode, setFocusedVerificationMode] = useState(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishStatus, setPublishStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -217,7 +219,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const nextRow = {
       community_id: communityId,
       tool_type: type,
-      enabled: ids.length > 0 || (type === "verification" && isVerificationConfigEnabled(row.config)),
+      enabled: ids.length > 0 || (type === "verification" && (isVerificationConfigEnabled(row.config) || row.config?.rulesPanelEnabled)),
       channel_id: ids[0] || null,
       config: { ...(row.config || {}), channel_ids: ids },
       updated_at: new Date().toISOString(),
@@ -280,7 +282,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       ...row,
       community_id: communityId,
       tool_type: "verification",
-      enabled: Boolean(selectedIds("verification").size || isVerificationConfigEnabled(nextConfig)),
+      enabled: Boolean(selectedIds("verification").size || isVerificationConfigEnabled(nextConfig) || nextConfig.rulesPanelEnabled),
       channel_id: row.channel_id || null,
       config: nextConfig,
       updated_at: new Date().toISOString(),
@@ -291,12 +293,81 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     setFocusedVerificationMode(null);
   };
 
+  const publishToolPanels = async (toolType, channelIds, { preserveStatus = false } = {}) => {
+    if (!canManage) throw new Error("You need community management access to publish tool panels.");
+    const targets = [...new Set((channelIds || []).filter(Boolean).map(String))];
+    if (!targets.length) throw new Error("Choose a destination channel before publishing this panel.");
+    setPublishing(true);
+    if (!preserveStatus) setPublishStatus("");
+    setError("");
+    const publishedChannels = [];
+    try {
+      for (const channelId of targets) {
+        const { error: publishError } = await supabase.rpc("publish_community_tool_panel", {
+          p_community_id: communityId,
+          p_channel_id: channelId,
+          p_tool_type: toolType,
+        });
+        if (publishError) {
+          const channelName = channels.find((channel) => String(channel.id) === channelId)?.name;
+          throw new Error(`Could not publish to ${channelName ? `#${channelName}` : "the selected channel"}: ${publishError.message}`);
+        }
+        publishedChannels.push(channelId);
+      }
+      const channelNames = publishedChannels.map((channelId) =>
+        `#${channels.find((channel) => String(channel.id) === channelId)?.name || "channel"}`,
+      );
+      setPublishStatus((current) => `${preserveStatus && current ? `${current} ` : ""}${toolType === "rules" ? "Rules panel" : toolType === "tickets" ? "Ticket panel" : "Verification panel"} published to ${channelNames.join(", ")}.`);
+      window.dispatchEvent(new CustomEvent("community:tool-panels-updated", {
+        detail: { communityId, channelIds: publishedChannels, toolType },
+      }));
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const publishVerificationSetup = async (config) => {
+    setPublishStatus("");
+    const normalized = normalizeVerificationConfig(config);
+    const roleMap = new Map(communityRoles.map((role) => [role.id, role]));
+    const ready = (method) => isMethodReady(
+      method,
+      normalized.methods[method],
+      roleMap,
+      normalized.methods,
+      normalized,
+    );
+    const rulesGate = normalized.rulesGate;
+    const panels = [];
+    if (rulesGate.enabled) {
+      if (!rulesGate.rulesChannelId || !ready("rules")) {
+        throw new Error("Finish the rules step and choose its channel before publishing.");
+      }
+      panels.push({ type: "rules", channelIds: [rulesGate.rulesChannelId] });
+      if (rulesGate.flow === "rules_then_verify") {
+        const method = rulesGate.secondMethod;
+        if (!rulesGate.verificationChannelId || !ready(method)) {
+          throw new Error("Finish the second verification check and choose its channel before publishing.");
+        }
+        panels.push({ type: "verification", channelIds: [rulesGate.verificationChannelId] });
+      }
+    } else {
+      const readyCheck = METHOD_ORDER.some((method) => method !== "rules" && ready(method));
+      const channelIds = [...selectedIds("verification")];
+      if (!readyCheck) throw new Error("Enable and complete a verification check before publishing.");
+      if (!channelIds.length) throw new Error("Choose at least one verification channel before publishing.");
+      panels.push({ type: "verification", channelIds });
+    }
+    for (const panel of panels) await publishToolPanels(panel.type, panel.channelIds, { preserveStatus: true });
+  };
+
   const saveRulesConfig = async ({ rulesMethod, roleGrant, experience, ...rulesGate }) => {
     const current = normalizeVerificationConfig(getRow("verification").config);
     await saveVerificationConfig({
       ...current,
       ...(experience || {}),
       rulesGate,
+      rulesPanelEnabled: true,
       roleGrant,
       rulesEnabled: Boolean(rulesGate.enabled),
       methods: { ...current.methods, rules: rulesMethod },
@@ -505,6 +576,9 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
                 onManageRole={canManageRoles ? onManageRole : undefined}
                 onDeleteRole={canManageRoles ? deleteVerificationRole : undefined}
                 onSave={saveVerificationConfig}
+                onPublish={publishVerificationSetup}
+                publishStatus={publishStatus}
+                publishing={publishing}
                 onModeSelect={(mode) => setFocusedVerificationMode(mode)}
               />
             </div>
@@ -546,6 +620,9 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
                 canManageRoles={canManageRoles}
                 standalone
                 onSave={saveRulesConfig}
+                onPublish={(channelId) => publishToolPanels("rules", [channelId])}
+                publishStatus={publishStatus}
+                publishing={publishing}
               />
             </div>
           </section>
@@ -589,6 +666,9 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
                 disabled={!canManage}
                 onToggleChannel={(channelId) => toggleChannel("tickets", channelId)}
                 onSave={saveDashboard}
+                onPublish={(channelIds) => publishToolPanels("tickets", channelIds)}
+                publishStatus={publishStatus}
+                publishing={publishing}
               />
             </div>
           </section>

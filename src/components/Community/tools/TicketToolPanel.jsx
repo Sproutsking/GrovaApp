@@ -17,10 +17,16 @@ export default function TicketToolPanel({ communityId, userId, channelId, isPriv
 
   useEffect(() => {
     let active = true;
-    supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "tickets").maybeSingle().then(({ data }) => { if (active && data?.config) setConfig((current) => ({ ...current, ...data.config })); });
+    supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "tickets").maybeSingle().then(({ data, error: settingsError }) => {
+      if (!active) return;
+      if (settingsError) { setError(settingsError.message || "Ticket settings could not be loaded."); return; }
+      if (data?.config) setConfig((current) => ({ ...current, ...data.config }));
+    });
     if (isPrivateTicket && channelId) {
-      supabase.from("community_ticket_channels").select("status,requester_id").eq("channel_id", channelId).maybeSingle().then(({ data }) => {
-        if (!active || !data) return;
+      supabase.from("community_ticket_channels").select("status,requester_id").eq("channel_id", channelId).maybeSingle().then(({ data, error: ticketError }) => {
+        if (!active) return;
+        if (ticketError) { setError(ticketError.message || "Ticket status could not be loaded."); return; }
+        if (!data) return;
         setState(data.status === "closed" ? "closed" : "created");
         setTicket(data);
       });
