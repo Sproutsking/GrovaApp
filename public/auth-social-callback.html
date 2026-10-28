@@ -35,8 +35,12 @@
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
     const params = new URLSearchParams(window.location.search);
-    const platform = params.get("platform");
-    const nonce = params.get("nonce");
+    let pendingRequest = null;
+    try {
+      pendingRequest = JSON.parse(sessionStorage.getItem("xeevia-social-link-pending") || "null");
+    } catch {}
+    const platform = pendingRequest?.platform;
+    const nonce = pendingRequest?.nonce;
     const origin = window.location.origin;
     const title = document.getElementById("title");
     const message = document.getElementById("message");
@@ -45,6 +49,10 @@
     const accountPicker = document.getElementById("account-picker");
     const accountSelect = document.getElementById("account-select");
     const accountConfirm = document.getElementById("account-confirm");
+    const clearPendingRequest = () => {
+      if (platform) sessionStorage.removeItem(`xeevia-social-link-config-${platform}`);
+      sessionStorage.removeItem("xeevia-social-link-pending");
+    };
     const notifyParent = (payload) => {
       if (window.opener && !window.opener.closed) window.opener.postMessage(payload, origin);
       if (typeof BroadcastChannel === "function") {
@@ -54,6 +62,7 @@
       }
     };
     const fail = (reason) => {
+      clearPendingRequest();
       if (platform && nonce) {
         notifyParent({
           type: "XEEVIA_SOCIAL_LINKED",
@@ -117,7 +126,7 @@
 
       const finish = async (selectedAccountId = platformUserId) => {
         await client.auth.signOut({ scope: "local" });
-        sessionStorage.removeItem(configKey);
+        clearPendingRequest();
         notifyParent({
           type: "XEEVIA_SOCIAL_LINKED",
           platformKey: platform,

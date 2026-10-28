@@ -1,5 +1,6 @@
 // components/Community/components/MessageList.jsx - 0.5PX SHIFT UP ⚡
 import React from "react";
+import ReactDOM from "react-dom";
 import { MoreVertical, Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, getExternalUrls, parseSharedContent } from "../../Shared/LinkifiedText";
@@ -46,7 +47,7 @@ const parsePostReplyMetadata = (token) => {
   }
 };
 
-const MessageAttachments = ({ message }) => {
+const MessageAttachments = ({ message, onImageClick }) => {
   const items = Array.isArray(message?.attachments) && message.attachments.length
     ? message.attachments
     : message?.media_url ? [{ url: message.media_url, type: message.media_type || "file", name: "Attachment" }] : [];
@@ -56,7 +57,7 @@ const MessageAttachments = ({ message }) => {
       {items.map((item, index) => {
         const url = item?.url;
         if (!url) return null;
-        if (item.type === "image") return <img key={`${url}-${index}`} src={url} alt={item.name || "Attachment"} style={{ display: "block", maxWidth: "100%", maxHeight: 360, borderRadius: 10, objectFit: "contain" }} loading="lazy" />;
+        if (item.type === "image") return <button key={`${url}-${index}`} type="button" onClick={(event) => { event.stopPropagation(); onImageClick?.(url); }} aria-label="Open image in full size" title="Open image in full size" style={{ display: "block", maxWidth: "100%", padding: 0, border: 0, borderRadius: 10, background: "transparent", cursor: "zoom-in", textAlign: "left" }}><img src={url} alt={item.name && item.name !== "Attachment" ? item.name : "Message image"} style={{ display: "block", maxWidth: "100%", maxHeight: 360, borderRadius: 10, objectFit: "contain" }} loading="lazy" /></button>;
         if (item.type === "video") return <video key={`${url}-${index}`} src={url} controls preload="metadata" style={{ display: "block", width: "100%", maxHeight: 360, borderRadius: 10 }} />;
         return <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", maxWidth: "100%", color: "#bef264", overflowWrap: "anywhere" }}>{item.name || "Download attachment"}</a>;
       })}
@@ -122,8 +123,23 @@ const MessageList = ({
 
   const allMessages = [...messages, ...pendingMessages];
   const [swipe, setSwipe] = React.useState(null);
+  const [viewingImage, setViewingImage] = React.useState(null);
   const touchStart = React.useRef(null);
   const longPressTimer = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!viewingImage) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setViewingImage(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewingImage]);
 
   const beginSwipe = (event, message) => {
     touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, message };
@@ -213,6 +229,8 @@ const MessageList = ({
           const welcomeMemberId = getWelcomeMemberId(msg.content);
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || String(msg.content || "").replace(/^\[\[welcome-member:[^\]]+\]\]\n?/, "");
+          const hasMessageMedia = (Array.isArray(msg.attachments) && msg.attachments.length > 0) || Boolean(msg.media_url);
+          const showMessageBody = !(hasMessageMedia && messageBody.trim().toLowerCase() === "attachment");
           const showAvatar = isAnnouncementMessage || showTail;
           const showSenderHeader = isAnnouncementMessage || Boolean(msg.user);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
@@ -223,6 +241,7 @@ const MessageList = ({
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
           const replyTier = ["silver", "gold", "diamond"].includes(originalReply?.user?.subscription_tier) ? originalReply.user.subscription_tier : "normal";
           const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, originalReply?.user?.boost_selections?.fontId, originalReply?.user?.boost_selections?.colorId).color?.color || "#9cff00";
+          const profileTier = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier) ? msg.user.subscription_tier : "normal";
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
           const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
           
@@ -286,7 +305,7 @@ const MessageList = ({
                 </div>
               ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} profile-${profileTier} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
@@ -322,8 +341,8 @@ const MessageList = ({
                     </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
-                  <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
-                  <MessageAttachments message={msg} />
+                  {showMessageBody && <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>}
+                  <MessageAttachments message={msg} onImageClick={setViewingImage} />
                   <div className="msg-footer">
                     {reactionRow}
                     {!hasReactionRow && <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
@@ -360,6 +379,13 @@ const MessageList = ({
         })}
 
       <div ref={messagesEndRef} />
+      {viewingImage && ReactDOM.createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Full-size message image" onClick={() => setViewingImage(null)} style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,.92)" }}>
+          <button type="button" onClick={() => setViewingImage(null)} aria-label="Close image viewer" style={{ position: "fixed", top: 16, right: 16, width: 40, height: 40, border: "1px solid rgba(255,255,255,.25)", borderRadius: "50%", background: "rgba(20,20,20,.8)", color: "white", fontSize: 24, lineHeight: 1, cursor: "pointer" }}>×</button>
+          <img src={viewingImage} alt="Full-size message" onClick={(event) => event.stopPropagation()} style={{ display: "block", maxWidth: "min(94vw, 1400px)", maxHeight: "92vh", objectFit: "contain", borderRadius: 4 }} />
+        </div>,
+        document.body,
+      )}
 
       <style>{`
         .msg-list-wrapper {
@@ -608,13 +634,39 @@ const MessageList = ({
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
-        .msg-bubble.them,
-        .msg-bubble.me {
-          background: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
-          border: 1px solid rgba(196,214,202,.14);
-          box-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
+        .msg-bubble {
+          --bubble-bg: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
+          --bubble-border: rgba(196,214,202,.14);
+          --bubble-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
           --message-tail-fill: rgba(19,29,23,.99);
-          --message-tail-edge: rgba(196,214,202,.2);
+          --message-tail-edge: rgba(196,214,202,.22);
+          background: var(--bubble-bg);
+          border: 1px solid var(--bubble-border);
+          box-shadow: var(--bubble-shadow);
+        }
+        .msg-bubble.profile-normal {
+          --bubble-bg: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
+          --bubble-border: rgba(196,214,202,.14);
+          --message-tail-fill: rgba(19,29,23,.99);
+          --message-tail-edge: rgba(196,214,202,.18);
+        }
+        .msg-bubble.profile-silver {
+          --bubble-bg: linear-gradient(145deg, rgba(23,31,39,.98), rgba(15,21,30,.98));
+          --bubble-border: rgba(148,163,184,.24);
+          --message-tail-fill: rgba(17,22,29,.99);
+          --message-tail-edge: rgba(148,163,184,.26);
+        }
+        .msg-bubble.profile-gold {
+          --bubble-bg: linear-gradient(145deg, rgba(39,29,16,.99), rgba(24,18,10,.99));
+          --bubble-border: rgba(251,191,36,.22);
+          --message-tail-fill: rgba(34,25,15,.99);
+          --message-tail-edge: rgba(251,191,36,.28);
+        }
+        .msg-bubble.profile-diamond {
+          --bubble-bg: linear-gradient(145deg, rgba(12,26,36,.99), rgba(10,16,23,.99));
+          --bubble-border: rgba(125,211,252,.26);
+          --message-tail-fill: rgba(10,18,27,.99);
+          --message-tail-edge: rgba(125,211,252,.3);
         }
         .msg-bubble.them {
           border-bottom-left-radius: 2px;
@@ -705,6 +757,7 @@ const MessageList = ({
           color: var(--text);
           line-height: 1.5;
           word-break: break-word;
+          margin-inline: 1px;
         }
         .msg-item.me .msg-content { text-align: right; }
         .msg-item.me .msg-reply-quote { text-align: right; }
@@ -720,6 +773,7 @@ const MessageList = ({
           align-items: center;
           gap: 4px;
           justify-content: flex-end;
+          margin-inline: 1px;
         }
         .msg-time { white-space: nowrap; }
         .msg-item.me .announcement-reply-button{align-self:flex-end}

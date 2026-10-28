@@ -175,3 +175,44 @@ describe('linkPlatform', () => {
     );
   });
 });
+
+describe('_storeConnection', () => {
+  it('inserts the provider token when no token row exists without requiring an ON CONFLICT constraint', async () => {
+    const connectionQuery = {
+      upsert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 'connection-discord' }, error: null }),
+    };
+    const tokenQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+    supabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+    supabase.from.mockImplementation((table) => table === 'connections' ? connectionQuery : tokenQuery);
+
+    await expect(socialConnectService._storeConnection('user-1', 'discord', 'discord-user', 'access-token', 'refresh-token'))
+      .resolves.toEqual({ id: 'connection-discord' });
+
+    expect(tokenQuery.insert).toHaveBeenCalledWith({
+      connection_id: 'connection-discord',
+      encrypted_token: 'access-token',
+      refresh_token: 'refresh-token',
+      expires_at: null,
+      revoked: false,
+    });
+  });
+});
+
+describe('OAuth callback URL', () => {
+  it('uses the allowlist-friendly static callback path and stores request context in the popup session', () => {
+    const html = socialConnectService._buildLinkPopupHTML('x', getPlatformConfig('x'), 'nonce-123');
+
+    expect(html).toContain(`redirectTo:'${window.location.origin}/auth-social-callback.html'`);
+    expect(html).not.toContain('auth-social-callback.html?platform=');
+    expect(html).toContain("sessionStorage.setItem('xeevia-social-link-pending', JSON.stringify({ platform, nonce }))");
+  });
+});

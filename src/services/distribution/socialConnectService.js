@@ -484,15 +484,27 @@ class SocialConnectService {
     if (connErr) throw new Error(`Failed to save connection: ${connErr.message}`);
 
     if (!conn?.id) throw new Error("The platform connection could not be saved.");
-    const { error: tokenError } = await supabase
+    const tokenValues = {
+      connection_id: conn.id,
+      encrypted_token: accessToken,
+      refresh_token: refreshToken || null,
+      expires_at: null,
+      revoked: false,
+    };
+    const { data: existingToken, error: tokenLookupError } = await supabase
       .from("tokens")
-      .upsert({
-        connection_id: conn.id,
-        encrypted_token: accessToken,
-        refresh_token: refreshToken || null,
-        expires_at: null,
-        revoked: false,
-      }, { onConflict: "connection_id" });
+      .select("id")
+      .eq("connection_id", conn.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (tokenLookupError) {
+      throw new Error(`The ${platform} connection was created, but its publishing token could not be checked: ${tokenLookupError.message}`);
+    }
+
+    const { error: tokenError } = existingToken?.id
+      ? await supabase.from("tokens").update(tokenValues).eq("id", existingToken.id)
+      : await supabase.from("tokens").insert(tokenValues);
     if (tokenError) throw new Error(`The ${platform} connection was created, but its publishing token could not be saved: ${tokenError.message}`);
 
     return conn;
@@ -625,7 +637,7 @@ class SocialConnectService {
     const SUPA_URL = process.env.REACT_APP_SUPABASE_URL || "";
     const SUPA_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
     const origin   = window.location.origin;
-    const callbackUrl = `${origin}/auth-social-callback.html?platform=${encodeURIComponent(platform)}&nonce=${encodeURIComponent(nonce)}`;
+    const callbackUrl = `${origin}/auth-social-callback.html`;
     const storageKey = `xeevia-social-link-${platform}`;
     const safeNonce = JSON.stringify(nonce);
 
@@ -723,6 +735,7 @@ class SocialConnectService {
       url: '${SUPA_URL}',
       key: '${SUPA_KEY}',
     }));
+    sessionStorage.setItem('xeevia-social-link-pending', JSON.stringify({ platform, nonce }));
     document.getElementById('msg').textContent='Opening ${config.label} authorization…';
     const{error}=await sb.auth.signInWithOAuth({
       provider,

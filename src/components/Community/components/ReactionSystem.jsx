@@ -160,7 +160,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           min-width: 0;
         }
         .rb-bar.with-footer-meta .rb-footer-meta { flex: 0 0 auto; align-self: flex-end; margin-left: auto; white-space: nowrap; }
-        .rb-bar.with-footer-meta .rb-footer-meta .msg-meta { margin: 0; }
+        .rb-bar.with-footer-meta .rb-footer-meta .msg-meta { margin: 0 1px; }
 
         .rb-bar.announcement {
           gap: 4px;
