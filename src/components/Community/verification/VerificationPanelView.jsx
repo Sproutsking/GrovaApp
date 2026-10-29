@@ -104,7 +104,7 @@ function ReactionBody({ m, locked, busy, onSubmit }) {
   );
 }
 
-export default function VerificationPanelView({ panel, state = {}, busy = false, onComplete, focusMethod = null, onlyMethods = null }) {
+export default function VerificationPanelView({ panel, state = {}, busy = false, onComplete, focusMethod = null, onlyMethods = null, published = true }) {
   const completed = state.completed || [];
   const pending = state.pending || [];
   const cfg = { ...DEFAULT_VERIFICATION_CONFIG.panel, ...(panel?.panel || {}) };
@@ -209,7 +209,9 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
         <div><div className="vp-kicker">SECURE COMMUNITY ACCESS{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
       </header>
 
-      {!ready.length ? <p className="vp-empty">No active verification check has been published to this channel yet. Contact a community moderator if you need access.</p> : (
+      {!ready.length ? <p className="vp-empty">{published
+        ? "This panel is published, but no verification check is ready. The owner needs to enable a check and choose an eligible role."
+        : "No verification panel has been published to this channel yet. The owner must open Community Tools, select this channel, and choose Save and publish panel."}</p> : (
         <>
           {cfg.showProgress && ready.length > 1 && <div className="vp-progress"><div><i style={{ width: `${(doneCount / ready.length) * 100}%` }} /></div><span>{doneCount} of {ready.length} complete</span></div>}
           {ready.length > 1 && cfg.layout === "tabs" && (

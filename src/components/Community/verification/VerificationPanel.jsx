@@ -3,7 +3,7 @@ import verificationService from "../../../services/community/verificationService
 import VerificationPanelView from "./VerificationPanelView";
 import { getMethodsForVerificationChannel } from "./verificationConfig";
 
-export default function VerificationPanel({ communityId, channelId, panelType = "verification", onVerified }) {
+export default function VerificationPanel({ communityId, channelId, panelType = "verification", published = false, onVerified }) {
   const [panel, setPanel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -53,5 +53,5 @@ export default function VerificationPanel({ communityId, channelId, panelType = 
   if (onlyMethods?.length === 0) {
     return note("This channel isn't part of the community's active verification route. Open the configured rules or verification channel, or contact a moderator.");
   }
-  return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} onlyMethods={onlyMethods} />;
+  return <VerificationPanelView panel={panel} state={panel.state} busy={busy} onComplete={complete} onlyMethods={onlyMethods} published={published} />;
 }

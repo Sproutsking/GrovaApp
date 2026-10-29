@@ -50,4 +50,26 @@ describe("VerificationPanelView completion experience", () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("explains when a panel is published but has no ready check", () => {
+    render(
+      <VerificationPanelView
+        panel={{ ...panel, methods: { quick: { ...panel.methods.quick, ready: false } } }}
+        published
+      />,
+    );
+
+    expect(screen.getByText(/This panel is published, but no verification check is ready/)).not.toBeNull();
+  });
+
+  it("explains how to publish a panel when none is published to the channel", () => {
+    render(
+      <VerificationPanelView
+        panel={{ ...panel, methods: { quick: { ...panel.methods.quick, ready: false } } }}
+        published={false}
+      />,
+    );
+
+    expect(screen.getByText(/No verification panel has been published to this channel yet/)).not.toBeNull();
+  });
 });

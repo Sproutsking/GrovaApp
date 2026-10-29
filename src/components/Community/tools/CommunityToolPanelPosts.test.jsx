@@ -18,7 +18,7 @@ jest.mock("./TicketToolPanel", () => ({
 
 jest.mock("../verification/VerificationPanel", () => ({
   __esModule: true,
-  default: ({ panelType }) => <div data-testid={`${panelType}-panel`} />,
+  default: ({ panelType, published }) => <div data-testid={`${panelType}-panel`} data-published={String(Boolean(published))} />,
 }));
 
 describe("CommunityToolPanelPosts", () => {
@@ -33,6 +33,7 @@ describe("CommunityToolPanelPosts", () => {
       order: jest.fn().mockResolvedValue({
         data: [
           { id: "rules-post", tool_type: "rules", channel_id: "rules-channel" },
+          { id: "verification-post", tool_type: "verification", channel_id: "rules-channel" },
           { id: "ticket-post", tool_type: "tickets", channel_id: "rules-channel" },
         ],
       }),
@@ -50,6 +51,8 @@ describe("CommunityToolPanelPosts", () => {
     );
 
     expect(await screen.findByTestId("rules-panel")).not.toBeNull();
+    expect(screen.getByTestId("rules-panel").getAttribute("data-published")).toBe("true");
+    expect(screen.getByTestId("verification-panel").getAttribute("data-published")).toBe("true");
     expect(screen.getByTestId("ticket-panel").getAttribute("data-channel-id")).toBe("rules-channel");
     await waitFor(() => expect(query.eq).toHaveBeenCalledWith("channel_id", "rules-channel"));
   });

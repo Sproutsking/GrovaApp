@@ -68,7 +68,7 @@ export default function CommunityToolPanelPosts({
     return (
       <>
         {legacyTicketPanel && <TicketToolPanel communityId={communityId} userId={userId} channelId={channelId} onTicketCreated={onTicketCreated} />}
-        {legacyVerificationPanel && <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} onVerified={onVerified} />}
+        {legacyVerificationPanel && <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} published={false} onVerified={onVerified} />}
       </>
     );
   }
@@ -80,7 +80,7 @@ export default function CommunityToolPanelPosts({
         <section className="community-tool-panel-post" key={`${post.id}:${post.updated_at}`} data-tool-panel-type={post.tool_type}>
           {post.tool_type === "tickets"
             ? <TicketToolPanel communityId={communityId} userId={userId} channelId={channelId} onTicketCreated={onTicketCreated} onTicketDeleted={onTicketDeleted} />
-            : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={post.tool_type} onVerified={onVerified} />}
+            : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={post.tool_type} published onVerified={onVerified} />}
         </section>
       ))}
       <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error{margin:12px;color:#ffaaa3;font-size:calc((12px) + 1px);text-align:center}`}</style>
