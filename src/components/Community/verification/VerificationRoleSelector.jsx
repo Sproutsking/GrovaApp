@@ -28,16 +28,25 @@ export default function VerificationRoleSelector({
         const role = roleGroup.roles.find((candidate) => !getVerificationRoleIssue(candidate, roles)) || roleGroup.role;
         const issue = getVerificationRoleIssue(role, roles);
         const eligible = !issue;
+        const promoteAndSelect = issue === "rank" && Boolean(onPromoteRole);
+        const canSelect = eligible || promoteAndSelect;
         const groupSelected = roleGroup.roles.some((entry) => entry.id === selectedRoleId);
         return (
-          <div className={`verification-role-picker-card${groupSelected ? " selected" : ""}${eligible ? "" : " unavailable"}`} key={roleGroup.key}>
+          <div className={`verification-role-picker-card${groupSelected ? " selected" : ""}${canSelect ? "" : " unavailable"}`} key={roleGroup.key}>
             <button
               type="button"
               className="verification-role-picker-choice"
-              aria-label={`${eligible ? "Select" : "Unavailable"} ${role.name} role${roleGroup.roles.length > 1 ? ` (${roleGroup.roles.length} entries)` : ""}`}
+              aria-label={`${eligible ? "Select" : promoteAndSelect ? "Promote and select" : "Unavailable"} ${role.name} role${roleGroup.roles.length > 1 ? ` (${roleGroup.roles.length} entries)` : ""}`}
               aria-pressed={groupSelected}
-              disabled={disabled || !eligible}
-              onClick={() => onSelect?.(role.id)}
+              disabled={disabled || !canSelect}
+              onClick={async () => {
+                if (eligible) {
+                  onSelect?.(role.id);
+                  return;
+                }
+                const promoted = await onPromoteRole?.(role.id);
+                if (promoted !== false) onSelect?.(role.id);
+              }}
             >
               <span className="verification-role-picker-icon" style={{ "--role-color": role.color || "var(--accent)" }}>
                 {role.icon || "♟"}
@@ -47,7 +56,7 @@ export default function VerificationRoleSelector({
               {roleGroup.roles.length > 1 && <small>{roleGroup.roles.length} matching role entries</small>}
               <small>Rank {Number(role.position) + 1}</small>
               {groupSelected && <small className="verification-role-picker-selected">Selected for this check</small>}
-              {!eligible && <small className="verification-role-picker-reason">{issueLabel[issue]}</small>}
+              {!eligible && <small className="verification-role-picker-reason">{promoteAndSelect ? "Click to move above the default role and select." : issueLabel[issue]}</small>}
             </button>
             {canManageRoles && (
               <VerificationRoleActions

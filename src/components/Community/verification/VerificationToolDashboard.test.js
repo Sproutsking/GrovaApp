@@ -215,8 +215,8 @@ describe("VerificationToolDashboard", () => {
     );
 
     expect(screen.getByText("Existing team")).not.toBeNull();
-    expect(screen.getByRole("checkbox", { name: /Existing team/ }).disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Move Existing team above default role" }));
+    expect(screen.getByRole("checkbox", { name: /Existing team/ }).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Existing team/ }));
     await waitFor(() => {
       expect(onPromoteRole).toHaveBeenCalledWith("existing");
       expect(screen.getByRole("checkbox", { name: /Enable verified role selection/ }).checked).toBe(true);

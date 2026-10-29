@@ -36,6 +36,19 @@ describe("VerificationRoleSelector", () => {
     });
   });
 
+  it("lets the owner select a safe below-default role from its card", async () => {
+    const onPromoteRole = jest.fn().mockResolvedValue(true);
+    const onSelect = jest.fn();
+    render(<VerificationRoleSelector roles={roles} onPromoteRole={onPromoteRole} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Promote and select Ranked role" }));
+
+    await waitFor(() => {
+      expect(onPromoteRole).toHaveBeenCalledWith("ranked");
+      expect(onSelect).toHaveBeenCalledWith("ranked");
+    });
+  });
+
   it("does not select a role when rank promotion fails", async () => {
     const onSelect = jest.fn();
     render(

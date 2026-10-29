@@ -106,15 +106,15 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
   const selectedRoleIds = config.roleGrant?.roleIds || [];
   const promoteRole = async (roleId) => {
     const promoted = await onPromoteRole?.(roleId);
-    if (promoted !== false) {
-      onPatch({
-        roleGrant: {
-          ...config.roleGrant,
-          enabled: true,
-          roleIds: [...new Set([...selectedRoleIds, roleId])],
-        },
-      });
-    }
+    if (promoted === false) return false;
+    onPatch({
+      roleGrant: {
+        ...config.roleGrant,
+        enabled: true,
+        roleIds: [...new Set([...selectedRoleIds, roleId])],
+      },
+    });
+    return true;
   };
   const save = () => {
     const eligibleRoleIds = selectedRoleIds.filter((roleId) =>
@@ -149,6 +149,8 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
           {candidateRoleGroups.map((roleGroup) => {
             const role = roleGroup.roles.find((candidate) => selectableRoleIds.has(candidate.id)) || roleGroup.role;
             const eligible = selectableRoleIds.has(role.id);
+            const issue = getVerificationRoleIssue(role, roles);
+            const promoteAndSelect = issue === "rank" && Boolean(onPromoteRole);
             const selected = roleGroup.roles.some((entry) => selectedRoleIds.includes(entry.id));
             return (
             <div key={role.id} className={`verification-role-entry${eligible ? "" : " ineligible"}`}>
@@ -157,13 +159,17 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
                 <input
                   type="checkbox"
                   checked={selected}
-                  disabled={disabled || !config.roleGrant?.enabled || (!eligible && !selected)}
+                  disabled={disabled || (!eligible && !selected && !promoteAndSelect)}
                   onChange={(event) => {
+                    if (event.target.checked && promoteAndSelect) {
+                      void promoteRole(role.id);
+                      return;
+                    }
                     const groupIds = roleGroup.roles.map((candidate) => candidate.id);
                     const roleIds = event.target.checked
                       ? [...new Set([...selectedRoleIds.filter((id) => !groupIds.includes(id)), role.id])]
                       : selectedRoleIds.filter((id) => !groupIds.includes(id));
-                    onPatch({ roleGrant: { ...config.roleGrant, roleIds } });
+                    onPatch({ roleGrant: { ...config.roleGrant, enabled: event.target.checked || config.roleGrant?.enabled, roleIds } });
                   }}
                 />
                 <span className="verification-role-dot" style={{ background: role.color || "#84cc16" }}>{role.icon || "♟"}</span>

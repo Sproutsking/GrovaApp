@@ -214,6 +214,7 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
             const role = roleGroup.roles.find((candidate) => selectableRoleIds.has(candidate.id)) || roleGroup.role;
             const issue = getVerificationRoleIssue(role, roles);
             const eligible = !issue;
+            const promoteAndSelect = issue === "rank" && Boolean(onPromoteRole);
             const groupIds = roleGroup.roles.map((candidate) => candidate.id);
             const groupSelected = groupIds.some((id) => grant.roleIds.includes(id));
             return (
@@ -223,13 +224,20 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
                 <input
                   type="checkbox"
                   checked={groupSelected}
-                  disabled={disabled || !grant.enabled || (!eligible && !groupSelected)}
-                  onChange={(event) => setGrant((current) => ({
-                    ...current,
-                    roleIds: event.target.checked
-                      ? [...new Set([...current.roleIds.filter((id) => !groupIds.includes(id)), role.id])]
-                      : current.roleIds.filter((id) => !groupIds.includes(id)),
-                  }))}
+                  disabled={disabled || (!eligible && !groupSelected && !promoteAndSelect)}
+                  onChange={(event) => {
+                    if (event.target.checked && promoteAndSelect) {
+                      void promoteRole(role.id);
+                      return;
+                    }
+                    setGrant((current) => ({
+                      ...current,
+                      enabled: event.target.checked || current.enabled,
+                      roleIds: event.target.checked
+                        ? [...new Set([...current.roleIds.filter((id) => !groupIds.includes(id)), role.id])]
+                        : current.roleIds.filter((id) => !groupIds.includes(id)),
+                    }));
+                  }}
                 />
                 <i style={{ background: role.color || "var(--accent)" }}>{role.icon || "♟"}</i>
                 <span>

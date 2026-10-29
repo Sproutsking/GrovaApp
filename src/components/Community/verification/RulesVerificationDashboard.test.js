@@ -125,7 +125,7 @@ describe("RulesVerificationDashboard previews", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Move Team above default role" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Team/ }));
 
     await waitFor(() => {
       expect(onPromoteRole).toHaveBeenCalledWith("team");
