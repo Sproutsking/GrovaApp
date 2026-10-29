@@ -76,4 +76,45 @@ describe("VerificationPanel", () => {
     expect(verificationService.complete).toHaveBeenNthCalledWith(2, "community-1", "quick", { roleId: "verified-role" });
     await waitFor(() => expect(verificationService.getPanel).toHaveBeenCalledTimes(2));
   });
+
+  it("lets a member choose one of multiple roles after passing verification", async () => {
+    const panel = {
+      configured: true,
+      name: "Community access",
+      message: "Complete the check.",
+      roleChoices: [
+        { id: "reader-role", name: "Reader", color: "#60a5fa", position: 1 },
+        { id: "member-role", name: "Member", color: "#34d399", position: 2 },
+      ],
+      methods: {
+        quick: {
+          ready: true,
+          title: "Quick verification",
+          description: "Verify your account.",
+          buttonLabel: "Verify me",
+          successTitle: "Verified",
+          successDescription: "Your access has been updated.",
+          requires: [],
+        },
+      },
+      state: { completed: [], pending: [] },
+    };
+    verificationService.getPanel
+      .mockResolvedValueOnce(panel)
+      .mockResolvedValueOnce({ ...panel, state: { completed: [], pending: ["quick"] } })
+      .mockResolvedValueOnce({ ...panel, state: { completed: ["quick"], pending: [] } });
+    verificationService.complete
+      .mockResolvedValueOnce({ success: true, needs_role_selection: true })
+      .mockResolvedValueOnce({ success: true, method: "quick", role_id: "member-role" });
+
+    render(<VerificationPanel communityId="community-1" channelId="verify-channel" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Verify me" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Member/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Unlock this role" }));
+
+    expect(await screen.findByRole("dialog", { name: "Congratulations, you're verified!" })).not.toBeNull();
+    expect(verificationService.complete).toHaveBeenNthCalledWith(1, "community-1", "quick", {});
+    expect(verificationService.complete).toHaveBeenNthCalledWith(2, "community-1", "quick", { roleId: "member-role" });
+  });
 });
