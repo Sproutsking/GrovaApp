@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { Send } from "lucide-react";
 import { DEFAULT_VERIFICATION_CONFIG, getSelectableVerificationRoles, getVerificationRoleCandidates, getVerificationRoleIssue, groupVerificationRoles, isMethodReady, methodIssues, METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 import VerificationModeDashboard from "./VerificationModeDashboard";
 import PictureVerificationDashboard from "./PictureVerificationDashboard";
@@ -24,6 +25,7 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
     previewPanel.methods[previewMode] = { ...previewPanel.methods[previewMode], ready: true };
   }
   const textChannels = channels.filter((channel) => channel.type !== "voice");
+  const selectedDestinations = textChannels.filter((channel) => selectedChannelIds.includes(channel.id));
 
   return (
     <div className={`verification-focused-workspace verification-focused-workspace-stable${previewOpen ? "" : " preview-collapsed"}`}>
@@ -44,15 +46,30 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
           })}
           {!textChannels.length && <p>Create a text channel before sending a verification panel.</p>}
         </div>
-        <button type="button" className="verification-dashboard-save" disabled={disabled || publishing || !onSaveAndPublish} onClick={onSaveAndPublish}>
-          {publishing ? "Publishing…" : "Save and publish panel"}
-        </button>
         {publishStatus && <p className="verification-setup-success" role="status">{publishStatus}</p>}
         {channelError && <p className="verification-setup-error" role="alert">{channelError}</p>}
         </section>
         {setupError && <p className="verification-setup-error" role="alert">{setupError}</p>}
         <VerificationExperienceSettings value={config} onChange={onConfigChange} disabled={disabled} />
         {children}
+        <div className="verification-focused-publish-bar">
+          <div>
+            <strong>Publish verification panel</strong>
+            <small>
+              {selectedDestinations.length
+                ? `Ready for ${selectedDestinations.length} selected channel${selectedDestinations.length === 1 ? "" : "s"}.`
+                : "Select at least one destination channel above."}
+            </small>
+          </div>
+          <button
+            type="button"
+            className="verification-dashboard-save"
+            disabled={disabled || publishing || !onSaveAndPublish || !selectedDestinations.length}
+            onClick={onSaveAndPublish}
+          >
+            <Send size={14} /> {publishing ? "Publishing…" : "Save and publish panel"}
+          </button>
+        </div>
       </div>
       {previewOpen && <section className="verification-member-preview">
         <div className="verification-preview-header">
@@ -87,6 +104,12 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
         .verification-focused-workspace-stable .verification-focused-editor{gap:9px}
         .verification-focused-workspace-stable .verification-focused-editor{min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
         .verification-focused-workspace-stable .verification-member-preview{min-height:0}
+        .verification-focused-publish-bar{position:sticky;bottom:0;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding:10px;border:1px solid var(--accent-border);border-radius:10px;background:color-mix(in srgb,var(--surface-strong) 94%,#000);box-shadow:0 -8px 22px rgba(0,0,0,.22)}
+        .verification-focused-publish-bar>div{display:grid;gap:3px;min-width:0}
+        .verification-focused-publish-bar strong{color:var(--text);font-size:calc((11px) + 1px)}
+        .verification-focused-publish-bar small{color:var(--text-secondary);font-size:calc((9px) + 1px);line-height:1.35}
+        .verification-focused-publish-bar .verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;min-height:36px;padding:0 12px}
+        .verification-focused-publish-bar .verification-dashboard-save:disabled{opacity:.5;cursor:not-allowed}
         @media(max-width:900px){
           .verification-focused-workspace-stable{flex:0 0 auto;height:auto;max-height:none}
           .verification-focused-workspace-stable .verification-focused-editor{overflow:visible}
@@ -244,7 +267,6 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
       const savedConfig = normalizeVerificationConfig(nextConfig);
       await onSave(savedConfig);
       setConfig(savedConfig);
-      selectMode(null);
       return true;
     } catch (saveError) {
       setError(saveError.message || "Could not save verification setup.");
@@ -258,6 +280,7 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
     if (!saved) return;
     try {
       await onPublish?.(config);
+      selectMode(null);
     } catch (publishError) {
       setError(publishError.message || "Could not publish the verification panel.");
     }

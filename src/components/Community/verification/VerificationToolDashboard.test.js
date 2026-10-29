@@ -139,6 +139,7 @@ describe("VerificationToolDashboard", () => {
     render(
       <VerificationToolDashboard
         focusMode="quick"
+        channels={[{ id: "verify", name: "verify", type: "text" }]}
         value={{ roleGrant: { enabled: true, roleIds: ["verified"] } }}
         roles={[
           { id: "member", name: "Member", position: 2, is_default: true, permissions: {} },
@@ -154,6 +155,7 @@ describe("VerificationToolDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
 
     await waitFor(() => expect(onPublish).toHaveBeenCalled());
+  expect(screen.getByText("Member panel preview")).not.toBeNull();
     expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
       methods: expect.objectContaining({ quick: expect.objectContaining({ enabled: true }) }),

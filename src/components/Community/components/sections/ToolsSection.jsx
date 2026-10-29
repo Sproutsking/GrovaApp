@@ -290,7 +290,6 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
     if (saveError) throw saveError;
     setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
-    setFocusedVerificationMode(null);
   };
 
   const publishToolPanels = async (toolType, channelIds, { preserveStatus = false } = {}) => {
