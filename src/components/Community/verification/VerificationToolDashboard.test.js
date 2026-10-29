@@ -97,6 +97,27 @@ describe("VerificationToolDashboard", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Role hierarchy update denied");
   });
 
+  it.each(["picture", "role_grant"])("shows publish errors in the %s workspace", async (focusMode) => {
+    render(
+      <VerificationToolDashboard
+        focusMode={focusMode}
+        value={{
+          roleGrant: { enabled: true, roleIds: ["verified"] },
+          methods: { quick: { enabled: true, roleId: "verified" } },
+        }}
+        channels={[{ id: "verify", name: "verify", type: "text" }]}
+        roles={[{ id: "verified", name: "Verified", position: 1, permissions: {} }]}
+        selectedChannelIds={["verify"]}
+        onSave={jest.fn().mockResolvedValue(undefined)}
+        onPublish={jest.fn().mockRejectedValue(new Error("Publish RPC unavailable"))}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("Publish RPC unavailable");
+  });
+
   it("saves the role selected for Quick Verify", async () => {
     const onSave = jest.fn().mockResolvedValue(undefined);
     render(

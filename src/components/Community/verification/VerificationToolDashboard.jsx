@@ -316,7 +316,7 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
   }
   if (focusMode === "picture") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <PictureVerificationDashboard value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings({ ...config, ...next }))} />
       </FocusedVerificationWorkspace>
     );
@@ -330,7 +330,7 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
   }
   if (focusMode === "role_grant") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <RoleGrantPage communityId={communityId} config={config} roles={roles} channels={channels} categories={categories} accessRules={accessRules} disabled={disabled} canManageRoles={canManageRoles} saving={saving} error={error} onPatch={patch} onSave={() => handleSave(mergeExperienceSettings(config))} onCreateRole={onCreateRole} onUpdateRole={onUpdateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} />
       </FocusedVerificationWorkspace>
     );
