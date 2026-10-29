@@ -454,6 +454,7 @@ export default function SocialUpdatesDashboard({
                       aria-label={`${item.label} update channel`}
                       style={{
                         position: "fixed",
+                        zIndex: 100004,
                         top: routeMenuBounds.top,
                         left: routeMenuBounds.left,
                         width: routeMenuBounds.width,
@@ -917,7 +918,7 @@ export default function SocialUpdatesDashboard({
           color: #9ae6b4;
         }
         .route-menu-panel {
-          z-index: 10050;
+          z-index: 100004;
           display: flex;
           flex-direction: column;
           gap: 4px;

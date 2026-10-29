@@ -177,6 +177,7 @@ describe("SocialUpdatesDashboard account activation", () => {
 
     const menu = await screen.findByRole("listbox", { name: "X update channel" });
     expect(menu.style.position).toBe("fixed");
+    expect(Number(menu.style.zIndex)).toBeGreaterThan(100002);
     expect(Number.parseFloat(menu.style.top)).toBe(152);
     expect(Number.parseFloat(menu.style.maxHeight)).toBeLessThanOrEqual(window.innerHeight - 164);
 
