@@ -115,7 +115,9 @@ describe("VerificationToolDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
 
-    expect((await screen.findByRole("alert")).textContent).toContain("Publish RPC unavailable");
+    const publishError = await screen.findByRole("alert");
+    expect(publishError.textContent).toContain("Publish RPC unavailable");
+    expect(publishError.closest(".verification-focused-publish-bar")).not.toBeNull();
   });
 
   it("saves the role selected for Quick Verify", async () => {

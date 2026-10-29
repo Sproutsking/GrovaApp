@@ -49,7 +49,6 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
         {publishStatus && <p className="verification-setup-success" role="status">{publishStatus}</p>}
         {channelError && <p className="verification-setup-error" role="alert">{channelError}</p>}
         </section>
-        {setupError && <p className="verification-setup-error" role="alert">{setupError}</p>}
         <VerificationExperienceSettings value={config} onChange={onConfigChange} disabled={disabled} />
         {children}
         <div className="verification-focused-publish-bar">
@@ -61,6 +60,7 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
                 : "Select at least one destination channel above.")}
             </small>
           </div>
+          {setupError && <p className="verification-focused-publish-error" role="alert">{setupError}</p>}
           <button
             type="button"
             className="verification-dashboard-save"
@@ -108,6 +108,7 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
         .verification-focused-publish-bar>div{display:grid;gap:3px;min-width:0}
         .verification-focused-publish-bar strong{color:var(--text);font-size:calc((11px) + 1px)}
         .verification-focused-publish-bar small{color:var(--text-secondary);font-size:calc((9px) + 1px);line-height:1.35}
+        .verification-focused-publish-error{flex:1;margin:0;color:var(--danger,#ff8b82);font-size:calc((10px) + 1px);line-height:1.35}
         .verification-focused-publish-bar .verification-dashboard-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;min-height:36px;padding:0 12px}
         .verification-focused-publish-bar .verification-dashboard-save:disabled{opacity:.5;cursor:not-allowed}
         @media(max-width:900px){
