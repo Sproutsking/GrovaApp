@@ -32,4 +32,21 @@ describe("ReactionVerificationDashboard", () => {
       }),
     }));
   });
+
+  it("saves the role selected for Reaction Check", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(
+      <ReactionVerificationDashboard
+        roles={[{ id: "verified", name: "Verified", position: 1, permissions: {} }]}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Verified role" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Reaction Check" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      methods: expect.objectContaining({ reaction: expect.objectContaining({ roleId: "verified" }) }),
+    })));
+  });
 });

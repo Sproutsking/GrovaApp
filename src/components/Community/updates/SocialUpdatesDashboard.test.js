@@ -137,6 +137,58 @@ describe("SocialUpdatesDashboard account activation", () => {
     expect(screen.getByRole("switch", { name: "X active" }).disabled).toBe(false);
   });
 
+  it("opens the route picker below its trigger and saves the chosen channel", async () => {
+    socialUpdatesService.listConnections.mockResolvedValue([{
+      id: "source-x",
+      provider: "x",
+      provider_account_id: "x-account",
+      display_name: "My X account",
+      status: "active",
+    }]);
+    socialUpdatesService.listRouting.mockResolvedValue([{
+      id: "route-x",
+      provider: "x",
+      channel_id: "general",
+      enabled: true,
+      connection: { provider: "x" },
+    }]);
+    render(
+      <SocialUpdatesDashboard
+        communityId="community"
+        channels={[...channels, { id: "announcements", name: "announcements", type: "text" }]}
+        linkedSources={linkedSources}
+        canManage
+      />,
+    );
+
+    const trigger = await screen.findByRole("button", { name: /Sending updates to #general/ });
+    jest.spyOn(trigger, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      right: 500,
+      bottom: 144,
+      left: 100,
+      width: 400,
+      height: 44,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(trigger);
+
+    const menu = await screen.findByRole("listbox", { name: "X update channel" });
+    expect(menu.style.position).toBe("fixed");
+    expect(Number.parseFloat(menu.style.top)).toBe(152);
+    expect(Number.parseFloat(menu.style.maxHeight)).toBeLessThanOrEqual(window.innerHeight - 164);
+
+    fireEvent.click(screen.getByRole("option", { name: /announcements/ }));
+
+    await waitFor(() => expect(socialUpdatesService.saveRouting).toHaveBeenCalledWith(expect.objectContaining({
+      connectionId: "source-x",
+      channelId: "announcements",
+      enabled: true,
+    })));
+  });
+
   it("does not allow a linked platform with no inbound adapter to be activated", async () => {
     socialUpdatesService.listConnections.mockResolvedValue([{
       id: "source-kick",

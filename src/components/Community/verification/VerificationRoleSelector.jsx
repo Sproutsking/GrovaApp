@@ -46,6 +46,7 @@ export default function VerificationRoleSelector({
               <strong>{role.name}</strong>
               {roleGroup.roles.length > 1 && <small>{roleGroup.roles.length} matching role entries</small>}
               <small>Rank {Number(role.position) + 1}</small>
+              {groupSelected && <small className="verification-role-picker-selected">Selected for this check</small>}
               {!eligible && <small className="verification-role-picker-reason">{issueLabel[issue]}</small>}
             </button>
             {canManageRoles && (
@@ -62,7 +63,10 @@ export default function VerificationRoleSelector({
                 className="verification-role-picker-promote"
                 aria-label={`Move ${role.name} above default role`}
                 disabled={disabled || !onPromoteRole}
-                onClick={() => onPromoteRole?.(role.id)}
+                onClick={async () => {
+                  const promoted = await onPromoteRole?.(role.id);
+                  if (promoted !== false) onSelect?.(role.id);
+                }}
               >
                 Move above default
               </button>

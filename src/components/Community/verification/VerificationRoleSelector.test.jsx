@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import VerificationRoleSelector from "./VerificationRoleSelector";
 
 const roles = [
@@ -24,12 +24,30 @@ describe("VerificationRoleSelector", () => {
     expect(onSelect).toHaveBeenCalledWith("verified");
   });
 
-  it("offers rank promotion for roles below the default role", () => {
+  it("selects a role after its rank is successfully promoted", async () => {
     const onPromoteRole = jest.fn();
-    render(<VerificationRoleSelector roles={roles} onPromoteRole={onPromoteRole} />);
+    const onSelect = jest.fn();
+    render(<VerificationRoleSelector roles={roles} onPromoteRole={onPromoteRole} onSelect={onSelect} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Move Ranked above default role" }));
-    expect(onPromoteRole).toHaveBeenCalledWith("ranked");
+    await waitFor(() => {
+      expect(onPromoteRole).toHaveBeenCalledWith("ranked");
+      expect(onSelect).toHaveBeenCalledWith("ranked");
+    });
+  });
+
+  it("does not select a role when rank promotion fails", async () => {
+    const onSelect = jest.fn();
+    render(
+      <VerificationRoleSelector
+        roles={roles}
+        onPromoteRole={jest.fn().mockResolvedValue(false)}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Ranked above default role" }));
+    await waitFor(() => expect(onSelect).not.toHaveBeenCalled());
   });
 
   it("groups duplicate names and selects the eligible underlying role", () => {

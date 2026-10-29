@@ -259,17 +259,28 @@ const RolesPermissionsSection = ({
 
           {/* Color */}
           <div className="rps-field-label" style={{ marginTop: 14 }}>Role Color</div>
-          <div className="rps-color-grid">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                className={`rps-swatch${editedColor === c ? " active" : ""}`}
-                style={{ background: c }}
-                onClick={() => canEditSelectedRole && setEditedColor(c)}
-              >
-                {editedColor === c && <Check size={9} color="#000" strokeWidth={3} />}
-              </button>
-            ))}
+          <div className="rps-color-picker">
+            <div className="rps-color-grid" role="group" aria-label="Choose role color">
+              {COLORS.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  className={`rps-swatch${editedColor === c ? " active" : ""}`}
+                  style={{ "--swatch-color": c }}
+                  aria-label={`Set role color ${c}`}
+                  aria-pressed={editedColor === c}
+                  title={c}
+                  disabled={!canEditSelectedRole}
+                  onClick={() => setEditedColor(c)}
+                >
+                  {editedColor === c && <Check size={12} strokeWidth={3} />}
+                </button>
+              ))}
+            </div>
+            <div className="rps-color-selection" aria-live="polite">
+              <span className="rps-color-selection-swatch" style={{ background: editedColor }} />
+              <span><small>Selected color</small><code>{editedColor.toUpperCase()}</code></span>
+            </div>
           </div>
 
           <div className="rps-field-label" style={{ marginTop: 14 }}>Role Icon</div>
@@ -433,10 +444,18 @@ const rpsStyles = `
   .rps-name-inp:focus{border-color:rgba(156,255,0,.4)}
   .rps-name-inp:disabled{background:transparent;border-color:rgba(30,30,30,.5)}
 
-  .rps-color-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:14px}
-  .rps-swatch{aspect-ratio:1;border-radius:6px;border:2px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
-  .rps-swatch.active{border-color:#fff;transform:scale(1.1);box-shadow:0 2px 8px rgba(0,0,0,.5)}
-  .rps-swatch:hover{transform:scale(1.08)}
+  .rps-color-picker{display:grid;gap:9px;justify-items:start;margin-bottom:14px}
+  .rps-color-grid{display:grid;grid-template-columns:repeat(auto-fill,40px);gap:7px;width:100%;max-width:390px}
+  .rps-swatch{position:relative;width:40px;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:var(--swatch-color);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.25),0 2px 6px rgba(0,0,0,.22);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+  .rps-swatch.active{border:2px solid #fff;outline:2px solid color-mix(in srgb,var(--swatch-color) 72%,white);outline-offset:2px;box-shadow:inset 0 1px rgba(255,255,255,.35),0 3px 12px rgba(0,0,0,.38)}
+  .rps-swatch:hover:not(:disabled){transform:translateY(-2px);box-shadow:inset 0 1px rgba(255,255,255,.3),0 5px 12px rgba(0,0,0,.34)}
+  .rps-swatch:focus-visible{outline:2px solid #fff;outline-offset:3px}
+  .rps-swatch:disabled{cursor:not-allowed;opacity:.62}
+  .rps-color-selection{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:linear-gradient(120deg,rgba(255,255,255,.055),rgba(255,255,255,.02))}
+  .rps-color-selection-swatch{width:20px;height:20px;border:1px solid rgba(255,255,255,.32);border-radius:6px;box-shadow:inset 0 1px rgba(255,255,255,.28),0 2px 5px rgba(0,0,0,.25)}
+  .rps-color-selection>span:last-child{display:grid;gap:2px}
+  .rps-color-selection small{color:#777;font-size:calc((9px) + 1px);font-weight:700;text-transform:uppercase}
+  .rps-color-selection code{color:#ddd;font-size:calc((10px) + 1px);font-weight:800}
 
   .rps-stats-row{display:flex;gap:8px;margin-bottom:10px}
   .rps-stat-pill{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;background:rgba(16,16,16,.9);border:1px solid rgba(32,32,32,.9);font-size:calc((11px) + 1px);color:#888;font-weight:700;flex:1}

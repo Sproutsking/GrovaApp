@@ -20,6 +20,24 @@ describe("RolesPermissionsSection permissions", () => {
     expect(onInitialRoleOpened).toHaveBeenCalled();
   });
 
+  it("uses compact color thumbnails and reflects the selected role color", () => {
+    render(
+      <RolesPermissionsSection
+        roles={[{ id: "member", name: "Member", color: "#667eea", permissions: {} }]}
+        canManageRoles
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Member"));
+    const palette = screen.getByRole("group", { name: "Choose role color" });
+    expect(palette.querySelectorAll("button")).toHaveLength(15);
+    expect(screen.getByText("#667EEA")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Set role color #9cff00" }));
+
+    expect(screen.getByRole("button", { name: "Set role color #9cff00" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("#9CFF00")).not.toBeNull();
+  });
+
   it("presents permissions as selectable cards and saves the chosen state", async () => {
     const onUpdateRole = jest.fn().mockResolvedValue(undefined);
     const role = { id: "member", name: "Member", permissions: {} };

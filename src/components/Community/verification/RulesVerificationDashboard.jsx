@@ -165,9 +165,16 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
   const promoteRole = async (roleId) => {
     setError("");
     try {
-      await onPromoteRole?.(roleId);
+      const promoted = await onPromoteRole?.(roleId);
+      if (promoted === false) return false;
+      setGrant((current) => ({
+        enabled: true,
+        roleIds: [...new Set([...current.roleIds, roleId])],
+      }));
+      return true;
     } catch (promotionError) {
       setError(promotionError.message || "Could not update this role's position.");
+      return false;
     }
   };
 

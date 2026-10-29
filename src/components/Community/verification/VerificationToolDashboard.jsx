@@ -104,6 +104,18 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
   const candidateRoleGroups = groupVerificationRoles(getVerificationRoleCandidates(roles));
   const selectableRoleIds = new Set(getSelectableVerificationRoles(roles).map((role) => role.id));
   const selectedRoleIds = config.roleGrant?.roleIds || [];
+  const promoteRole = async (roleId) => {
+    const promoted = await onPromoteRole?.(roleId);
+    if (promoted !== false) {
+      onPatch({
+        roleGrant: {
+          ...config.roleGrant,
+          enabled: true,
+          roleIds: [...new Set([...selectedRoleIds, roleId])],
+        },
+      });
+    }
+  };
   const save = () => {
     const eligibleRoleIds = selectedRoleIds.filter((roleId) =>
       selectableRoleIds.has(roleId),
@@ -185,7 +197,7 @@ function RoleGrantPage({ communityId, config, roles, channels, categories, acces
                 />
               )}
               {getVerificationRoleIssue(role, roles) === "rank" && (
-                <button type="button" className="verification-role-promote" disabled={disabled || !onPromoteRole} onClick={() => onPromoteRole?.(role.id)}>
+                <button type="button" className="verification-role-promote" disabled={disabled || !onPromoteRole} onClick={() => promoteRole(role.id)}>
                   Move {role.name} above default role
                 </button>
               )}
@@ -260,8 +272,10 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
     setError("");
     try {
       await onPromoteRole?.(roleId);
+      return true;
     } catch (promotionError) {
       setError(promotionError.message || "Could not update this role's position.");
+      return false;
     }
   };
 

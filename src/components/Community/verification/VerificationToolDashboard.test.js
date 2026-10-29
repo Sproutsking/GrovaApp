@@ -97,6 +97,29 @@ describe("VerificationToolDashboard", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Role hierarchy update denied");
   });
 
+  it("saves the role selected for Quick Verify", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(
+      <VerificationToolDashboard
+        focusMode="quick"
+        roles={[
+          { id: "member", name: "Member", position: 2, is_default: true, permissions: {} },
+          { id: "verified", name: "Verified", position: 1, permissions: {} },
+        ]}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Verified role" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Quick Verify" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      methods: expect.objectContaining({
+        quick: expect.objectContaining({ roleId: "verified" }),
+      }),
+    })));
+  });
+
   it("shows entry-channel selection inside the selected verification option", () => {
     const onToggleChannel = jest.fn();
     const channels = ["general", "announcements", "verify", "rules", "welcome", "support"]
@@ -175,8 +198,8 @@ describe("VerificationToolDashboard", () => {
     expect(screen.getByRole("checkbox", { name: /Verified/ }).checked).toBe(true);
   });
 
-  it("shows existing community roles and provides promotion for safe roles below the default rank", () => {
-    const onPromoteRole = jest.fn();
+  it("selects an existing role after promoting it above the default rank", async () => {
+    const onPromoteRole = jest.fn().mockResolvedValue(true);
     render(
       <VerificationToolDashboard
         focusMode="role_grant"
@@ -194,7 +217,29 @@ describe("VerificationToolDashboard", () => {
     expect(screen.getByText("Existing team")).not.toBeNull();
     expect(screen.getByRole("checkbox", { name: /Existing team/ }).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Move Existing team above default role" }));
-    expect(onPromoteRole).toHaveBeenCalledWith("existing");
+    await waitFor(() => {
+      expect(onPromoteRole).toHaveBeenCalledWith("existing");
+      expect(screen.getByRole("checkbox", { name: /Enable verified role selection/ }).checked).toBe(true);
+      expect(screen.getByRole("checkbox", { name: /Existing team/ }).checked).toBe(true);
+    });
+  });
+
+  it("saves the selected role for Picture Check", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(
+      <VerificationToolDashboard
+        focusMode="picture"
+        roles={[{ id: "verified", name: "Verified", position: 1, permissions: {} }]}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Verified role" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Picture Check" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      methods: expect.objectContaining({ picture: expect.objectContaining({ roleId: "verified" }) }),
+    })));
   });
 
   it("keeps unsafe roles visible for review, but blocks granting them until their permissions are safe", async () => {

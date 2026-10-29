@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { Check, ChevronDown, Link2, Plus, RefreshCw, Wifi } from "lucide-react";
 import socialUpdatesService, { SOCIAL_PROVIDERS, SOCIAL_UPDATE_PROVIDER_IDS, SOCIAL_PUBLIC_PROFILE_PROVIDER_IDS } from "../../../services/community/socialUpdatesService";
@@ -32,6 +32,9 @@ export default function SocialUpdatesDashboard({
   const [notice, setNotice] = useState("");
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [openRouteMenu, setOpenRouteMenu] = useState(null);
+  const [routeMenuBounds, setRouteMenuBounds] = useState(null);
+  const routeTriggerRefs = useRef(new Map());
+  const routeMenuRef = useRef(null);
   const [linkingAccount, setLinkingAccount] = useState(false);
 
   const textChannels = useMemo(() => channels.filter((channel) => channel.type !== "voice"), [channels]);
@@ -57,6 +60,66 @@ export default function SocialUpdatesDashboard({
   useEffect(() => {
     refresh().catch((loadError) => setError(loadError.message || "Could not load social sources."));
   }, [refresh]);
+
+  const positionRouteMenu = useCallback((providerId) => {
+    const trigger = routeTriggerRefs.current.get(providerId);
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const gutter = 12;
+    const width = Math.min(Math.max(rect.width, 260), window.innerWidth - gutter * 2);
+    const left = Math.max(gutter, Math.min(rect.left, window.innerWidth - width - gutter));
+    const top = rect.bottom + 8;
+    setRouteMenuBounds({
+      top,
+      left,
+      width,
+      maxHeight: Math.max(0, window.innerHeight - top - gutter),
+    });
+  }, []);
+
+  const toggleRouteMenu = (providerId, trigger) => {
+    if (openRouteMenu === providerId) {
+      setOpenRouteMenu(null);
+      setRouteMenuBounds(null);
+      return;
+    }
+    routeTriggerRefs.current.set(providerId, trigger);
+    const triggerRect = trigger.getBoundingClientRect();
+    const minimumMenuHeight = Math.min(240, window.innerHeight - 24);
+    if (window.innerHeight - triggerRect.bottom - 12 < minimumMenuHeight) {
+      trigger.scrollIntoView?.({ block: "start" });
+    }
+    setOpenRouteMenu(providerId);
+    positionRouteMenu(providerId);
+  };
+
+  useEffect(() => {
+    if (!openRouteMenu) return undefined;
+    const reposition = () => positionRouteMenu(openRouteMenu);
+    const closeOutside = (event) => {
+      const trigger = routeTriggerRefs.current.get(openRouteMenu);
+      if (trigger?.contains(event.target) || routeMenuRef.current?.contains(event.target)) return;
+      setOpenRouteMenu(null);
+      setRouteMenuBounds(null);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setOpenRouteMenu(null);
+        setRouteMenuBounds(null);
+      }
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    reposition();
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openRouteMenu, positionRouteMenu]);
 
   const inboundProviders = new Set(SOCIAL_UPDATE_PROVIDER_IDS);
   const linkedSourceKeys = new Set(linkedSources
@@ -368,7 +431,11 @@ export default function SocialUpdatesDashboard({
                   <button
                     type="button"
                     className={`route-menu-trigger${configuredRoute ? " selected" : ""}`}
-                    onClick={() => setOpenRouteMenu((current) => current === item.id ? null : item.id)}
+                      ref={(element) => {
+                        if (element) routeTriggerRefs.current.set(item.id, element);
+                        else routeTriggerRefs.current.delete(item.id);
+                      }}
+                      onClick={(event) => toggleRouteMenu(item.id, event.currentTarget)}
                     disabled={!canManage || !available || !connected || busy}
                     aria-expanded={openRouteMenu === item.id}
                     aria-haspopup="listbox"
@@ -379,8 +446,20 @@ export default function SocialUpdatesDashboard({
                     </span>
                     <ChevronDown size={14} className={openRouteMenu === item.id ? "route-menu-chevron open" : "route-menu-chevron"} />
                   </button>
-                  {openRouteMenu === item.id && (
-                    <div className="route-menu-panel" role="listbox" aria-label={`${item.label} update channel`}>
+                  {openRouteMenu === item.id && routeMenuBounds && ReactDOM.createPortal(
+                    <div
+                      ref={routeMenuRef}
+                      className="route-menu-panel"
+                      role="listbox"
+                      aria-label={`${item.label} update channel`}
+                      style={{
+                        position: "fixed",
+                        top: routeMenuBounds.top,
+                        left: routeMenuBounds.left,
+                        width: routeMenuBounds.width,
+                        maxHeight: routeMenuBounds.maxHeight,
+                      }}
+                    >
                       <div className="route-menu-heading">Choose destination</div>
                       {textChannels.length ? textChannels.map((channel) => (
                         <button
@@ -391,6 +470,7 @@ export default function SocialUpdatesDashboard({
                           key={channel.id}
                           onClick={() => {
                             setOpenRouteMenu(null);
+                            setRouteMenuBounds(null);
                             saveRoute(connection || { provider: item.id }, channel.id, active);
                           }}
                         >
@@ -401,10 +481,11 @@ export default function SocialUpdatesDashboard({
                       )) : (
                         <div className="route-menu-empty">Create a channel to receive updates.</div>
                       )}
-                      <button type="button" className="route-menu-create" onClick={() => { setOpenRouteMenu(null); openCreateChannel(); }}>
+                      <button type="button" className="route-menu-create" onClick={() => { setOpenRouteMenu(null); setRouteMenuBounds(null); openCreateChannel(); }}>
                         <Plus size={14} /> Create a new channel
                       </button>
-                    </div>
+                    </div>,
+                    document.body,
                   )}
                 </div>
 
@@ -836,19 +917,18 @@ export default function SocialUpdatesDashboard({
           color: #9ae6b4;
         }
         .route-menu-panel {
-          position: absolute;
-          z-index: 12;
-          right: 0;
-          bottom: calc(100% + 7px);
-          left: 0;
+          z-index: 10050;
           display: flex;
           flex-direction: column;
           gap: 4px;
+          box-sizing: border-box;
           padding: 7px;
           border: 1px solid rgba(154,230,180,0.28);
           border-radius: 11px;
           background: #151a17;
           box-shadow: 0 18px 42px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.025);
+          overflow-y: auto;
+          overscroll-behavior: contain;
         }
         .route-menu-heading {
           padding: 4px 6px 6px;
@@ -1040,10 +1120,6 @@ export default function SocialUpdatesDashboard({
           }
           .social-platform-create {
             min-height: 40px;
-          }
-          .route-menu-panel {
-            bottom: auto;
-            top: calc(100% + 7px);
           }
         }
       `}</style>
