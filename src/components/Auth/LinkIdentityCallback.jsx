@@ -47,8 +47,8 @@ export default function LinkIdentityCallback() {
         const latestIdentity = userData?.user?.identities?.at(-1);
         if (!latestIdentity) throw new Error("The provider identity could not be confirmed.");
 
-        const expectedProvider = pending.platform === "x" ? "twitter" : pending.platform;
-        if (latestIdentity.provider !== expectedProvider && !(pending.platform === "instagram" && latestIdentity.provider === "facebook")) {
+        const expectedProviders = pending.platform === "x" ? ["x", "twitter"] : [pending.platform];
+        if (!expectedProviders.includes(latestIdentity.provider) && !(pending.platform === "instagram" && latestIdentity.provider === "facebook")) {
           throw new Error("The returned provider did not match the identity you selected.");
         }
 

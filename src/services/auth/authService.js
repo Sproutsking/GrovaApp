@@ -62,7 +62,7 @@ class AuthService {
         options.queryParams = { access_type: "offline", prompt: "select_account" };
         break;
       case "x":
-        options.scopes = "tweet.read users.read";
+        options.scopes = "tweet.read users.read users.email offline.access";
         break;
       case "facebook":
         options.scopes = "email,public_profile";
@@ -83,8 +83,7 @@ class AuthService {
       return await this._signInWithPopup(provider, options);
     }
 
-    const supabaseProvider = provider === "x" ? "twitter" : provider;
-    const { error } = await supabase.auth.signInWithOAuth({ provider: supabaseProvider, options });
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
     if (error) throw error;
     return true;
   }
@@ -147,7 +146,7 @@ class AuthService {
             window.removeEventListener("message", onMessage);
             if (popup && !popup.closed) popup.close();
             console.warn('[AuthService] popup signin timed out — falling back to redirect');
-            const { error } = await supabase.auth.signInWithOAuth({ provider: provider === "x" ? "twitter" : provider, options });
+            const { error } = await supabase.auth.signInWithOAuth({ provider, options });
             if (error) return reject(error);
             resolve(true);
           } catch (e) {

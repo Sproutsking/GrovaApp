@@ -133,7 +133,7 @@ function buildPopupHTML(provider, supabaseUrl, supabaseAnonKey, redirectOrigin) 
           redirectTo:'${callbackUrl}',
           skipBrowserRedirect:false,
           ${provider === "google" ? "queryParams:{access_type:'offline',prompt:'select_account'}," : ""}
-          ${provider === "x" ? "scopes:'tweet.read users.read'," : ""}
+          ${provider === "x" ? "scopes:'tweet.read users.read users.email offline.access'," : ""}
           ${provider === "discord" ? "scopes:'identify email'," : ""}
           ${provider === "facebook" ? "scopes:'email,public_profile'," : ""}
         }
