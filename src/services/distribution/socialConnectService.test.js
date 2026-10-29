@@ -67,8 +67,11 @@ describe('getPlatformConfig', () => {
   it('preserves publishing scopes for existing distribution callers', () => {
     expect(getPlatformConfig('x').scopes).toContain('tweet.write');
     expect(getPlatformConfig('x').scopes).toContain('users.email');
-    expect(getPlatformConfig('facebook').scopes.split(' ')).toEqual(expect.arrayContaining(['email', 'public_profile']));
+    expect(getPlatformConfig('facebook').scopes).toBe('email,public_profile,pages_show_list,pages_read_engagement,pages_manage_posts');
+    expect(getPlatformConfig('facebook', { readOnly: true }).scopes).toBe('email,public_profile');
     expect(getPlatformConfig('instagram').scopes).toContain('pages_show_list');
+    expect(getPlatformConfig('instagram').scopes).not.toContain(' ');
+    expect(getPlatformConfig('instagram', { readOnly: true }).scopes).toBe('email,public_profile,instagram_basic');
     expect(getPlatformConfig('instagram').provider).toBe('facebook');
     expect(getPlatformConfig('instagram').scopes).toContain('instagram_content_publish');
     expect(getPlatformConfig('linkedin').scopes).toContain('w_member_social');

@@ -111,13 +111,13 @@ const PLATFORM_CONFIGS = {
   },
   facebook: {
     provider: "facebook",
-    scopes:   "email public_profile pages_show_list pages_read_engagement pages_manage_posts",
+    scopes:   "email,public_profile,pages_show_list,pages_read_engagement,pages_manage_posts",
     label:    "Facebook",
   },
   instagram: {
     // Instagram uses Facebook's OAuth
     provider:      "facebook",
-    scopes:        "email public_profile pages_show_list pages_read_engagement instagram_basic instagram_content_publish",
+    scopes:        "email,public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish",
     label:         "Instagram",
     subPlatform:   true,  // needs extra step to get IG account ID
   },
@@ -170,8 +170,8 @@ const PLATFORM_CONFIGS = {
 
 const READ_ONLY_SCOPES = {
   x: "tweet.read users.read users.email offline.access",
-  facebook: "email public_profile",
-  instagram: "email public_profile instagram_basic",
+  facebook: "email,public_profile",
+  instagram: "email,public_profile,instagram_basic",
   linkedin: "openid profile email",
   twitch: "user:read:email",
   spotify: "user-read-private user-read-email",
