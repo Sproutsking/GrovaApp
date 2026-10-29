@@ -32,7 +32,7 @@ const HomeViewRouter = (props) => {
 
   return (
     <Suspense fallback={<UnifiedLoader />}>
-      <div style={{ willChange: "contents" }}>
+      <div>
         {safeLens === "everyday" && <HomeView {...props} trinityLens="everyday" activeHomeTab={activeHomeTab} />}
         {safeLens === "gaming" && <GamingHomeView {...props} trinityLens="gaming" activeHomeTab={activeHomeTab} />}
         {safeLens === "web3" && <Web3HomeView {...props} trinityLens="web3" activeHomeTab={activeHomeTab} />}

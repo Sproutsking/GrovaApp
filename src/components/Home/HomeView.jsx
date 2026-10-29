@@ -3,9 +3,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // ARCHITECTURE UPGRADES vs v26:
 //
-// [ULTRA-1]  Page size bumped to 26 posts (was 20). First render always
-//            shows 26 posts — matching PostTab's render window so there
-//            is never a placeholder visible at the bottom on first paint.
+// [ULTRA-1]  Initial feed requests are kept intentionally small so mobile
+//            can show content quickly; infinite scroll fetches the next page.
 //
 // [ULTRA-2]  initializeHome() runs auth + 4 data sources in ONE
 //            Promise.all. The very first setState call includes ALL data —
@@ -71,8 +70,8 @@ import { walletService }   from "../../services/wallet/walletService";
 import { verifyWithdrawalPin } from "../../services/wallet/withdrawServiceV2";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const POSTS_PAGE = 30;   // increased for aggressive preloading
-const REELS_PAGE = 24;
+const POSTS_PAGE = 18;
+const REELS_PAGE = 12;
 const NEWS_PAGE  = 30;
 const SWR_TTL    = 120_000; // [ULTRA-5] 2 minutes
 
@@ -85,6 +84,7 @@ function swrVal(key)      { return _swr.get(key)?.val || null; }
 
 const HOME_CACHE_PREFIX = "xv_home_cache_v1:";
 const HOME_CACHE_TTL = 120_000;
+const HOME_CACHE_STALE_TTL = 24 * 60 * 60 * 1000;
 function scopedHomeKey(key, userId) {
   return `${userId || "anonymous"}:${key}`;
 }
@@ -95,7 +95,7 @@ function readHomeCache(key) {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
-    if (Date.now() - (parsed.ts || 0) > HOME_CACHE_TTL) {
+    if (Date.now() - (parsed.ts || 0) > HOME_CACHE_STALE_TTL) {
       window.localStorage.removeItem(HOME_CACHE_PREFIX + key);
       return null;
     }
@@ -377,15 +377,20 @@ const HomeView = ({
   onNavigate,
   onOpenDMUpdates,
 }) => {
-  // [ULTRA-5] Pre-seed from SWR synchronously — frame 0 shows stale content
-  const [posts,     setPosts]     = useState(() => swrVal(scopedHomeKey("posts", userId))   || readHomeCache(scopedHomeKey("posts", userId))   || []);
-  const [newsPosts, setNewsPosts] = useState(() => swrVal(scopedHomeKey("news", userId))    || readHomeCache(scopedHomeKey("news", userId))    || []);
-  const [reels,     setReels]     = useState(() => swrVal(scopedHomeKey("reels", userId))   || readHomeCache(scopedHomeKey("reels", userId))   || []);
-  const [stories,   setStories]   = useState(() => swrVal(scopedHomeKey("stories", userId)) || readHomeCache(scopedHomeKey("stories", userId)) || []);
+  // Hydrate once from memory or persisted cache, then refresh it in the background.
+  const [cachedHome] = useState(() => ({
+    posts: swrVal(scopedHomeKey("posts", userId)) || readHomeCache(scopedHomeKey("posts", userId)),
+    news: swrVal(scopedHomeKey("news", userId)) || readHomeCache(scopedHomeKey("news", userId)),
+    reels: swrVal(scopedHomeKey("reels", userId)) || readHomeCache(scopedHomeKey("reels", userId)),
+    stories: swrVal(scopedHomeKey("stories", userId)) || readHomeCache(scopedHomeKey("stories", userId)),
+  }));
+  const [posts,     setPosts]     = useState(() => cachedHome.posts || []);
+  const [newsPosts, setNewsPosts] = useState(() => cachedHome.news || []);
+  const [reels,     setReels]     = useState(() => cachedHome.reels || []);
+  const [stories,   setStories]   = useState(() => cachedHome.stories || []);
   const [currentUser, setCurrentUser] = useState(null);
 
-  const hasCachedFeed = ((swrVal(scopedHomeKey("posts", userId)) || readHomeCache(scopedHomeKey("posts", userId)) || []).length > 0) ||
-                        ((swrVal(scopedHomeKey("reels", userId)) || readHomeCache(scopedHomeKey("reels", userId)) || []).length > 0);
+  const hasCachedFeed = (cachedHome.posts?.length || 0) > 0 || (cachedHome.reels?.length || 0) > 0;
   const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedFeed);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
@@ -459,10 +464,12 @@ const HomeView = ({
     const reelsKey = scopedHomeKey("reels", userId);
     const storiesKey = scopedHomeKey("stories", userId);
     const newsKey = scopedHomeKey("news", userId);
-    const cp = swrVal(postsKey) || readHomeCache(postsKey);
-    const cr = swrVal(reelsKey) || readHomeCache(reelsKey);
-    const cs = swrVal(storiesKey) || readHomeCache(storiesKey);
-    const cn = !newsCategory ? swrVal(newsKey) || readHomeCache(newsKey) : null;
+    const cp = swrVal(postsKey) || readHomeCache(postsKey) || cachedHome.posts;
+    const cr = swrVal(reelsKey) || readHomeCache(reelsKey) || cachedHome.reels;
+    const cs = swrVal(storiesKey) || readHomeCache(storiesKey) || cachedHome.stories;
+    const cn = !newsCategory
+      ? swrVal(newsKey) || readHomeCache(newsKey) || cachedHome.news
+      : null;
     if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
 
     const now = Date.now();
@@ -544,14 +551,14 @@ const HomeView = ({
         setNewsPosts(newsCategory ? [] : (cn || []));
         setShowSkeleton(false);
 
-        postsOffRef.current = POSTS_PAGE;
-        reelsOffRef.current = REELS_PAGE;
+        postsOffRef.current = safePosts.length;
+        reelsOffRef.current = safeReels.length;
         newsOffRef.current = NEWS_PAGE;
-        hasMorePostsRef.current = safePosts.length === POSTS_PAGE;
-        hasMoreReelsRef.current = safeReels.length === REELS_PAGE;
+        hasMorePostsRef.current = safePosts.length >= POSTS_PAGE;
+        hasMoreReelsRef.current = safeReels.length >= REELS_PAGE;
         hasMoreNewsRef.current = (cn || []).length === NEWS_PAGE;
-        setHasMorePosts(safePosts.length === POSTS_PAGE);
-        setHasMoreReels(safeReels.length === REELS_PAGE);
+        setHasMorePosts(safePosts.length >= POSTS_PAGE);
+        setHasMoreReels(safeReels.length >= REELS_PAGE);
         setHasMoreNews((cn || []).length === NEWS_PAGE);
       });
 
