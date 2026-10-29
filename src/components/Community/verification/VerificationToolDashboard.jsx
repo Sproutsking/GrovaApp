@@ -55,10 +55,10 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
         <div className="verification-focused-publish-bar">
           <div>
             <strong>Publish verification panel</strong>
-            <small>
-              {selectedDestinations.length
+            <small role={publishStatus ? "status" : undefined}>
+              {publishStatus || (selectedDestinations.length
                 ? `Ready for ${selectedDestinations.length} selected channel${selectedDestinations.length === 1 ? "" : "s"}.`
-                : "Select at least one destination channel above."}
+                : "Select at least one destination channel above.")}
             </small>
           </div>
           <button
@@ -280,7 +280,6 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
     if (!saved) return;
     try {
       await onPublish?.(config);
-      selectMode(null);
     } catch (publishError) {
       setError(publishError.message || "Could not publish the verification panel.");
     }

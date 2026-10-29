@@ -136,6 +136,7 @@ describe("VerificationToolDashboard", () => {
   it("saves the configured check before publishing its verification panel", async () => {
     const onSave = jest.fn().mockResolvedValue(undefined);
     const onPublish = jest.fn().mockResolvedValue(undefined);
+    const onModeSelect = jest.fn();
     render(
       <VerificationToolDashboard
         focusMode="quick"
@@ -148,6 +149,7 @@ describe("VerificationToolDashboard", () => {
         selectedChannelIds={["verify"]}
         onSave={onSave}
         onPublish={onPublish}
+        onModeSelect={onModeSelect}
       />,
     );
 
@@ -156,6 +158,7 @@ describe("VerificationToolDashboard", () => {
 
     await waitFor(() => expect(onPublish).toHaveBeenCalled());
   expect(screen.getByText("Member panel preview")).not.toBeNull();
+    expect(onModeSelect).not.toHaveBeenCalledWith(null);
     expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
       methods: expect.objectContaining({ quick: expect.objectContaining({ enabled: true }) }),
