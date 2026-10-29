@@ -245,20 +245,20 @@ class RoleService {
         completion.method === "rules" && ["rules_accepted", "completed"].includes(completion.status),
       );
       return (allChannels || []).filter((channel) => {
-        if (verificationResult.data?.configured && verificationChannelIds.has(String(channel.id))) return true;
-        if (rulesGate.enabled && channel.id === rulesGate.rulesChannelId) return true;
-        if (
-          rulesGate.enabled
-          && rulesGate.flow === "rules_then_verify"
-          && rulesAccepted
-          && channel.id === rulesGate.verificationChannelId
-        ) return true;
+        const verificationRoute = (verificationResult.data?.configured && verificationChannelIds.has(String(channel.id)))
+          || (rulesGate.enabled && String(channel.id) === String(rulesGate.rulesChannelId))
+          || (
+            rulesGate.enabled
+            && rulesGate.flow === "rules_then_verify"
+            && rulesAccepted
+            && String(channel.id) === String(rulesGate.verificationChannelId)
+          );
         const access = resolveAccessForRole({
           roleId: role.id,
           channel,
           categoryId: channel.category_id ?? channel.category ?? null,
           rules,
-          defaultOpen: roleModel.hasPermission("viewChannels") && !channel.is_private,
+          defaultOpen: (roleModel.hasPermission("viewChannels") && !channel.is_private) || verificationRoute,
         });
         const channelOverride = channelOverrides.find((override) => override.channel_id === channel.id);
         const categoryOverride = categoryOverrides.find((override) => override.category_id === channel.category_id);
@@ -267,7 +267,7 @@ class RoleService {
           permission: "viewChannel",
           channelOverride,
           categoryOverride,
-          roleDefault: roleModel.hasPermission("viewChannels") && !channel.is_private,
+          roleDefault: (roleModel.hasPermission("viewChannels") && !channel.is_private) || verificationRoute,
         });
       });
     } catch (error) {

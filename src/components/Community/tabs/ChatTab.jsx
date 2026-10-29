@@ -75,6 +75,7 @@ const ChatTab = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
   const [channelPermissions, setChannelPermissions] = useState({});
+  const [channelPermissionRefresh, setChannelPermissionRefresh] = useState(0);
   const [reactionError, setReactionError] = useState("");
   const [roles, setRoles] = useState([]);
   const [members, setMembers] = useState([]);
@@ -254,7 +255,7 @@ const ChatTab = ({
       .then((entries) => { if (active) setChannelPermissions(Object.fromEntries(entries)); })
       .catch(() => { if (active) setChannelPermissions({}); });
     return () => { active = false; };
-  }, [community?.id, selectedChannel?.id, userId]);
+  }, [community?.id, selectedChannel?.id, userId, channelPermissionRefresh]);
 
   useEffect(() => {
     const handleEditChannel = (event) => {
@@ -339,7 +340,8 @@ const ChatTab = ({
   };
 
   const refreshAfterVerification = async () => {
-    await Promise.all([loadChannels(), loadMessages(), loadVerificationRouting()]);
+    setChannelPermissionRefresh((current) => current + 1);
+    await Promise.all([loadChannels(), loadMessages(), loadVerificationRouting(), loadPermissions()]);
   };
 
   const loadPermissions = async () => {

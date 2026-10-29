@@ -22,6 +22,7 @@ export function accessRuleAllowsPermission(access, permission) {
 }
 
 export function resolveChannelPermission({ access, permission, channelOverride, categoryOverride, roleDefault }) {
+  if (permission === "viewChannel" && channelOverride?.state) return channelOverride.state === "allow";
   if (access?.restricted && !accessRuleAllowsPermission(access, permission)) return false;
   const override = channelOverride?.state ? channelOverride : categoryOverride;
   if (override?.state) return override.state === "allow";

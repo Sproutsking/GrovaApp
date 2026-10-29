@@ -79,11 +79,13 @@ describe("community access rule enforcement", () => {
     })).toBe(true);
   });
 
-  it("keeps explicit access rules authoritative while allowing a narrower deny override", () => {
+  it("lets a channel-specific view override unlock only that channel", () => {
     const access = { restricted: true, canView: true, canSend: true };
     expect(resolveChannelPermission({ access, permission: "viewChannel", roleDefault: false })).toBe(true);
     expect(resolveChannelPermission({ access, permission: "viewChannel", channelOverride: { state: "deny" }, roleDefault: true })).toBe(false);
-    expect(resolveChannelPermission({ access: { ...access, canView: false }, permission: "viewChannel", channelOverride: { state: "allow" }, roleDefault: true })).toBe(false);
+    expect(resolveChannelPermission({ access: { ...access, canView: false }, permission: "viewChannel", channelOverride: { state: "allow" }, roleDefault: false })).toBe(true);
+    expect(resolveChannelPermission({ access: { ...access, canView: false }, permission: "viewChannel", categoryOverride: { state: "allow" }, roleDefault: false })).toBe(false);
+    expect(resolveChannelPermission({ access: { restricted: false, canView: false }, permission: "viewChannel", roleDefault: false })).toBe(false);
   });
 
   it("treats recent last_seen as online even when is_online is false", () => {
