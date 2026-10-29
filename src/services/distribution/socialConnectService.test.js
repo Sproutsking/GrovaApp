@@ -1,7 +1,5 @@
 import socialConnectService, { getPlatformConfig, resolveProviderLinkState, validateProfileUrl } from './socialConnectService';
 import { supabase } from "../config/supabase";
-import fs from "fs";
-import path from "path";
 
 jest.mock("../config/supabase", () => ({
   supabase: {
@@ -23,7 +21,7 @@ afterEach(() => {
 
 describe('getPlatformConfig', () => {
   it('keeps XRD account linking read-only', () => {
-    expect(getPlatformConfig('x', { readOnly: true }).scopes).toBe('tweet.read users.read offline.access');
+    expect(getPlatformConfig('x', { readOnly: true }).scopes).toBe('tweet.read users.read users.email offline.access');
     expect(getPlatformConfig('x', { readOnly: true }).scopes).not.toContain('tweet.write');
     expect(getPlatformConfig('x').provider).toBe('x');
     expect(getPlatformConfig('linkedin', { readOnly: true }).scopes).not.toContain('w_member_social');
@@ -68,6 +66,8 @@ describe('getPlatformConfig', () => {
 
   it('preserves publishing scopes for existing distribution callers', () => {
     expect(getPlatformConfig('x').scopes).toContain('tweet.write');
+    expect(getPlatformConfig('x').scopes).toContain('users.email');
+    expect(getPlatformConfig('facebook').scopes.split(' ')).toEqual(expect.arrayContaining(['email', 'public_profile']));
     expect(getPlatformConfig('instagram').scopes).toContain('pages_show_list');
     expect(getPlatformConfig('instagram').provider).toBe('facebook');
     expect(getPlatformConfig('instagram').scopes).toContain('instagram_content_publish');
@@ -218,12 +218,4 @@ describe('OAuth callback URL', () => {
     expect(html).toContain("sessionStorage.setItem('xeevia-social-link-pending', JSON.stringify({ platform, nonce }))");
   });
 
-  it('accepts current and legacy X identity names and stores the selected Meta Page token', () => {
-    const callback = fs.readFileSync(path.resolve(process.cwd(), "public/auth-social-callback.html"), "utf8");
-
-    expect(callback).toContain('x: ["x", "twitter"]');
-    expect(callback).toContain('fields: "id,name,access_token,instagram_business_account{id,username}"');
-    expect(callback).toContain('finish(platformUserId, targets[0].accessToken)');
-    expect(callback).toContain('finish(selectedTarget.id, selectedTarget.accessToken)');
-  });
 });

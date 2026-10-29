@@ -96,7 +96,7 @@ export function resolveProviderLinkState({ platform, identities = [], connection
 const PLATFORM_CONFIGS = {
   x: {
     provider: "x",
-    scopes:   "tweet.read tweet.write users.read offline.access",
+    scopes:   "tweet.read tweet.write users.read users.email offline.access",
     label:    "X (Twitter)",
   },
   google: {
@@ -169,7 +169,7 @@ const PLATFORM_CONFIGS = {
 };
 
 const READ_ONLY_SCOPES = {
-  x: "tweet.read users.read offline.access",
+  x: "tweet.read users.read users.email offline.access",
   facebook: "email public_profile",
   instagram: "email public_profile instagram_basic",
   linkedin: "openid profile email",
