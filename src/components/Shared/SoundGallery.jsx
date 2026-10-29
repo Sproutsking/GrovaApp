@@ -383,7 +383,7 @@ const SongAvatar = memo(({ name, size = 40 }) => {
       width: size, height: size, borderRadius: size * 0.28,
       background: `linear-gradient(135deg, ${c1}, ${c2})`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0, fontSize: size * 0.38, fontWeight: 800,
+      flexShrink: 0, fontSize: (size * 0.38) + 1, fontWeight: 800,
       color: "rgba(255,255,255,0.9)", letterSpacing: "-0.5px",
       boxShadow: `0 2px 8px ${c1}40`,
     }}>
@@ -513,7 +513,7 @@ const SoundDetailPanel = memo(({ song, contextLabel, onConfirm, onCancel }) => {
       {/* Header */}
       <div className="sg4-detail-hd">
         <div className="sg4-detail-art" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-          {playing ? <WaveBars playing color="rgba(255,255,255,0.9)" size="sm" bars={7} /> : <span style={{ fontSize: 20 }}>🎵</span>}
+          {playing ? <WaveBars playing color="rgba(255,255,255,0.9)" size="sm" bars={7} /> : <span style={{ fontSize: 21 }}>🎵</span>}
         </div>
         <div className="sg4-detail-info">
           <div className="sg4-detail-title">{title}</div>
@@ -1050,8 +1050,8 @@ const Skeleton = () => (
 const ErrorState = ({ onRetry }) => (
   <div className="sg4-center">
     <Music2 size={22} aria-hidden="true" style={{ color: "#a3e635" }} />
-    <p style={{ color: "rgba(255,255,255,.78)", textAlign: "center", fontSize: 14, fontWeight: 650, maxWidth: 280, lineHeight: 1.5, margin: "8px 0 0" }}>Can’t connect to the sound library right now</p>
-    <p style={{ color: "rgba(255,255,255,.42)", textAlign: "center", fontSize: 12, maxWidth: 270, lineHeight: 1.6, margin: 0 }}>Please try again in a moment.</p>
+    <p style={{ color: "rgba(255,255,255,.78)", textAlign: "center", fontSize: 15, fontWeight: 650, maxWidth: 280, lineHeight: 1.5, margin: "8px 0 0" }}>Can’t connect to the sound library right now</p>
+    <p style={{ color: "rgba(255,255,255,.42)", textAlign: "center", fontSize: 13, maxWidth: 270, lineHeight: 1.6, margin: 0 }}>Please try again in a moment.</p>
     <button className="sg4-retry" onClick={onRetry}><RefreshCw size={13} /> Try again</button>
   </div>
 );
@@ -1059,8 +1059,8 @@ const ErrorState = ({ onRetry }) => (
 const EmptyState = ({ unavailable = false, onRetry }) => (
   <div className="sg4-center">
     <Music2 size={22} aria-hidden="true" style={{ color: "rgba(163,230,53,.8)" }} />
-    <p style={{ color: "rgba(255,255,255,.78)", fontSize: 14, fontWeight: 650, textAlign: "center", margin: "8px 0 0" }}>{unavailable ? "No playable tracks right now" : "No tracks available yet"}</p>
-    <p style={{ color: "rgba(255,255,255,.25)", fontSize: 12, textAlign: "center", maxWidth: 280, lineHeight: 1.7, margin: 0 }}>
+    <p style={{ color: "rgba(255,255,255,.78)", fontSize: 15, fontWeight: 650, textAlign: "center", margin: "8px 0 0" }}>{unavailable ? "No playable tracks right now" : "No tracks available yet"}</p>
+    <p style={{ color: "rgba(255,255,255,.25)", fontSize: 13, textAlign: "center", maxWidth: 280, lineHeight: 1.7, margin: 0 }}>
       {unavailable ? "The library couldn’t reach its audio files. Please try again shortly." : "New sounds will appear here when they’re added to the library."}
     </p>
     {unavailable && <button className="sg4-retry" onClick={onRetry}><RefreshCw size={13} /> Try again</button>}
@@ -1217,7 +1217,7 @@ const CSS = `
   border-radius:10px;
   background:rgba(245,158,11,.07);
   color:#d6b36b;
-  font-size:11px;
+  font-size:calc((11px) + 1px);
   line-height:1.5;
 }
 
@@ -1256,10 +1256,10 @@ const CSS = `
   flex-shrink:0;
 }
 .sg4-hdr-title {
-  font-size:15px; font-weight:800; color:#fff; letter-spacing:-.4px; line-height:1;
+  font-size:calc((15px) + 1px); font-weight:800; color:#fff; letter-spacing:-.4px; line-height:1;
 }
 .sg4-hdr-sub {
-  font-size:11px; color:rgba(255,255,255,.35); margin-top:3px;
+  font-size:calc((11px) + 1px); color:rgba(255,255,255,.35); margin-top:3px;
 }
 .sg4-hdr-close {
   width:32px; height:32px; border-radius:10px;
@@ -1283,7 +1283,7 @@ const CSS = `
   width:100%; padding:10px 36px 10px 38px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.08);
-  border-radius:14px; color:#fff; font-size:13px;
+  border-radius:14px; color:#fff; font-size:calc((13px) + 1px);
   outline:none; caret-color:#84cc16;
   box-sizing:border-box; font-family:inherit;
   transition:border-color .15s, background .15s;
@@ -1296,7 +1296,7 @@ const CSS = `
 .sg4-search-clr {
   position:absolute; right:26px; top:50%; transform:translateY(-10%);
   background:none; border:none; color:rgba(255,255,255,.28);
-  cursor:pointer; font-size:12px; padding:4px;
+  cursor:pointer; font-size:calc((12px) + 1px); padding:4px;
   transition:color .15s;
 }
 .sg4-search-clr:hover { color:rgba(255,255,255,.6); }
@@ -1311,7 +1311,7 @@ const CSS = `
   padding:5px 12px; border-radius:20px; white-space:nowrap;
   background:rgba(255,255,255,.04);
   border:1px solid rgba(255,255,255,.07);
-  color:rgba(255,255,255,.4); font-size:12px; font-weight:600;
+  color:rgba(255,255,255,.4); font-size:calc((12px) + 1px); font-weight:600;
   cursor:pointer; transition:all .15s; font-family:inherit;
   flex-shrink:0;
 }
@@ -1342,11 +1342,11 @@ const CSS = `
 }
 .sg4-detail-info { flex:1; min-width:0; }
 .sg4-detail-title {
-  font-size:14px; font-weight:700; color:#fff;
+  font-size:calc((14px) + 1px); font-weight:700; color:#fff;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   margin-bottom:3px;
 }
-.sg4-detail-artist { font-size:12px; color:rgba(255,255,255,.38); }
+.sg4-detail-artist { font-size:calc((12px) + 1px); color:rgba(255,255,255,.38); }
 .sg4-detail-playbtn {
   width:40px; height:40px; border-radius:50%;
   background:rgba(132,204,22,.1);
@@ -1365,10 +1365,10 @@ const CSS = `
   margin-bottom:8px;
 }
 .sg4-ctrl-lbl {
-  font-size:10px; font-weight:700; color:rgba(255,255,255,.3);
+  font-size:calc((10px) + 1px); font-weight:700; color:rgba(255,255,255,.3);
   text-transform:uppercase; letter-spacing:.7px;
 }
-.sg4-ctrl-val { font-size:11px; color:#84cc16; font-weight:700; }
+.sg4-ctrl-val { font-size:calc((11px) + 1px); color:#84cc16; font-weight:700; }
 
 /* Sliders */
 .sg4-slider-wrap { position:relative; }
@@ -1395,11 +1395,11 @@ const CSS = `
 }
 .sg4-mix-hd {
   display:flex; align-items:center; gap:6px;
-  font-size:11px; font-weight:700; color:rgba(255,255,255,.35);
+  font-size:calc((11px) + 1px); font-weight:700; color:rgba(255,255,255,.35);
   text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px;
 }
 .sg4-mix-badge {
-  margin-left:auto; font-size:10px; font-weight:600;
+  margin-left:auto; font-size:calc((10px) + 1px); font-weight:600;
   color:rgba(132,204,22,.7); background:rgba(132,204,22,.08);
   border:1px solid rgba(132,204,22,.18); border-radius:20px;
   padding:2px 8px; text-transform:none; letter-spacing:0;
@@ -1408,9 +1408,9 @@ const CSS = `
   display:flex; align-items:center; gap:10px; margin-bottom:10px;
 }
 .sg4-mix-row:last-child { margin-bottom:0; }
-.sg4-mix-ico  { font-size:14px; flex-shrink:0; }
-.sg4-mix-lbl  { font-size:12px; color:rgba(255,255,255,.38); width:40px; flex-shrink:0; }
-.sg4-mix-pct  { font-size:11px; font-weight:700; width:36px; text-align:right; flex-shrink:0; }
+.sg4-mix-ico  { font-size:calc((14px) + 1px); flex-shrink:0; }
+.sg4-mix-lbl  { font-size:calc((12px) + 1px); color:rgba(255,255,255,.38); width:40px; flex-shrink:0; }
+.sg4-mix-pct  { font-size:calc((11px) + 1px); font-weight:700; width:36px; text-align:right; flex-shrink:0; }
 .sg4-mix-pct.green { color:#84cc16; }
 .sg4-mix-pct.blue  { color:#60a5fa; }
 
@@ -1420,14 +1420,14 @@ const CSS = `
   flex:1; padding:11px 0; border-radius:14px;
   background:rgba(255,255,255,.04);
   border:1px solid rgba(255,255,255,.08);
-  color:rgba(255,255,255,.5); font-size:13px; font-weight:600;
+  color:rgba(255,255,255,.5); font-size:calc((13px) + 1px); font-weight:600;
   cursor:pointer; font-family:inherit; transition:all .15s;
 }
 .sg4-btn-cancel:hover { background:rgba(255,255,255,.08); color:rgba(255,255,255,.8); }
 .sg4-btn-confirm {
   flex:2; padding:11px 0; border-radius:14px;
   background:linear-gradient(135deg,#84cc16,#65a30d);
-  border:none; color:#000; font-size:13px; font-weight:800;
+  border:none; color:#000; font-size:calc((13px) + 1px); font-weight:800;
   cursor:pointer; font-family:inherit;
   display:flex; align-items:center; justify-content:center; gap:6px;
   transition:all .15s;
@@ -1449,7 +1449,7 @@ const CSS = `
 
 .sg4-section {
   padding:10px 18px 5px;
-  font-size:10px; font-weight:700; color:rgba(255,255,255,.28);
+  font-size:calc((10px) + 1px); font-weight:700; color:rgba(255,255,255,.28);
   text-transform:uppercase; letter-spacing:.9px;
 }
 .sg4-divider {
@@ -1458,7 +1458,7 @@ const CSS = `
 }
 .sg4-empty-search {
   padding:24px 20px; color:rgba(255,255,255,.3);
-  font-size:13px; text-align:center;
+  font-size:calc((13px) + 1px); text-align:center;
 }
 
 /* Song row */
@@ -1492,23 +1492,23 @@ const CSS = `
 
 .sg4-info { flex:1; min-width:0; }
 .sg4-title {
-  font-size:13px; font-weight:700; color:#fff;
+  font-size:calc((13px) + 1px); font-weight:700; color:#fff;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   margin-bottom:2px; transition:color .15s; line-height:1.3;
 }
 .sg4-title.active { color:#84cc16; }
 .sg4-artist {
-  font-size:11px; color:rgba(255,255,255,.3);
+  font-size:calc((11px) + 1px); color:rgba(255,255,255,.3);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   display:flex; align-items:center; gap:5px; line-height:1.3;
 }
 .sg4-nourl-tag {
-  font-size:9px; color:rgba(255,255,255,.2);
+  font-size:calc((9px) + 1px); color:rgba(255,255,255,.2);
   background:rgba(255,255,255,.06); border-radius:4px;
   padding:1px 5px; flex-shrink:0;
 }
 .sg4-dur {
-  font-size:11px; color:rgba(255,255,255,.2); flex-shrink:0;
+  font-size:calc((11px) + 1px); color:rgba(255,255,255,.2); flex-shrink:0;
   margin-right:4px; font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum";
 }
@@ -1516,7 +1516,7 @@ const CSS = `
   width:30px; height:30px; border-radius:50%;
   background:rgba(132,204,22,.08);
   border:1.5px solid rgba(132,204,22,.28);
-  color:#84cc16; font-size:14px;
+  color:#84cc16; font-size:calc((14px) + 1px);
   display:flex; align-items:center; justify-content:center;
   cursor:pointer; flex-shrink:0; transition:all .15s;
 }
@@ -1538,7 +1538,7 @@ const CSS = `
   padding:9px 20px; border-radius:12px;
   background:rgba(132,204,22,.1);
   border:1px solid rgba(132,204,22,.28);
-  color:#84cc16; font-size:13px; font-weight:600;
+  color:#84cc16; font-size:calc((13px) + 1px); font-weight:600;
   cursor:pointer; font-family:inherit; transition:all .15s;
 }
 .sg4-retry:hover { background:rgba(132,204,22,.18); }
@@ -1548,10 +1548,10 @@ const CSS = `
   display:inline-flex; align-items:center; gap:7px; padding:8px 16px;
   border-radius:20px; background:rgba(132,204,22,.07);
   border:1px solid rgba(132,204,22,.22); color:#84cc16;
-  font-size:13px; font-weight:700; cursor:pointer;
+  font-size:calc((13px) + 1px); font-weight:700; cursor:pointer;
   transition:all .15s; font-family:inherit; flex-shrink:0;
 }
-.sg4-add-trigger.compact { padding:7px 11px; font-size:12px; border-radius:16px; }
+.sg4-add-trigger.compact { padding:7px 11px; font-size:calc((12px) + 1px); border-radius:16px; }
 .sg4-add-trigger:hover {
   background:rgba(132,204,22,.14);
   border-color:rgba(132,204,22,.42);
@@ -1568,14 +1568,14 @@ const CSS = `
   border-radius:16px; max-width:180px;
 }
 .sg4-badge-name {
-  font-size:12px; font-weight:600; color:#84cc16;
+  font-size:calc((12px) + 1px); font-weight:600; color:#84cc16;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .sg4-badge-change {
   padding:5px 10px; border-radius:10px;
   background:rgba(132,204,22,.07);
   border:1px solid rgba(132,204,22,.2);
-  color:#84cc16; font-size:11px; font-weight:600;
+  color:#84cc16; font-size:calc((11px) + 1px); font-weight:600;
   cursor:pointer; font-family:inherit; transition:all .15s;
 }
 .sg4-badge-change:hover { background:rgba(132,204,22,.14); }
@@ -1590,7 +1590,7 @@ const CSS = `
   width:24px; height:24px; border-radius:50%;
   background:rgba(132,204,22,.1);
   border:1px solid rgba(132,204,22,.28);
-  color:#84cc16; cursor:pointer; font-size:9px;
+  color:#84cc16; cursor:pointer; font-size:calc((9px) + 1px);
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
   transition:all .15s;
 }
@@ -1598,7 +1598,7 @@ const CSS = `
 .sg4-badge-rm {
   width:18px; height:18px; border-radius:50%;
   background:rgba(255,255,255,.05); border:none;
-  color:rgba(255,255,255,.35); cursor:pointer; font-size:10px;
+  color:rgba(255,255,255,.35); cursor:pointer; font-size:calc((10px) + 1px);
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
   transition:all .15s;
 }

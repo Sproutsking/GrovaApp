@@ -54,7 +54,7 @@
   padding: 4px 8px;
   background: var(--surface-muted, rgba(255, 255, 255, 0.08));
   border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.1));
-  font-size: 15px;
+  font-size: calc((15px) + 1px);
   font-weight: 800;
   cursor: pointer;
   border-radius: 4px;
@@ -122,7 +122,7 @@
 }
 
 .tt-active-symbol {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 800;
   color: var(--accent-contrast);
   line-height: 1;
@@ -143,7 +143,7 @@
   border: none;
   border-radius: 8px;
   color: var(--accent-contrast);
-  font-size: 15px;
+  font-size: calc((15px) + 1px);
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -163,7 +163,7 @@
 }
 
 .tt-recent-btn.tt-number {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 900;
   letter-spacing: -0.03em;
 }
@@ -259,7 +259,7 @@
   border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.1));
   border-radius: 7px;
   color: var(--text-secondary, #a3a3a3);
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -368,14 +368,14 @@
 }
 
 .tt-symbol {
-  font-size: 22px;
+  font-size: calc((22px) + 1px);
   font-weight: 800;
   color: var(--accent);
   text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
 }
 
 .tt-label {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 600;
   color: #a3a3a3;
   letter-spacing: 0.01em;
@@ -387,7 +387,7 @@
 }
 
 .tt-number-label {
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 800;
   color: var(--accent);
   letter-spacing: -0.02em;
@@ -401,7 +401,7 @@
 }
 
 .tt-char {
-  font-size: 24px;
+  font-size: calc((24px) + 1px);
   filter: drop-shadow(0 2px 6px rgba(132, 204, 22, 0.3));
 }
 
@@ -419,11 +419,11 @@
   }
 
   .tt-recent-btn {
-    font-size: 14px;
+    font-size: calc((14px) + 1px);
   }
 
   .tt-recent-btn.tt-number {
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
   }
 
   .tt-panel {
@@ -440,11 +440,11 @@
   }
 
   .tt-symbol {
-    font-size: 18px;
+    font-size: calc((18px) + 1px);
   }
 
   .tt-char {
-    font-size: 20px;
+    font-size: calc((20px) + 1px);
   }
 }
 
@@ -462,11 +462,11 @@
   }
 
   .tt-recent-btn {
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
   }
 
   .tt-recent-btn.tt-number {
-    font-size: 8px;
+    font-size: calc((8px) + 1px);
   }
 
   .tt-panel {
@@ -476,7 +476,7 @@
   }
 
   .tt-category {
-    font-size: 10px;
+    font-size: calc((10px) + 1px);
     padding: 4px 8px;
   }
 }

@@ -149,7 +149,7 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
         display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
         background: "none", border: "none", cursor: "pointer", textAlign: "left",
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "#fff" : "#d4d4d4", lineHeight: 1.55, flex: 1 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: isOpen ? "#fff" : "#d4d4d4", lineHeight: 1.55, flex: 1 }}>
           {question}
         </span>
         <div style={{
@@ -166,7 +166,7 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
       </button>
       {isOpen && (
         <div style={{
-          padding: "0 16px 16px", fontSize: 13, color: "#6b7280",
+          padding: "0 16px 16px", fontSize: 14, color: "#6b7280",
           lineHeight: 1.9, borderTop: "1px solid rgba(255,255,255,0.05)",
         }}>
           <div style={{ paddingTop: 13 }}>{answer}</div>
@@ -209,10 +209,10 @@ export default function FAQTab({ onNavigateToContact }) {
       }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(139,92,246,.3), transparent)" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>❓</div>
+          <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 25 }}>❓</div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 3 }}>Frequently Asked Questions</div>
-            <div style={{ fontSize: 11, color: "#484848" }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 3 }}>Frequently Asked Questions</div>
+            <div style={{ fontSize: 12, color: "#484848" }}>
               {FAQ_DATA.reduce((acc, c) => acc + c.questions.length, 0)} questions across {FAQ_DATA.length} categories
             </div>
           </div>
@@ -230,14 +230,14 @@ export default function FAQTab({ onNavigateToContact }) {
             value={faqSearch}
             onChange={(e) => setFaqSearch(e.target.value)}
             placeholder="Search questions…"
-            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 13, outline: "none" }}
+            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 14, outline: "none" }}
           />
           {faqSearch && (
-            <button onClick={() => setFaqSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#525252", padding: 0, fontSize: 18, lineHeight: 1 }}>×</button>
+            <button onClick={() => setFaqSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#525252", padding: 0, fontSize: 19, lineHeight: 1 }}>×</button>
           )}
         </div>
         {faqSearch && (
-          <div style={{ marginTop: 10, fontSize: 12, color: "#484848" }}>
+          <div style={{ marginTop: 10, fontSize: 13, color: "#484848" }}>
             {totalResults} result{totalResults !== 1 ? "s" : ""} for "{faqSearch}"
           </div>
         )}
@@ -254,7 +254,7 @@ export default function FAQTab({ onNavigateToContact }) {
                 border: `1px solid ${active ? "rgba(132,204,22,0.42)" : "rgba(255,255,255,0.08)"}`,
                 background: active ? "rgba(132,204,22,0.1)" : "rgba(255,255,255,0.03)",
                 color: active ? "#a3e635" : "#6b7280",
-                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
                 display: "flex", alignItems: "center", gap: 5, transition: "all .18s",
                 boxShadow: active ? "0 2px 10px rgba(132,204,22,.1)" : "none",
               }}>
@@ -269,10 +269,10 @@ export default function FAQTab({ onNavigateToContact }) {
       <div style={{ padding: "10px 16px 20px" }}>
         {filteredData.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 20px" }}>
-            <div style={{ width: 64, height: 64, borderRadius: 20, margin: "0 auto 18px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30 }}>🤔</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 8 }}>No questions found</div>
-            <div style={{ fontSize: 13, color: "#484848", marginBottom: 20 }}>Try different keywords or browse all categories.</div>
-            <button onClick={onNavigateToContact} style={{ padding: "10px 22px", background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.3)", borderRadius: 11, color: "#a3e635", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, margin: "0 auto 18px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 31 }}>🤔</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>No questions found</div>
+            <div style={{ fontSize: 14, color: "#484848", marginBottom: 20 }}>Try different keywords or browse all categories.</div>
+            <button onClick={onNavigateToContact} style={{ padding: "10px 22px", background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.3)", borderRadius: 11, color: "#a3e635", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Ask our support team →
             </button>
           </div>
@@ -282,9 +282,9 @@ export default function FAQTab({ onNavigateToContact }) {
             .map((cat, ci) => (
               <div key={ci} style={{ marginBottom: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 11 }}>
-                  <span style={{ fontSize: 17 }}>{cat.icon}</span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#a3e635", letterSpacing: ".3px" }}>{cat.category}</span>
-                  <span style={{ fontSize: 11, color: "#363636" }}>({cat.questions.length})</span>
+                  <span style={{ fontSize: 18 }}>{cat.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#a3e635", letterSpacing: ".3px" }}>{cat.category}</span>
+                  <span style={{ fontSize: 12, color: "#363636" }}>({cat.questions.length})</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {cat.questions.map((faq, fi) => {
@@ -306,10 +306,10 @@ export default function FAQTab({ onNavigateToContact }) {
 
         {filteredData.length > 0 && (
           <div style={{ marginTop: 10, padding: "20px", background: "rgba(132,204,22,0.03)", border: "1px solid rgba(132,204,22,0.12)", borderRadius: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 22, marginBottom: 10 }}>💬</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Didn't find your answer?</div>
-            <div style={{ fontSize: 12, color: "#484848", marginBottom: 16 }}>Our support team responds within 2–4 hours on weekdays.</div>
-            <button onClick={onNavigateToContact} style={{ padding: "10px 24px", background: "linear-gradient(135deg, #84cc16, #65a30d)", border: "none", borderRadius: 11, color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: "0 3px 14px rgba(132,204,22,.25)", display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <div style={{ fontSize: 23, marginBottom: 10 }}>💬</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Didn't find your answer?</div>
+            <div style={{ fontSize: 13, color: "#484848", marginBottom: 16 }}>Our support team responds within 2–4 hours on weekdays.</div>
+            <button onClick={onNavigateToContact} style={{ padding: "10px 24px", background: "linear-gradient(135deg, #84cc16, #65a30d)", border: "none", borderRadius: 11, color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 3px 14px rgba(132,204,22,.25)", display: "inline-flex", alignItems: "center", gap: 7 }}>
               <MessageCircle size={13} /> Contact Support →
             </button>
           </div>

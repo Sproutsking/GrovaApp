@@ -328,7 +328,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           border-radius: 6px;
           padding: 6px 10px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           outline: none;
         }
         .gp-search-input:focus { border-color: rgba(132,204,22,0.4); }
@@ -358,7 +358,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           border: 1px solid transparent;
           border-radius: 6px;
           color: #666;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           cursor: pointer;
           transition: all 0.15s;
         }
@@ -385,7 +385,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 6px;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -445,9 +445,9 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           align-items: center;
           gap: 4px;
         }
-        .gp-gif-emoji { font-size: 28px; }
+        .gp-gif-emoji { font-size: calc((28px) + 1px); }
         .gp-gif-label {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           color: #555;
           text-transform: uppercase;
           letter-spacing: 0.5px;

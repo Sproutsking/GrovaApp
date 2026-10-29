@@ -82,8 +82,8 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                 border: `1.5px solid ${len === n ? "#84cc16" : "rgba(255,255,255,.06)"}`,
                 transition: "all .15s",
               }}>
-                <div style={{ fontSize: 22, fontWeight: 900, color: len === n ? "#84cc16" : "#d4d4d4", lineHeight: 1 }}>{n}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: len === n ? "#84cc16" : "#505050", marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 23, fontWeight: 900, color: len === n ? "#84cc16" : "#d4d4d4", lineHeight: 1 }}>{n}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: len === n ? "#84cc16" : "#505050", marginTop: 2 }}>{label}</div>
                 <div style={{ display: "flex", gap: 2, justifyContent: "center", marginTop: 4 }}>
                   {[1,2,3,4].map(i => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: i <= bars && len === n ? "#84cc16" : i <= bars ? "#2a2a2a" : "#161616" }} />)}
                 </div>
@@ -120,7 +120,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                   background: done ? "rgba(34,197,94,.1)" : f ? "rgba(132,204,22,.1)" : "rgba(255,255,255,.03)",
                   border: `1.5px solid ${done ? "rgba(34,197,94,.4)" : f ? "#84cc16" : "rgba(255,255,255,.06)"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: target <= 6 ? 17 : 13, fontWeight: 800, color: "#fff",
+                  fontSize: target <= 6 ? 18 : 14, fontWeight: 800, color: "#fff",
                   transform: f ? "scale(1.04)" : "scale(1)",
                 }}>
                   {f ? (show ? cur[i] : "●") : ""}
@@ -146,28 +146,28 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                       </svg>
                     </NK>
                   );
-                  return <NK key={ki} digit onClick={() => push(k)}><span style={{ fontSize: 18, fontWeight: 700, color: "#d4d4d4" }}>{k}</span></NK>;
+                  return <NK key={ki} digit onClick={() => push(k)}><span style={{ fontSize: 19, fontWeight: 700, color: "#d4d4d4" }}>{k}</span></NK>;
                 })}
               </div>
             ))}
           </div>
 
           {err && !busy && !done && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 7, marginTop: 8, background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.16)", color: "#ef4444", fontSize: 11, fontWeight: 500 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 7, marginTop: 8, background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.16)", color: "#ef4444", fontSize: 12, fontWeight: 500 }}>
               <AlertCircle size={11} />{err}
             </div>
           )}
           {done && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 7, marginTop: 8, background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.2)", color: "#22c55e", fontSize: 12, fontWeight: 700 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 7, marginTop: 8, background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.2)", color: "#22c55e", fontSize: 13, fontWeight: 700 }}>
               <CheckCircle size={12} /> PIN {hasPin ? "updated" : "created"}!
             </div>
           )}
           {busy && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#84cc16", fontSize: 11, marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#84cc16", fontSize: 12, marginTop: 8 }}>
               <div style={{ width: 11, height: 11, border: "2px solid rgba(132,204,22,.2)", borderTopColor: "#84cc16", borderRadius: "50%", animation: "pspin .7s linear infinite" }} /> Saving…
             </div>
           )}
-          <button onClick={() => setStep("choose")} style={{ width: "100%", marginTop: 8, padding: "7px", background: "transparent", border: "1px solid rgba(255,255,255,.05)", borderRadius: 7, color: "#383838", fontSize: 10, cursor: "pointer", fontWeight: 600 }}>← Change length</button>
+          <button onClick={() => setStep("choose")} style={{ width: "100%", marginTop: 8, padding: "7px", background: "transparent", border: "1px solid rgba(255,255,255,.05)", borderRadius: 7, color: "#383838", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>← Change length</button>
         </div>
       </Card>
       <style>{`@keyframes pshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}@keyframes pspin{to{transform:rotate(360deg)}}`}</style>
@@ -198,15 +198,15 @@ const Hdr = ({ title, sub, onClose }) => (
         <Lock size={14} color="#84cc16" />
       </div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{title}</div>
-        <div style={{ fontSize: 10, color: "#454545", marginTop: 2 }}>{sub}</div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{title}</div>
+        <div style={{ fontSize: 11, color: "#454545", marginTop: 2 }}>{sub}</div>
       </div>
     </div>
     <button onClick={onClose} style={{ width: 25, height: 25, borderRadius: 6, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.05)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#454545" }}><X size={11} /></button>
   </div>
 );
 const PBtn = ({ onClick, children }) => (
-  <button onClick={onClick} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#84cc16,#65a30d)", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+  <button onClick={onClick} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#84cc16,#65a30d)", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
     {children}
   </button>
 );

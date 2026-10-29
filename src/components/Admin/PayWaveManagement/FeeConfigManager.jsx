@@ -125,7 +125,7 @@ const FeeConfigManager = () => {
           display: flex;
           align-items: center;
           gap: 12px;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 700;
           color: #fff;
         }
@@ -147,7 +147,7 @@ const FeeConfigManager = () => {
           border-color: rgba(163,230,53,0.2);
         }
         .fcc-card-label {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           color: rgba(255,255,255,0.5);
           text-transform: uppercase;
@@ -155,7 +155,7 @@ const FeeConfigManager = () => {
           margin-bottom: 8px;
         }
         .fcc-card-type {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #fff;
           margin-bottom: 12px;
@@ -169,7 +169,7 @@ const FeeConfigManager = () => {
           border-radius: 6px;
           color: #fff;
           font-family: 'DM Mono', monospace;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           margin-bottom: 8px;
         }
         .fcc-input:focus {
@@ -186,7 +186,7 @@ const FeeConfigManager = () => {
           padding: 6px 12px;
           border: none;
           border-radius: 6px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -215,7 +215,7 @@ const FeeConfigManager = () => {
           display: flex;
           align-items: center;
           gap: 12px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .fcc-alert-error {
           background: rgba(244,63,94,0.1);
@@ -237,7 +237,7 @@ const FeeConfigManager = () => {
         .fcc-audit-entry {
           padding: 12px;
           border-bottom: 1px solid rgba(255,255,255,0.05);
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: rgba(255,255,255,0.7);
         }
         .fcc-audit-entry:last-child {
@@ -334,7 +334,7 @@ const FeeConfigManager = () => {
                   ) : (
                     <>
                       <div style={{
-                        fontSize: '24px',
+                        fontSize: "calc((24px) + 1px)",
                         fontWeight: 800,
                         color: '#a3e635',
                         marginBottom: '12px',
@@ -344,7 +344,7 @@ const FeeConfigManager = () => {
                       </div>
                       {fee.description && (
                         <div style={{
-                          fontSize: '11px',
+                          fontSize: "calc((11px) + 1px)",
                           color: 'rgba(255,255,255,0.5)',
                           marginBottom: '12px',
                         }}>
@@ -370,7 +370,7 @@ const FeeConfigManager = () => {
             {showAudit && (
               <div className="fcc-audit">
                 <div style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 700,
                   color: '#fff',
                   marginBottom: 16,

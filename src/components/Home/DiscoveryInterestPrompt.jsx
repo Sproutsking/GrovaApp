@@ -42,8 +42,8 @@ const DiscoveryInterestPrompt = ({ item, onClose }) => {
       .dip-card{width:100%;max-width:760px;background:rgba(6,6,7,0.92);border:1px solid rgba(255,255,255,0.06);border-radius:14px;display:flex;gap:12px;padding:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
       .dip-thumb{width:72px;height:72px;border-radius:10px;background-size:cover;background-position:center;flex-shrink:0}
       .dip-body{flex:1;color:rgba(255,255,255,0.9)}
-      .dip-title{font-weight:800;font-size:14px}
-      .dip-sub{font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px}
+      .dip-title{font-weight:800;font-size:calc((14px) + 1px)}
+      .dip-sub{font-size:calc((12px) + 1px);color:rgba(255,255,255,0.6);margin-top:4px}
       .dip-actions{margin-top:8px;display:flex;gap:8px}
       .dip-btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:rgba(255,255,255,0.9);cursor:pointer}
       .dip-btn--primary{background:linear-gradient(90deg,#84cc16,#06b6d4);border:none;color:#000;font-weight:800}

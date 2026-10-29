@@ -101,15 +101,15 @@ const CSS = `
 }
 .rcv-chain-btn:hover { background: #181d2a; border-color: #303852; }
 .rcv-chain-btn.on { background: rgba(0,51,173,0.08); border-color: rgba(0,51,173,0.42); }
-.rcv-chain-em { font-size: 20px; line-height: 1; }
-.rcv-chain-lb { font-size: 11px; font-weight: 700; color: #68748e; }
+.rcv-chain-em { font-size: calc((20px) + 1px); line-height: 1; }
+.rcv-chain-lb { font-size: calc((11px) + 1px); font-weight: 700; color: #68748e; }
 .rcv-chain-btn.on .rcv-chain-lb { color: #627eea; }
 .rcv-chain-primary-badge {
   position: absolute;
   top: -5px; right: -5px;
   padding: 1px 5px;
   border-radius: 100px;
-  font-size: 8px; font-weight: 800;
+  font-size: calc((8px) + 1px); font-weight: 800;
   background: #0033ad; color: #fff;
   letter-spacing: .06em;
 }
@@ -133,14 +133,14 @@ const CSS = `
   width: 38px; height: 38px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
+  font-size: calc((20px) + 1px); flex-shrink: 0;
 }
-.rcv-chain-name { font-size: 14px; font-weight: 800; color: #edf1fa; }
-.rcv-chain-sym  { font-size: 11px; color: #68748e; margin-top: 2px; }
+.rcv-chain-name { font-size: calc((14px) + 1px); font-weight: 800; color: #edf1fa; }
+.rcv-chain-sym  { font-size: calc((11px) + 1px); color: #68748e; margin-top: 2px; }
 
 .rcv-addr-body { padding: 14px 15px; }
 .rcv-addr-lbl {
-  font-size: 9.5px;
+  font-size: calc((9.5px) + 1px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .1em;
@@ -155,7 +155,7 @@ const CSS = `
 }
 .rcv-addr-text {
   font-family: 'DM Mono', 'Courier New', monospace;
-  font-size: 12.5px;
+  font-size: calc((12.5px) + 1px);
   color: rgba(255,255,255,0.72);
   word-break: break-all;
   line-height: 1.6;
@@ -163,7 +163,7 @@ const CSS = `
 }
 .rcv-addr-loading {
   font-family: 'DM Mono', monospace;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: rgba(255,255,255,0.2);
   animation: rcvPulse 1.4s ease-in-out infinite;
 }
@@ -185,7 +185,7 @@ const CSS = `
 
 .rcv-addr-note {
   margin-top: 10px;
-  font-size: 11.5px;
+  font-size: calc((11.5px) + 1px);
   color: rgba(255,255,255,0.25);
   line-height: 1.65;
 }
@@ -198,7 +198,7 @@ const CSS = `
   margin-top: 11px;
   background: rgba(248,114,114,0.06);
   border: 1px solid rgba(248,114,114,0.18);
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #f87272;
   line-height: 1.6;
 }
@@ -207,7 +207,7 @@ const CSS = `
   align-items: center;
   gap: 4px;
   margin-top: 8px;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #68748e;
   cursor: pointer;
   transition: color .15s;
@@ -241,7 +241,7 @@ const CSS = `
   z-index: -1;
 }
 .rcv-qr-label {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: rgba(255,255,255,0.28);
   font-family: 'DM Mono', monospace;
   text-align: center;
@@ -262,7 +262,7 @@ const CSS = `
   padding: 13px 15px;
   border-radius: 12px;
   display: flex; gap: 12px; align-items: flex-start;
-  font-size: 12px; line-height: 1.6;
+  font-size: calc((12px) + 1px); line-height: 1.6;
 }
 .rcv-info.cyan {
   background: rgba(34,211,238,0.05);
@@ -277,7 +277,7 @@ const CSS = `
   border: 1px solid rgba(163,230,53,0.15);
 }
 .rcv-info svg { flex-shrink: 0; margin-top: 1px; }
-.rcv-info h4 { font-size: 12.5px; font-weight: 700; margin: 0 0 3px; }
+.rcv-info h4 { font-size: calc((12.5px) + 1px); font-weight: 700; margin: 0 0 3px; }
 .rcv-info.cyan  h4 { color: #22d3ee; }
 .rcv-info.amber h4 { color: #f59e0b; }
 .rcv-info.ep    h4 { color: #a3e635; }
@@ -293,7 +293,7 @@ const CSS = `
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
   color: rgba(255,255,255,0.3);
-  font-size: 11px; font-weight: 600;
+  font-size: calc((11px) + 1px); font-weight: 600;
   cursor: pointer; font-family: inherit;
   transition: all .15s;
   margin: 0 auto 4px;
@@ -311,7 +311,7 @@ const CSS = `
   border-radius: 100px;
   background: rgba(34,211,238,0.08);
   border: 1px solid rgba(34,211,238,0.22);
-  font-size: 9px; font-weight: 800;
+  font-size: calc((9px) + 1px); font-weight: 800;
   color: #22d3ee;
   letter-spacing: .08em;
   margin-left: 6px;
@@ -532,7 +532,7 @@ const LegacyCryptoReceiveTab = ({ setActiveTab, userId }) => {
       </div>
 
       <div className="rcv-info ep">
-        <div style={{ fontSize: 16, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>🔷</div>
+        <div style={{ fontSize: 17, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>🔷</div>
         <div>
           <h4>Cardano is our primary chain</h4>
           <p>
@@ -575,15 +575,15 @@ export default function ReceiveTab({ setActiveTab }) {
         .ep-receive-root{width:100%;min-height:100%;box-sizing:border-box;padding:16px 18px 32px;color:#edf2e8}
         .ep-receive-head{display:flex;align-items:center;gap:12px;padding:4px 0 14px;border-bottom:1px solid rgba(255,255,255,.07)}
         .ep-receive-back{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.035);color:#c5d0c1;cursor:pointer}
-        .ep-receive-title{font-size:16px;font-weight:800;color:#f4f8f1}.ep-receive-subtitle{margin-top:2px;font-size:11px;color:#829080}
+        .ep-receive-title{font-size:calc((16px) + 1px);font-weight:800;color:#f4f8f1}.ep-receive-subtitle{margin-top:2px;font-size:calc((11px) + 1px);color:#829080}
         .ep-receive-panel{width:min(100%,640px);margin:22px auto 0;padding:clamp(16px,3vw,28px);box-sizing:border-box;border:1px solid rgba(163,230,53,.18);border-radius:14px;background:linear-gradient(145deg,rgba(163,230,53,.045),rgba(255,255,255,.018) 50%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.04),0 18px 42px rgba(0,0,0,.2)}
-        .ep-receive-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a3e635}.ep-receive-panel h2{margin:7px 0 5px;font-size:clamp(20px,3vw,26px);color:#f4f8f1}.ep-receive-panel p{margin:0;color:#8f9b8d;font-size:12px;line-height:1.6}
+        .ep-receive-kicker{font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a3e635}.ep-receive-panel h2{margin:7px 0 5px;font-size:calc((clamp(20px,3vw,26px)) + 1px);color:#f4f8f1}.ep-receive-panel p{margin:0;color:#8f9b8d;font-size:calc((12px) + 1px);line-height:1.6}
         .ep-receive-handle{display:flex;align-items:center;gap:10px;margin-top:20px;padding:10px 10px 10px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:rgba(0,0,0,.26);min-width:0}
         .ep-receive-handle strong{flex:1;min-width:0;overflow-wrap:anywhere;color:#d9f99d;font:700 16px 'JetBrains Mono',monospace}
         .ep-receive-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:5px 9px;border:1px solid rgba(163,230,53,.23);border-radius:8px;background:rgba(163,230,53,.08);color:#c9f69b;font:700 11px inherit;white-space:nowrap;cursor:pointer}
         .ep-receive-share{margin-top:10px;background:linear-gradient(145deg,#d9f99d,#84cc16 65%,#4d7c0f);border-color:rgba(236,252,203,.6);color:#172307;box-shadow:inset 0 1px rgba(255,255,255,.65),0 3px 0 #365314}
         .ep-receive-share:active{transform:translateY(2px);box-shadow:inset 0 1px 2px rgba(0,0,0,.2),0 1px 0 #365314}
-        .ep-receive-note{display:flex;gap:9px;margin-top:18px;padding:11px 12px;border:1px solid rgba(163,230,53,.12);border-radius:9px;background:rgba(163,230,53,.035);color:#9aa595;font-size:11px;line-height:1.6}
+        .ep-receive-note{display:flex;gap:9px;margin-top:18px;padding:11px 12px;border:1px solid rgba(163,230,53,.12);border-radius:9px;background:rgba(163,230,53,.035);color:#9aa595;font-size:calc((11px) + 1px);line-height:1.6}
         @media(max-width:767px){.ep-receive-root{padding:12px 12px 24px}.ep-receive-panel{margin-top:14px;border-radius:11px}.ep-receive-handle{padding:9px}.ep-receive-action{padding-inline:8px}}
       `}</style>
       <header className="ep-receive-head">

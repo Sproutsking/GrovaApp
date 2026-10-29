@@ -182,7 +182,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           background: none;
           border: none;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           outline: none;
           font-family: inherit;
         }
@@ -213,7 +213,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           border: 1px solid rgba(255,255,255,0.07);
           border-radius: 8px;
           color: #666;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           cursor: pointer;
           transition: all 0.15s;
@@ -233,7 +233,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
 
         .mp-label {
           padding: 6px 12px 4px;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 700;
           color: #555;
           text-transform: uppercase;
@@ -244,7 +244,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           justify-content: space-between;
         }
         .mp-credit {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           color: #333;
           text-transform: none;
           letter-spacing: 0;
@@ -268,7 +268,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           height: 200px;
           gap: 10px;
           color: #555;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .mp-spinner {
           animation: spin 0.8s linear infinite;
@@ -284,9 +284,9 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           height: 200px;
           gap: 8px;
           color: #444;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
-        .mp-empty span { font-size: 32px; }
+        .mp-empty span { font-size: calc((32px) + 1px); }
         .mp-empty p { margin: 0; }
 
         .mp-grid {
@@ -365,7 +365,7 @@ const MemeCard = ({ meme, onClick }) => {
           right: 0;
           background: linear-gradient(transparent, rgba(0,0,0,0.9));
           padding: 16px 5px 4px;
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 700;
           color: #fff;
           text-align: center;

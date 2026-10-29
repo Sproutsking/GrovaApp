@@ -123,7 +123,7 @@ const Sidebar = ({
                     onError={(e) => {
                       e.target.style.display = "none";
                       e.target.parentElement.innerHTML =
-                        '<span style="font-size:26px;font-weight:900;color:var(--accent-contrast);">X</span>';
+                        '<span style="font-size:calc((26px) + 1px);font-weight:900;color:var(--accent-contrast);">X</span>';
                     }}
                   />
                 </div>
@@ -132,7 +132,6 @@ const Sidebar = ({
 
             <div className="logo-text">
               <h1>XEEVIA</h1>
-              <p>Every Word Seeds Value</p>
             </div>
           </div>
 
@@ -157,7 +156,7 @@ const Sidebar = ({
                       style={{
                         animationDelay: `${idx * 0.05}s`,
                       "--item-color": item.color,
-                        borderColor: "rgba(192,192,192,0.18)",
+                        borderColor: isHovered ? "#484d52" : "#2f3336",
                       }}
                     aria-label="Open menu"
                   >
@@ -169,7 +168,7 @@ const Sidebar = ({
                         style={{ background: `radial-gradient(circle, ${item.bg} 0%, transparent 70%)` }} />
                       <Icon size={15} strokeWidth={2} color={iconColor} />
                     </div>
-                    <span className="item-label" style={isHovered ? { color: item.color } : {}}>
+                    <span className="item-label">
                       {item.label}
                     </span>
                     {isHovered && <div className="hover-shimmer" />}
@@ -194,11 +193,11 @@ const Sidebar = ({
                     animationDelay: `${idx * 0.05}s`,
                     "--item-color": item.color,
                     borderColor: isActive
-                      ? "rgba(205,205,205,0.42)"
-                      : "rgba(192,192,192,0.18)",
+                      ? "#484d52"
+                      : isHovered ? "#3d4246" : "#2f3336",
                     ...(isActive ? {
                       background: "#030303",
-                      borderColor: "rgba(205,205,205,0.42)",
+                      borderColor: "#484d52",
                       color: item.color,
                     } : {}),
                   }}
@@ -226,8 +225,7 @@ const Sidebar = ({
                       style={{ background: `radial-gradient(circle, ${item.bg} 0%, transparent 70%)` }} />
                     <Icon size={15} strokeWidth={isActive ? 2.5 : 2} color={iconColor} />
                   </div>
-                  <span className="item-label"
-                    style={(isActive || isHovered) ? { color: item.color } : {}}>
+                  <span className="item-label">
                     {item.label}
                   </span>
                   {isHovered && !isActive && <div className="hover-shimmer" />}
@@ -357,7 +355,7 @@ const Sidebar = ({
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 14px 14px 12px;
+          padding: 13px 14px 11px;
           border-bottom: 1px solid var(--surface-border);
           flex-shrink: 0;
           overflow: hidden;
@@ -425,17 +423,9 @@ const Sidebar = ({
           font-size: 22px;
           font-weight: 800;
           margin: 0;
-          letter-spacing: 1px;
-          color: var(--text);
-        }
-        .logo-text p {
-          font-size: 8.5px;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-          margin: 2px 0 0;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          font-family: "JetBrains Mono", monospace;
+          letter-spacing: 1.2px;
+          color: #fff;
+          line-height: 1;
         }
 
         .nav-section-label {
@@ -454,7 +444,7 @@ const Sidebar = ({
           background: linear-gradient(90deg, var(--accent-border), transparent);
         }
         .nav-label-text {
-          font-size: 8.5px;
+          font-size: calc((8.5px) + 1px);
           font-weight: 700;
           letter-spacing: 1.4px;
           color: var(--text-secondary);
@@ -479,14 +469,14 @@ const Sidebar = ({
           gap: 11px;
           padding: 12px 13px;
           background: #030303;
-          border: 1px solid rgba(192,192,192,0.18);
+          border: 1px solid #2f3336;
           border-radius: 12px;
-          color: var(--text-secondary);
-          font-size: 14px;
-          font-weight: 600;
+          color: #fff;
+          font-size: calc((14px) + 1px);
+          font-weight: 700;
           cursor: pointer;
           overflow: hidden;
-          box-shadow: inset 0 1px rgba(255,255,255,0.035), 0 5px 14px rgba(0,0,0,0.08);
+          box-shadow: inset 0 1px rgba(255,255,255,0.025);
           transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
           animation: itemSlide 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
           outline: none;
@@ -499,15 +489,15 @@ const Sidebar = ({
           from { opacity: 0; transform: translateX(-20px); }
         }
         .nav-item:hover:not(.nav-item-active) {
-          border-color: rgba(205,205,205,0.42);
+          border-color: #3d4246;
           background: #080808;
           transform: translateX(2px);
-          box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(205,205,205,0.1), 0 8px 22px rgba(0,0,0,0.16);
+          box-shadow: inset 0 1px rgba(255,255,255,0.045), 0 0 0 1px rgba(47,51,54,0.35);
         }
-        .nav-item-active { box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 8px 24px var(--accent-shadow); }
+        .nav-item-active { box-shadow: inset 0 1px rgba(255,255,255,0.05), 0 0 0 1px rgba(47,51,54,0.45); }
         .nav-item:focus-visible {
-          border-color: rgba(205,205,205,0.42);
-          box-shadow: 0 0 0 2px rgba(205,205,205,0.1), 0 0 18px rgba(205,205,205,0.18);
+          border-color: #596168;
+          box-shadow: 0 0 0 2px rgba(89,97,104,0.18);
           outline: none;
         }
 
@@ -586,8 +576,7 @@ const Sidebar = ({
           50%       { transform: scale(1.15); }
         }
 
-        .item-label { position: relative; z-index: 2; transition: color 0.2s ease; }
-        .nav-item-active .item-label { font-weight: 700; }
+        .item-label { position: relative; z-index: 2; color: #fff; font-weight: 700; transition: color 0.2s ease; }
 
         .hover-shimmer {
           position: absolute;
@@ -626,7 +615,7 @@ const Sidebar = ({
           padding: 3px 10px;
           border-radius: 10px;
           border: 1px solid var(--surface-border);
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           color: var(--text-secondary);
           margin: 0;
@@ -642,7 +631,7 @@ const Sidebar = ({
           align-items: center;
           justify-content: center;
           color: var(--text-secondary);
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.34, 1.1, 0.64, 1);
         }

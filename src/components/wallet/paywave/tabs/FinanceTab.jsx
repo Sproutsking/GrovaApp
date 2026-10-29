@@ -130,12 +130,12 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
                 <Zap size={16} color="#0a0e06" />
               </div>
               <div>
-                <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800 }}>Active Stake</div>
-                <div style={{ color:"var(--lime)", fontSize:11 }}>{existing.duration_days} days · earning $XEV</div>
+                <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800 }}>Active Stake</div>
+                <div style={{ color:"var(--lime)", fontSize:12 }}>{existing.duration_days} days · earning $XEV</div>
               </div>
               <div style={{ marginLeft:"auto", padding:"3px 9px",
                 background:"rgba(163,230,53,0.14)", border:"1px solid rgba(163,230,53,0.28)",
-                borderRadius:20, fontSize:9.5, color:"var(--lime)", fontWeight:700 }}>LIVE</div>
+                borderRadius:20, fontSize:10.5, color:"var(--lime)", fontWeight:700 }}>LIVE</div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
               {[
@@ -145,30 +145,30 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
                 { label:"Matures",   val:matureDate },
               ].map((item,i)=>(
                 <div key={i} style={{ background:"rgba(0,0,0,0.22)", borderRadius:9, padding:"8px 10px" }}>
-                  <div style={{ fontSize:9.5, color:"var(--t2)", marginBottom:2 }}>{item.label}</div>
-                  <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:700,
+                  <div style={{ fontSize:10.5, color:"var(--t2)", marginBottom:2 }}>{item.label}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700,
                     color:item.accent?"var(--lime)":"var(--t1)" }}>{item.val}</div>
                 </div>
               ))}
             </div>
             <div style={{ marginBottom:5 }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                <span style={{ fontSize:10.5, color:"var(--t2)" }}>Maturity Progress</span>
-                <span style={{ fontSize:10.5, color:"var(--lime)", fontWeight:700 }}>{pct.toFixed(1)}%</span>
+                <span style={{ fontSize:11.5, color:"var(--t2)" }}>Maturity Progress</span>
+                <span style={{ fontSize:11.5, color:"var(--lime)", fontWeight:700 }}>{pct.toFixed(1)}%</span>
               </div>
               <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.055)", overflow:"hidden" }}>
                 <div style={{ height:"100%", width:`${pct}%`, borderRadius:2,
                   background:"linear-gradient(90deg,var(--lime),#a855f7)", transition:"width 1s" }} />
               </div>
             </div>
-            <div style={{ fontSize:10.5, color:"rgba(255,255,255,0.22)", textAlign:"center" }}>
+            <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.22)", textAlign:"center" }}>
               Matures {matureDate} · Early unstake incurs 10% penalty
             </div>
           </div>
 
           <div className="info-lime">
-            <div style={{ color:"var(--lime)", fontWeight:700, marginBottom:3, fontSize:11.5 }}>⚡ How Stake-2-Earn works</div>
-            <div style={{ color:"var(--t2)", lineHeight:1.65, fontSize:11 }}>
+            <div style={{ color:"var(--lime)", fontWeight:700, marginBottom:3, fontSize:12.5 }}>⚡ How Stake-2-Earn works</div>
+            <div style={{ color:"var(--t2)", lineHeight:1.65, fontSize:12 }}>
               Your staked ₦ earns $XEV from Xeevia platform revenue. At maturity, you receive your ₦ back plus $XEV rewards. Longer stakes unlock higher protocol tiers.
             </div>
           </div>
@@ -196,11 +196,11 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
               <Zap size={18} color="#fff" />
             </div>
             <div>
-              <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800 }}>Stake-2-Earn</div>
-              <div style={{ color:"#a855f7", fontSize:11 }}>Earn $XEV · Revenue Sharing</div>
+              <div style={{ fontFamily:"var(--fd)", fontSize:16, fontWeight:800 }}>Stake-2-Earn</div>
+              <div style={{ color:"#a855f7", fontSize:12 }}>Earn $XEV · Revenue Sharing</div>
             </div>
           </div>
-          <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.36)", lineHeight:1.65 }}>
+          <div style={{ fontSize:12.5, color:"rgba(255,255,255,0.36)", lineHeight:1.65 }}>
             Lock your ₦ into the Xeevia protocol. Earn $XEV rewards from platform revenue. The longer you stake, the greater your share.
           </div>
         </div>
@@ -210,12 +210,12 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
           <label className="xf-lbl">Amount to Stake (₦)</label>
           <div className="xf-wrap" style={{ padding:"9px 12px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ color:"var(--t2)", fontSize:18 }}>₦</span>
+              <span style={{ color:"var(--t2)", fontSize:19 }}>₦</span>
               <input type="number" value={stakeAmt} onChange={e=>setStakeAmt(e.target.value)}
                 placeholder="0.00" className="xf-in-lg" />
             </div>
           </div>
-          <div style={{ color:"var(--t2)", fontSize:10.5, marginTop:3 }}>Available: ₦{fmtNGN(pwBalance)}</div>
+          <div style={{ color:"var(--t2)", fontSize:11.5, marginTop:3 }}>Available: ₦{fmtNGN(pwBalance)}</div>
         </div>
         <div className="amt-row">
           {[2000,5000,10000].map(a=>(
@@ -235,10 +235,10 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
                 border:`1px solid ${duration===d.days?d.color:"var(--b1)"}`,
                 transition:"all .14s",
               }}>
-                <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:700,
+                <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700,
                   color:duration===d.days?d.color:"var(--t1)", marginBottom:1 }}>{d.label}</div>
-                <div style={{ fontSize:11.5, fontWeight:700, color:d.color }}>{d.tier}</div>
-                <div style={{ fontSize:9.5, color:"rgba(255,255,255,0.26)", marginTop:2 }}>{d.bonus}</div>
+                <div style={{ fontSize:12.5, fontWeight:700, color:d.color }}>{d.tier}</div>
+                <div style={{ fontSize:10.5, color:"rgba(255,255,255,0.26)", marginTop:2 }}>{d.bonus}</div>
               </button>
             ))}
           </div>
@@ -255,9 +255,9 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
             ].map((item,i)=>(
               <div key={i} style={{ display:"flex", justifyContent:"space-between",
                 marginBottom:i<2?7:0, alignItems:"center" }}>
-                <span style={{ fontSize:11, color:"var(--t2)" }}>{item.label}</span>
+                <span style={{ fontSize:12, color:"var(--t2)" }}>{item.label}</span>
                 <span style={{ fontFamily:i===0?"var(--fd)":"var(--fb)",
-                  fontWeight:i===0?800:600, fontSize:i===0?14:11.5, color:item.color }}>
+                  fontWeight:i===0?800:600, fontSize:i===0?15:12.5, color:item.color }}>
                   {item.val}
                 </span>
               </div>
@@ -270,7 +270,7 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
           onClick={handleStake}>
           {loading?"Staking…":<><Zap size={12}/> Stake ₦{parsed>0?fmtNGN(parsed):""}</>}
         </button>
-        {parsed>pwBalance && <div style={{ color:"#f87171", fontSize:11, textAlign:"center" }}>Insufficient balance</div>}
+        {parsed>pwBalance && <div style={{ color:"#f87171", fontSize:12, textAlign:"center" }}>Insufficient balance</div>}
       </div>
 
       {showPinModal && pendingAction && (
@@ -379,16 +379,16 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
                 <plan.icon size={18} color="#fff" />
               </div>
               <div>
-                <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800 }}>{plan.name}</div>
-                <div style={{ color:"var(--lime)", fontSize:12 }}>{plan.tagline}</div>
+                <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800 }}>{plan.name}</div>
+                <div style={{ color:"var(--lime)", fontSize:13 }}>{plan.tagline}</div>
               </div>
             </div>
-            <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.42)", lineHeight:1.65, marginBottom:10 }}>
+            <div style={{ fontSize:12.5, color:"rgba(255,255,255,0.42)", lineHeight:1.65, marginBottom:10 }}>
               {plan.howItWorks}
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
               {plan.features.map((f,i)=>(
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, fontSize:11, color:"var(--t2)" }}>
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)" }}>
                   <CheckCircle size={10} color="var(--lime)" style={{ flexShrink:0 }} />{f}
                 </div>
               ))}
@@ -421,12 +421,12 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
             <label className="xf-lbl">Amount (₦) — Min ₦{plan.minAmt.toLocaleString()}</label>
             <div className="xf-wrap" style={{ padding:"9px 12px" }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ color:"var(--t2)", fontSize:18 }}>₦</span>
+                <span style={{ color:"var(--t2)", fontSize:19 }}>₦</span>
                 <input type="number" value={amount} onChange={e=>setAmount(e.target.value)}
                   placeholder="0.00" className="xf-in-lg" />
               </div>
             </div>
-            <div style={{ color:"var(--t2)", fontSize:10.5, marginTop:3 }}>Available: ₦{fmtNGN(pwBalance)}</div>
+            <div style={{ color:"var(--t2)", fontSize:11.5, marginTop:3 }}>Available: ₦{fmtNGN(pwBalance)}</div>
           </div>
           <div className="amt-row">
             {[1000,5000,10000].map(a=>(
@@ -438,10 +438,10 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
           {parsed>=plan.minAmt && (
             <div className="xg-lime xg" style={{ padding:"10px 12px" }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                <span style={{ fontSize:11, color:"var(--t2)" }}>Amount to save</span>
+                <span style={{ fontSize:12, color:"var(--t2)" }}>Amount to save</span>
                 <span style={{ fontFamily:"var(--fd)", fontWeight:800, color:"var(--lime)" }}>₦{fmtNGN(parsed)}</span>
               </div>
-              <div style={{ fontSize:10.5, color:"rgba(255,255,255,0.26)", lineHeight:1.6 }}>
+              <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.26)", lineHeight:1.6 }}>
                 Platform incentives distributed to active savers. No fixed return guaranteed.
               </div>
             </div>
@@ -463,7 +463,7 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
       <div className="xf-section xf-stack">
         {!fetching && myPlans.length > 0 && (
           <div>
-            <div style={{ fontFamily:"var(--fd)", fontSize:"9.5px", fontWeight:700,
+            <div style={{ fontFamily:"var(--fd)", fontSize:"calc((9.5px) + 1px)", fontWeight:700,
               color:"rgba(255,255,255,0.2)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
               Active Plans
             </div>
@@ -480,12 +480,12 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
                           <Icon size={13} color="#fff" />
                         </div>
                         <div>
-                          <div style={{ fontFamily:"var(--fd)", fontSize:12.5, fontWeight:700 }}>{mp.goal_name}</div>
-                          <div style={{ fontSize:10.5, color:"var(--lime)" }}>{mp.plan_type} · ₦{fmtNGN(mp.amount)}</div>
+                          <div style={{ fontFamily:"var(--fd)", fontSize:13.5, fontWeight:700 }}>{mp.goal_name}</div>
+                          <div style={{ fontSize:11.5, color:"var(--lime)" }}>{mp.plan_type} · ₦{fmtNGN(mp.amount)}</div>
                         </div>
                       </div>
                       {mp.plan_type==="lock"&&mp.matures_at&&(
-                        <div style={{ fontSize:9.5, color:"#d4a847", display:"flex", alignItems:"center", gap:2 }}>
+                        <div style={{ fontSize:10.5, color:"#d4a847", display:"flex", alignItems:"center", gap:2 }}>
                           <Lock size={8}/>{new Date(mp.matures_at).toLocaleDateString("en-NG",{day:"numeric",month:"short"})}
                         </div>
                       )}
@@ -497,7 +497,7 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
           </div>
         )}
 
-        <div style={{ fontFamily:"var(--fd)", fontSize:"9.5px", fontWeight:700,
+        <div style={{ fontFamily:"var(--fd)", fontSize:"calc((9.5px) + 1px)", fontWeight:700,
           color:"rgba(255,255,255,0.2)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
           Choose a Plan
         </div>
@@ -511,11 +511,11 @@ function SavingsView({ pwBalance, onBack, onSuccess }) {
                   <p.icon size={17} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontFamily:"var(--fd)", fontSize:13.5, fontWeight:800 }}>{p.name}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.36)", marginTop:1 }}>{p.desc}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:14.5, fontWeight:800 }}>{p.name}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.36)", marginTop:1 }}>{p.desc}</div>
                 </div>
               </div>
-              <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:11.5, color:"var(--lime)", flexShrink:0 }}>{p.tagline}</div>
+              <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:12.5, color:"var(--lime)", flexShrink:0 }}>{p.tagline}</div>
             </div>
           </div>
         ))}
@@ -605,7 +605,7 @@ function CardsView({ onBack, onSuccess }) {
             <div style={{ width:32, height:3, borderRadius:2, background:"rgba(255,255,255,0.1)" }} />
           </div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 16px 0" }}>
-            <span style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700 }}>{title}</span>
+            <span style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:700 }}>{title}</span>
             <button onClick={onClose} style={{ background:"rgba(255,255,255,0.05)",
               border:"1px solid rgba(255,255,255,0.07)", borderRadius:7, width:25, height:25,
               cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
@@ -628,26 +628,26 @@ function CardsView({ onBack, onSuccess }) {
         background:"radial-gradient(circle,rgba(163,230,53,0.09),transparent 70%)", borderRadius:"50%" }} />
       <div style={{ position:"relative" }}>
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-          <div style={{ fontSize:"8.5px", color:"rgba(163,230,53,0.4)", fontWeight:700,
+          <div style={{ fontSize:"calc((8.5px) + 1px)", color:"rgba(163,230,53,0.4)", fontWeight:700,
             letterSpacing:"0.09em", textTransform:"uppercase" }}>PayWave Virtual</div>
-          <div style={{ fontFamily:"var(--fd)", fontSize:12, fontWeight:800, color:"rgba(255,255,255,0.85)" }}>
+          <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800, color:"rgba(255,255,255,0.85)" }}>
             {card.brand}
           </div>
         </div>
-        <div style={{ fontFamily:"var(--fm)", fontSize:14, color:"rgba(255,255,255,0.65)",
+        <div style={{ fontFamily:"var(--fm)", fontSize:15, color:"rgba(255,255,255,0.65)",
           letterSpacing:"0.14em", marginBottom:12 }}>
           •••• •••• •••• {card.last_four}
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
           <div>
-            <div style={{ fontSize:"7.5px", color:"rgba(255,255,255,0.28)", textTransform:"uppercase" }}>Holder</div>
-            <div style={{ fontSize:11, fontWeight:600, color:"#fff", textTransform:"uppercase" }}>
+            <div style={{ fontSize:"calc((7.5px) + 1px)", color:"rgba(255,255,255,0.28)", textTransform:"uppercase" }}>Holder</div>
+            <div style={{ fontSize:12, fontWeight:600, color:"#fff", textTransform:"uppercase" }}>
               {profile?.full_name||"Xeevia User"}
             </div>
           </div>
           <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:"7.5px", color:"rgba(255,255,255,0.28)", textTransform:"uppercase" }}>Expires</div>
-            <div style={{ fontSize:11, fontWeight:600, color:"#fff" }}>{card.expiry}</div>
+            <div style={{ fontSize:"calc((7.5px) + 1px)", color:"rgba(255,255,255,0.28)", textTransform:"uppercase" }}>Expires</div>
+            <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{card.expiry}</div>
           </div>
         </div>
       </div>
@@ -660,10 +660,10 @@ function CardsView({ onBack, onSuccess }) {
       <div style={{ paddingTop:10 }}>
         {/* Virtual */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:9 }}>
-          <span style={{ fontFamily:"var(--fd)", fontSize:11.5, fontWeight:700 }}>Virtual Cards</span>
+          <span style={{ fontFamily:"var(--fd)", fontSize:12.5, fontWeight:700 }}>Virtual Cards</span>
           <button onClick={()=>setShowCreate(true)}
             style={{ background:"transparent", border:"none", cursor:"pointer",
-              color:"var(--lime)", fontSize:11.5, display:"flex", alignItems:"center",
+              color:"var(--lime)", fontSize:12.5, display:"flex", alignItems:"center",
               gap:3, fontFamily:"var(--fb)", fontWeight:600 }}>
             <Plus size={11}/> Create
           </button>
@@ -673,7 +673,7 @@ function CardsView({ onBack, onSuccess }) {
           animation:"pw-shimmer 1.4s infinite", marginBottom:8 }} />}
 
         {!loading && vCards.length===0 && (
-          <div style={{ textAlign:"center", padding:"16px 0 14px", color:"var(--t2)", fontSize:11.5 }}>
+          <div style={{ textAlign:"center", padding:"16px 0 14px", color:"var(--t2)", fontSize:12.5 }}>
             <div style={{ width:34, height:34, borderRadius:"50%",
               background:"rgba(163,230,53,0.07)", border:"1px solid rgba(163,230,53,0.12)",
               display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 7px" }}>
@@ -691,17 +691,17 @@ function CardsView({ onBack, onSuccess }) {
 
         {/* External */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:9 }}>
-          <span style={{ fontFamily:"var(--fd)", fontSize:11.5, fontWeight:700 }}>Linked Cards</span>
+          <span style={{ fontFamily:"var(--fd)", fontSize:12.5, fontWeight:700 }}>Linked Cards</span>
           <button onClick={()=>setShowLink(true)}
             style={{ background:"transparent", border:"none", cursor:"pointer",
-              color:"var(--lime)", fontSize:11.5, display:"flex", alignItems:"center",
+              color:"var(--lime)", fontSize:12.5, display:"flex", alignItems:"center",
               gap:3, fontFamily:"var(--fb)", fontWeight:600 }}>
             <Link size={11}/> Link
           </button>
         </div>
 
         {!loading && extCards.length===0 && (
-          <div style={{ textAlign:"center", padding:"14px 0", color:"var(--t2)", fontSize:11.5 }}>
+          <div style={{ textAlign:"center", padding:"14px 0", color:"var(--t2)", fontSize:12.5 }}>
             <div style={{ fontWeight:600, color:"rgba(255,255,255,0.26)" }}>No linked cards</div>
           </div>
         )}
@@ -716,13 +716,13 @@ function CardsView({ onBack, onSuccess }) {
                   <CreditCard size={14} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontFamily:"var(--fd)", fontWeight:700, fontSize:13 }}>{card.card_name}</div>
-                  <div style={{ color:"var(--t2)", fontSize:11 }}>{card.bank_name} · •••• {card.last_four}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontWeight:700, fontSize:14 }}>{card.card_name}</div>
+                  <div style={{ color:"var(--t2)", fontSize:12 }}>{card.bank_name} · •••• {card.last_four}</div>
                 </div>
               </div>
               <span style={{ padding:"2px 7px", background:"rgba(163,230,53,0.09)",
                 border:"1px solid rgba(163,230,53,0.17)", borderRadius:12,
-                fontSize:"8.5px", color:"var(--lime)", fontWeight:700 }}>ACTIVE</span>
+                fontSize:"calc((8.5px) + 1px)", color:"var(--lime)", fontWeight:700 }}>ACTIVE</span>
             </div>
           </div>
         ))}
@@ -755,7 +755,7 @@ function CardsView({ onBack, onSuccess }) {
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6 }}>
               {["Visa","Mastercard","Verve"].map(b=>(
                 <button key={b} className={`amt-btn ${cardBrand===b?"sel":""}`}
-                  onClick={()=>setCardBrand(b)} style={{ fontSize:11 }}>{b}</button>
+                  onClick={()=>setCardBrand(b)} style={{ fontSize:12 }}>{b}</button>
               ))}
             </div>
           </div>
@@ -802,7 +802,7 @@ function CardsView({ onBack, onSuccess }) {
           </div>
           <div style={{ padding:"8px 10px", background:"rgba(212,168,71,0.04)",
             border:"1px solid rgba(212,168,71,0.12)", borderRadius:9,
-            fontSize:10.5, color:"rgba(255,255,255,0.28)", lineHeight:1.6 }}>
+            fontSize:11.5, color:"rgba(255,255,255,0.28)", lineHeight:1.6 }}>
             🔒 Card details encrypted. CVV verified and never stored.
           </div>
           <div className="btn-pair">
@@ -829,8 +829,8 @@ export default function FinanceTab({ pwBalance, setPage }) {
   return (
     <div className="pw-scroll-px">
       <div style={{ paddingTop:14, paddingBottom:12 }}>
-        <div style={{ fontFamily:"var(--fd)", fontSize:18, fontWeight:800, letterSpacing:"-0.025em" }}>Finance</div>
-        <div style={{ color:"var(--t2)", fontSize:11, marginTop:2 }}>Manage your wealth</div>
+        <div style={{ fontFamily:"var(--fd)", fontSize:19, fontWeight:800, letterSpacing:"-0.025em" }}>Finance</div>
+        <div style={{ color:"var(--t2)", fontSize:12, marginTop:2 }}>Manage your wealth</div>
       </div>
 
       {/* Balance hero */}
@@ -839,11 +839,11 @@ export default function FinanceTab({ pwBalance, setPage }) {
           background:"radial-gradient(circle,rgba(163,230,53,0.09),transparent 70%)",
           borderRadius:"50%", filter:"blur(14px)", pointerEvents:"none" }} />
         <div style={{ position:"relative" }}>
-          <div style={{ color:"var(--t2)", fontSize:10.5, marginBottom:3 }}>PayWave Balance</div>
-          <div style={{ fontFamily:"var(--fd)", fontSize:28, fontWeight:800, letterSpacing:"-0.03em" }}>
+          <div style={{ color:"var(--t2)", fontSize:11.5, marginBottom:3 }}>PayWave Balance</div>
+          <div style={{ fontFamily:"var(--fd)", fontSize:29, fontWeight:800, letterSpacing:"-0.03em" }}>
             ₦{fmtNGN(pwBalance)}
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:4, color:"var(--lime)", fontSize:11, marginTop:4 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4, color:"var(--lime)", fontSize:12, marginTop:4 }}>
             <Zap size={10}/><span>Internal Naira · Zero-fee transfers</span>
           </div>
         </div>
@@ -860,8 +860,8 @@ export default function FinanceTab({ pwBalance, setPage }) {
                   <item.icon size={15} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800 }}>{item.label}</div>
-                  <div style={{ color:"var(--t2)", fontSize:10.5 }}>{item.sub}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800 }}>{item.label}</div>
+                  <div style={{ color:"var(--t2)", fontSize:11.5 }}>{item.sub}</div>
                 </div>
               </div>
               <ChevronRight size={12} color="var(--t4)" />
@@ -877,12 +877,12 @@ export default function FinanceTab({ pwBalance, setPage }) {
         cursor:"pointer" }} onClick={()=>setPage("invest")}>
         <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:7 }}>
           <Zap size={14} color="#a855f7" />
-          <span style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800 }}>Stake-2-Earn</span>
+          <span style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800 }}>Stake-2-Earn</span>
           <span style={{ marginLeft:"auto", padding:"2px 7px",
             background:"rgba(168,85,247,0.14)", border:"1px solid rgba(168,85,247,0.24)",
-            borderRadius:20, fontSize:"8.5px", color:"#a855f7", fontWeight:700 }}>PROTOCOL</span>
+            borderRadius:20, fontSize:"calc((8.5px) + 1px)", color:"#a855f7", fontWeight:700 }}>PROTOCOL</span>
         </div>
-        <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.32)", lineHeight:1.65 }}>
+        <div style={{ fontSize:12.5, color:"rgba(255,255,255,0.32)", lineHeight:1.65 }}>
           Lock ₦ into the Xeevia protocol and earn $XEV from platform revenue. The only Xeevia yield product.
         </div>
       </div>

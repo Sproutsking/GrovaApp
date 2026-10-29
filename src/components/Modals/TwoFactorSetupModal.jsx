@@ -80,14 +80,14 @@ const STYLES = `
   .tfa-step-dot.active { background: #84cc16; width: 26px; border-radius: 4px; animation: tfaPulse 2s ease infinite; }
   .tfa-step-line { width: 30px; height: 1px; background: rgba(255,255,255,.07); }
 
-  .tfa-info { text-align: center; color: #a3a3a3; font-size: 13.5px; margin-bottom: 22px; line-height: 1.65; }
+  .tfa-info { text-align: center; color: #a3a3a3; font-size: calc((13.5px) + 1px); margin-bottom: 22px; line-height: 1.65; }
   .tfa-info strong { color: #fff; }
   .tfa-info .acc { color: #84cc16; font-weight: 700; }
 
   .tfa-err {
     background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.22);
     border-radius: 11px; padding: 11px 14px; color: #ef4444;
-    font-size: 12.5px; margin-bottom: 16px;
+    font-size: calc((12.5px) + 1px); margin-bottom: 16px;
     display: flex; align-items: center; gap: 8px;
     animation: tfaShake .35s ease;
   }
@@ -108,7 +108,7 @@ const STYLES = `
   .tfa-otp {
     width: 52px; height: 60px;
     background: rgba(255,255,255,.04); border: 2px solid rgba(255,255,255,.09);
-    border-radius: 14px; color: #fff; font-size: 22px; font-weight: 800;
+    border-radius: 14px; color: #fff; font-size: calc((22px) + 1px); font-weight: 800;
     text-align: center; transition: all .2s; outline: none;
   }
   .tfa-otp:focus  { border-color: #84cc16; background: rgba(132,204,22,.07); transform: scale(1.05); }
@@ -116,7 +116,7 @@ const STYLES = `
 
   .tfa-btn {
     width: 100%; padding: 14px; border: none; border-radius: 13px;
-    font-size: 14.5px; font-weight: 800; cursor: pointer;
+    font-size: calc((14.5px) + 1px); font-weight: 800; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 9px;
     transition: all .22s;
   }
@@ -139,7 +139,7 @@ const STYLES = `
   .tfa-backup-code {
     background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
     border-radius: 10px; padding: 10px 12px;
-    font-size: 14px; font-weight: 700; color: #e5e5e5;
+    font-size: calc((14px) + 1px); font-weight: 700; color: #e5e5e5;
     font-family: monospace; text-align: center; letter-spacing: 2px;
   }
   .tfa-backup-code.used { opacity: .3; text-decoration: line-through; }
@@ -148,7 +148,7 @@ const STYLES = `
     background: rgba(245,158,11,.07); border: 1px solid rgba(245,158,11,.2);
     border-radius: 11px; padding: 12px 14px;
     display: flex; align-items: flex-start; gap: 9px;
-    color: #f59e0b; font-size: 12.5px; margin-bottom: 18px; line-height: 1.55;
+    color: #f59e0b; font-size: calc((12.5px) + 1px); margin-bottom: 18px; line-height: 1.55;
   }
 `;
 
@@ -324,8 +324,8 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
             <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
               <div className="tfa-icon"><Shield size={20} /></div>
               <div>
-                <div style={{ fontSize: 16.5, fontWeight: 800, color: "#fff" }}>Enable Two-Factor Authentication</div>
-                <div style={{ fontSize: 11.5, color: "#737373", marginTop: 2 }}>Protect your account with TOTP</div>
+                <div style={{ fontSize: 17.5, fontWeight: 800, color: "#fff" }}>Enable Two-Factor Authentication</div>
+                <div style={{ fontSize: 12.5, color: "#737373", marginTop: 2 }}>Protect your account with TOTP</div>
               </div>
             </div>
             <button className="tfa-close" onClick={onClose}><X size={15} /></button>
@@ -351,7 +351,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                 {loading
                   ? <>
                       <Loader size={32} style={{ color: "#84cc16", animation: "tfaSpin 1s linear infinite", marginBottom: 16 }} />
-                      <div style={{ color: "#737373", fontSize: 13 }}>Setting up 2FA…</div>
+                      <div style={{ color: "#737373", fontSize: 14 }}>Setting up 2FA…</div>
                     </>
                   : err
                     ? <>
@@ -381,10 +381,10 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                 )}
 
                 <div style={{ textAlign: "center", marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: "#484848", marginBottom: 8 }}>Can't scan? Enter this key manually:</div>
+                  <div style={{ fontSize: 12, color: "#484848", marginBottom: 8 }}>Can't scan? Enter this key manually:</div>
                   <div className="tfa-secret-box">
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <code style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#a3e635", letterSpacing: 2, fontFamily: "monospace", wordBreak: "break-all" }}>
+                      <code style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "#a3e635", letterSpacing: 2, fontFamily: "monospace", wordBreak: "break-all" }}>
                         {showSecret ? secret : "•".repeat(secret.length)}
                       </code>
                       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -404,7 +404,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                   background: "rgba(59,130,246,.06)",
                   border: "1px solid rgba(59,130,246,.15)",
                   borderRadius: 11,
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "#93c5fd",
                   lineHeight: 1.6,
                   marginBottom: 20,
@@ -433,7 +433,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
 
                 {err && <div className="tfa-err"><AlertTriangle size={15} style={{ flexShrink: 0 }} />{err}</div>}
 
-                <label style={{ display: "block", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#737373", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 14 }}>
+                <label style={{ display: "block", textAlign: "center", fontSize: 12, fontWeight: 700, color: "#737373", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 14 }}>
                   Verification Code
                 </label>
 
@@ -454,7 +454,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                   ))}
                 </div>
 
-                <div style={{ fontSize: 11.5, color: "#484848", textAlign: "center", marginBottom: 18 }}>
+                <div style={{ fontSize: 12.5, color: "#484848", textAlign: "center", marginBottom: 18 }}>
                   Code refreshes every 30 seconds. Enter the current code shown in your app.
                 </div>
 
@@ -482,8 +482,8 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                   <div style={{ width: 56, height: 56, background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.25)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
                     <Check size={24} color="#22c55e" />
                   </div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "#22c55e", marginBottom: 4 }}>2FA Enabled!</div>
-                  <div style={{ fontSize: 13, color: "#737373" }}>Save your backup codes before closing</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#22c55e", marginBottom: 4 }}>2FA Enabled!</div>
+                  <div style={{ fontSize: 14, color: "#737373" }}>Save your backup codes before closing</div>
                 </div>
 
                 <div className="tfa-warn">
@@ -505,7 +505,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                     background: copiedCodes ? "rgba(34,197,94,.1)" : "rgba(255,255,255,.04)",
                     border: `1px solid ${copiedCodes ? "rgba(34,197,94,.3)" : "rgba(255,255,255,.09)"}`,
                     color: copiedCodes ? "#22c55e" : "#a3a3a3",
-                    fontSize: 12.5, fontWeight: 700,
+                    fontSize: 13.5, fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                     transition: "all .2s",
                   }}>
@@ -515,7 +515,7 @@ export default function TwoFactorSetupModal({ show, onClose, userId, onSuccess }
                   <button onClick={downloadCodes} style={{
                     flex: 1, padding: "10px", borderRadius: 11, cursor: "pointer",
                     background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)",
-                    color: "#a3a3a3", fontSize: 12.5, fontWeight: 700,
+                    color: "#a3a3a3", fontSize: 13.5, fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                     transition: "all .2s",
                   }}

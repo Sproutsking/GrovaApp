@@ -204,7 +204,7 @@ const StoryCard = ({
           background: rgba(201,162,39,0.16);
           border: 1px solid rgba(201,162,39,0.42);
           color: #e9c95c;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           backdrop-filter: blur(12px);
         }
@@ -216,7 +216,7 @@ const StoryCard = ({
         }
         .story-title {
           font-family: Georgia, "Times New Roman", serif;
-          font-size: 1.55rem;
+          font-size: calc((1.55rem) + 1px);
           line-height: 1.18;
           margin: 0;
           color: #f8fafc;
@@ -231,7 +231,7 @@ const StoryCard = ({
         .story-preview {
           margin: 0;
           color: rgba(226,232,220,0.72);
-          font-size: 0.93rem;
+          font-size: calc((0.93rem) + 1px);
           line-height: 1.65;
           max-height: 3.1rem;
           overflow: hidden;
@@ -255,7 +255,7 @@ const StoryCard = ({
           border: none;
           border-radius: 8px;
           padding: 9px 13px;
-          font-size: 0.86rem;
+          font-size: calc((0.86rem) + 1px);
           font-weight: 700;
           cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
@@ -290,7 +290,7 @@ const StoryCard = ({
           min-height: 32px;
           padding: 5px 8px;
           border-radius: 7px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
         .story-header .category-tag {
           display: inline-flex;
@@ -300,7 +300,7 @@ const StoryCard = ({
           border-radius: 999px;
           background: rgba(132,204,22,0.12);
           color: #d4f89f;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.04em;
@@ -338,7 +338,7 @@ const StoryCard = ({
             padding: 18px 16px 18px;
           }
           .story-title {
-            font-size: 1.3rem;
+            font-size: calc((1.3rem) + 1px);
           }
           .story-preview-wrapper {
             min-height: 0;
@@ -350,7 +350,7 @@ const StoryCard = ({
           .story-footer .rp-stat {
             padding-left: 5px;
             padding-right: 5px;
-            font-size: 11px;
+            font-size: calc((11px) + 1px);
           }
         }
       `}</style>

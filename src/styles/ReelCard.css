@@ -12,7 +12,7 @@
   background: #080808;
   border-radius: 20px;
   overflow: hidden;
-  border: 1px solid var(--surface-border);
+  border: 1px solid #2f3336;
   transition: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
 }
@@ -20,7 +20,7 @@
 /* Hovered state neutralized to prevent card movement in feeds */
 .xv-reel-card.hovered {
   transform: none;
-  border-color: var(--surface-border);
+  border-color: #3d4246;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
 }
 
@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
+  font-size: calc((30px) + 1px);
   font-weight: 900;
   color: var(--accent-contrast);
   letter-spacing: -1px;
@@ -139,7 +139,7 @@
 
 .xv-error-msg {
   color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 500;
   letter-spacing: 0.05em;
 }
@@ -317,7 +317,7 @@
 }
 
 .xv-time-badge {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.75);
   white-space: nowrap;
@@ -355,7 +355,7 @@
 
 /* ── Timestamp ───────────────────────────────────────────────────────────────── */
 .xv-timestamp {
-  font-size: 10.5px;
+  font-size: calc((10.5px) + 1px);
   color: rgba(255, 255, 255, 0.38);
   font-weight: 600;
   white-space: nowrap;
@@ -369,7 +369,7 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 800;
   cursor: pointer;
   flex-shrink: 0;
@@ -453,7 +453,7 @@
 }
 .xv-caption-expanded-content {
   color: rgba(255, 255, 255, 0.88);
-  font-size: 13.5px;
+  font-size: calc((13.5px) + 1px);
   line-height: 1.6;
 }
 
@@ -473,7 +473,7 @@
 
 .xv-caption-text {
   color: rgba(255, 255, 255, 0.72);
-  font-size: 12.5px;
+  font-size: calc((12.5px) + 1px);
   line-height: 1;
   margin: 0;
   display: flex;
@@ -484,7 +484,7 @@
 .xv-caption-more {
   color: rgba(132, 204, 22, 0.65);
   font-weight: 700;
-  font-size: 11.5px;
+  font-size: calc((11.5px) + 1px);
   transition: color 0.2s;
   flex-shrink: 0;
 }
@@ -515,7 +515,7 @@
   flex-shrink: 0;
 }
 .xv-category-label {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1;
@@ -532,10 +532,10 @@
 @media (max-width: 768px) {
   .xv-reel-card {
     border-radius: 0;
-    border-left: 1px solid var(--surface-border);
-    border-right: 1px solid var(--surface-border);
+    border-left: 1px solid #2f3336;
+    border-right: 1px solid #2f3336;
     border-top: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid #2f3336;
     max-height: 98vh;
     box-shadow: none;
   }
@@ -558,7 +558,7 @@
   }
 
   .xv-time-badge {
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
     padding: 2px 5px;
   }
 
@@ -567,7 +567,7 @@
   }
 
   .xv-caption-text {
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
   }
 
   .xv-category-pill {
@@ -576,7 +576,7 @@
 
   .xv-follow-btn {
     padding: 4px 10px;
-    font-size: 10.5px;
+    font-size: calc((10.5px) + 1px);
   }
 
   .xv-icon-btn {

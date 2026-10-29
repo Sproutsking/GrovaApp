@@ -106,14 +106,14 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
           }}
         >
           <Zap size={14} color="#bfe4ff" />
-          <span style={{ fontSize: 12, color: "#bfe4ff", fontWeight: 700 }}>
+          <span style={{ fontSize: 13, color: "#bfe4ff", fontWeight: 700 }}>
             BOOST YOUR PROFILE
           </span>
         </div>
 
         <h1
           style={{
-            fontSize: 44,
+            fontSize: 45,
             fontWeight: 900,
             color: "rgba(255,255,255,0.95)",
             margin: 0,
@@ -125,7 +125,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
 
         <p
           style={{
-            fontSize: 16,
+            fontSize: 17,
             color: "rgba(255,255,255,0.6)",
             maxWidth: 600,
             margin: "0 auto",
@@ -154,10 +154,10 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
         >
           <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 13 }}>
+            <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 14 }}>
               Upgrade Failed
             </div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 4 }}>
               {error}
             </div>
           </div>
@@ -207,7 +207,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
               border: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 12 }}>
               BILLING PERIOD
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -229,7 +229,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                     color: billingPeriod === period 
                       ? "#bfe4ff"
                       : "rgba(255,255,255,0.6)",
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 600,
                     cursor: working ? "not-allowed" : "pointer",
                     opacity: working ? 0.5 : 1,
@@ -273,7 +273,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
                 Loading your profile...
               </div>
             </div>
@@ -292,12 +292,12 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                   transition: "opacity 0.3s",
                 }}
               >
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>
                   LIVE PREVIEW
                 </div>
                 <div
                   style={{
-                    fontSize: 18,
+                    fontSize: 19,
                     fontWeight: 800,
                     color: tierData.color,
                     marginTop: 6,
@@ -306,12 +306,12 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                     gap: 10,
                   }}
                 >
-                  <span style={{ fontSize: 20 }}>{tierData.symbol}</span>
+                  <span style={{ fontSize: 21 }}>{tierData.symbol}</span>
                   {tierData.name}
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "rgba(255,255,255,0.5)",
                     marginTop: 4,
                   }}
@@ -353,7 +353,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                   {/* Decorative symbol */}
                   <div
                     style={{
-                      fontSize: 64,
+                      fontSize: 65,
                       marginBottom: 20,
                       filter: `drop-shadow(0 0 16px ${tierData.color})`,
                       animation: "float 3s ease-in-out infinite",
@@ -365,7 +365,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                   {/* Profile preview text */}
                   <div
                     style={{
-                      fontSize: 24,
+                      fontSize: 25,
                       fontWeight: 800,
                       color: tierData.color,
                       marginBottom: 8,
@@ -376,7 +376,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
 
                   <div
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       color: "rgba(255,255,255,0.5)",
                       fontWeight: 500,
                     }}
@@ -395,7 +395,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                       background: `${tierData.color}15`,
                       borderRadius: 12,
                       border: `1px solid ${tierData.color}40`,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 700,
                       color: tierData.color,
                     }}
@@ -426,7 +426,7 @@ const BoostProfileShowcase = ({ userId, isModal = false, onClose, onUpgradeCompl
                   background: "rgba(255,255,255,0.02)",
                   borderRadius: 12,
                   border: "1px solid rgba(255,255,255,0.06)",
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "rgba(255,255,255,0.6)",
                 }}
               >

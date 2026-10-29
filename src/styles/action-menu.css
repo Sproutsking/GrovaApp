@@ -35,7 +35,7 @@
 .action-menu-header {
   padding: 14px 16px;
   background: var(--accent-glow);
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
@@ -56,7 +56,7 @@
   color: var(--text);
   padding: 12px 14px;
   text-align: left;
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;

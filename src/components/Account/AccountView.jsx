@@ -71,7 +71,7 @@ const ACCOUNT_CSS = `
     display:flex; align-items:center; justify-content:center; gap:7px;
     padding:9px 12px; border-radius:11px;
     border:1px solid transparent; background:transparent;
-    color:rgba(51,65,85,0.65); font-size:12.5px; font-weight:600;
+    color:rgba(51,65,85,0.65); font-size:calc((12.5px) + 1px); font-weight:600;
     cursor:pointer; white-space:nowrap; flex-shrink:1; flex-grow:1;
     transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
     letter-spacing:0.015em; line-height:1; font-family:inherit;
@@ -145,7 +145,7 @@ const ACCOUNT_CSS = `
 
     .account-tab {
       padding: 9px 10px;
-      font-size: 12.8px;
+      font-size: calc((12.8px) + 1px);
       border-radius: 12px;
       flex-grow: 1;
       min-width: 0;
@@ -174,7 +174,7 @@ const ACCOUNT_CSS = `
 
     .account-tab {
       padding: 8px 12px;
-      font-size: 11.5px;
+      font-size: calc((11.5px) + 1px);
       gap: 5px;
     }
 

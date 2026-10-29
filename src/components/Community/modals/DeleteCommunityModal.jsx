@@ -184,14 +184,14 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
         .dcm-icon { color: #ff4444; }
 
         .dcm-title {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 900;
           color: #fff;
           margin: 0 0 8px;
         }
 
         .dcm-subtitle {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #888;
           line-height: 1.5;
           margin: 0 0 16px;
@@ -217,7 +217,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
           border: 2px solid rgba(255,68,68,0.3);
         }
         .dcm-comm-name {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 800;
           color: #fff;
         }
@@ -228,12 +228,12 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
         }
         .dcm-label {
           display: block;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #888;
           margin-bottom: 8px;
           line-height: 1.5;
         }
-        .dcm-label strong { color: #ccc; font-family: monospace; font-size: 13px; }
+        .dcm-label strong { color: #ccc; font-family: monospace; font-size: calc((13px) + 1px); }
 
         .dcm-input {
           width: 100%;
@@ -242,7 +242,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
           border: 1.5px solid rgba(255,255,255,0.1);
           border-radius: 10px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-family: inherit;
           outline: none;
           transition: border-color 0.15s;
@@ -256,7 +256,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
         .dcm-hint {
           display: block;
           margin-top: 4px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #ff6644;
         }
 
@@ -266,7 +266,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
           border: 1px solid rgba(255,68,68,0.25);
           border-radius: 8px;
           color: #ff6666;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           margin-bottom: 12px;
           text-align: left;
         }
@@ -280,7 +280,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
           flex: 1;
           padding: 12px;
           border-radius: 10px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
           cursor: pointer;
           transition: all 0.18s;
@@ -329,7 +329,7 @@ const DeleteCommunityModal = ({ community, onConfirm, onClose }) => {
 
         @media (max-width: 480px) {
           .dcm-modal { padding: 24px 16px 20px; }
-          .dcm-title { font-size: 18px; }
+          .dcm-title { font-size: calc((18px) + 1px); }
         }
       `}</style>
     </div>

@@ -167,7 +167,7 @@ const DecorativeCheckmark = ({ tierKey }) => {
         style={{
           position: "relative",
           zIndex: 3,
-          fontSize: 32,
+          fontSize: 33,
           fontWeight: "bold",
           color: config.borderColor,
           textShadow: `0 0 12px ${config.glowColor}, 0 0 24px ${config.glowColor}`,
@@ -256,7 +256,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
         >
           <div
             style={{
-              fontSize: 24,
+              fontSize: 25,
               filter: `drop-shadow(0 0 8px ${config.glowColor})`,
             }}
           >
@@ -265,7 +265,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
           <div>
             <div
               style={{
-                fontSize: 20,
+                fontSize: 21,
                 fontWeight: 800,
                 color: isSelected ? config.borderColor : "rgba(255,255,255,0.9)",
                 transition: "color 0.3s",
@@ -275,7 +275,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
             </div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 color: "rgba(255,255,255,0.5)",
                 fontWeight: 500,
                 marginTop: 2,
@@ -289,7 +289,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
         {/* Description */}
         <div
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: "rgba(255,255,255,0.7)",
             marginBottom: 20,
             lineHeight: 1.5,
@@ -323,7 +323,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
             <div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: "rgba(255,255,255,0.6)",
                   textTransform: "uppercase",
                   fontWeight: 700,
@@ -335,7 +335,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
               </div>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: 29,
                   fontWeight: 900,
                   color: config.borderColor,
                 }}
@@ -343,7 +343,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
                 ${config.monthlyPrice}
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "rgba(255,255,255,0.6)",
                     fontWeight: 500,
                   }}
@@ -357,7 +357,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
             <div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: "rgba(255,255,255,0.6)",
                   textTransform: "uppercase",
                   fontWeight: 700,
@@ -369,7 +369,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
               </div>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: 29,
                   fontWeight: 900,
                   color: config.borderColor,
                 }}
@@ -377,7 +377,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
                 ${config.yearlyPrice}
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "rgba(255,255,255,0.6)",
                     fontWeight: 500,
                   }}
@@ -387,7 +387,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
               </div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: `${config.borderColor}cc`,
                   fontWeight: 700,
                   marginTop: 4,
@@ -416,7 +416,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
               style={{
                 display: "flex",
                 gap: 10,
-                fontSize: 12,
+                fontSize: 13,
                 color: "rgba(255,255,255,0.75)",
               }}
             >
@@ -443,7 +443,7 @@ const TierCard = ({ tierKey, isSelected, onSelect, disabled }) => {
             padding: "12px 16px",
             borderRadius: 12,
             border: "none",
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 700,
             cursor: isSelected || isUpgrading ? "default" : "pointer",
             transition: "all 0.25s",
@@ -558,7 +558,7 @@ const BoostTierSelector = ({
           <Sparkles size={20} color="#bfe4ff" />
           <h2
             style={{
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 900,
               color: "rgba(255,255,255,0.95)",
               margin: 0,
@@ -570,7 +570,7 @@ const BoostTierSelector = ({
         </div>
         <p
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: "rgba(255,255,255,0.6)",
             maxWidth: 500,
             margin: "0 auto",
@@ -624,7 +624,7 @@ const BoostTierSelector = ({
       >
         <p
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "rgba(255,255,255,0.6)",
             margin: 0,
             lineHeight: 1.6,

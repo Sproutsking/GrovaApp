@@ -254,7 +254,7 @@ class AppErrorBoundary extends React.Component {
         gap:            "16px",
       }}>
         <div style={{
-          fontSize:        "32px",
+          fontSize:        "calc((32px) + 1px)",
           fontWeight:      900,
           letterSpacing:   "-1.5px",
           background:      "linear-gradient(135deg, var(--accent), var(--accent-strong))",
@@ -275,21 +275,21 @@ class AppErrorBoundary extends React.Component {
           display:        "flex",
           alignItems:     "center",
           justifyContent: "center",
-          fontSize:       "26px",
+          fontSize:       "calc((26px) + 1px)",
         }}>
           ⚡
         </div>
 
-        <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)" }}>
+        <div style={{ fontSize: "calc((16px) + 1px)", fontWeight: 800, color: "var(--text)" }}>
           Something hiccupped
         </div>
-        <div style={{ fontSize: "13px", color: "var(--text-secondary)", maxWidth: "300px", lineHeight: 1.7 }}>
+        <div style={{ fontSize: "calc((13px) + 1px)", color: "var(--text-secondary)", maxWidth: "300px", lineHeight: 1.7 }}>
           A temporary error occurred. Your session and data are safe.
         </div>
 
         {process.env.NODE_ENV === "development" && this.state.error && (
           <div style={{
-            fontSize:     "11px",
+            fontSize:     "calc((11px) + 1px)",
             color:        "#333",
             fontFamily:   "monospace",
             background:   "#0d0d0d",
@@ -314,7 +314,7 @@ class AppErrorBoundary extends React.Component {
             border:     "none",
             background: "linear-gradient(135deg, var(--accent), var(--accent-strong))",
             color:      "var(--accent-contrast)",
-            fontSize:   "14px",
+            fontSize:   "calc((14px) + 1px)",
             fontWeight: 800,
             cursor:     "pointer",
             boxShadow:  "0 4px 18px var(--accent-shadow)",
@@ -472,13 +472,13 @@ function showAppPrompt({ type, message, detail }) {
       <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
-      <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
+      <div style="font-size:calc((13px) + 1px);font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
+      <div style="font-size:calc((11px) + 1px);color:#95a38d;line-height:1.45">${subtitle}</div>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, background .18s ease;">Ignore</button>
-      ${type === "install" || type === "push" ? '<button id="xv-prompt-never" style="border:none;background:transparent;color:#84917d;padding:8px 4px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">Never</button>' : ""}
-      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; box-shadow:0 8px 18px rgba(132,204,22,0.26);">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
+      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:calc((12px) + 1px);font-weight:700;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, background .18s ease;">Ignore</button>
+      ${type === "install" || type === "push" ? '<button id="xv-prompt-never" style="border:none;background:transparent;color:#84917d;padding:8px 4px;border-radius:10px;font-size:calc((11px) + 1px);font-weight:700;cursor:pointer;">Never</button>' : ""}
+      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:calc((12px) + 1px);font-weight:800;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; box-shadow:0 8px 18px rgba(132,204,22,0.26);">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
 
@@ -543,7 +543,7 @@ function showAppPrompt({ type, message, detail }) {
     const snoozeLabels = { 12: "12 hrs", 24: "Tomorrow", 48: "In 2 days" };
 
     buttonsContainer.innerHTML = snoozeHours.map(hours =>
-      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:transform .18s ease, background .18s ease, box-shadow .18s ease;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
+      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:calc((11px) + 1px);font-weight:700;cursor:pointer;transition:transform .18s ease, background .18s ease, box-shadow .18s ease;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
     ).join("");
 
     document.querySelectorAll(".xv-snooze-option").forEach(btn => {

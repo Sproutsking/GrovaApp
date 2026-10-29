@@ -91,20 +91,20 @@ const CommunitiesModal = ({ currentUser, onClose, isMobile }) => {
           display: flex; align-items: center; justify-content: space-between;
           margin-bottom: 20px;
         }
-        .cm-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .cm-title { font-size: calc((20px) + 1px); font-weight: 800; color: #fff; margin: 0; display: flex; align-items: center; gap: 10px; }
         .cm-title-icon { width: 36px; height: 36px; background: rgba(132,204,22,0.12); border: 1px solid rgba(132,204,22,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
         .cm-close { width: 36px; height: 36px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #a3a3a3; transition: all 0.2s; }
         .cm-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .cm-stats { display: flex; gap: 16px; margin-bottom: 16px; }
-        .cm-stat { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #a3a3a3; font-weight: 600; }
+        .cm-stat { display: flex; align-items: center; gap: 6px; font-size: calc((13px) + 1px); color: #a3a3a3; font-weight: 600; }
         .cm-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
         .cm-filters { display: flex; gap: 6px; padding-bottom: 16px; }
-        .cm-filter-btn { padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid; transition: all 0.2s; }
+        .cm-filter-btn { padding: 7px 14px; border-radius: 20px; font-size: calc((12px) + 1px); font-weight: 700; cursor: pointer; border: 1px solid; transition: all 0.2s; }
         .cm-filter-btn.active { background: rgba(132,204,22,0.15); border-color: rgba(132,204,22,0.5); color: #84cc16; }
         .cm-filter-btn:not(.active) { background: transparent; border-color: rgba(255,255,255,0.1); color: #737373; }
         .cm-filter-btn:not(.active):hover { border-color: rgba(255,255,255,0.2); color: #a3a3a3; }
         .cm-search { padding: 14px 20px; position: relative; flex-shrink: 0; }
-        .cm-search-input { width: 100%; padding: 10px 16px 10px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
+        .cm-search-input { width: 100%; padding: 10px 16px 10px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: calc((14px) + 1px); outline: none; box-sizing: border-box; transition: border-color 0.2s; }
         .cm-search-input:focus { border-color: rgba(132,204,22,0.4); }
         .cm-search-input::placeholder { color: #525252; }
         .cm-search-icon { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); color: #525252; pointer-events: none; }
@@ -124,7 +124,7 @@ const CommunitiesModal = ({ currentUser, onClose, isMobile }) => {
           background: linear-gradient(135deg, #1a2e05 0%, #0d1a02 100%);
           border: 1.5px solid rgba(132,204,22,0.2);
           display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0; font-size: 22px; color: #84cc16; font-weight: 800;
+          flex-shrink: 0; font-size: calc((22px) + 1px); color: #84cc16; font-weight: 800;
           position: relative; overflow: hidden;
         }
         .cm-avatar-badge {
@@ -135,24 +135,24 @@ const CommunitiesModal = ({ currentUser, onClose, isMobile }) => {
         }
         .cm-info { flex: 1; min-width: 0; }
         .cm-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .cm-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cm-name { font-size: calc((15px) + 1px); font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cm-role-badge {
           display: inline-flex; align-items: center; gap: 4px;
-          padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800;
+          padding: 2px 8px; border-radius: 6px; font-size: calc((10px) + 1px); font-weight: 800;
           text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
         }
         .cm-role-owner { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
         .cm-role-member { background: rgba(132,204,22,0.08); border: 1px solid rgba(132,204,22,0.2); color: #84cc16; }
         .cm-meta { display: flex; align-items: center; gap: 12px; }
-        .cm-meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #737373; font-weight: 600; }
-        .cm-private-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 5px; font-size: 10px; color: #ef4444; font-weight: 700; }
+        .cm-meta-item { display: flex; align-items: center; gap: 4px; font-size: calc((12px) + 1px); color: #737373; font-weight: 600; }
+        .cm-private-badge { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 5px; font-size: calc((10px) + 1px); color: #ef4444; font-weight: 700; }
         .cm-chevron { color: #404040; transition: color 0.2s; }
         .cm-item:hover .cm-chevron { color: #84cc16; }
         .cm-empty { padding: 60px 20px; text-align: center; }
         .cm-empty-icon { width: 64px; height: 64px; background: rgba(132,204,22,0.06); border: 1px solid rgba(132,204,22,0.15); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-        .cm-empty-title { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 8px 0; }
-        .cm-empty-sub { font-size: 13px; color: #525252; margin: 0 0 20px; }
-        .cm-empty-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.3); border-radius: 12px; color: #84cc16; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .cm-empty-title { font-size: calc((16px) + 1px); font-weight: 700; color: #fff; margin: 0 0 8px 0; }
+        .cm-empty-sub { font-size: calc((13px) + 1px); color: #525252; margin: 0 0 20px; }
+        .cm-empty-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.3); border-radius: 12px; color: #84cc16; font-size: calc((13px) + 1px); font-weight: 700; cursor: pointer; }
         .cm-loading { padding: 60px 20px; text-align: center; }
         .cm-spinner { width: 40px; height: 40px; border: 3px solid rgba(132,204,22,0.15); border-top-color: #84cc16; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
         @keyframes spin { to { transform: rotate(360deg) } }
@@ -198,7 +198,7 @@ const CommunitiesModal = ({ currentUser, onClose, isMobile }) => {
             {loading ? (
               <div className="cm-loading">
                 <div className="cm-spinner" />
-                <p style={{ color: "#737373", fontSize: "14px", margin: 0 }}>Loading communities...</p>
+                <p style={{ color: "#737373", fontSize: "calc((14px) + 1px)", margin: 0 }}>Loading communities...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="cm-empty">

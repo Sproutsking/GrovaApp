@@ -150,12 +150,12 @@ function StatTile({
           <Icon size={14} color={color} />
         </div>
       )}
-      <div style={{ fontSize: 24, fontWeight: 900, color, letterSpacing: -1 }}>
+      <div style={{ fontSize: 25, fontWeight: 900, color, letterSpacing: -1 }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{label}</div>
       {sub && (
-        <div style={{ fontSize: 11, color, marginTop: 3, opacity: 0.8 }}>
+        <div style={{ fontSize: 12, color, marginTop: 3, opacity: 0.8 }}>
           {sub}
         </div>
       )}
@@ -166,7 +166,7 @@ function StatTile({
             alignItems: "center",
             gap: 4,
             marginTop: 6,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             color: trend >= 0 ? C.success : C.danger,
           }}
@@ -221,11 +221,11 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             Analytics
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             Platform-wide metrics and growth data
           </p>
         </div>
@@ -253,7 +253,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
       <Section title="Daily Active Users" subtitle="Distinct users with session activity, measured in UTC day windows.">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
           {[7, 30, 90, 180, 365, 730, 1095, 1825, 2190].map((period) => (
-            <button key={period} onClick={() => activeUserAnalytics?.setDays(period)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${activeUserAnalytics?.days === period ? C.accent : C.border}`, background: activeUserAnalytics?.days === period ? `${C.accent}18` : C.bg1, color: activeUserAnalytics?.days === period ? C.accent : C.muted, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+            <button key={period} onClick={() => activeUserAnalytics?.setDays(period)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${activeUserAnalytics?.days === period ? C.accent : C.border}`, background: activeUserAnalytics?.days === period ? `${C.accent}18` : C.bg1, color: activeUserAnalytics?.days === period ? C.accent : C.muted, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
               {period >= 365 ? `${(period / 365).toFixed(period % 365 === 0 ? 0 : 1)}y` : `${period}d`}
             </button>
           ))}
@@ -265,13 +265,13 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
         </div>
         <div style={{ display: "grid", gap: 6 }}>
           {activeData.daily.slice(-(activeUserAnalytics?.days || 7)).reverse().map((entry) => (
-            <div key={entry.date} style={{ display: "grid", gridTemplateColumns: "76px 1fr 58px", alignItems: "center", gap: 10, fontSize: 11 }}>
+            <div key={entry.date} style={{ display: "grid", gridTemplateColumns: "76px 1fr 58px", alignItems: "center", gap: 10, fontSize: 12 }}>
               <span style={{ color: C.muted }}>{entry.label}</span>
               <div style={{ height: 7, borderRadius: 8, background: C.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min(100, (entry.users / Math.max(1, ...activeData.daily.map((day) => day.users))) * 100)}%`, background: C.accent, borderRadius: 8 }} /></div>
               <strong style={{ color: C.text, textAlign: "right" }}>{entry.users.toLocaleString()}</strong>
             </div>
           ))}
-          {!activeData.daily.length && <div style={{ color: C.muted, fontSize: 12 }}>{activeUserAnalytics?.loading ? "Loading activity…" : "No session activity recorded yet."}</div>}
+          {!activeData.daily.length && <div style={{ color: C.muted, fontSize: 13 }}>{activeUserAnalytics?.loading ? "Loading activity…" : "No session activity recorded yet."}</div>}
         </div>
       </Section>
 
@@ -293,7 +293,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
             color="#f59e0b"
             style={{ flexShrink: 0, marginTop: 1 }}
           />
-          <div style={{ fontSize: 12, color: "#f59e0b" }}>
+          <div style={{ fontSize: 13, color: "#f59e0b" }}>
             <strong>High EP circulation detected.</strong> Total EP in
             circulation: {s.totalEPCirculation.toLocaleString()}. Use "Fix EP
             Inflation" to normalize paid users to the correct 50 EP baseline.
@@ -329,7 +329,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
               border: "none",
               background: view === t.id ? C.accent : "transparent",
               color: view === t.id ? "#000" : C.muted,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: "inherit",
@@ -408,7 +408,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                 border: "1px solid rgba(96,165,250,0.15)",
                 borderRadius: 10,
                 marginBottom: 16,
-                fontSize: 11,
+                fontSize: 12,
                 color: "#6b7280",
               }}
             >
@@ -464,7 +464,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                 >
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: 800,
                       color: d.color,
                       textTransform: "uppercase",
@@ -476,7 +476,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   </div>
                   <div
                     style={{
-                      fontSize: 22,
+                      fontSize: 23,
                       fontWeight: 900,
                       color: d.color,
                       letterSpacing: -1,
@@ -484,7 +484,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   >
                     {fmtUSD(d.amount)}
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
                     {d.count} transaction{d.count !== 1 ? "s" : ""}
                   </div>
                 </div>
@@ -498,7 +498,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   background: "rgba(245,158,11,0.06)",
                   border: "1px solid rgba(245,158,11,0.2)",
                   borderRadius: 10,
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "#f59e0b",
                   marginBottom: 16,
                 }}
@@ -513,7 +513,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
               <div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: C.text,
                     marginBottom: 12,
@@ -546,7 +546,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                         <div
                           style={{
                             width: 80,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: provColor,
                             textTransform: "capitalize",
@@ -578,7 +578,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                         </div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: C.text,
                             fontWeight: 700,
                             width: 80,
@@ -589,7 +589,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                         </div>
                         <div
                           style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             color: C.muted,
                             width: 50,
                             textAlign: "right",
@@ -682,11 +682,11 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   </div>
                   <div>
                     <div
-                      style={{ fontSize: 20, fontWeight: 800, color: m.color }}
+                      style={{ fontSize: 21, fontWeight: 800, color: m.color }}
                     >
                       {m.value}
                     </div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+                    <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
                       {m.label}
                     </div>
                   </div>
@@ -777,7 +777,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   <m.icon size={13} color={m.color} />
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       color: C.muted,
                       fontWeight: 700,
                       textTransform: "uppercase",
@@ -787,7 +787,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                     {m.label}
                   </span>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: m.color }}>
+                <div style={{ fontSize: 23, fontWeight: 900, color: m.color }}>
                   {m.value}
                 </div>
               </div>
@@ -870,12 +870,12 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                     <m.icon size={18} color={m.color} />
                   </div>
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: m.color }}>
+                <div style={{ fontSize: 29, fontWeight: 800, color: m.color }}>
                   {typeof m.value === "number"
                     ? m.value.toLocaleString()
                     : m.value}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
                   {m.label}
                 </div>
               </div>
@@ -908,7 +908,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                 <Zap size={13} color="#fbbf24" />
                 <span
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 800,
                     color: "#7c5c0a",
                     textTransform: "uppercase",
@@ -918,10 +918,10 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   Circulating XEV
                 </span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: "#fbbf24" }}>
+              <div style={{ fontSize: 25, fontWeight: 900, color: "#fbbf24" }}>
                 {(s.totalXEVCirculating || 0).toLocaleString()}
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
                 Active wallet balances
               </div>
             </div>
@@ -944,7 +944,7 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                 <Award size={13} color={C.accent} />
                 <span
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 800,
                     color: "#3a5c10",
                     textTransform: "uppercase",
@@ -954,10 +954,10 @@ export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefr
                   EP in Circulation
                 </span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: C.accent }}>
+              <div style={{ fontSize: 25, fontWeight: 900, color: C.accent }}>
                 {(s.totalEPCirculation || 0).toLocaleString()}
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
                 Raw EP — base grant is 50 per paid user
               </div>
             </div>
@@ -1037,9 +1037,9 @@ export function TransactionsSection({ adminData }) {
     {
       label: "User",
       render: (t) => (
-        <span style={{ fontSize: 12, color: C.text }}>
+        <span style={{ fontSize: 13, color: C.text }}>
           {t.user_name}{" "}
-          <span style={{ color: C.muted, fontSize: 11 }}>({t.user_email})</span>
+          <span style={{ color: C.muted, fontSize: 12 }}>({t.user_email})</span>
         </span>
       ),
     },
@@ -1051,13 +1051,13 @@ export function TransactionsSection({ adminData }) {
             style={{
               fontWeight: 800,
               color: t.isNGN ? "#00c3ff" : C.success,
-              fontSize: 13,
+              fontSize: 14,
             }}
           >
             {t.displayLocal}
           </div>
           {t.isNGN && (
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
               ≈ {t.displayUSD} USD
             </div>
           )}
@@ -1069,7 +1069,7 @@ export function TransactionsSection({ adminData }) {
       render: (t) => (
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             padding: "2px 7px",
             borderRadius: 4,
@@ -1092,7 +1092,7 @@ export function TransactionsSection({ adminData }) {
       render: (t) => (
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             padding: "2px 7px",
             borderRadius: 4,
@@ -1112,7 +1112,7 @@ export function TransactionsSection({ adminData }) {
     {
       label: "Date",
       render: (t) => (
-        <span style={{ fontSize: 12, color: C.muted }}>
+        <span style={{ fontSize: 13, color: C.muted }}>
           {new Date(t.created_at).toLocaleDateString()}
         </span>
       ),
@@ -1145,11 +1145,11 @@ export function TransactionsSection({ adminData }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             Transactions
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             {total.toLocaleString()} total
           </p>
         </div>
@@ -1173,7 +1173,7 @@ export function TransactionsSection({ adminData }) {
           background: "rgba(0,195,255,0.04)",
           border: "1px solid rgba(0,195,255,0.15)",
           borderRadius: 10,
-          fontSize: 12,
+          fontSize: 13,
           color: "#9ca3af",
           marginBottom: 16,
           alignItems: "center",
@@ -1201,7 +1201,7 @@ export function TransactionsSection({ adminData }) {
               background:
                 typeFilter === t.key ? `${C.accent}12` : "transparent",
               color: typeFilter === t.key ? C.accent : C.muted,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: "inherit",
@@ -1296,11 +1296,11 @@ export function SecuritySection({ adminData, secData }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             Security
           </h1>
-          <p style={{ color: C.muted, fontSize: 14, marginTop: 4 }}>
+          <p style={{ color: C.muted, fontSize: 15, marginTop: 4 }}>
             Platform security events and locked accounts
           </p>
         </div>
@@ -1346,10 +1346,10 @@ export function SecuritySection({ adminData, secData }) {
                   <UserX size={14} color={C.danger} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
                     {acc.full_name}
                   </div>
-                  <div style={{ fontSize: 11, color: C.muted }}>
+                  <div style={{ fontSize: 12, color: C.muted }}>
                     {acc.email} · {acc.failed_login_attempts} failed attempts
                   </div>
                 </div>
@@ -1425,12 +1425,12 @@ export function SecuritySection({ adminData, secData }) {
                     >
                       <Badge label={ev.severity} color={sevColor} />
                       <span
-                        style={{ fontSize: 12, fontWeight: 600, color: C.text }}
+                        style={{ fontSize: 13, fontWeight: 600, color: C.text }}
                       >
                         {ev.type}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: C.muted }}>
+                    <div style={{ fontSize: 12, color: C.muted }}>
                       {ev.user_email} · {ev.ip} ·{" "}
                       {new Date(ev.created_at).toLocaleString()}
                     </div>
@@ -1548,7 +1548,7 @@ export function NotificationsSection({ adminData, broadcaster, platformSettings 
     <div>
       <h1
         style={{
-          fontSize: 26,
+          fontSize: 27,
           fontWeight: 800,
           color: C.text,
           marginBottom: 24,
@@ -1571,7 +1571,7 @@ export function NotificationsSection({ adminData, broadcaster, platformSettings 
           border: "1px solid rgba(59,130,246,0.2)",
           borderRadius: 10,
           marginBottom: 20,
-          fontSize: 12,
+          fontSize: 13,
           color: "#9ca3af",
           display: "flex",
           alignItems: "center",
@@ -1668,7 +1668,7 @@ export function NotificationsSection({ adminData, broadcaster, platformSettings 
           >
             <div
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 800,
                 color: typeColors[form.type] || C.info,
                 marginBottom: 4,
@@ -1676,10 +1676,10 @@ export function NotificationsSection({ adminData, broadcaster, platformSettings 
             >
               PREVIEW
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
               {form.title}
             </div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>
               {form.message}
             </div>
           </div>
@@ -1751,13 +1751,13 @@ export function NotificationsSection({ adminData, broadcaster, platformSettings 
                     />
                     <Badge label={n.target_type} color={C.muted} />
                     <span
-                      style={{ fontSize: 13, fontWeight: 600, color: C.text }}
+                      style={{ fontSize: 14, fontWeight: 600, color: C.text }}
                     >
                       {n.title}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{n.body}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>
+                  <div style={{ fontSize: 12, color: C.muted }}>{n.body}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
                     Sent by {n.sent_by_name || "Admin"} · {n.reach} users
                     reached · {new Date(n.sent_at).toLocaleString()}
                   </div>
@@ -1822,7 +1822,7 @@ export function CommunitiesSection({ adminData }) {
         <div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               color: C.text,
               display: "flex",
@@ -1835,13 +1835,13 @@ export function CommunitiesSection({ adminData }) {
             {c.is_verified && <BadgeCheck size={13} color={C.accent} />}
             {c.is_premium && <Crown size={13} color="#f59e0b" />}
           </div>
-          <div style={{ fontSize: 11, color: C.muted }}>
+          <div style={{ fontSize: 12, color: C.muted }}>
             Owner: {c.owner_name} · {c.owner_email}
           </div>
           {c.status === "suspended" && c.settings?.suspension_reason && (
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 color: C.danger,
                 marginTop: 2,
                 display: "flex",
@@ -1874,7 +1874,7 @@ export function CommunitiesSection({ adminData }) {
     {
       label: "Created",
       render: (c) => (
-        <span style={{ fontSize: 11, color: C.muted }}>
+        <span style={{ fontSize: 12, color: C.muted }}>
           {new Date(c.created_at).toLocaleDateString()}
         </span>
       ),
@@ -1928,11 +1928,11 @@ export function CommunitiesSection({ adminData }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             Communities
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             {total.toLocaleString()} communities
           </p>
         </div>
@@ -1976,7 +1976,7 @@ export function CommunitiesSection({ adminData }) {
                   background:
                     statusFilter === t.value ? `${t.color}0a` : "transparent",
                   color: statusFilter === t.value ? t.color : C.muted,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 700,
                   fontFamily: "inherit",
                   display: "flex",

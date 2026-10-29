@@ -169,7 +169,7 @@
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 600;
   color: #fff;
   backdrop-filter: blur(8px);
@@ -183,7 +183,7 @@
 
 .ssl-muted-badge,
 .ssl-nocam-badge {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   padding: 4px 6px;
   background: rgba(239, 68, 68, 0.2);
   border-color: rgba(239, 68, 68, 0.5);
@@ -198,7 +198,7 @@
 }
 
 .ssl-name {
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #fff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
@@ -252,7 +252,7 @@
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 20px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 600;
   color: #84cc16;
   backdrop-filter: blur(8px);
@@ -277,12 +277,12 @@
   }
 
   .ssl-badge {
-    font-size: 10px;
+    font-size: calc((10px) + 1px);
     padding: 3px 6px;
   }
 
   .ssl-name {
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
   }
 }
 
@@ -309,12 +309,12 @@
   }
 
   .ssl-badge {
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
     padding: 2px 5px;
   }
 
   .ssl-name {
-    font-size: 11px;
+    font-size: calc((11px) + 1px);
   }
 
   .ssl-avatar {

@@ -1,5 +1,7 @@
 import socialConnectService, { getPlatformConfig, resolveProviderLinkState, validateProfileUrl } from './socialConnectService';
 import { supabase } from "../config/supabase";
+import fs from "fs";
+import path from "path";
 
 jest.mock("../config/supabase", () => ({
   supabase: {
@@ -214,5 +216,14 @@ describe('OAuth callback URL', () => {
     expect(html).toContain(`redirectTo:'${window.location.origin}/auth-social-callback.html'`);
     expect(html).not.toContain('auth-social-callback.html?platform=');
     expect(html).toContain("sessionStorage.setItem('xeevia-social-link-pending', JSON.stringify({ platform, nonce }))");
+  });
+
+  it('accepts current and legacy X identity names and stores the selected Meta Page token', () => {
+    const callback = fs.readFileSync(path.resolve(process.cwd(), "public/auth-social-callback.html"), "utf8");
+
+    expect(callback).toContain('x: ["x", "twitter"]');
+    expect(callback).toContain('fields: "id,name,access_token,instagram_business_account{id,username}"');
+    expect(callback).toContain('finish(platformUserId, targets[0].accessToken)');
+    expect(callback).toContain('finish(selectedTarget.id, selectedTarget.accessToken)');
   });
 });

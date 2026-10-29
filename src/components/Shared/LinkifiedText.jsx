@@ -121,8 +121,8 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
           onClick={handleClick}
           style={{ borderLeftColor: internal ? "#a3e635" : platform.color }}
         >
-          <span className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: internal ? "rgba(163,230,53,.14)" : "rgba(255,255,255,.08)", display: "grid", placeItems: "center", color: internal ? "#a3e635" : platform.color, fontSize: 12, fontWeight: 800 }}>{internal ? internalLabel.slice(0, 1) : "↗"}</span>
-          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: internal ? "#d9f99d" : platform.color, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewTitle}</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hostLabel}</small></span>
+          <span className="xeevia-link-icon" style={{ width: 28, height: 28, flex: "0 0 28px", borderRadius: 7, background: internal ? "rgba(163,230,53,.14)" : "rgba(255,255,255,.08)", display: "grid", placeItems: "center", color: internal ? "#a3e635" : platform.color, fontSize: 13, fontWeight: 800 }}>{internal ? internalLabel.slice(0, 1) : "↗"}</span>
+          <span className="xeevia-link-card-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, maxWidth: "100%", gap: 2 }}><strong style={{ display: "block", maxWidth: "100%", color: internal ? "#d9f99d" : platform.color, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewTitle}</strong><small style={{ display: "block", maxWidth: "100%", color: "rgba(255,255,255,.58)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hostLabel}</small></span>
           <span className="xeevia-link-open" style={{ marginLeft: "auto", color: internal ? "#a3e635" : platform.color, flex: "0 0 auto" }} aria-hidden="true">↗</span>
         </a>
         {trailing}
@@ -227,7 +227,7 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 7, maxWidth: "100%", minWidth: 0 }}>
       {showSender && (
-        <strong style={{ fontSize: 13, color: "#f4f7ee", fontWeight: 700 }}>
+        <strong style={{ fontSize: 14, color: "#f4f7ee", fontWeight: 700 }}>
           {senderLabel} shared {shared.contentLabel}
         </strong>
       )}
@@ -246,16 +246,16 @@ export const SharedContentMessage = ({ children, onNavigate, isMine = false, sho
             window.location.assign(shared.url);
           }
         }}
-        style={{ display: "flex", flexDirection: "column", width: "min(100%, 420px)", overflow: "hidden", borderRadius: 10, color: "#f4f7ee", background: "rgba(255,255,255,.06)", border: "1px solid rgba(163,230,53,.34)", fontSize: 12, fontWeight: 800, textDecoration: "none" }}
+        style={{ display: "flex", flexDirection: "column", width: "min(100%, 420px)", overflow: "hidden", borderRadius: 10, color: "#f4f7ee", background: "rgba(255,255,255,.06)", border: "1px solid rgba(163,230,53,.34)", fontSize: 13, fontWeight: 800, textDecoration: "none" }}
       >
         {preview?.image && <img src={preview.image} alt="" loading="lazy" style={{ display: "block", width: "100%", maxHeight: 220, objectFit: "cover" }} />}
         <span style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px" }}>
-          <span style={{ color: "#bef264", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em" }}>Xeevia {prettyType}</span>
+          <span style={{ color: "#bef264", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em" }}>Xeevia {prettyType}</span>
           <strong style={{ color: "#f4f7ee", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview?.title || `Open ${prettyType}`}</strong>
           {preview?.author && <small style={{ color: "rgba(255,255,255,.58)", fontWeight: 500 }}>{preview.author}</small>}
         </span>
       </a>
-      {shared.note && <span style={{ color: "rgba(255,255,255,.72)", fontSize: 12, whiteSpace: "pre-wrap" }}><LinkifiedText onNavigate={onNavigate}>{shared.note}</LinkifiedText></span>}
+      {shared.note && <span style={{ color: "rgba(255,255,255,.72)", fontSize: 13, whiteSpace: "pre-wrap" }}><LinkifiedText onNavigate={onNavigate}>{shared.note}</LinkifiedText></span>}
     </span>
   );
 };

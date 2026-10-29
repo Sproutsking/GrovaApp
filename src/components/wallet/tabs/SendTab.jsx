@@ -39,8 +39,8 @@ const CSS = `
 /* ── recipient search ── */
 .st-input-row{display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:visible;position:relative;transition:border-color .2s,box-shadow .2s;}
 .st-input-row:focus-within{border-color:rgba(163,230,53,.35);box-shadow:0 0 0 3px rgba(163,230,53,.07);}
-.st-prefix{padding:0 0 0 14px;font-size:16px;font-weight:700;color:#a3e635;user-select:none;}
-.st-field{flex:1;padding:14px 12px;background:transparent;border:none;outline:none;font-size:15px;color:rgba(255,255,255,.85);font-weight:500;}
+.st-prefix{padding:0 0 0 14px;font-size:calc((16px) + 1px);font-weight:700;color:#a3e635;user-select:none;}
+.st-field{flex:1;padding:14px 12px;background:transparent;border:none;outline:none;font-size:calc((15px) + 1px);color:rgba(255,255,255,.85);font-weight:500;}
 .st-field::placeholder{color:rgba(255,255,255,.2);}
 .st-clear{width:34px;height:34px;margin-right:6px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;}
 .st-clear:hover{background:rgba(239,68,68,.1);color:#f87171;}
@@ -49,26 +49,26 @@ const CSS = `
 .st-result{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s;}
 .st-result:last-child{border-bottom:none;}
 .st-result:hover{background:rgba(163,230,53,.06);}
-.st-result-name{font-size:14px;font-weight:700;color:rgba(255,255,255,.88);display:flex;align-items:center;gap:6px;}
-.st-result-handle{font-size:11.5px;color:rgba(255,255,255,.3);font-family:"DM Mono",monospace;margin-top:2px;}
-.st-empty{padding:20px 14px;text-align:center;font-size:13px;color:rgba(255,255,255,.2);}
-.st-loading-row{padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.25);}
+.st-result-name{font-size:calc((14px) + 1px);font-weight:700;color:rgba(255,255,255,.88);display:flex;align-items:center;gap:6px;}
+.st-result-handle{font-size:calc((11.5px) + 1px);color:rgba(255,255,255,.3);font-family:"DM Mono",monospace;margin-top:2px;}
+.st-empty{padding:20px 14px;text-align:center;font-size:calc((13px) + 1px);color:rgba(255,255,255,.2);}
+.st-loading-row{padding:14px;display:flex;align-items:center;gap:10px;font-size:calc((13px) + 1px);color:rgba(255,255,255,.25);}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* ── recipient card ── */
 .rcpt-card{display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(163,230,53,.04);border:1px solid rgba(163,230,53,.18);border-radius:14px;animation:cardIn .25s cubic-bezier(.34,1.56,.64,1);}
 @keyframes cardIn{from{opacity:0;transform:scale(.96) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.rcpt-name{font-size:15px;font-weight:700;color:rgba(255,255,255,.9);display:flex;align-items:center;gap:6px;}
-.rcpt-handle{font-size:12px;color:#a3e635;font-family:"DM Mono",monospace;margin-top:3px;}
-.rcpt-view-btn{display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:100px;background:rgba(163,230,53,.08);border:1px solid rgba(163,230,53,.2);font-size:11px;font-weight:600;color:#a3e635;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.rcpt-name{font-size:calc((15px) + 1px);font-weight:700;color:rgba(255,255,255,.9);display:flex;align-items:center;gap:6px;}
+.rcpt-handle{font-size:calc((12px) + 1px);color:#a3e635;font-family:"DM Mono",monospace;margin-top:3px;}
+.rcpt-view-btn{display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:100px;background:rgba(163,230,53,.08);border:1px solid rgba(163,230,53,.2);font-size:calc((11px) + 1px);font-weight:600;color:#a3e635;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .rcpt-view-btn:hover{background:rgba(163,230,53,.14);}
-.rcpt-chg-btn{display:flex;align-items:center;gap:4px;padding:6px 9px;border-radius:100px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:11px;font-weight:600;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;}
+.rcpt-chg-btn{display:flex;align-items:center;gap:4px;padding:6px 9px;border-radius:100px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:calc((11px) + 1px);font-weight:600;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;}
 .rcpt-chg-btn:hover{background:rgba(239,68,68,.07);color:#f87171;border-color:rgba(239,68,68,.15);}
 
 /* ── wallet address card ── */
 .waddr-card{display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(34,211,238,.04);border:1px solid rgba(34,211,238,.15);border-radius:14px;animation:cardIn .25s cubic-bezier(.34,1.56,.64,1);}
-.waddr-text{font-size:11px;font-family:"DM Mono",monospace;color:rgba(34,211,238,.65);word-break:break-all;line-height:1.6;}
-.waddr-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:100px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);font-size:9px;font-weight:700;color:#22d3ee;text-transform:uppercase;letter-spacing:.08em;}
+.waddr-text{font-size:calc((11px) + 1px);font-family:"DM Mono",monospace;color:rgba(34,211,238,.65);word-break:break-all;line-height:1.6;}
+.waddr-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:100px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);font-size:calc((9px) + 1px);font-weight:700;color:#22d3ee;text-transform:uppercase;letter-spacing:.08em;}
 
 /* ── progress bar ── */
 .conf-bar{width:100%;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:12px;}
@@ -83,7 +83,7 @@ const CSS = `
 .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#a3e635;flex-shrink:0;}
 
 /* ── toast ── */
-.st-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:100px;background:rgba(7,9,12,.97);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(20px);font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+.st-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:100px;background:rgba(7,9,12,.97);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(20px);font-size:calc((13px) + 1px);color:rgba(255,255,255,.8);white-space:nowrap;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.5);}
 .st-toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .td{width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;animation:tdPulse 1.4s ease-in-out infinite;}
 .td.err{background:#f87171;animation:none;}
@@ -113,7 +113,7 @@ const CSS = `
   border:none;
   cursor:pointer;
   font-family:inherit;
-  font-size:14px;
+  font-size:calc((14px) + 1px);
   font-weight:700;
   letter-spacing:0.01em;
   transition:all .2s cubic-bezier(.4,0,.2,1);
@@ -415,11 +415,11 @@ const SendTab = ({
             : <CheckCircle size={32} color="#a3e635" />}
         </div>
 
-        <div style={{ fontSize:24,fontWeight:800,color:"#fff",marginBottom:6 }}>
+        <div style={{ fontSize:25,fontWeight:800,color:"#fff",marginBottom:6 }}>
           {rpcLoading ? "Sending…" : "Sent!"}
         </div>
-        <div style={{ fontSize:38,fontWeight:700,fontFamily:"DM Mono,monospace",color:"#a3e635",marginBottom:4,letterSpacing:"-0.04em" }}>
-          {parsed.toLocaleString()} <span style={{ fontSize:18 }}>{currency}</span>
+        <div style={{ fontSize:39,fontWeight:700,fontFamily:"DM Mono,monospace",color:"#a3e635",marginBottom:4,letterSpacing:"-0.04em" }}>
+          {parsed.toLocaleString()} <span style={{ fontSize:19 }}>{currency}</span>
         </div>
 
         {selectedUser ? (
@@ -430,28 +430,28 @@ const SendTab = ({
           }}>
             <XevAvatar profile={selectedUser} size={38} />
             <div>
-              <div style={{ fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"flex",alignItems:"center",gap:5 }}>
+              <div style={{ fontSize:14,fontWeight:700,color:"rgba(255,255,255,.85)",display:"flex",alignItems:"center",gap:5 }}>
                 {selectedUser.full_name || selectedUser.username}
                 {selectedUser.verified && <span className="vbadge"><Sparkles size={9} color="#000" /></span>}
               </div>
-              <div style={{ fontSize:11,color:"#a3e635",fontFamily:"DM Mono,monospace" }}>@{selectedUser.username}</div>
+              <div style={{ fontSize:12,color:"#a3e635",fontFamily:"DM Mono,monospace" }}>@{selectedUser.username}</div>
             </div>
             <ChevronRight size={14} color="rgba(255,255,255,.2)" />
           </div>
         ) : null}
 
-        <div style={{ display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.12)",borderRadius:100,fontSize:11,color:"#f87171",marginBottom:16 }}>
+        <div style={{ display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.12)",borderRadius:100,fontSize:12,color:"#f87171",marginBottom:16 }}>
           <Flame size={11} />{epBurn} EP burned
         </div>
 
         {rpcLoading && (
           <div style={{ width:"100%",maxWidth:320,marginBottom:16 }}>
-            <div style={{ fontSize:11,color:"rgba(255,255,255,.18)",textAlign:"center",marginBottom:6 }}>Confirming…</div>
+            <div style={{ fontSize:12,color:"rgba(255,255,255,.18)",textAlign:"center",marginBottom:6 }}>Confirming…</div>
             <div className="conf-bar"><div className="conf-bar-inner" /></div>
           </div>
         )}
         {rpcDone && txId && (
-          <div style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",background:"rgba(163,230,53,.06)",border:"1px solid rgba(163,230,53,.15)",borderRadius:100,fontSize:11,color:"#a3e635",marginBottom:20 }}>
+          <div style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",background:"rgba(163,230,53,.06)",border:"1px solid rgba(163,230,53,.15)",borderRadius:100,fontSize:12,color:"#a3e635",marginBottom:20 }}>
             <CheckCircle size={11} />Confirmed · {txId.slice(0,8)}…
           </div>
         )}
@@ -499,13 +499,13 @@ const SendTab = ({
           }}>
             <XevAvatar profile={selectedUser} size={46} />
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:15,fontWeight:700,color:"rgba(255,255,255,.9)",display:"flex",alignItems:"center",gap:6 }}>
+              <div style={{ fontSize:16,fontWeight:700,color:"rgba(255,255,255,.9)",display:"flex",alignItems:"center",gap:6 }}>
                 {selectedUser.full_name || selectedUser.username}
                 {selectedUser.verified && <span className="vbadge"><Sparkles size={9} color="#000" /></span>}
               </div>
-              <div style={{ fontSize:12,color:"#a3e635",fontFamily:"DM Mono,monospace",marginTop:2 }}>@{selectedUser.username}</div>
+              <div style={{ fontSize:13,color:"#a3e635",fontFamily:"DM Mono,monospace",marginTop:2 }}>@{selectedUser.username}</div>
             </div>
-            <span style={{ fontSize:11,color:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",gap:3 }}>
+            <span style={{ fontSize:12,color:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",gap:3 }}>
               View profile <ChevronRight size={13}/>
             </span>
           </div>
@@ -518,7 +518,7 @@ const SendTab = ({
             <strong style={{ color:"#a3e635" }}>{parsed.toLocaleString()} EP</strong>
           </div>
           {note && (
-            <div className="summary-row"><span>Note</span><span style={{ maxWidth:180,textAlign:"right",fontSize:12 }}>{note}</span></div>
+            <div className="summary-row"><span>Note</span><span style={{ maxWidth:180,textAlign:"right",fontSize:13 }}>{note}</span></div>
           )}
           <div className="summary-divider" />
           <div className="summary-row total">
@@ -603,7 +603,7 @@ const SendTab = ({
         <div className="field-group">
           <label className="field-label">
             Recipient
-            <span style={{ marginLeft:8,fontSize:10,color:"rgba(255,255,255,.2)",fontWeight:400,fontFamily:"DM Mono,monospace" }}>
+            <span style={{ marginLeft:8,fontSize:11,color:"rgba(255,255,255,.2)",fontWeight:400,fontFamily:"DM Mono,monospace" }}>
               @username
             </span>
           </label>
@@ -682,7 +682,7 @@ const SendTab = ({
         <div className="field-group">
           <label className="field-label">
             Amount
-            <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:9,opacity:.7 }}>MIN 5 EP</span>
+            <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:10,opacity:.7 }}>MIN 5 EP</span>
           </label>
           <div className="amount-field">
             <input
@@ -732,13 +732,13 @@ const SendTab = ({
         {epMinFail && (
           <div style={{ display:"flex",gap:8,alignItems:"center",padding:"10px 14px",background:"rgba(245,158,11,.06)",border:"1px solid rgba(245,158,11,.15)",borderRadius:8,marginBottom:12 }}>
             <AlertCircle size={14} color="#f59e0b"/>
-            <span style={{ fontSize:13,color:"#f59e0b" }}>Minimum send is 5 EP</span>
+            <span style={{ fontSize:14,color:"#f59e0b" }}>Minimum send is 5 EP</span>
           </div>
         )}
         {error && (
           <div style={{ display:"flex",gap:8,alignItems:"center",padding:"12px 14px",background:"rgba(239,68,68,.06)",border:"1px solid rgba(239,68,68,.12)",borderRadius:8,marginBottom:14 }}>
             <AlertCircle size={15} color="#f87171"/>
-            <span style={{ fontSize:13,color:"#f87171" }}>{error}</span>
+            <span style={{ fontSize:14,color:"#f87171" }}>{error}</span>
           </div>
         )}
       </div>

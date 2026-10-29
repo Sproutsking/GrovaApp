@@ -25,7 +25,7 @@
 
 .selector-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: calc((16px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -104,7 +104,7 @@
 }
 
 .text-icon {
-  font-size: 24px;
+  font-size: calc((24px) + 1px);
   font-weight: bold;
   line-height: 1;
 }
@@ -117,14 +117,14 @@
 
 .platform-info h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
 }
 
 .platform-info .description {
   margin: 4px 0 0 0;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #999;
   line-height: 1.3;
 }
@@ -172,7 +172,7 @@
   background: rgba(132, 204, 22, 0.05);
   border: 1px solid rgba(132, 204, 22, 0.2);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   color: #55a630;
 }
 
@@ -213,7 +213,7 @@
 
 .settings-header h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 600;
 }
 
@@ -221,7 +221,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
+  font-size: calc((18px) + 1px);
   color: #999;
   padding: 4px;
   transition: color 0.2s ease;
@@ -252,14 +252,14 @@
 
 .setting-label h5 {
   margin: 0 0 4px 0;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
 }
 
 .setting-label p {
   margin: 0;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: #999;
 }
 
@@ -291,7 +291,7 @@
 
 .setting-info h5 {
   margin: 0 0 10px 0;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -309,7 +309,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   flex: 1;
 }
 
@@ -331,7 +331,7 @@
 }
 
 .platform-setting .not-connected {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #999;
   font-style: italic;
 }
@@ -349,7 +349,7 @@
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -371,7 +371,7 @@
   justify-content: center;
   padding: 40px;
   color: #999;
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
 }
 
 /* Responsive */
@@ -391,14 +391,14 @@
   }
 
   .text-icon {
-    font-size: 18px;
+    font-size: calc((18px) + 1px);
   }
 
   .platform-info h4 {
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
   }
 
   .platform-info .description {
-    font-size: 10px;
+    font-size: calc((10px) + 1px);
   }
 }

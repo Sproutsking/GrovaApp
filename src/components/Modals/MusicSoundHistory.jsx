@@ -235,7 +235,7 @@ const MusicSoundHistory = ({ music, onClose, onVideoOpen }) => {
         .music-title-info h2 {
           margin: 0;
           color: #fff;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 700;
           margin-bottom: 4px;
           overflow: hidden;
@@ -247,7 +247,7 @@ const MusicSoundHistory = ({ music, onClose, onVideoOpen }) => {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: rgba(255, 255, 255, 0.6);
         }
 
@@ -308,14 +308,14 @@ const MusicSoundHistory = ({ music, onClose, onVideoOpen }) => {
         }
 
         .stat-label {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: rgba(255, 255, 255, 0.5);
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
 
         .stat-value {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #fff;
           font-weight: 600;
         }
@@ -411,7 +411,7 @@ const MusicSoundHistory = ({ music, onClose, onVideoOpen }) => {
         }
 
         .video-author {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #fff;
           margin: 0 0 4px 0;
@@ -421,7 +421,7 @@ const MusicSoundHistory = ({ music, onClose, onVideoOpen }) => {
         }
 
         .video-caption {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: rgba(255, 255, 255, 0.6);
           margin: 0;
           overflow: hidden;

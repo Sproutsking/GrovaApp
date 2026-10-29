@@ -639,7 +639,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
           border-radius: 50%;
           background: rgba(0,0,0,0.35);
           color: #fff;
-          font-size: 22px;
+          font-size: calc((22px) + 1px);
           cursor: pointer;
         }
         .community-launch-banner {
@@ -660,7 +660,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
           background: rgba(0,0,0,0.24);
           border: 2px solid rgba(255,255,255,0.2);
           box-shadow: 0 8px 26px rgba(0,0,0,0.28);
-          font-size: 34px;
+          font-size: calc((34px) + 1px);
           font-weight: 900;
         }
         .community-launch-icon img {
@@ -673,7 +673,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
           padding: 18px 18px 20px;
         }
         .community-launch-kicker {
-          font-size: 10.5px;
+          font-size: calc((10.5px) + 1px);
           letter-spacing: 0.14em;
           text-transform: uppercase;
           color: #9cff00;
@@ -682,20 +682,20 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         }
         .community-launch-content h3 {
           margin: 0 0 8px;
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           color: #fff;
         }
         .community-launch-content p {
           margin: 0 0 12px;
           color: #d3d3d3;
           line-height: 1.5;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .community-launch-content ul {
           margin: 0 0 14px;
           padding-left: 18px;
           color: #d7d7d7;
-          font-size: 12.5px;
+          font-size: calc((12.5px) + 1px);
           line-height: 1.6;
         }
         .community-launch-docs {
@@ -713,12 +713,12 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         .community-launch-doc strong {
           display: block;
           color: #fff;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           margin-bottom: 4px;
         }
         .community-launch-doc span {
           color: #a8a8a8;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           line-height: 1.4;
         }
         .community-launch-action {

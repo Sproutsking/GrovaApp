@@ -315,14 +315,14 @@ const TransactionPinModal = ({
           color: #84cc16;
         }
         .modal-title {
-          font-size: 22px;
+          font-size: calc((22px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0 0 8px 0;
           text-align: center;
         }
         .modal-description {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #a3a3a3;
           margin: 0 0 24px 0;
           text-align: center;
@@ -339,12 +339,12 @@ const TransactionPinModal = ({
           margin-bottom: 28px;
         }
         .amount-value {
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           font-weight: 800;
           color: #84cc16;
         }
         .amount-currency {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 700;
           color: #84cc16;
           opacity: 0.8;
@@ -354,7 +354,7 @@ const TransactionPinModal = ({
         }
         .pin-label {
           display: block;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #a3a3a3;
           font-weight: 600;
           margin-bottom: 12px;
@@ -374,7 +374,7 @@ const TransactionPinModal = ({
           border: 2px solid rgba(255, 255, 255, 0.1);
           border-radius: 12px;
           color: #fff;
-          font-size: 28px;
+          font-size: calc((28px) + 1px);
           font-weight: 700;
           text-align: center;
           transition: all 0.25s ease;
@@ -422,7 +422,7 @@ const TransactionPinModal = ({
           gap: 8px;
           padding: 12px 16px;
           border-radius: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
           margin-bottom: 16px;
           animation: slideIn 0.3s ease;
@@ -454,7 +454,7 @@ const TransactionPinModal = ({
           gap: 10px;
           padding: 12px;
           color: #84cc16;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
           margin-bottom: 16px;
         }
@@ -479,7 +479,7 @@ const TransactionPinModal = ({
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 10px;
           color: #a3a3a3;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -501,18 +501,18 @@ const TransactionPinModal = ({
             padding: 28px 24px 24px 24px;
           }
           .modal-title {
-            font-size: 20px;
+            font-size: calc((20px) + 1px);
           }
           .modal-description {
-            font-size: 13px;
+            font-size: calc((13px) + 1px);
           }
           .amount-value {
-            font-size: 22px;
+            font-size: calc((22px) + 1px);
           }
           .pin-box {
             width: 52px;
             height: 60px;
-            font-size: 26px;
+            font-size: calc((26px) + 1px);
           }
           .pin-inputs {
             gap: 8px;
@@ -526,7 +526,7 @@ const TransactionPinModal = ({
           .pin-box {
             width: 48px;
             height: 56px;
-            font-size: 24px;
+            font-size: calc((24px) + 1px);
           }
         }
       `}</style>

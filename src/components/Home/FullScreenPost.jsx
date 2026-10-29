@@ -494,7 +494,7 @@ const FullScreenPost = ({
         }
 
         .fs-text-content {
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           font-weight: 500;
           text-align: center;
           color: #fff;
@@ -584,7 +584,7 @@ const FullScreenPost = ({
 
         .fs-post-text {
           margin: 0 0 8px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.4;
         }
 
@@ -594,7 +594,7 @@ const FullScreenPost = ({
           background: rgba(132,204,22,0.2);
           border-radius: 4px;
           color: #84cc16;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
         }
 
@@ -696,7 +696,7 @@ const FullScreenPost = ({
           background: rgba(132,204,22,0.1);
           padding: 2px 8px;
           border-radius: 12px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
         }
 
@@ -735,7 +735,7 @@ const FullScreenPost = ({
           border: 1px solid rgba(255,255,255,0.1);
           border-radius: 6px;
           color: #fff;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           outline: none;
         }
 
@@ -806,21 +806,21 @@ const FullScreenPost = ({
 
         .comment-content-small {
           flex: 1;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
 
         .comment-header {
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .comment-header-small {
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
         }
 
         .comment-header strong, .comment-header-small strong {
@@ -834,7 +834,7 @@ const FullScreenPost = ({
         .comment-text, .comment-text-small {
           margin: 4px 0;
           color: #ccc;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           line-height: 1.4;
         }
 
@@ -842,7 +842,7 @@ const FullScreenPost = ({
           display: flex;
           gap: 8px;
           margin-top: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
         }
 
         .comment-action-btn, .comment-action-btn-small {
@@ -850,7 +850,7 @@ const FullScreenPost = ({
           border: none;
           color: #999;
           cursor: pointer;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           transition: color 0.2s;
           padding: 0;
         }
@@ -882,7 +882,7 @@ const FullScreenPost = ({
           padding: 40px 20px;
           text-align: center;
           color: #666;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         @media (max-width: 1024px) {

@@ -143,7 +143,7 @@ export default function HomeTab({
               <Zap size={11} color="#060e02" strokeWidth={2.5} />
             </div>
             <span style={{
-              fontFamily:"var(--fd)", fontSize:15, fontWeight:800, letterSpacing:"-0.04em",
+              fontFamily:"var(--fd)", fontSize:16, fontWeight:800, letterSpacing:"-0.04em",
               background:"linear-gradient(135deg,#c8f564 0%,#a3e635 50%,#65a30d 100%)",
               WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
             }}>PayWave</span>
@@ -197,16 +197,16 @@ export default function HomeTab({
                 width:28, height:28, borderRadius:7,
                 background:"linear-gradient(135deg,#a3e635,#65a30d)",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                fontFamily:"var(--fd)", fontSize:10, fontWeight:800, color:"#060e02",
+                fontFamily:"var(--fd)", fontSize:11, fontWeight:800, color:"#060e02",
                 flexShrink:0, boxShadow:"0 3px 9px rgba(163,230,53,0.28)",
               }}>{initials[0]||"U"}</div>
               <div>
                 <span style={{
-                  fontSize:"9px", color:"rgba(163,230,53,0.6)",
+                  fontSize:"calc((9px) + 1px)", color:"rgba(163,230,53,0.6)",
                   fontFamily:"var(--fd)", fontWeight:700,
                   letterSpacing:"0.07em", textTransform:"uppercase", display:"block",
                 }}>Naira Balance</span>
-                <span style={{ fontSize:"8.5px", color:"var(--t3)", display:"block", marginTop:"1px" }}>
+                <span style={{ fontSize:"calc((8.5px) + 1px)", color:"var(--t3)", display:"block", marginTop:"1px" }}>
                   {displayName}
                 </span>
               </div>
@@ -221,7 +221,7 @@ export default function HomeTab({
                   boxShadow:"0 0 5px rgba(163,230,53,0.9)",
                   animation:"ht-live 2.5s ease-in-out infinite",
                 }} />
-                <span style={{ fontSize:"8.5px", color:"rgba(163,230,53,0.5)",
+                <span style={{ fontSize:"calc((8.5px) + 1px)", color:"rgba(163,230,53,0.5)",
                   fontFamily:"var(--fd)", fontWeight:700, letterSpacing:"0.07em" }}>
                   LIVE
                 </span>
@@ -242,7 +242,7 @@ export default function HomeTab({
           {/* Balance */}
           <div style={{ marginBottom:12 }}>
             <div style={{
-              fontFamily:"var(--fd)", fontSize:36, fontWeight:800,
+              fontFamily:"var(--fd)", fontSize:37, fontWeight:800,
               letterSpacing:"-0.05em", lineHeight:1, color:"#fff",
               textShadow:showBalance?"0 2px 12px rgba(255,255,255,0.06)":"none",
               WebkitTextStroke:showBalance?"0px":"2px rgba(255,255,255,0.1)",
@@ -257,12 +257,12 @@ export default function HomeTab({
                 background:"rgba(163,230,53,0.09)", border:"1px solid rgba(163,230,53,0.18)",
               }}>
                 <Zap size={8} color="#a3e635" />
-                <span style={{ fontSize:"8.5px", fontWeight:700, color:"rgba(163,230,53,0.75)",
+                <span style={{ fontSize:"calc((8.5px) + 1px)", fontWeight:700, color:"rgba(163,230,53,0.75)",
                   letterSpacing:"0.05em", fontFamily:"var(--fd)" }}>ZERO FEES</span>
               </div>
               <button onClick={() => setPage("transactions")} style={{
                 background:"transparent", border:"none", cursor:"pointer",
-                color:"var(--t3)", fontSize:"10.5px", fontFamily:"var(--fb)",
+                color:"var(--t3)", fontSize:"calc((10.5px) + 1px)", fontFamily:"var(--fb)",
                 display:"flex", alignItems:"center", gap:2, padding:0, transition:"color .14s",
               }}>
                 View history <ChevronRight size={10} />
@@ -297,7 +297,7 @@ export default function HomeTab({
         }}>
           <Zap size={10} color="#a3e635" />
         </div>
-        <span style={{ fontSize:"10.5px", color:"var(--t2)", fontFamily:"var(--fb)", lineHeight:1.5 }}>
+        <span style={{ fontSize:"calc((10.5px) + 1px)", color:"var(--t2)", fontFamily:"var(--fb)", lineHeight:1.5 }}>
           Send ₦ to any Xeevia user —{" "}
           <strong style={{ color:"var(--lime)" }}>completely free</strong>.
           Only OPay external sends carry a fee.
@@ -366,9 +366,9 @@ export default function HomeTab({
                 <Wallet size={15} color="rgba(163,230,53,0.4)" />
               </div>
               <div>
-                <div style={{ fontFamily:"var(--fd)", fontWeight:700, fontSize:12.5,
+                <div style={{ fontFamily:"var(--fd)", fontWeight:700, fontSize:13.5,
                   color:"var(--t3)", marginBottom:2 }}>No transactions yet</div>
-                <div style={{ fontSize:11, color:"var(--t4)", lineHeight:1.5 }}>
+                <div style={{ fontSize:12, color:"var(--t4)", lineHeight:1.5 }}>
                   Send or receive ₦ to see activity
                 </div>
               </div>

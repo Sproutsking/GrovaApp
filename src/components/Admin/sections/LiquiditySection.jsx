@@ -79,7 +79,7 @@ function Sparkline({ data, color, h = 48, w = 220 }) {
           alignItems: "center",
           justifyContent: "center",
           color: "#333",
-          fontSize: 11,
+          fontSize: 12,
         }}
       >
         Collecting data…
@@ -172,7 +172,7 @@ function MetricCard({ icon: Icon, label, value, sub, color, trend }) {
       </div>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 800,
           color: C.muted,
           textTransform: "uppercase",
@@ -184,7 +184,7 @@ function MetricCard({ icon: Icon, label, value, sub, color, trend }) {
       </div>
       <div
         style={{
-          fontSize: 22,
+          fontSize: 23,
           fontWeight: 900,
           color: C.text,
           letterSpacing: -1,
@@ -194,7 +194,7 @@ function MetricCard({ icon: Icon, label, value, sub, color, trend }) {
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{sub}</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{sub}</div>
       )}
     </div>
   );
@@ -227,11 +227,11 @@ function StateBanner({ state }) {
         }}
       />
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: cfg.color }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: cfg.color }}>
           {cfg.icon} System {cfg.label}
         </div>
         <div
-          style={{ fontSize: 11, color: cfg.color, opacity: 0.8, marginTop: 2 }}
+          style={{ fontSize: 12, color: cfg.color, opacity: 0.8, marginTop: 2 }}
         >
           {cfg.description}
         </div>
@@ -242,7 +242,7 @@ function StateBanner({ state }) {
           borderRadius: 20,
           background: `${cfg.color}18`,
           border: `1px solid ${cfg.color}33`,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 800,
           color: cfg.color,
           textTransform: "uppercase",
@@ -273,10 +273,10 @@ function ConfigField({
           marginBottom: 6,
         }}
       >
-        <span style={{ fontSize: 11, fontWeight: 700, color: C.text2 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.text2 }}>
           {label}
         </span>
-        {note && <span style={{ fontSize: 9, color: C.muted }}>{note}</span>}
+        {note && <span style={{ fontSize: 10, color: C.muted }}>{note}</span>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
@@ -290,7 +290,7 @@ function ConfigField({
             borderRadius: 9,
             padding: "9px 12px",
             color: C.text,
-            fontSize: 13,
+            fontSize: 14,
             fontFamily: "inherit",
             outline: "none",
             transition: "border-color .15s",
@@ -301,7 +301,7 @@ function ConfigField({
         {suffix && (
           <span
             style={{
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 700,
               color: C.muted,
               flexShrink: 0,
@@ -341,7 +341,7 @@ function HistoryRow({ snap }) {
           boxShadow: `0 0 6px ${cfg.color}`,
         }}
       />
-      <div style={{ fontSize: 11, color: C.muted, flexShrink: 0, width: 70 }}>
+      <div style={{ fontSize: 12, color: C.muted, flexShrink: 0, width: 70 }}>
         {timeAgo(snap.snapshot_at)}
       </div>
       <div style={{ flex: 1 }}>
@@ -352,10 +352,10 @@ function HistoryRow({ snap }) {
             marginBottom: 3,
           }}
         >
-          <span style={{ fontSize: 10, color: cfg.color, fontWeight: 700 }}>
+          <span style={{ fontSize: 11, color: cfg.color, fontWeight: 700 }}>
             {(ratio * 100).toFixed(1)}%
           </span>
-          <span style={{ fontSize: 9, color: C.muted }}>{state}</span>
+          <span style={{ fontSize: 10, color: C.muted }}>{state}</span>
         </div>
         <div
           style={{
@@ -375,7 +375,7 @@ function HistoryRow({ snap }) {
           />
         </div>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11 }}>
+      <div style={{ textAlign: "right", flexShrink: 0, fontSize: 12 }}>
         <div
           style={{
             color: Number(snap.net_flow_ep) >= 0 ? C.success : C.danger,
@@ -386,13 +386,13 @@ function HistoryRow({ snap }) {
           {Number(snap.net_flow_ep) >= 0 ? "+" : ""}
           {fmtEP(snap.net_flow_ep)} EP
         </div>
-        <div style={{ fontSize: 9, color: C.muted }}>net flow</div>
+        <div style={{ fontSize: 10, color: C.muted }}>net flow</div>
       </div>
       <div style={{ width: 36, textAlign: "center", flexShrink: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
           {snap.queue_length || 0}
         </div>
-        <div style={{ fontSize: 8, color: C.muted }}>queue</div>
+        <div style={{ fontSize: 9, color: C.muted }}>queue</div>
       </div>
     </div>
   );
@@ -637,14 +637,14 @@ export default function LiquiditySection({ adminData }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 18,
+                fontSize: 19,
               }}
             >
               💧
             </div>
             <h2
               style={{
-                fontSize: 18,
+                fontSize: 19,
                 fontWeight: 900,
                 color: C.text,
                 margin: 0,
@@ -675,7 +675,7 @@ export default function LiquiditySection({ adminData }) {
               />
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: C.accent,
                   fontWeight: 800,
                   textTransform: "uppercase",
@@ -686,7 +686,7 @@ export default function LiquiditySection({ adminData }) {
               </span>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
             Every EP is backed by real deposits · 1 USD = {epPerUsd} EP · Flat{" "}
             {fmtPct((dashboard?.config?.platform_fee_pct || 2) / 100)} burn fee
             on withdrawals
@@ -704,7 +704,7 @@ export default function LiquiditySection({ adminData }) {
               border: "1px solid #252525",
               background: "transparent",
               color: C.muted,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: "inherit",
@@ -723,7 +723,7 @@ export default function LiquiditySection({ adminData }) {
               border: "1px solid #252525",
               background: "transparent",
               color: C.muted,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: "inherit",
@@ -742,7 +742,7 @@ export default function LiquiditySection({ adminData }) {
             marginBottom: 20,
             background: "rgba(248,113,113,.06)",
             border: "1px solid rgba(248,113,113,.2)",
-            fontSize: 12,
+            fontSize: 13,
             color: C.danger,
           }}
         >
@@ -831,7 +831,7 @@ export default function LiquiditySection({ adminData }) {
               background: "transparent",
               color: activeTab === t.id ? C.accent : C.muted,
               fontWeight: activeTab === t.id ? 800 : 600,
-              fontSize: 12,
+              fontSize: 13,
               cursor: "pointer",
               fontFamily: "inherit",
               transition: "all .15s",
@@ -864,20 +864,20 @@ export default function LiquiditySection({ adminData }) {
               }}
             >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>
                   Liquidity Ratio · Last 24h
                 </div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                   {history.length} snapshots recorded
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div
-                  style={{ fontSize: 20, fontWeight: 900, color: stCfg.color }}
+                  style={{ fontSize: 21, fontWeight: 900, color: stCfg.color }}
                 >
                   {(ratio * 100).toFixed(1)}%
                 </div>
-                <div style={{ fontSize: 9, color: C.muted }}>current</div>
+                <div style={{ fontSize: 10, color: C.muted }}>current</div>
               </div>
             </div>
             <Sparkline data={history} color={stCfg.color} />
@@ -914,7 +914,7 @@ export default function LiquiditySection({ adminData }) {
                       borderRadius: 1,
                     }}
                   />
-                  <span style={{ fontSize: 10, color: C.muted }}>
+                  <span style={{ fontSize: 11, color: C.muted }}>
                     {m.label}:{" "}
                     <strong style={{ color: m.color }}>
                       {(m.val * 100).toFixed(0)}%
@@ -937,7 +937,7 @@ export default function LiquiditySection({ adminData }) {
             >
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: C.text,
                   marginBottom: 4,
@@ -945,7 +945,7 @@ export default function LiquiditySection({ adminData }) {
               >
                 Withdrawal Queue
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
                 Tier is derived from each user's reward level at request time
               </div>
               <div
@@ -969,7 +969,7 @@ export default function LiquiditySection({ adminData }) {
                   >
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: C.muted,
                         textTransform: "uppercase",
                         letterSpacing: "1px",
@@ -980,7 +980,7 @@ export default function LiquiditySection({ adminData }) {
                     </div>
                     <div
                       style={{
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: 900,
                         color: TIER_COLORS[tier],
                       }}
@@ -1017,7 +1017,7 @@ export default function LiquiditySection({ adminData }) {
                   >
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: C.muted,
                         textTransform: "uppercase",
                         letterSpacing: "1px",
@@ -1027,7 +1027,7 @@ export default function LiquiditySection({ adminData }) {
                       {s.label}
                     </div>
                     <div
-                      style={{ fontSize: 16, fontWeight: 900, color: s.color }}
+                      style={{ fontSize: 17, fontWeight: 900, color: s.color }}
                     >
                       {typeof s.value === "number"
                         ? s.value.toLocaleString()
@@ -1052,7 +1052,7 @@ export default function LiquiditySection({ adminData }) {
                       : `linear-gradient(135deg, ${C.warn}, #d97706)`,
                     color: releasing ? "#333" : "#0a0600",
                     fontWeight: 800,
-                    fontSize: 12,
+                    fontSize: 13,
                     cursor: releasing ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
                     display: "flex",
@@ -1087,7 +1087,7 @@ export default function LiquiditySection({ adminData }) {
                 color={C.info}
                 style={{ flexShrink: 0, marginTop: 1 }}
               />
-              <div style={{ fontSize: 11, color: "#3a5a7a", lineHeight: 1.7 }}>
+              <div style={{ fontSize: 12, color: "#3a5a7a", lineHeight: 1.7 }}>
                 <strong style={{ color: C.info }}>
                   Engagement flow (24h):
                 </strong>{" "}
@@ -1130,7 +1130,7 @@ export default function LiquiditySection({ adminData }) {
           >
             <div
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 800,
                 color: C.text,
                 marginBottom: 4,
@@ -1138,7 +1138,7 @@ export default function LiquiditySection({ adminData }) {
             >
               Withdrawal Limits & Fee
             </div>
-            <div style={{ fontSize: 10, color: C.muted, marginBottom: 18 }}>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>
               Limits are gated by reward level (silver/gold/diamond), not raw
               EP cutoffs. A single flat fee is burned on every withdrawal.
             </div>
@@ -1188,7 +1188,7 @@ export default function LiquiditySection({ adminData }) {
                 borderRadius: 10,
                 background: "rgba(52,211,153,.04)",
                 border: "1px solid rgba(52,211,153,.14)",
-                fontSize: 10,
+                fontSize: 11,
                 color: "#5a8a72",
                 lineHeight: 1.65,
                 marginTop: 8,
@@ -1212,7 +1212,7 @@ export default function LiquiditySection({ adminData }) {
             >
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: C.text,
                   marginBottom: 4,
@@ -1220,7 +1220,7 @@ export default function LiquiditySection({ adminData }) {
               >
                 State Thresholds
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginBottom: 18 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 18 }}>
                 Liquidity ratio thresholds for system state transitions
               </div>
 
@@ -1247,7 +1247,7 @@ export default function LiquiditySection({ adminData }) {
                   borderRadius: 10,
                   background: "rgba(96,165,250,.04)",
                   border: "1px solid rgba(96,165,250,.14)",
-                  fontSize: 10,
+                  fontSize: 11,
                   color: "#3a5a7a",
                   lineHeight: 1.65,
                   marginBottom: 16,
@@ -1273,7 +1273,7 @@ export default function LiquiditySection({ adminData }) {
                   : `linear-gradient(135deg, ${C.accent}, #65a30d)`,
                 color: savingCfg ? "#333" : "#051000",
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: 14,
                 cursor: savingCfg ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
                 display: "flex",
@@ -1296,7 +1296,7 @@ export default function LiquiditySection({ adminData }) {
             >
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: C.text,
                   marginBottom: 4,
@@ -1304,7 +1304,7 @@ export default function LiquiditySection({ adminData }) {
               >
                 💉 Inject Liquidity
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>
                 Manually credits the reserve. This EP is unbacked unless you
                 separately record a matching real-world transfer — use only
                 for emergency stabilization.
@@ -1320,7 +1320,7 @@ export default function LiquiditySection({ adminData }) {
               <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     color: C.muted,
                     marginBottom: 6,
@@ -1339,7 +1339,7 @@ export default function LiquiditySection({ adminData }) {
                     borderRadius: 9,
                     padding: "9px 12px",
                     color: C.text,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontFamily: "inherit",
                     outline: "none",
                     boxSizing: "border-box",
@@ -1368,7 +1368,7 @@ export default function LiquiditySection({ adminData }) {
                       ? "#333"
                       : "#001a0d",
                   fontWeight: 800,
-                  fontSize: 12,
+                  fontSize: 13,
                   cursor:
                     injecting || !injectAmt || !injectReason.trim()
                       ? "not-allowed"
@@ -1409,10 +1409,10 @@ export default function LiquiditySection({ adminData }) {
               alignItems: "center",
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
               Snapshot History · Last 24h
             </div>
-            <div style={{ display: "flex", gap: 10, fontSize: 10 }}>
+            <div style={{ display: "flex", gap: 10, fontSize: 11 }}>
               {Object.entries(SYSTEM_STATE_CONFIG).map(([key, val]) => (
                 <span
                   key={key}
@@ -1439,15 +1439,15 @@ export default function LiquiditySection({ adminData }) {
                 padding: 32,
                 textAlign: "center",
                 color: C.muted,
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               Loading…
             </div>
           ) : history.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>📊</div>
-              <div style={{ fontSize: 12, color: C.muted }}>
+              <div style={{ fontSize: 29, marginBottom: 10 }}>📊</div>
+              <div style={{ fontSize: 13, color: C.muted }}>
                 No snapshots yet — click "Snapshot" to record one
               </div>
             </div>
@@ -1464,7 +1464,7 @@ export default function LiquiditySection({ adminData }) {
                 <div style={{ width: 8 }} />
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     color: "#333",
                     textTransform: "uppercase",
@@ -1475,7 +1475,7 @@ export default function LiquiditySection({ adminData }) {
                 </div>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     color: "#333",
                     textTransform: "uppercase",
@@ -1486,7 +1486,7 @@ export default function LiquiditySection({ adminData }) {
                 </div>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     color: "#333",
                     textTransform: "uppercase",
@@ -1497,7 +1497,7 @@ export default function LiquiditySection({ adminData }) {
                 </div>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     color: "#333",
                     textTransform: "uppercase",
@@ -1529,7 +1529,7 @@ export default function LiquiditySection({ adminData }) {
               ? "rgba(52,211,153,.08)"
               : "rgba(248,113,113,.08)",
             border: `1px solid ${toast.ok ? "rgba(52,211,153,.3)" : "rgba(248,113,113,.3)"}`,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 700,
             color: toast.ok ? C.success : C.danger,
             boxShadow: "0 8px 32px rgba(0,0,0,.7)",

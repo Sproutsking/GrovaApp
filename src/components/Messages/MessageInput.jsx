@@ -123,8 +123,8 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
         />
       )}
 
-      {attachmentError && <div role="alert" style={{ color: "#fb7185", fontSize: 12, padding: "0 12px 8px" }}>{attachmentError}</div>}
-      {selectedFiles.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 12px 8px" }}>{selectedFiles.map((file, index) => <span key={`${file.name}-${index}`} style={{ color: "#bef264", fontSize: 11 }}>{file.name}</span>)}</div>}
+      {attachmentError && <div role="alert" style={{ color: "#fb7185", fontSize: 13, padding: "0 12px 8px" }}>{attachmentError}</div>}
+      {selectedFiles.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 12px 8px" }}>{selectedFiles.map((file, index) => <span key={`${file.name}-${index}`} style={{ color: "#bef264", fontSize: 12 }}>{file.name}</span>)}</div>}
 
       <div className="msg-input-bar">
         <button
@@ -211,7 +211,7 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
           border-radius: 20px;
           padding: 10px 16px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-family: inherit;
           resize: none;
           outline: none;

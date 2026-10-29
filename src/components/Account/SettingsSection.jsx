@@ -65,10 +65,10 @@ const S = `
   border: 1px solid rgba(132,204,22,.2);
   display: flex; align-items: center; justify-content: center; color: #84cc16;
 }
-.sset-title { font-size: 14px; font-weight: 800; color: var(--text); margin: 0; }
+.sset-title { font-size: calc((14px) + 1px); font-weight: 800; color: var(--text); margin: 0; }
 .sset-badge {
   padding: 2px 8px; background: rgba(132,204,22,.12);
-  border-radius: 6px; color: #84cc16; font-size: 10px; font-weight: 700;
+  border-radius: 6px; color: #84cc16; font-size: calc((10px) + 1px); font-weight: 700;
 }
 .sset-caret { color: #333; transition: transform .2s; flex-shrink: 0; }
 .sset-caret.open { transform: rotate(180deg); }
@@ -80,8 +80,8 @@ const S = `
 .sset-toggle:last-child { border-bottom: none; padding-bottom: 0; }
 .sset-toggle:first-child { padding-top: 0; }
 .sset-tinfo { flex: 1; padding-right: 12px; }
-.sset-tlabel { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 1px; }
-.sset-tdesc  { font-size: 10.5px; color: var(--text-secondary); line-height: 1.4; }
+.sset-tlabel { font-size: calc((13px) + 1px); font-weight: 700; color: var(--text); margin-bottom: 1px; }
+.sset-tdesc  { font-size: calc((10.5px) + 1px); color: var(--text-secondary); line-height: 1.4; }
 
 .sset-sw {
   position: relative; width: 42px; height: 24px; flex-shrink: 0;
@@ -110,18 +110,18 @@ const S = `
 .sset-contact:last-of-type { border-bottom: none; }
 .sset-contact-body { flex: 1; min-width: 0; }
 .sset-contact-label {
-  font-size: 9.5px; color: var(--text-secondary); font-weight: 700;
+  font-size: calc((9.5px) + 1px); color: var(--text-secondary); font-weight: 700;
   text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px;
 }
 .sset-contact-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sset-contact-val {
-  font-size: 13px; color: var(--text); font-weight: 600;
+  font-size: calc((13px) + 1px); color: var(--text); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;
 }
 
 .sset-vbadge {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 800;
+  padding: 2px 8px; border-radius: 20px; font-size: calc((10px) + 1px); font-weight: 800;
   background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(21,128,61,.12));
   border: 1px solid rgba(34,197,94,.3); color: #22c55e;
   position: relative; overflow: hidden; animation: ssPulse 3s ease infinite; flex-shrink: 0;
@@ -137,14 +137,14 @@ const S = `
 
 .sset-ubadge {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; font-size: calc((10px) + 1px); font-weight: 700;
   background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25); color: #fbbf24; flex-shrink: 0;
 }
 
 .sset-cbtn {
   padding: 6px 12px; border-radius: 8px; flex-shrink: 0;
   background: rgba(132,204,22,.08); border: 1px solid rgba(132,204,22,.25);
-  color: #84cc16; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  color: #84cc16; font-size: calc((11.5px) + 1px); font-weight: 700; cursor: pointer;
   display: flex; align-items: center; gap: 5px; transition: all .15s; white-space: nowrap;
 }
 .sset-cbtn:hover { background: rgba(132,204,22,.16); border-color: rgba(132,204,22,.45); transform: translateY(-1px); }
@@ -163,7 +163,7 @@ const S = `
   width: 100%; padding: 14px;
   background: linear-gradient(135deg, #FFD700, #B8860B);
   border: none; border-radius: 12px; color: #000;
-  font-size: 14px; font-weight: 900; cursor: pointer;
+  font-size: calc((14px) + 1px); font-weight: 900; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: all .25s; box-shadow: 0 3px 16px rgba(255,215,0,.25);
   animation: ssGlow 3s ease infinite;
@@ -174,7 +174,7 @@ const S = `
   width: 100%; padding: 12px;
   background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
   border-radius: 12px; color: #a3a3a3;
-  font-size: 13px; font-weight: 700; cursor: pointer;
+  font-size: calc((13px) + 1px); font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: all .2s;
 }
@@ -184,7 +184,7 @@ const S = `
   width: 100%; padding: 14px;
   background: linear-gradient(135deg, #84cc16, #65a30d);
   border: none; border-radius: 12px; color: #000;
-  font-size: 14px; font-weight: 800; cursor: pointer;
+  font-size: calc((14px) + 1px); font-weight: 800; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: all .25s; box-shadow: 0 3px 12px rgba(132,204,22,.3); margin-top: 6px;
 }
@@ -193,7 +193,7 @@ const S = `
 
 .sset-banner {
   border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
-  display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 8px; font-size: calc((12px) + 1px); line-height: 1.5;
 }
 .sset-banner.warn  { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.22);  color: #fbbf24; }
 .sset-banner.info  { background: rgba(96,165,250,.08);  border: 1px solid rgba(96,165,250,.2); color: #60a5fa; }
@@ -406,7 +406,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
         justifyContent:"center", padding:"50px 20px", gap:12 }}>
         <Loader size={28} style={{ animation:"ssSpin 1s linear infinite", color:"#84cc16" }} />
-        <p style={{ color:"#555", fontSize:12 }}>Loading settings…</p>
+        <p style={{ color:"#555", fontSize:13 }}>Loading settings…</p>
       </div>
     </>
   );
@@ -611,7 +611,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                 background: hasBoost ? `${tierCfg.color}18` : undefined,
                 border:     hasBoost ? `1px solid ${tierCfg.color}30` : undefined,
                 color:      hasBoost ? tierCfg.color : "#84cc16",
-                fontSize:   hasBoost ? 18 : undefined,
+                fontSize:   hasBoost ? 19 : undefined,
               }}>
                 {hasBoost ? tierCfg.emoji : <User size={16}/>}
               </div>
@@ -620,7 +620,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {hasBoost && (
                 <span style={{
-                  padding:"2px 8px", borderRadius:6, fontSize:10, fontWeight:700,
+                  padding:"2px 8px", borderRadius:6, fontSize:11, fontWeight:700,
                   background:`${tierCfg.color}18`, color:tierCfg.color,
                   border:`1px solid ${tierCfg.color}30`,
                 }}>
@@ -642,18 +642,18 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     borderRadius:12, marginBottom:12,
                     background:`${tierCfg.color}10`, border:`1px solid ${tierCfg.color}25`,
                   }}>
-                    <span style={{ fontSize:28 }}>{tierCfg.emoji}</span>
+                    <span style={{ fontSize:29 }}>{tierCfg.emoji}</span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:14, fontWeight:900, color:tierCfg.color }}>
+                      <div style={{ fontSize:15, fontWeight:900, color:tierCfg.color }}>
                         {tierCfg.label}
                       </div>
-                      <div style={{ fontSize:11, color:"#737373", marginTop:2 }}>
+                      <div style={{ fontSize:12, color:"#737373", marginTop:2 }}>
                         {isSystemGrant ? "Complimentary · Admin grant · No EP charged" :
                           boostExpires ? `Expires in ${daysLeft} day${daysLeft!==1?"s":""}` : "Active"}
                       </div>
                     </div>
                     <div style={{
-                      padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:800,
+                      padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:800,
                       background: daysLeft <= 7 && !isSystemGrant
                         ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.12)",
                       color: daysLeft <= 7 && !isSystemGrant ? "#ef4444" : "#22c55e",
@@ -665,7 +665,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                   </div>
 
                   {/* Perks reminder */}
-                  <div style={{ fontSize:11, color:"#525252", marginBottom:12, lineHeight:1.6 }}>
+                  <div style={{ fontSize:12, color:"#525252", marginBottom:12, lineHeight:1.6 }}>
                     Your boost includes exclusive profile themes, animated avatar ring,
                     and EP bonus on all earnings.
                   </div>
@@ -678,7 +678,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
               ) : (
                 /* ── No boost — upgrade CTA ── */
                 <div className="sset-boost-none">
-                  <p style={{ fontSize:12, color:"#525252", lineHeight:1.6, margin:"0 0 14px" }}>
+                  <p style={{ fontSize:13, color:"#525252", lineHeight:1.6, margin:"0 0 14px" }}>
                     Unlock a stunning animated profile, exclusive themes, and earn more EP.
                     Choose from <strong style={{ color:"#C0C0C0" }}>Silver</strong>,{" "}
                     <strong style={{ color:"#FFD700" }}>Gold</strong>, or{" "}
@@ -695,8 +695,8 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                           background:`${tc.color}10`, border:`1px solid ${tc.color}25`,
                           cursor:"pointer",
                         }} onClick={() => onOpenUpgrade?.()}>
-                          <div style={{ fontSize:18, marginBottom:3 }}>{tc.emoji}</div>
-                          <div style={{ fontSize:9, fontWeight:800, color:tc.color,
+                          <div style={{ fontSize:19, marginBottom:3 }}>{tc.emoji}</div>
+                          <div style={{ fontSize:10, fontWeight:800, color:tc.color,
                             textTransform:"uppercase", letterSpacing:"0.05em" }}>
                             {t}
                           </div>
@@ -715,7 +715,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     👑 Upgrade Your Profile
                   </button>
 
-                  <p style={{ fontSize:10, color:"#383838", textAlign:"center", margin:"8px 0 0" }}>
+                  <p style={{ fontSize:11, color:"#383838", textAlign:"center", margin:"8px 0 0" }}>
                     $1 = 100 EP · Paid with EP · Cancel anytime
                   </p>
                 </div>

@@ -82,7 +82,7 @@ export function FreezeSection({ adminData, freezeHook }) {
           color={C.muted}
           style={{ display: "block", margin: "0 auto 16px" }}
         />
-        <div style={{ fontSize: 16, color: C.muted }}>
+        <div style={{ fontSize: 17, color: C.muted }}>
           Insufficient permissions
         </div>
       </div>
@@ -113,11 +113,11 @@ export function FreezeSection({ adminData, freezeHook }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             Platform Freeze Control
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             Block platform access by region during security incidents
           </p>
         </div>
@@ -142,7 +142,7 @@ export function FreezeSection({ adminData, freezeHook }) {
                 animation: "pulse 1.5s infinite",
               }}
             />
-            <span style={{ color: C.danger, fontWeight: 700, fontSize: 13 }}>
+            <span style={{ color: C.danger, fontWeight: 700, fontSize: 14 }}>
               {frozenCount} region{frozenCount > 1 ? "s" : ""} frozen
             </span>
           </div>
@@ -174,7 +174,7 @@ export function FreezeSection({ adminData, freezeHook }) {
           color={C.warn}
           style={{ flexShrink: 0, marginTop: 1 }}
         />
-        <div style={{ fontSize: 13, color: C.warn, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 14, color: C.warn, lineHeight: 1.6 }}>
           <strong>Caution:</strong> Freezing a region immediately blocks all
           users in that area from accessing Xeevia. This is intended for
           emergency security responses only. Verify with CEO before freezing
@@ -218,14 +218,14 @@ export function FreezeSection({ adminData, freezeHook }) {
         <div style={{ flex: 1 }}>
           <div
             style={{
-              fontSize: 17,
+              fontSize: 18,
               fontWeight: 800,
               color: freezeStatus["all"] ? C.danger : C.text,
             }}
           >
             Global Platform {freezeStatus["all"] ? "— FROZEN" : "— Active"}
           </div>
-          <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
+          <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>
             {freezeStatus["all"]
               ? "⚠️ All users are currently blocked from accessing Xeevia."
               : "Platform is operating normally worldwide."}
@@ -237,7 +237,7 @@ export function FreezeSection({ adminData, freezeHook }) {
             padding: "10px 20px",
             borderRadius: 10,
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 15,
             border: `1px solid ${freezeStatus["all"] ? C.success + "50" : C.danger + "50"}`,
             background: freezeStatus["all"]
               ? `${C.success}20`
@@ -283,7 +283,7 @@ export function FreezeSection({ adminData, freezeHook }) {
               >
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: 700,
                     color: frozen ? C.danger : C.text,
                   }}
@@ -299,7 +299,7 @@ export function FreezeSection({ adminData, freezeHook }) {
                     borderRadius: 20,
                     background: frozen ? `${C.danger}18` : `${C.success}12`,
                     color: frozen ? C.danger : C.success,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                   }}
                 >
@@ -317,7 +317,7 @@ export function FreezeSection({ adminData, freezeHook }) {
               {region.countries && (
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: C.muted,
                     marginBottom: 12,
                     lineHeight: 1.6,
@@ -333,7 +333,7 @@ export function FreezeSection({ adminData, freezeHook }) {
                   padding: "8px 0",
                   borderRadius: 8,
                   fontWeight: 700,
-                  fontSize: 12,
+                  fontSize: 13,
                   border: `1px solid ${frozen ? C.success + "40" : C.danger + "40"}`,
                   background: frozen ? `${C.success}15` : `${C.danger}12`,
                   color: frozen ? C.success : C.danger,
@@ -396,11 +396,11 @@ export function SystemSection({ adminData, platformSettings }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             System Settings
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             Platform configuration and environment
           </p>
         </div>
@@ -575,10 +575,10 @@ function SettingRow({ setting, value, onSave, canEdit }) {
       }}
     >
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
           {setting.label}
         </div>
-        <div style={{ fontSize: 11, color: C.muted, fontFamily: "monospace" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
           {setting.key}
         </div>
       </div>
@@ -598,7 +598,7 @@ function SettingRow({ setting, value, onSave, canEdit }) {
           border: `1px solid ${C.border2}`,
           borderRadius: 7,
           color: C.text,
-          fontSize: 13,
+          fontSize: 14,
           fontFamily: "inherit",
           outline: "none",
         }}

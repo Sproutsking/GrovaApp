@@ -589,7 +589,7 @@ const VideoEditor = ({ videoFile, onSave, onClose, onPost }) => {
       text: "Your text",
       x: 50,
       y: 40,
-      fontSize: 32,
+      fontSize: 33,
       color: "#ffffff",
       fontFamily: "Arial",
       fontWeight: "bold",
@@ -1468,7 +1468,7 @@ const VideoEditor = ({ videoFile, onSave, onClose, onPost }) => {
                     style={{
                       left: `${overlay.x}%`,
                       top: `${overlay.y}%`,
-                      fontSize: `clamp(9px, ${overlay.fontSize * 0.17}px, 28px)`,
+                      fontSize: `calc(clamp(9px, ${overlay.fontSize * 0.17}px, 28px) + 1px)`,
                       color: overlay.color,
                       fontFamily: overlay.fontFamily,
                       fontWeight: overlay.fontWeight,
@@ -1818,7 +1818,7 @@ const VideoEditor = ({ videoFile, onSave, onClose, onPost }) => {
                         </div>
                       )}
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, color: "#fff" }}>
+                        <div style={{ fontSize: 13, color: "#fff" }}>
                           Layer {i + 1} · {layer.type}
                         </div>
                       </div>

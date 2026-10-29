@@ -243,7 +243,7 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
           <div style={{ width: 34, height: 34, borderRadius: 10, background: `${color}12`, border: `1px solid ${color}22`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hov ? `0 0 14px ${color}28` : "none", transition: "box-shadow .2s" }}>
             <Icon size={16} color={color} strokeWidth={2} />
           </div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
         </div>
         {ring
           ? <ArcRing value={ring.value} max={ring.max} color={color} size={46} />
@@ -251,16 +251,16 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
         }
       </div>
 
-      <div style={{ fontSize: 34, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: -2, fontVariantNumeric: "tabular-nums", marginBottom: 6 }}>
+      <div style={{ fontSize: 35, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: -2, fontVariantNumeric: "tabular-nums", marginBottom: 6 }}>
         <CountUp target={value} />
       </div>
-      {subValue && <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{subValue}</div>}
+      {subValue && <div style={{ fontSize: 13, color: C.muted, marginBottom: 8 }}>{subValue}</div>}
       <div style={{ flex: 1 }} />
       <div style={{ height: 1, background: "#1a1a1a", marginBottom: 12 }} />
       {trend
         ? <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {trendPositive ? <TrendingUp size={12} color={C.success} /> : <TrendingDown size={12} color={C.danger} />}
-            <span style={{ fontSize: 11, fontWeight: 700, color: trendPositive ? C.success : C.danger }}>{trend}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: trendPositive ? C.success : C.danger }}>{trend}</span>
           </div>
         : <div style={{ height: 3, borderRadius: 2, background: `linear-gradient(90deg, ${color}, ${color}28)`, width: "45%" }} />
       }
@@ -293,11 +293,11 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
     <div>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: C.text, margin: "0 0 6px 0", letterSpacing: -0.5, minHeight: 32, display: "flex", alignItems: "center", gap: 2 }}>
+        <h1 style={{ fontSize: 25, fontWeight: 900, color: C.text, margin: "0 0 6px 0", letterSpacing: -0.5, minHeight: 32, display: "flex", alignItems: "center", gap: 2 }}>
           {displayed}
           <span style={{ display: "inline-block", width: 2, height: 22, background: C.accent, borderRadius: 1, marginLeft: 3, boxShadow: `0 0 8px ${C.accent}`, animation: "adminCursorBlink .75s step-end infinite", verticalAlign: "middle" }} />
         </h1>
-        <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
+        <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>
           {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
@@ -338,8 +338,8 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
       {/* Quick Actions + Online Team */}
       <div style={{ display: "grid", gridTemplateColumns: overviewPanelCols, gap: 16, marginBottom: 24 }}>
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Quick Actions</div>
-          <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Jump to any section instantly</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Quick Actions</div>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Jump to any section instantly</div>
           <div style={{ display: "grid", gridTemplateColumns: quickActionCols, gap: 10 }}>
             {QUICK_ACTIONS.map((qa) => (
               <button key={qa.nav} onClick={() => onNavigate(qa.nav)}
@@ -347,7 +347,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
                 onMouseOver={(e) => { e.currentTarget.style.background = `${qa.color}16`; e.currentTarget.style.borderColor = `${qa.color}40`; }}
                 onMouseOut={(e)  => { e.currentTarget.style.background = `${qa.color}08`; e.currentTarget.style.borderColor = `${qa.color}20`; }}>
                 <qa.icon size={19} color={qa.color} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>{qa.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.text2 }}>{qa.label}</span>
               </button>
             ))}
           </div>
@@ -359,8 +359,8 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
               { label: "Content Pieces", value: (s.totalContent  || 0).toLocaleString(), color: C.info   },
             ].map((st) => (
               <div key={st.label} style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: st.color }}>{st.value}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{st.label}</div>
+                <div style={{ fontSize: 21, fontWeight: 800, color: st.color }}>{st.value}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{st.label}</div>
               </div>
             ))}
           </div>
@@ -372,12 +372,12 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
       <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Economy Metrics</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Live EP & XEV ecosystem health · base EP grant: 50 per paying user</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Economy Metrics</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Live EP & XEV ecosystem health · base EP grant: 50 per paying user</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, background: `${C.accent}08`, border: `1px solid ${C.accent}18` }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, animation: "adminMetricPulse 2s ease infinite" }} />
-            <span style={{ fontSize: 9, color: C.accent, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>Live</span>
+            <span style={{ fontSize: 10, color: C.accent, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>Live</span>
           </div>
         </div>
 
@@ -389,22 +389,22 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
             { label: "EP from Deposits", value: (s.epMintedOnDeposit || 0).toLocaleString(), sub: s.epMintedOnDeposit > 0 ? `≈$${((s.epMintedOnDeposit || 0) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} deposited` : "No deposits yet", color: "#34d399", topColor: "#34d399" },
           ].map((m) => (
             <div key={m.label} style={{ padding: "16px 14px", background: `${m.color}04`, border: `1px solid ${m.color}15`, borderRadius: 14, borderTop: `3px solid ${m.topColor}` }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: m.color, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, opacity: 0.75 }}>{m.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: m.color, letterSpacing: -1, marginBottom: 4 }}>{m.value}</div>
-              <div style={{ fontSize: 10, color: C.muted }}>{m.sub}</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: m.color, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, opacity: 0.75 }}>{m.label}</div>
+              <div style={{ fontSize: 23, fontWeight: 900, color: m.color, letterSpacing: -1, marginBottom: 4 }}>{m.value}</div>
+              <div style={{ fontSize: 11, color: C.muted }}>{m.sub}</div>
             </div>
           ))}
         </div>
 
         <div style={{ marginTop: 14, padding: "11px 14px", background: "rgba(132,204,22,0.04)", border: "1px solid rgba(132,204,22,0.1)", borderRadius: 11, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ fontSize: 10, color: C.muted, flex: 1 }}>
+          <div style={{ fontSize: 11, color: C.muted, flex: 1 }}>
             <span style={{ color: C.text, fontWeight: 700 }}>Creator Revenue Sharing:</span>{" "}
             Silver 2% · Gold 5% · Diamond 10% of weekly ecosystem revenue ={" "}
             <span style={{ color: C.accent, fontWeight: 800 }}>17% returned to creators</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.accent, flexShrink: 0, textAlign: "right" }}>
+          <div style={{ fontSize: 19, fontWeight: 900, color: C.accent, flexShrink: 0, textAlign: "right" }}>
             ${((s.totalRevenue || 0) * 0.17).toFixed(2)}
-            <div style={{ fontSize: 9, color: C.muted, fontWeight: 600 }}>Est. creator pool</div>
+            <div style={{ fontSize: 10, color: C.muted, fontWeight: 600 }}>Est. creator pool</div>
           </div>
         </div>
       </div>
@@ -418,10 +418,10 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
           <Globe2 size={22} color="#f59e0b" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 2 }}>Ambassador Program</div>
-          <div style={{ fontSize: 11, color: C.muted }}>Users earn commissions by referring new members · 8% → 20% based on monthly volume · gamified level system</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 2 }}>Ambassador Program</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Users earn commissions by referring new members · 8% → 20% based on monthly volume · gamified level system</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#f59e0b", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#f59e0b", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
           Manage <ChevronRight size={14} />
         </div>
       </div>
@@ -448,7 +448,7 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, security
             <div style={{ width: 28, height: 28, borderRadius: 7, background: `linear-gradient(135deg, ${C.accent}, ${C.accent3})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Zap size={14} color="#000" />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 900, color: C.text, letterSpacing: -0.3 }}>XEEVIA</span>
+            <span style={{ fontSize: 14, fontWeight: 900, color: C.text, letterSpacing: -0.3 }}>XEEVIA</span>
           </div>
         )}
         <button onClick={onToggle} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border2}`, background: C.bg3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, flexShrink: 0 }}>
@@ -460,14 +460,14 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, security
       {!collapsed && (
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `${roleMeta.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: roleMeta.color }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `${roleMeta.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: roleMeta.color }}>
               {(adminData?.full_name || "A").charAt(0).toUpperCase()}
             </div>
             <div style={{ overflow: "hidden" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {adminData?.full_name || "Admin"}
               </div>
-              <div style={{ fontSize: 9, fontWeight: 600, color: roleMeta.color }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: roleMeta.color }}>
                 {roleMeta.label}
                 {adminData?.xa_id && (
                   <span style={{ marginLeft: 5, fontFamily: "monospace", opacity: 0.8 }}>
@@ -493,18 +493,18 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, security
           return (
             <React.Fragment key={item.id}>
               {showGroup && (
-                <div style={{ padding: "10px 14px 3px", fontSize: 9, fontWeight: 800, color: C.muted2, textTransform: "uppercase", letterSpacing: "1.5px" }}>
+                <div style={{ padding: "10px 14px 3px", fontSize: 10, fontWeight: 800, color: C.muted2, textTransform: "uppercase", letterSpacing: "1.5px" }}>
                   {groupLabel}
                 </div>
               )}
               <button onClick={() => onNavigate(item.id)} title={collapsed ? item.label : undefined}
-                style={{ width: "100%", padding: collapsed ? "9px 0" : "8px 12px", display: "flex", alignItems: "center", gap: 9, justifyContent: collapsed ? "center" : "flex-start", background: isActive ? `${C.accent}12` : "transparent", border: "none", borderLeft: isActive ? `2px solid ${C.accent}` : "2px solid transparent", cursor: "pointer", color: isActive ? C.accent : C.muted, fontFamily: "inherit", fontSize: 12, fontWeight: isActive ? 700 : 500, transition: "all .12s", position: "relative" }}
+                style={{ width: "100%", padding: collapsed ? "9px 0" : "8px 12px", display: "flex", alignItems: "center", gap: 9, justifyContent: collapsed ? "center" : "flex-start", background: isActive ? `${C.accent}12` : "transparent", border: "none", borderLeft: isActive ? `2px solid ${C.accent}` : "2px solid transparent", cursor: "pointer", color: isActive ? C.accent : C.muted, fontFamily: "inherit", fontSize: 13, fontWeight: isActive ? 700 : 500, transition: "all .12s", position: "relative" }}
                 onMouseOver={(e) => { if (!isActive) { e.currentTarget.style.color = C.text2; e.currentTarget.style.background = `${C.border}40`; } }}
                 onMouseOut={(e)  => { if (!isActive) { e.currentTarget.style.color = C.muted; e.currentTarget.style.background = "transparent"; } }}>
                 <item.icon size={15} style={{ flexShrink: 0 }} />
                 {!collapsed && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
                 {!collapsed && showBadge && (
-                  <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: badge > 10 ? C.danger : C.warn, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>
+                  <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: badge > 10 ? C.danger : C.warn, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>
                     {badge > 99 ? "99+" : badge}
                   </span>
                 )}
@@ -519,7 +519,7 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, security
 
       {!collapsed && (
         <div style={{ padding: "10px 14px", borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 9, color: C.muted2, textAlign: "center" }}>Xeevia Admin v2.0</div>
+          <div style={{ fontSize: 10, color: C.muted2, textAlign: "center" }}>Xeevia Admin v2.0</div>
         </div>
       )}
     </div>
@@ -720,18 +720,18 @@ export default function AdminDashboard({ adminData, onClose }) {
           width={560}
         >
           <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ color: C.muted, fontSize: 13, lineHeight: 1.6 }}>
+            <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>
               {securityAlertModal.description || "Immediate review recommended."}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#fca5a5" }}>
+              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "rgba(239,68,68,0.12)", color: "#fca5a5" }}>
                 {securityAlertModal.severity || "warning"}
               </span>
-              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: "rgba(96,165,250,0.12)", color: "#93c5fd" }}>
+              <span style={{ padding: "6px 8px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "rgba(96,165,250,0.12)", color: "#93c5fd" }}>
                 {securityAlertModal.source || "system"}
               </span>
             </div>
-            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, color: C.text, fontSize: 13 }}>
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, color: C.text, fontSize: 14 }}>
               {securityAlertModal.metadata && Object.keys(securityAlertModal.metadata).length > 0 ? (
                 <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", color: C.text2, background: C.bg2, padding: 12, borderRadius: 8 }}>
                   {JSON.stringify(securityAlertModal.metadata, null, 2)}
@@ -749,9 +749,9 @@ export default function AdminDashboard({ adminData, onClose }) {
         {/* Top bar */}
         <div style={{ height: 50, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 12, background: C.bg1, flexShrink: 0 }}>
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: C.muted }}>Admin</span>
+            <span style={{ fontSize: 12, color: C.muted }}>Admin</span>
             <ChevronRight size={11} color={C.muted} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.text2, textTransform: "capitalize" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text2, textTransform: "capitalize" }}>
               {activeSection.replace(/_/g, " ")}
             </span>
           </div>

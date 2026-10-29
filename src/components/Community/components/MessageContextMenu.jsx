@@ -141,7 +141,7 @@ const ChannelContextMenu = ({
         }
         .ccm-ch-icon { color: #9cff00; flex-shrink: 0; }
         .ccm-ch-name {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 800;
           color: #fff;
           flex: 1;
@@ -159,7 +159,7 @@ const ChannelContextMenu = ({
 
         .ccm-section-label {
           padding: 4px 14px 2px;
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 800;
           color: #555;
           text-transform: uppercase;
@@ -175,7 +175,7 @@ const ChannelContextMenu = ({
           background: none;
           border: none;
           color: #ccc;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.12s;

@@ -122,7 +122,7 @@ function Pill({ label, color = "#a3e635" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 800,
         letterSpacing: "1.8px",
         textTransform: "uppercase",
@@ -143,7 +143,7 @@ function FieldLabel({ children }) {
   return (
     <div
       style={{
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 800,
         letterSpacing: "2px",
         textTransform: "uppercase",
@@ -175,7 +175,7 @@ function Input({
             top: "50%",
             transform: "translateY(-50%)",
             color: "#666",
-            fontSize: 13,
+            fontSize: 14,
             pointerEvents: "none",
           }}
         >
@@ -194,7 +194,7 @@ function Input({
           borderRadius: 10,
           padding: prefix ? "10px 12px 10px 26px" : "10px 12px",
           color: "#f0f0f0",
-          fontSize: 13,
+          fontSize: 14,
           outline: "none",
           transition: "border-color .15s",
           fontFamily: "inherit",
@@ -224,7 +224,7 @@ function Textarea({ value, onChange, onBlur, placeholder, rows = 2 }) {
         borderRadius: 10,
         padding: "10px 12px",
         color: "#f0f0f0",
-        fontSize: 12,
+        fontSize: 13,
         outline: "none",
         resize: "vertical",
         lineHeight: 1.7,
@@ -281,7 +281,7 @@ function SaveIndicator({ state }) {
   };
   const { label, color } = map[state] ?? map.saved;
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, color, marginLeft: 6 }}>
+    <span style={{ fontSize: 11, fontWeight: 700, color, marginLeft: 6 }}>
       {label}
     </span>
   );
@@ -318,7 +318,7 @@ function Btn({
         background: disabled ? "#111" : bg,
         color: disabled ? "#333" : color,
         fontWeight: 700,
-        fontSize: small ? 10 : 11,
+        fontSize: small ? 11 : 12,
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "inherit",
         transition: "all .15s",
@@ -352,7 +352,7 @@ function CopyLinkButton({ code, label = "Copy invite link" }) {
         background: copied ? "rgba(163,230,53,.06)" : "transparent",
         color: copied ? "#a3e635" : "#555",
         fontWeight: 700,
-        fontSize: 11,
+        fontSize: 12,
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -386,7 +386,7 @@ function CopyCodeButton({ code }) {
         background: copied ? "rgba(163,230,53,.06)" : "transparent",
         color: copied ? "#a3e635" : "#555",
         fontWeight: 700,
-        fontSize: 11,
+        fontSize: 12,
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -422,14 +422,14 @@ function LinkRow({ code, label }) {
       }}
     >
       <span
-        style={{ fontSize: 10, color: "#555", flexShrink: 0, fontWeight: 700 }}
+        style={{ fontSize: 11, color: "#555", flexShrink: 0, fontWeight: 700 }}
       >
         {label}
       </span>
       <span
         style={{
           flex: 1,
-          fontSize: 11,
+          fontSize: 12,
           color: "#666",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -448,7 +448,7 @@ function LinkRow({ code, label }) {
           border: `1px solid ${copied ? "rgba(163,230,53,.3)" : "#252525"}`,
           background: copied ? "rgba(163,230,53,.06)" : "transparent",
           color: copied ? "#a3e635" : "#555",
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 700,
           cursor: "pointer",
           fontFamily: "inherit",
@@ -483,7 +483,7 @@ function PlainLinkRow({ url, label }) {
     >
       <span
         style={{
-          fontSize: 10,
+          fontSize: 11,
           color: "#5a8a35",
           flexShrink: 0,
           fontWeight: 700,
@@ -494,7 +494,7 @@ function PlainLinkRow({ url, label }) {
       <span
         style={{
           flex: 1,
-          fontSize: 11,
+          fontSize: 12,
           color: "#666",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -513,7 +513,7 @@ function PlainLinkRow({ url, label }) {
           border: `1px solid ${copied ? "rgba(163,230,53,.3)" : "#252525"}`,
           background: copied ? "rgba(163,230,53,.06)" : "transparent",
           color: copied ? "#a3e635" : "#555",
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 700,
           cursor: "pointer",
           fontFamily: "inherit",
@@ -601,7 +601,7 @@ function ShareSheet({ link, code, onClose }) {
               gap: 10,
               padding: "10px 14px",
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               color: isCopied ? "#a3e635" : "#ccc",
             }}
@@ -614,7 +614,7 @@ function ShareSheet({ link, code, onClose }) {
               style={{
                 width: 18,
                 textAlign: "center",
-                fontSize: 14,
+                fontSize: 15,
                 flexShrink: 0,
               }}
             >
@@ -660,7 +660,7 @@ function ShareButton({ link, code, small }) {
           background: "transparent",
           color: "#666",
           fontWeight: 700,
-          fontSize: small ? 10 : 11,
+          fontSize: small ? 11 : 12,
           cursor: "pointer",
           fontFamily: "inherit",
           transition: "all .15s",
@@ -841,7 +841,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
             <div>
               <div
                 style={{
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: 900,
                   color: "#e8e8e8",
                   letterSpacing: "-0.3px",
@@ -849,7 +849,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
               >
                 ⏳ Waitlist Manager
               </div>
-              <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
                 <span style={{ color: "#38bdf8", fontWeight: 700 }}>
                   {pending.length} pending
                 </span>
@@ -870,7 +870,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                 border: "1px solid #252525",
                 borderRadius: 8,
                 color: "#555",
-                fontSize: 16,
+                fontSize: 17,
                 cursor: "pointer",
                 padding: "3px 9px",
                 fontFamily: "inherit",
@@ -898,7 +898,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   ? "rgba(163,230,53,.07)"
                   : "rgba(239,68,68,.07)",
                 border: `1px solid ${toast.ok ? "rgba(163,230,53,.2)" : "rgba(239,68,68,.2)"}`,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 color: toast.ok ? "#a3e635" : "#f87171",
               }}
@@ -914,13 +914,13 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                 textAlign: "center",
                 padding: "36px 0",
                 color: "#444",
-                fontSize: 13,
+                fontSize: 14,
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🎉</div>
+              <div style={{ fontSize: 33, marginBottom: 10 }}>🎉</div>
               No pending entries
               {whitelistedIds.length > 0 && (
-                <div style={{ fontSize: 11, color: "#38bdf8", marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: "#38bdf8", marginTop: 6 }}>
                   {whitelistedIds.length} user
                   {whitelistedIds.length !== 1 ? "s" : ""} already approved ✓
                 </div>
@@ -953,7 +953,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: 800,
                       color: "#001a26",
                     }}
@@ -965,7 +965,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: "#e4e4e4",
                         overflow: "hidden",
@@ -977,7 +977,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                     </div>
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "#555",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -989,7 +989,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                           ? entry.user_id.slice(0, 24) + "…"
                           : "—")}
                     </div>
-                    <div style={{ fontSize: 9, color: "#333", marginTop: 1 }}>
+                    <div style={{ fontSize: 10, color: "#333", marginTop: 1 }}>
                       #{idx + 1} ·{" "}
                       {entry.joined_at
                         ? new Date(entry.joined_at).toLocaleDateString()
@@ -1010,7 +1010,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                             : "linear-gradient(135deg,#a3e635,#65a30d)",
                         color: busy === "approving" ? "#555" : "#061000",
                         fontWeight: 800,
-                        fontSize: 10,
+                        fontSize: 11,
                         cursor: busy ? "not-allowed" : "pointer",
                         fontFamily: "inherit",
                         display: "flex",
@@ -1034,7 +1034,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                         background: "rgba(239,68,68,.06)",
                         color: busy === "denying" ? "#555" : "#f87171",
                         fontWeight: 700,
-                        fontSize: 10,
+                        fontSize: 11,
                         cursor: busy ? "not-allowed" : "pointer",
                         fontFamily: "inherit",
                         display: "flex",
@@ -1078,7 +1078,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   : "linear-gradient(135deg,#a3e635,#65a30d)",
                 color: bulkBusy ? "#333" : "#061000",
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: 13,
                 cursor: bulkBusy ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
                 display: "flex",
@@ -1111,7 +1111,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   border: "1.5px solid #252525",
                   borderRadius: 9,
                   color: "#e0e0e0",
-                  fontSize: 12,
+                  fontSize: 13,
                   outline: "none",
                   fontFamily: "inherit",
                 }}
@@ -1131,7 +1131,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   background: "rgba(163,230,53,.05)",
                   color: "#a3e635",
                   fontWeight: 700,
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: bulkBusy || !bulkN ? "not-allowed" : "pointer",
                   opacity: !bulkN || Number(bulkN) < 1 ? 0.35 : 1,
                   fontFamily: "inherit",
@@ -1343,7 +1343,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 16,
+            fontSize: 17,
             flexShrink: 0,
           }}
         >
@@ -1358,14 +1358,14 @@ function PublicEntryCard({ config, onConfigUpdate }) {
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#e0e0e0" }}>
               PUBLIC ENTRY
             </span>
             <Pill label="paywall_config" color="#a3e635" />
             <Pill label="Non-deletable" color="#444" />
             {!isActive && <Pill label="CLOSED" color="#f87171" />}
           </div>
-          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
             Controls paywall hero ·{" "}
             <span style={{ color: "#a3e635", ...mono }}>
               ${fmt(currentPrice)}
@@ -1383,7 +1383,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Toggle checked={isActive} onChange={toggleActive} />
           <SaveIndicator state={saveState} />
-          <span style={{ color: "#555", fontSize: 16 }}>
+          <span style={{ color: "#555", fontSize: 17 }}>
             {expanded ? "▲" : "▼"}
           </span>
         </div>
@@ -1406,7 +1406,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                 border: "1px solid rgba(163,230,53,.08)",
                 borderRadius: 10,
                 padding: 12,
-                fontSize: 11,
+                fontSize: 12,
                 color: "#4a6a30",
                 lineHeight: 1.7,
               }}
@@ -1487,7 +1487,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
               <div>
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 800,
                     color: "#a3e635",
                     letterSpacing: "1px",
@@ -1496,7 +1496,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                 >
                   💱 USD → NGN Conversion Rate
                 </div>
-                <div style={{ fontSize: 10, color: "#4a6a30", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: "#4a6a30", marginTop: 2 }}>
                   Used to convert your USD prices to Naira for Paystack charges
                 </div>
               </div>
@@ -1515,7 +1515,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                 <div>
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: 800,
                       color: autoSync ? "#a3e635" : "#555",
                       letterSpacing: "1px",
@@ -1524,7 +1524,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                   >
                     Auto-sync
                   </div>
-                  <div style={{ fontSize: 8, color: "#3a5a3a", marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: "#3a5a3a", marginTop: 1 }}>
                     Updates every 6h
                   </div>
                 </div>
@@ -1551,7 +1551,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                       top: "50%",
                       transform: "translateY(-50%)",
                       color: "#f59e0b",
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: 700,
                       pointerEvents: "none",
                     }}
@@ -1573,7 +1573,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                       borderRadius: 10,
                       padding: "10px 12px 10px 30px",
                       color: "#f0f0f0",
-                      fontSize: 13,
+                      fontSize: 14,
                       outline: "none",
                       fontFamily: "inherit",
                       transition: "border-color .15s",
@@ -1599,7 +1599,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                   background: rateFetching ? "#111" : "rgba(163,230,53,.06)",
                   color: rateFetching ? "#444" : "#a3e635",
                   fontWeight: 700,
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: rateFetching ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
                   display: "flex",
@@ -1650,7 +1650,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                   background: "rgba(239,68,68,.06)",
                   border: "1px solid rgba(239,68,68,.2)",
                   borderRadius: 8,
-                  fontSize: 10,
+                  fontSize: 11,
                   color: "#f87171",
                   marginBottom: 8,
                 }}
@@ -1670,7 +1670,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
             >
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 800,
                   color: "#444",
                   letterSpacing: "1.5px",
@@ -1704,7 +1704,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                   >
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: "#555",
                         marginBottom: 4,
                         fontWeight: 600,
@@ -1714,7 +1714,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                     </div>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: 900,
                         color: "#a3e635",
                         letterSpacing: "-0.5px",
@@ -1723,7 +1723,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                       ₦{Math.round(usd * currentRate).toLocaleString()}
                     </div>
                     <div
-                      style={{ fontSize: 8, color: "#3a3a3a", marginTop: 2 }}
+                      style={{ fontSize: 9, color: "#3a3a3a", marginTop: 2 }}
                     >
                       ${usd.toFixed(2)} USD
                     </div>
@@ -1734,7 +1734,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                 <div
                   style={{
                     marginTop: 8,
-                    fontSize: 9,
+                    fontSize: 10,
                     color: "#2a4a2a",
                     display: "flex",
                     alignItems: "center",
@@ -1751,7 +1751,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                 </div>
               )}
               {!rateFetchedAt && (
-                <div style={{ marginTop: 8, fontSize: 9, color: "#3a3a3a" }}>
+                <div style={{ marginTop: 8, fontSize: 10, color: "#3a3a3a" }}>
                   Manual rate · click "Fetch Live Rate" to sync with market
                 </div>
               )}
@@ -1810,7 +1810,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                     Cancel
                   </Btn>
                 </div>
-                <div style={{ fontSize: 9, color: "#444", marginTop: 5 }}>
+                <div style={{ fontSize: 10, color: "#444", marginTop: 5 }}>
                   Saves to paywall_config.app_url · syncs to PaywallGate
                 </div>
               </div>
@@ -1822,7 +1822,7 @@ function PublicEntryCard({ config, onConfigUpdate }) {
                   border: "1px dashed #252525",
                   borderRadius: 8,
                   color: "#444",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
                   padding: "5px 12px",
                   cursor: "pointer",
@@ -2036,7 +2036,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              fontSize: 17,
               flexShrink: 0,
             }}
           >
@@ -2057,7 +2057,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#e0e0e0" }}>
                 {meta.invite_name || "Untitled Invite"}
               </span>
               <Pill label={category} color={accent} />
@@ -2077,29 +2077,29 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>
+              <span style={{ fontSize: 11, color: accent, fontWeight: 700 }}>
                 ${fmt(currentPrice)}
               </span>
               {currentPrice > 0 && (
                 <span
-                  style={{ fontSize: 9, color: "#4a5a30", fontWeight: 600 }}
+                  style={{ fontSize: 10, color: "#4a5a30", fontWeight: 600 }}
                 >
                   ≈ ₦{Math.round(currentPrice * ngnRate).toLocaleString()}
                 </span>
               )}
               {currentPrice === 0 && (
                 <span
-                  style={{ fontSize: 9, color: "#3a7a3a", fontWeight: 700 }}
+                  style={{ fontSize: 10, color: "#3a7a3a", fontWeight: 700 }}
                 >
                   FREE
                 </span>
               )}
               {invite.max_uses && (
-                <span style={{ fontSize: 10, color: "#555" }}>
+                <span style={{ fontSize: 11, color: "#555" }}>
                   {invite.uses_count ?? 0}/{invite.max_uses} used
                 </span>
               )}
-              <span style={{ fontSize: 10, color: "#333", ...mono }}>
+              <span style={{ fontSize: 11, color: "#333", ...mono }}>
                 ?ref={invite.code}
               </span>
               {waitlistCount > 0 && (
@@ -2112,7 +2112,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 4,
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 800,
                     color: "#38bdf8",
                     background: "rgba(56,189,248,.08)",
@@ -2147,7 +2147,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
               checked={invite.status === "active"}
               onChange={toggleStatus}
             />
-            <span style={{ color: "#555", fontSize: 14 }}>
+            <span style={{ color: "#555", fontSize: 15 }}>
               {expanded ? "▲" : "▼"}
             </span>
           </div>
@@ -2187,7 +2187,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
             >
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: "2px",
                   textTransform: "uppercase",
@@ -2206,7 +2206,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
               <div
                 style={{
                   marginTop: 8,
-                  fontSize: 10,
+                  fontSize: 11,
                   color: "#555",
                   lineHeight: 1.7,
                 }}
@@ -2249,7 +2249,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                 {parseFloat(price) > 0 && (
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       color: "#4a6a30",
                       marginTop: 3,
                       fontWeight: 600,
@@ -2263,7 +2263,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                 {parseFloat(price) === 0 && (
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       color: "#3a7a3a",
                       marginTop: 3,
                       fontWeight: 700,
@@ -2286,7 +2286,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                   {parseFloat(wlPrice) > 0 && (
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: "#4a6a30",
                         marginTop: 3,
                         fontWeight: 600,
@@ -2302,7 +2302,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                   {parseFloat(wlPrice) === 0 && (
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: "#3a7a3a",
                         marginTop: 3,
                         fontWeight: 700,
@@ -2348,7 +2348,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                   onBlur={() => save({ waitlistSlots })}
                   placeholder="0 = disabled"
                 />
-                <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
+                <div style={{ fontSize: 10, color: "#444", marginTop: 4 }}>
                   Link auto-converts when WL full
                 </div>
               </div>
@@ -2403,11 +2403,11 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                 ].map((st) => (
                   <div key={st.label} style={{ textAlign: "center" }}>
                     <div
-                      style={{ fontSize: 18, fontWeight: 900, color: st.color }}
+                      style={{ fontSize: 19, fontWeight: 900, color: st.color }}
                     >
                       {st.value}
                     </div>
-                    <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>
+                    <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>
                       {st.label}
                     </div>
                   </div>
@@ -2425,7 +2425,7 @@ function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
                   background: "rgba(56,189,248,.04)",
                   color: "#38bdf8",
                   fontWeight: 700,
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: "pointer",
                   fontFamily: "inherit",
                   display: "flex",
@@ -2581,10 +2581,10 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: "#e0e0e0" }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: "#e0e0e0" }}>
               Create Community Link
             </div>
-            <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+            <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
               Share the generated link — no codes needed
             </div>
           </div>
@@ -2610,7 +2610,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
             borderRadius: 12,
             padding: "12px 14px",
             marginBottom: 18,
-            fontSize: 12,
+            fontSize: 13,
             color: "#5a8a30",
             lineHeight: 1.8,
           }}
@@ -2628,14 +2628,14 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
             borderRadius: 10,
             padding: "8px 12px",
             marginBottom: 4,
-            fontSize: 10,
+            fontSize: 11,
             color: "#6a5a30",
             display: "flex",
             alignItems: "center",
             gap: 8,
           }}
         >
-          <span style={{ fontSize: 14 }}>💱</span>
+          <span style={{ fontSize: 15 }}>💱</span>
           <span>
             USD prices are converted to Naira at{" "}
             <strong style={{ color: "#f59e0b" }}>
@@ -2682,7 +2682,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
                       category === c.id
                         ? (ACC_COLORS[c.id] ?? "#94a3b8")
                         : "#666",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     fontFamily: "inherit",
                   }}
@@ -2699,7 +2699,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               onChange={setMaxUses}
               placeholder="e.g. 100"
             />
-            <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "#444", marginTop: 4 }}>
               How many get WL access
             </div>
           </div>
@@ -2710,7 +2710,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               onChange={setWaitlistSlots}
               placeholder="e.g. 500"
             />
-            <div style={{ fontSize: 9, color: "#38bdf8", marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "#38bdf8", marginTop: 4 }}>
               ↑ Auto-activates when WL full
             </div>
           </div>
@@ -2725,7 +2725,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
             {parseFloat(price) > 0 && (
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: "#4a6a30",
                   marginTop: 3,
                   fontWeight: 600,
@@ -2748,7 +2748,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               {parseFloat(wlPrice) > 0 ? (
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     color: "#4a6a30",
                     marginTop: 3,
                     fontWeight: 600,
@@ -2761,7 +2761,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               ) : (
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     color: "#3a7a3a",
                     marginTop: 3,
                     fontWeight: 700,
@@ -2793,7 +2793,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               background: "rgba(239,68,68,.07)",
               border: "1px solid rgba(239,68,68,.22)",
               borderRadius: 10,
-              fontSize: 12,
+              fontSize: 13,
               color: "#f87171",
             }}
           >
@@ -2811,7 +2811,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
               background: "transparent",
               color: "#666",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 14,
               cursor: "pointer",
               fontFamily: "inherit",
             }}
@@ -2831,7 +2831,7 @@ function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
                 : "linear-gradient(135deg,#a3e635,#65a30d)",
               color: creating ? "#333" : "#061000",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 15,
               cursor: creating ? "not-allowed" : "pointer",
               fontFamily: "inherit",
             }}
@@ -3008,7 +3008,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   border: "1px solid rgba(239,68,68,.3)",
                   borderRadius: 8,
                   padding: "6px 10px",
-                  fontSize: 9,
+                  fontSize: 10,
                   color: "#f87171",
                   fontWeight: 800,
                   textTransform: "uppercase",
@@ -3022,7 +3022,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             <span
               style={{
                 display: "inline-flex",
-                fontSize: 8,
+                fontSize: 9,
                 fontWeight: 800,
                 letterSpacing: "2px",
                 textTransform: "uppercase",
@@ -3046,12 +3046,12 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           >
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
-                <span style={{ fontSize: 20, color: "#444", fontWeight: 600 }}>
+                <span style={{ fontSize: 21, color: "#444", fontWeight: 600 }}>
                   $
                 </span>
                 <span
                   style={{
-                    fontSize: 44,
+                    fontSize: 45,
                     fontWeight: 900,
                     color: "#fff",
                     letterSpacing: "-3px",
@@ -3064,7 +3064,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               </div>
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: "#4a6a30",
                   fontWeight: 600,
                   marginTop: 3,
@@ -3075,7 +3075,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               </div>
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: "#666",
                   fontWeight: 600,
                   marginTop: 1,
@@ -3096,7 +3096,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             >
               <div
                 style={{
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: 900,
                   color: "#a3e635",
                   lineHeight: 1,
@@ -3106,7 +3106,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               </div>
               <div
                 style={{
-                  fontSize: 7,
+                  fontSize: 8,
                   fontWeight: 700,
                   color: "#444",
                   textTransform: "uppercase",
@@ -3139,16 +3139,16 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                 flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#e0e0e0" }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#e0e0e0" }}>
               {memberLabel}
             </span>
-            <span style={{ fontSize: 9.5, color: "#444", fontWeight: 600 }}>
+            <span style={{ fontSize: 10.5, color: "#444", fontWeight: 600 }}>
               members joined
             </span>
             <span
               style={{
                 marginLeft: "auto",
-                fontSize: 8,
+                fontSize: 9,
                 fontWeight: 800,
                 color: "#a3e63588",
                 letterSpacing: "1px",
@@ -3161,7 +3161,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             <div
               style={{
                 marginTop: 6,
-                fontSize: 9,
+                fontSize: 10,
                 color: "#555",
                 lineHeight: 1.6,
               }}
@@ -3175,7 +3175,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               background: "linear-gradient(135deg,#a3e635,#65a30d)",
               borderRadius: 9,
               padding: "9px 14px",
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: "#061000",
               textAlign: "center",
@@ -3214,7 +3214,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               <span
                 style={{
                   display: "inline-flex",
-                  fontSize: 8,
+                  fontSize: 9,
                   fontWeight: 800,
                   letterSpacing: "2px",
                   textTransform: "uppercase",
@@ -3230,7 +3230,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               {s.linkCount > 1 && (
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 9,
                     fontWeight: 700,
                     color: "#555",
                     background: "#111",
@@ -3256,14 +3256,14 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
                 {!isFree && (
                   <span
-                    style={{ fontSize: 20, color: "#444", fontWeight: 600 }}
+                    style={{ fontSize: 21, color: "#444", fontWeight: 600 }}
                   >
                     $
                   </span>
                 )}
                 <span
                   style={{
-                    fontSize: isFree ? 32 : 44,
+                    fontSize: isFree ? 33 : 45,
                     fontWeight: 900,
                     color: wlAccent,
                     letterSpacing: "-3px",
@@ -3275,11 +3275,11 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                 </span>
               </div>
               {!isFree && (
-                <div style={{ fontSize: 9, color: "#4a5a30", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "#4a5a30", marginTop: 2 }}>
                   ≈ ₦{Math.round(wlPrice * ngnRate).toLocaleString()}
                 </div>
               )}
-              <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>
                 {isFree
                   ? "whitelisted · free activation"
                   : "exclusive whitelist pricing"}
@@ -3297,7 +3297,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             >
               <div
                 style={{
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: 900,
                   color: wlAccent,
                   lineHeight: 1,
@@ -3307,7 +3307,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               </div>
               <div
                 style={{
-                  fontSize: 7,
+                  fontSize: 8,
                   fontWeight: 700,
                   color: "#444",
                   textTransform: "uppercase",
@@ -3336,11 +3336,11 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   marginBottom: 4,
                 }}
               >
-                <span style={{ fontSize: 9, color: "#555", fontWeight: 600 }}>
+                <span style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>
                   Whitelist slots
                   {s.linkCount > 1 ? ` (${s.linkCount} links)` : ""}
                 </span>
-                <span style={{ fontSize: 9, color: wlAccent, fontWeight: 800 }}>
+                <span style={{ fontSize: 10, color: wlAccent, fontWeight: 800 }}>
                   {s.aggregateFilled.toLocaleString()} /{" "}
                   {s.aggregateMax.toLocaleString()}
                 </span>
@@ -3365,12 +3365,12 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   marginTop: 3,
                 }}
               >
-                <span style={{ fontSize: 8, color: "#333" }}>
+                <span style={{ fontSize: 9, color: "#333" }}>
                   {pPct}% claimed
                 </span>
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 9,
                     color: pLeft === 0 ? "#f87171" : "#333",
                   }}
                 >
@@ -3386,7 +3386,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                 : "linear-gradient(135deg,#f59e0b,#d97706)",
               borderRadius: 9,
               padding: "9px 14px",
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: "#061000",
               textAlign: "center",
@@ -3405,7 +3405,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             <span
               style={{
                 display: "inline-flex",
-                fontSize: 8,
+                fontSize: 9,
                 fontWeight: 800,
                 letterSpacing: "2px",
                 textTransform: "uppercase",
@@ -3431,15 +3431,15 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                 gap: 6,
               }}
             >
-              <span style={{ fontSize: 10 }}>🔒</span>
-              <span style={{ fontSize: 9, color: "#f87171", fontWeight: 700 }}>
+              <span style={{ fontSize: 11 }}>🔒</span>
+              <span style={{ fontSize: 10, color: "#f87171", fontWeight: 700 }}>
                 Whitelist slots exhausted — no payment needed now
               </span>
             </div>
           </div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 800,
               color: "#c0e0f0",
               lineHeight: 1.4,
@@ -3448,7 +3448,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           >
             Get whitelisted when a spot opens
           </div>
-          <div style={{ fontSize: 9, color: "#3a5a6a", marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: "#3a5a6a", marginBottom: 10 }}>
             Join the waitlist · you'll be notified instantly · enter free today
           </div>
           <div
@@ -3473,18 +3473,18 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                 flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#e0e0e0" }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#e0e0e0" }}>
               {stats.waitlistCount > 0
                 ? stats.waitlistCount.toLocaleString()
                 : "—"}
             </span>
-            <span style={{ fontSize: 9.5, color: "#2a4a5a", fontWeight: 600 }}>
+            <span style={{ fontSize: 10.5, color: "#2a4a5a", fontWeight: 600 }}>
               people waiting
             </span>
             <span
               style={{
                 marginLeft: "auto",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 900,
                 color: "#38bdf8",
               }}
@@ -3495,7 +3495,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           {totalWaitlistCapacity > 0 && (
             <div
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 color: "#2a5060",
                 marginBottom: 8,
                 textAlign: "center",
@@ -3509,7 +3509,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               background: "linear-gradient(135deg,#38bdf8,#0284c7)",
               borderRadius: 9,
               padding: "9px 14px",
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: "#001a26",
               textAlign: "center",
@@ -3527,7 +3527,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             <span
               style={{
                 display: "inline-flex",
-                fontSize: 8,
+                fontSize: 9,
                 fontWeight: 800,
                 letterSpacing: "2px",
                 textTransform: "uppercase",
@@ -3543,7 +3543,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           </div>
           <div
             style={{
-              fontSize: 44,
+              fontSize: 45,
               fontWeight: 900,
               color: "#fff",
               letterSpacing: "-2px",
@@ -3553,7 +3553,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           >
             FREE
           </div>
-          <div style={{ fontSize: 9, color: "#555", marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: "#555", marginBottom: 12 }}>
             VIP access · {totalVIPSlots} lucky{" "}
             {totalVIPSlots === 1 ? "slot" : "slots"} total
           </div>
@@ -3566,7 +3566,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               marginBottom: 10,
             }}
           >
-            <span style={{ fontSize: 9, color: "#7a5fa0", fontWeight: 600 }}>
+            <span style={{ fontSize: 10, color: "#7a5fa0", fontWeight: 600 }}>
               🎲 Random selection · Winners notified by email
             </span>
           </div>
@@ -3575,7 +3575,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               background: "linear-gradient(135deg,#a78bfa,#7c3aed)",
               borderRadius: 9,
               padding: "9px 14px",
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: "#fff",
               textAlign: "center",
@@ -3633,7 +3633,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
       >
         <div
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 800,
             letterSpacing: "2.5px",
             textTransform: "uppercase",
@@ -3652,7 +3652,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               boxShadow: `0 0 6px ${isActive ? "#a3e635" : "#f87171"}`,
             }}
           />
-          <span style={{ fontSize: 9, color: "#555", fontWeight: 700 }}>
+          <span style={{ fontSize: 10, color: "#555", fontWeight: 700 }}>
             {isActive ? "Live" : "Closed"}
           </span>
         </div>
@@ -3676,7 +3676,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           }}
         >
           <span
-            style={{ fontSize: 8, color: "#333", fontWeight: 700, ...mono }}
+            style={{ fontSize: 9, color: "#333", fontWeight: 700, ...mono }}
           >
             9:41
           </span>
@@ -3770,7 +3770,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           <div>
             <div
               style={{
-                fontSize: 8,
+                fontSize: 9,
                 textTransform: "uppercase",
                 letterSpacing: "1.5px",
                 color: accent,
@@ -3779,7 +3779,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             >
               {slideLabel(current)}
             </div>
-            <div style={{ fontSize: 9, color: "#333", marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: "#333", marginTop: 1 }}>
               {displayIdx + 1} / {previewSlides.length}
             </div>
           </div>
@@ -3803,7 +3803,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   background: "transparent",
                   color: "#555",
                   cursor: "pointer",
-                  fontSize: 11,
+                  fontSize: 12,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -3826,7 +3826,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
       >
         <div
           style={{
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 800,
             color: "#333",
             marginBottom: 7,
@@ -3837,7 +3837,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           Slides in rotation
         </div>
         {previewSlides.length === 0 ? (
-          <div style={{ fontSize: 9, color: "#333", padding: "4px 0" }}>
+          <div style={{ fontSize: 10, color: "#333", padding: "4px 0" }}>
             No slides yet
           </div>
         ) : (
@@ -3863,13 +3863,13 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                     width: "100%",
                   }}
                 >
-                  <span style={{ fontSize: 11, flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, flexShrink: 0 }}>
                     {slideIcon(s)}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 10.5,
                         fontWeight: 700,
                         color: isAct ? ac : "#555",
                         overflow: "hidden",
@@ -3879,7 +3879,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                     >
                       {slideLabel(s)}
                     </div>
-                    <div style={{ fontSize: 8, color: "#333", marginTop: 1 }}>
+                    <div style={{ fontSize: 9, color: "#333", marginTop: 1 }}>
                       {slideDesc(s)}
                     </div>
                   </div>
@@ -3898,7 +3898,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   {s.type === "waitlist_entry" && (
                     <span
                       style={{
-                        fontSize: 7,
+                        fontSize: 8,
                         fontWeight: 800,
                         color: "#38bdf8",
                         background: "rgba(56,189,248,.08)",
@@ -3924,7 +3924,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               background: "rgba(56,189,248,.04)",
               border: "1px solid rgba(56,189,248,.12)",
               borderRadius: 7,
-              fontSize: 8,
+              fontSize: 9,
               color: "#2a5a6a",
               lineHeight: 1.6,
             }}
@@ -3941,7 +3941,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           background: "#080808",
           border: "1px solid #111",
           borderRadius: 9,
-          fontSize: 9,
+          fontSize: 10,
           color: "#333",
           lineHeight: 1.7,
         }}
@@ -4181,7 +4181,7 @@ export default function InviteSection() {
             <div>
               <div
                 style={{
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: 900,
                   color: "#e0e0e0",
                   letterSpacing: "-0.5px",
@@ -4189,7 +4189,7 @@ export default function InviteSection() {
               >
                 Invite Control
               </div>
-              <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
                 Link-first model ·{" "}
                 <span style={{ color: "#a3e635" }}>?ref=CODE</span> auto-applies
                 on click · Waitlist activates when full
@@ -4207,7 +4207,7 @@ export default function InviteSection() {
                 background: "linear-gradient(135deg,#a3e635,#65a30d)",
                 color: "#061000",
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: 13,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 flexShrink: 0,
@@ -4251,7 +4251,7 @@ export default function InviteSection() {
               >
                 <div
                   style={{
-                    fontSize: 22,
+                    fontSize: 23,
                     fontWeight: 900,
                     color,
                     letterSpacing: "-1px",
@@ -4261,7 +4261,7 @@ export default function InviteSection() {
                 </div>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#444",
                     fontWeight: 600,
                     marginTop: 3,
@@ -4282,7 +4282,7 @@ export default function InviteSection() {
                 padding: 24,
                 textAlign: "center",
                 color: "#444",
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               Loading…
@@ -4300,7 +4300,7 @@ export default function InviteSection() {
             <div style={{ flex: 1, height: 1, background: "#151515" }} />
             <span
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 color: "#333",
                 letterSpacing: "2px",
@@ -4324,7 +4324,7 @@ export default function InviteSection() {
                 borderRadius: 10,
                 padding: "10px 14px",
                 color: "#c0c0c0",
-                fontSize: 12,
+                fontSize: 13,
                 outline: "none",
                 fontFamily: "inherit",
               }}
@@ -4342,7 +4342,7 @@ export default function InviteSection() {
                 background: "rgba(239,68,68,.06)",
                 border: "1px solid rgba(239,68,68,.18)",
                 borderRadius: 11,
-                fontSize: 12,
+                fontSize: 13,
                 color: "#f87171",
               }}
             >
@@ -4374,10 +4374,10 @@ export default function InviteSection() {
                   borderRadius: 14,
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 10 }}>🔗</div>
+                <div style={{ fontSize: 29, marginBottom: 10 }}>🔗</div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: "#444",
                     marginBottom: 6,
@@ -4385,7 +4385,7 @@ export default function InviteSection() {
                 >
                   No community links yet
                 </div>
-                <div style={{ fontSize: 11, color: "#333", marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: "#333", marginBottom: 14 }}>
                   Create a whitelist link for each community you want to target
                 </div>
                 <button
@@ -4397,7 +4397,7 @@ export default function InviteSection() {
                     background: "rgba(163,230,53,.06)",
                     color: "#a3e635",
                     fontWeight: 700,
-                    fontSize: 12,
+                    fontSize: 13,
                     cursor: "pointer",
                     fontFamily: "inherit",
                   }}

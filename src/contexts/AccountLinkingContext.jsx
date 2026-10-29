@@ -14,23 +14,23 @@ const MODAL_CSS = `
   .account-link-top { display:flex; align-items:flex-start; gap:12px; padding:20px 20px 15px; }
   .account-link-mark { width:40px; height:40px; display:grid; place-items:center; flex:none; border:1px solid var(--link-border); border-radius:12px; color:var(--link-color); background:var(--link-bg); }
   .account-link-title { min-width:0; flex:1; }
-  .account-link-title h2 { margin:0; font-size:16px; font-weight:760; letter-spacing:-.02em; }
-  .account-link-title p { margin:5px 0 0; color:#969a91; font-size:11.5px; line-height:1.5; }
+  .account-link-title h2 { margin:0; font-size:calc((16px) + 1px); font-weight:760; letter-spacing:-.02em; }
+  .account-link-title p { margin:5px 0 0; color:#969a91; font-size:calc((11.5px) + 1px); line-height:1.5; }
   .account-link-close { display:grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid transparent; border-radius:8px; background:transparent; color:#8d9188; cursor:pointer; }
   .account-link-close:hover { border-color:rgba(255,255,255,.1); color:#fff; }
   .account-link-body { padding:0 20px 20px; }
-  .account-link-permission { display:flex; align-items:flex-start; gap:8px; margin:0 0 15px; padding:10px 11px; border:1px solid rgba(255,255,255,.07); border-radius:10px; color:#bec2b9; background:rgba(255,255,255,.018); font-size:10.5px; line-height:1.5; }
+  .account-link-permission { display:flex; align-items:flex-start; gap:8px; margin:0 0 15px; padding:10px 11px; border:1px solid rgba(255,255,255,.07); border-radius:10px; color:#bec2b9; background:rgba(255,255,255,.018); font-size:calc((10.5px) + 1px); line-height:1.5; }
   .account-link-permission svg { flex:none; margin-top:1px; color:#bef264; }
-  .account-link-label { display:block; margin:0 0 7px; color:#d9ddd4; font-size:11px; font-weight:700; }
-  .account-link-input { width:100%; min-height:42px; padding:0 12px; border:1px solid rgba(255,255,255,.13); border-radius:9px; outline:none; color:#f4f4f5; background:#0b0d0a; font-family:inherit; font-size:12px; }
+  .account-link-label { display:block; margin:0 0 7px; color:#d9ddd4; font-size:calc((11px) + 1px); font-weight:700; }
+  .account-link-input { width:100%; min-height:42px; padding:0 12px; border:1px solid rgba(255,255,255,.13); border-radius:9px; outline:none; color:#f4f4f5; background:#0b0d0a; font-family:inherit; font-size:calc((12px) + 1px); }
   .account-link-input:focus { border-color:rgba(190,242,100,.58); }
-  .account-link-hint { margin:7px 0 0; color:#858a80; font-size:10px; line-height:1.5; }
-  .account-link-status { display:flex; align-items:flex-start; gap:8px; margin-top:13px; color:#aeb3a8; font-size:11px; line-height:1.5; }
+  .account-link-hint { margin:7px 0 0; color:#858a80; font-size:calc((10px) + 1px); line-height:1.5; }
+  .account-link-status { display:flex; align-items:flex-start; gap:8px; margin-top:13px; color:#aeb3a8; font-size:calc((11px) + 1px); line-height:1.5; }
   .account-link-status svg { flex:none; margin-top:1px; }
   .account-link-status.error { color:#fca5a5; }
   .account-link-status.success { color:#d9f99d; }
   .account-link-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
-  .account-link-button { min-height:36px; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 13px; border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#d7d9d3; background:transparent; font-family:inherit; font-size:11px; font-weight:650; cursor:pointer; }
+  .account-link-button { min-height:36px; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 13px; border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#d7d9d3; background:transparent; font-family:inherit; font-size:calc((11px) + 1px); font-weight:650; cursor:pointer; }
   .account-link-button:disabled { opacity:.55; cursor:wait; }
   .account-link-button.primary { border-color:#bef264; color:#18210d; background:#bef264; }
   .account-link-button.primary:hover:not(:disabled) { background:#d9f99d; }

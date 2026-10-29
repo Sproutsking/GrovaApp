@@ -141,7 +141,7 @@ const Avatar = ({ avatarId, name, size = 32, accentColor = "#34d399" }) => {
         background: `linear-gradient(135deg, ${accentColor}33, ${accentColor}11)`,
         border: `1.5px solid ${accentColor}44`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: size * 0.38, fontWeight: 800, color: accentColor,
+        fontSize: (size * 0.38) + 1, fontWeight: 800, color: accentColor,
       }}
     >
       {src ? (
@@ -507,15 +507,15 @@ const CommentsViewer = ({
         .cv-header-info { flex: 1; }
         .cv-header-title {
           display: flex; align-items: center; gap: 7px;
-          font-size: 15px; font-weight: 800; color: #34d399;
+          font-size: calc((15px) + 1px); font-weight: 800; color: #34d399;
           letter-spacing: -0.2px;
         }
         .cv-header-sub {
-          font-size: 11px; color: #404040; margin-top: 1px;
+          font-size: calc((11px) + 1px); color: #404040; margin-top: 1px;
         }
 
         .cv-header-count {
-          font-size: 11px; font-weight: 700;
+          font-size: calc((11px) + 1px); font-weight: 700;
           background: rgba(52,211,153,0.08);
           border: 1px solid rgba(52,211,153,0.14);
           color: #34d399; border-radius: 20px;
@@ -558,16 +558,16 @@ const CommentsViewer = ({
           padding: 13px 14px 0;
         }
         .cv-card-author { flex:1; display:flex; flex-direction:column; gap:1px; }
-        .cv-card-name { font-size: 13px; font-weight: 800; color: #f0f0f0; }
-        .cv-card-handle { font-size: 11px; color: #444; }
+        .cv-card-name { font-size: calc((13px) + 1px); font-weight: 800; color: #f0f0f0; }
+        .cv-card-handle { font-size: calc((11px) + 1px); color: #444; }
         .cv-card-time {
           display: flex; align-items: center; gap: 3px;
-          font-size: 10px; color: #383838; flex-shrink: 0;
+          font-size: calc((10px) + 1px); color: #383838; flex-shrink: 0;
         }
 
         /* Card body */
         .cv-card-body { padding: 9px 14px 0; }
-        .cv-card-text { font-size: 14px; color: #d0d0d0; line-height: 1.68; word-break: break-word; }
+        .cv-card-text { font-size: calc((14px) + 1px); color: #d0d0d0; line-height: 1.68; word-break: break-word; }
 
         /* Mentions / Tags */
         .cv-mention {
@@ -593,12 +593,12 @@ const CommentsViewer = ({
           padding: 5px 9px; border-radius: 20px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.07);
-          color: #4a4a4a; font-size: 11px; font-weight: 700;
+          color: #4a4a4a; font-size: calc((11px) + 1px); font-weight: 700;
           cursor: pointer; transition: all 0.15s;
         }
         .cv-like-btn:hover { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.2); color: #f87171; }
         .cv-like-btn.cv-liked { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.22); color: #f87171; }
-        .cv-like-btn.cv-like-xs { padding: 3px 7px; font-size: 10px; }
+        .cv-like-btn.cv-like-xs { padding: 3px 7px; font-size: calc((10px) + 1px); }
         .cv-like-btn.cv-pop { animation: cv-heartpop 0.4s cubic-bezier(0.36,0.07,0.19,0.97); }
         @keyframes cv-heartpop {
           0%  { transform: scale(1); }
@@ -614,7 +614,7 @@ const CommentsViewer = ({
           padding: 5px 10px; border-radius: 20px;
           background: rgba(129,140,248,0.06);
           border: 1px solid rgba(129,140,248,0.14);
-          color: #818cf8; font-size: 11px; font-weight: 700;
+          color: #818cf8; font-size: calc((11px) + 1px); font-weight: 700;
           cursor: pointer; transition: all 0.15s;
         }
         .cv-replies-btn:hover { background: rgba(129,140,248,0.12); }
@@ -655,11 +655,11 @@ const CommentsViewer = ({
           display: flex; align-items: center; gap: 5px;
           flex-wrap: wrap; margin-bottom: 4px;
         }
-        .cv-reply-name { font-size: 12px; font-weight: 800; color: #e0e0e0; }
-        .cv-reply-handle { font-size: 10px; color: #444; }
-        .cv-reply-dot { font-size: 10px; color: #333; }
-        .cv-reply-time { font-size: 10px; color: #333; }
-        .cv-reply-text { font-size: 12.5px; color: #a0a0a0; line-height: 1.6; margin: 0 0 5px; word-break: break-word; }
+        .cv-reply-name { font-size: calc((12px) + 1px); font-weight: 800; color: #e0e0e0; }
+        .cv-reply-handle { font-size: calc((10px) + 1px); color: #444; }
+        .cv-reply-dot { font-size: calc((10px) + 1px); color: #333; }
+        .cv-reply-time { font-size: calc((10px) + 1px); color: #333; }
+        .cv-reply-text { font-size: calc((12.5px) + 1px); color: #a0a0a0; line-height: 1.6; margin: 0 0 5px; word-break: break-word; }
 
         /* reply skeletons */
         .cv-replies-loading { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
@@ -670,7 +670,7 @@ const CommentsViewer = ({
           animation: cv-skel 1.5s infinite;
         }
         @keyframes cv-skel { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        .cv-no-replies { font-size: 11px; color: #383838; margin: 0; padding: 4px 0; }
+        .cv-no-replies { font-size: calc((11px) + 1px); color: #383838; margin: 0; padding: 4px 0; }
 
         /* ── CONTEXT STRIP ── */
         .cv-ctx-strip { padding: 0 14px 13px; }
@@ -682,7 +682,7 @@ const CommentsViewer = ({
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
         }
         .cv-ctx-divider-label {
-          font-size: 9px; color: #2e2e2e; font-weight: 700;
+          font-size: calc((9px) + 1px); color: #2e2e2e; font-weight: 700;
           text-transform: uppercase; letter-spacing: 0.9px; white-space: nowrap;
         }
 
@@ -716,16 +716,16 @@ const CommentsViewer = ({
         .cv-ctx-info { flex: 1; min-width: 0; }
         .cv-ctx-type-pill {
           display: inline-flex; align-items: center; gap: 3px;
-          font-size: 9px; font-weight: 800; text-transform: uppercase;
+          font-size: calc((9px) + 1px); font-weight: 800; text-transform: uppercase;
           letter-spacing: 0.6px; border-radius: 20px;
           padding: 2px 7px; margin-bottom: 4px;
           border: 1px solid transparent;
         }
         .cv-ctx-body {
-          font-size: 12px; color: #666; line-height: 1.4; margin: 0 0 2px;
+          font-size: calc((12px) + 1px); color: #666; line-height: 1.4; margin: 0 0 2px;
           overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
-        .cv-ctx-author { font-size: 10px; color: #383838; }
+        .cv-ctx-author { font-size: calc((10px) + 1px); color: #383838; }
 
         /* View CTA — elegant, right-positioned, minimal */
         .cv-view-btn {
@@ -734,7 +734,7 @@ const CommentsViewer = ({
           background: rgba(255,255,255,0.03);
           border: 1px solid rgba(255,255,255,0.07);
           border-radius: 10px; color: #444;
-          font-size: 10px; font-weight: 700;
+          font-size: calc((10px) + 1px); font-weight: 700;
           cursor: pointer; transition: all 0.18s;
           white-space: nowrap;
         }
@@ -762,9 +762,9 @@ const CommentsViewer = ({
           justify-content: center; padding: 70px 24px; gap: 12px; text-align: center;
           color: #383838;
         }
-        .cv-empty-emoji { font-size: 44px; }
-        .cv-empty-title { font-size: 16px; font-weight: 700; color: #525252; margin: 0; }
-        .cv-empty-sub { font-size: 13px; color: #383838; margin: 0; line-height: 1.6; }
+        .cv-empty-emoji { font-size: calc((44px) + 1px); }
+        .cv-empty-title { font-size: calc((16px) + 1px); font-weight: 700; color: #525252; margin: 0; }
+        .cv-empty-sub { font-size: calc((13px) + 1px); color: #383838; margin: 0; line-height: 1.6; }
       `}</style>
 
       {/* ══════ OVERLAY ══════ */}

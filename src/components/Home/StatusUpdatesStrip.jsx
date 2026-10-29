@@ -179,7 +179,7 @@ export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = fa
                 overflow: "hidden",
                 background: status.bg || "linear-gradient(145deg,#13210a,#263a16)",
                 color: status.text_color || "#fff",
-                fontSize: statusText?.length > 50 ? 7 : statusText?.length > 25 ? 8 : 9,
+                fontSize: statusText?.length > 50 ? 8 : statusText?.length > 25 ? 9 : 10,
                 lineHeight: 1.15,
                 fontWeight: 800,
                 textAlign: "center",
@@ -201,7 +201,7 @@ export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = fa
                 background: "linear-gradient(145deg, rgba(132,204,22,.16), rgba(255,255,255,.04))",
                 color: "#d7f9ad",
                 fontWeight: 800,
-                fontSize: 16,
+                fontSize: 17,
               }}
             >
               {(label || "U").charAt(0).toUpperCase()}
@@ -217,7 +217,7 @@ export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = fa
       {!isMe && (
         <span
           style={{
-            fontSize: 9,
+            fontSize: 10,
             color: "#dfe7f2",
             lineHeight: 1.2,
             maxWidth: isCompact ? 52 : 60,

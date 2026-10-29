@@ -212,7 +212,7 @@ const CommunitySidebar = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           position: relative;
@@ -381,7 +381,7 @@ const CommunitySidebar = ({
           cursor: pointer;
           border-radius: 8px;
           color: var(--text);
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           transition: all 0.2s;
         }
@@ -392,7 +392,7 @@ const CommunitySidebar = ({
         }
 
         .context-item span {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
         }
 
         @media (max-width: 768px) {

@@ -67,7 +67,7 @@ const AssetsList = ({ balance, userBalance, loading, hideBalance }) => {
             {hideBalance ? '••••' : epDisplay}
           </span>
           <span className="asset-tag" style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             letterSpacing: '0.08em',
             color: 'rgba(34,211,238,0.75)',

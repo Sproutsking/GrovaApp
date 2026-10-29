@@ -144,7 +144,7 @@ const FullScreenReactionPanel = ({
             color: "#f87171",
             padding: "8px 14px",
             borderRadius: 10,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             zIndex: 9999,
           }}
@@ -249,14 +249,14 @@ const FullScreenReactionPanel = ({
           background: rgba(0, 0, 0, 0.8);
         }
         .action-count {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 700;
           color: white;
           text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
           line-height: 1;
         }
         .action-ep {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           color: rgba(200, 245, 66, 0.7);
           font-weight: 700;
           line-height: 1;
@@ -274,7 +274,7 @@ const FullScreenReactionPanel = ({
             height: 21px;
           }
           .action-count {
-            font-size: 9px;
+            font-size: calc((9px) + 1px);
           }
         }
       `}</style>

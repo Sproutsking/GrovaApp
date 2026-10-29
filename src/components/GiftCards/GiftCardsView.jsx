@@ -272,7 +272,7 @@ const creditEP = async (userId, amount, reason) => {
 // Small shared components
 // ─────────────────────────────────────────────────────────────────
 const Toast = ({ msg, color }) => (
-  <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", padding: "10px 22px", borderRadius: 14, background: `linear-gradient(135deg,${color},${color}bb)`, color: "#000", fontSize: 12, fontWeight: 900, zIndex: 99999, pointerEvents: "none", whiteSpace: "nowrap", boxShadow: `0 6px 26px ${color}55`, animation: "gcToast 2.8s ease forwards" }}>{msg}</div>
+  <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", padding: "10px 22px", borderRadius: 14, background: `linear-gradient(135deg,${color},${color}bb)`, color: "#000", fontSize: 13, fontWeight: 900, zIndex: 99999, pointerEvents: "none", whiteSpace: "nowrap", boxShadow: `0 6px 26px ${color}55`, animation: "gcToast 2.8s ease forwards" }}>{msg}</div>
 );
 const Spin = ({ size = 16, color = "#000" }) => (
   <div style={{ width: size, height: size, border: `2.5px solid ${color}30`, borderTopColor: color, borderRadius: "50%", animation: "gcSpin .7s linear infinite", flexShrink: 0 }} />
@@ -326,11 +326,11 @@ const SongPlayer = ({ url, title, tier, compact = false }) => {
       </div>
 
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-        <div style={{ fontSize: compact ? 10 : 12, fontWeight: 800, color: "#d4d4d4", marginBottom: compact ? 3 : 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Attached Song"}</div>
+        <div style={{ fontSize: compact ? 11 : 13, fontWeight: 800, color: "#d4d4d4", marginBottom: compact ? 3 : 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Attached Song"}</div>
         <div style={{ height: 3, background: "rgba(255,255,255,0.07)", borderRadius: 2, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg,${tier.c1},${tier.c2})`, borderRadius: 2, transition: "width .4s linear" }} />
         </div>
-        {duration > 0 && <div style={{ fontSize: 9, color: "#404040", marginTop: 3 }}>{fmt(duration * progress)} / {fmt(duration)}</div>}
+        {duration > 0 && <div style={{ fontSize: 10, color: "#404040", marginTop: 3 }}>{fmt(duration * progress)} / {fmt(duration)}</div>}
       </div>
 
       <button onClick={toggle} style={{ width: compact ? 32 : 38, height: compact ? 32 : 38, borderRadius: "50%", border: "none", background: `linear-gradient(135deg,${tier.c1},${tier.c2})`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, boxShadow: `0 4px 16px ${tier.glow}`, position: "relative" }}>
@@ -365,13 +365,13 @@ const SongPanel = ({ tier, song, setSong, senderSubTier }) => {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <label style={{ fontSize: 10, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1.2px", display: "flex", alignItems: "center", gap: 5 }}>
+        <label style={{ fontSize: 11, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1.2px", display: "flex", alignItems: "center", gap: 5 }}>
           <Music size={11} color="#484848" /> Attach a Song
-          <span style={{ fontSize: 9, color: "#2a2a2a", fontWeight: 600, marginLeft: 2 }}>(optional)</span>
+          <span style={{ fontSize: 10, color: "#2a2a2a", fontWeight: 600, marginLeft: 2 }}>(optional)</span>
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", background: `${tier.c1}0e`, border: `1px solid ${tier.c1}25`, borderRadius: 7 }}>
           <Clock size={9} color={tier.c1} />
-          <span style={{ fontSize: 9, color: tier.c1, fontWeight: 700 }}>{ret.label}</span>
+          <span style={{ fontSize: 10, color: tier.c1, fontWeight: 700 }}>{ret.label}</span>
         </div>
       </div>
 
@@ -383,8 +383,8 @@ const SongPanel = ({ tier, song, setSong, senderSubTier }) => {
             onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
             style={{ flex: 1, padding: "18px 12px", borderRadius: 14, border: `1.5px dashed ${dragOver ? tier.c1 : "rgba(255,255,255,0.1)"}`, background: dragOver ? `${tier.c1}08` : "rgba(255,255,255,0.02)", cursor: "pointer", textAlign: "center", transition: "all .2s" }}>
             {uploading ? <Spin size={18} color={tier.c1} style={{ margin: "0 auto 6px", display: "block" }} /> : <Upload size={20} color={dragOver ? tier.c1 : "#484848"} style={{ margin: "0 auto 7px", display: "block" }} />}
-            <div style={{ fontSize: 11, color: "#555", fontWeight: 700 }}>Upload Song</div>
-            <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 3 }}>MP3 · WAV · M4A · Auto-compressed</div>
+            <div style={{ fontSize: 12, color: "#555", fontWeight: 700 }}>Upload Song</div>
+            <div style={{ fontSize: 10, color: "#2a2a2a", marginTop: 3 }}>MP3 · WAV · M4A · Auto-compressed</div>
           </div>
           <input ref={fileRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
 
@@ -393,25 +393,25 @@ const SongPanel = ({ tier, song, setSong, senderSubTier }) => {
             onMouseEnter={e => { e.currentTarget.style.borderColor = tier.c1; e.currentTarget.style.background = `${tier.c1}08`; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
             <Mic size={20} color="#484848" style={{ margin: "0 auto 7px", display: "block" }} />
-            <div style={{ fontSize: 11, color: "#555", fontWeight: 700 }}>Request a Song</div>
-            <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 3 }}>Ready in hours ✦</div>
+            <div style={{ fontSize: 12, color: "#555", fontWeight: 700 }}>Request a Song</div>
+            <div style={{ fontSize: 10, color: "#2a2a2a", marginTop: 3 }}>Ready in hours ✦</div>
           </div>
         </div>
       )}
 
       {requestMode && !song && (
         <div style={{ padding: "14px", background: "rgba(255,255,255,0.025)", border: `1px solid ${tier.c1}22`, borderRadius: 13, animation: "gcSlideUp .25s ease" }}>
-          <div style={{ fontSize: 10, color: "#484848", marginBottom: 9, fontWeight: 700 }}>What song should we find?</div>
+          <div style={{ fontSize: 11, color: "#484848", marginBottom: 9, fontWeight: 700 }}>What song should we find?</div>
           <textarea value={requestText} onChange={e => setRequestText(e.target.value)} rows={2}
             placeholder={`e.g. "Perfect by Ed Sheeran" or "something soft and romantic"…`}
-            style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 12, outline: "none", resize: "none", caretColor: tier.c1, fontFamily: "inherit", boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 13, outline: "none", resize: "none", caretColor: tier.c1, fontFamily: "inherit", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 7, marginTop: 8 }}>
-            <button onClick={() => setRequestMode(false)} style={{ flex: 1, padding: "9px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "transparent", color: "#484848", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button onClick={() => setRequestMode(false)} style={{ flex: 1, padding: "9px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "transparent", color: "#484848", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
             <button onClick={() => {
               if (!requestText.trim()) return;
               setSong({ name: requestText.trim(), isRequest: true, status: "pending" });
               setRequestMode(false);
-            }} style={{ flex: 2, padding: "9px", borderRadius: 9, border: "none", background: `linear-gradient(135deg,${tier.c1},${tier.c2})`, color: "#000", fontSize: 11, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}>
+            }} style={{ flex: 2, padding: "9px", borderRadius: 9, border: "none", background: `linear-gradient(135deg,${tier.c1},${tier.c2})`, color: "#000", fontSize: 12, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}>
               <Radio size={11} /> Request — Ready in Hours
             </button>
           </div>
@@ -421,7 +421,7 @@ const SongPanel = ({ tier, song, setSong, senderSubTier }) => {
       {song && !song.isRequest && song.localUrl && (
         <div>
           <SongPlayer url={song.localUrl} title={song.name} tier={tier} />
-          <button onClick={() => setSong(null)} style={{ marginTop: 7, width: "100%", padding: "7px", borderRadius: 9, border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.04)", color: "#f87171", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit" }}>
+          <button onClick={() => setSong(null)} style={{ marginTop: 7, width: "100%", padding: "7px", borderRadius: 9, border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.04)", color: "#f87171", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit" }}>
             <Trash2 size={10} /> Remove Song
           </button>
         </div>
@@ -431,8 +431,8 @@ const SongPanel = ({ tier, song, setSong, senderSubTier }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12 }}>
           <Radio size={13} color="#fbbf24" />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 800 }}>Song Requested ✓</div>
-            <div style={{ fontSize: 9, color: "#504010", marginTop: 1 }}>"{song.name}" — Will be ready in hours</div>
+            <div style={{ fontSize: 12, color: "#fbbf24", fontWeight: 800 }}>Song Requested ✓</div>
+            <div style={{ fontSize: 10, color: "#504010", marginTop: 1 }}>"{song.name}" — Will be ready in hours</div>
           </div>
           <button onClick={() => setSong(null)} style={{ background: "none", border: "none", color: "#3a3a3a", cursor: "pointer", padding: 2 }}><X size={11} /></button>
         </div>
@@ -471,12 +471,12 @@ const CardFace = ({ tier, message, occasion, senderName, recipientName, code, co
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: compact ? 10 : 16 }}>
         <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
           {isWish && !compact && (
-            <div style={{ fontSize: 9, color: tier.c1, letterSpacing: "3px", marginBottom: 5, opacity: 0.75, fontFamily: "'Cinzel',serif", textTransform: "uppercase" }}>✦ Once In A Lifetime ✦</div>
+            <div style={{ fontSize: 10, color: tier.c1, letterSpacing: "3px", marginBottom: 5, opacity: 0.75, fontFamily: "'Cinzel',serif", textTransform: "uppercase" }}>✦ Once In A Lifetime ✦</div>
           )}
-          <div style={{ fontSize: 7, fontWeight: 900, color: tier.c1, textTransform: "uppercase", letterSpacing: "2.5px", marginBottom: 4, opacity: 0.65 }}>
+          <div style={{ fontSize: 8, fontWeight: 900, color: tier.c1, textTransform: "uppercase", letterSpacing: "2.5px", marginBottom: 4, opacity: 0.65 }}>
             {isWish ? "XEEVIA · MAKE A WISH" : isRoyal ? "XEEVIA · ROYAL TIER" : "XEEVIA GIFT CARD"}
           </div>
-          <div style={{ fontSize: compact ? 18 : isWish ? 28 : 24, fontWeight: 900, color: "#fff", letterSpacing: isWish ? "-1px" : "-0.3px", fontFamily: useSerifFont ? "'Cinzel',serif" : undefined, lineHeight: 1.1 }}>
+          <div style={{ fontSize: compact ? 19 : isWish ? 29 : 25, fontWeight: 900, color: "#fff", letterSpacing: isWish ? "-1px" : "-0.3px", fontFamily: useSerifFont ? "'Cinzel',serif" : undefined, lineHeight: 1.1 }}>
             {tier.name}
           </div>
         </div>
@@ -488,12 +488,12 @@ const CardFace = ({ tier, message, occasion, senderName, recipientName, code, co
       {/* EP Badge */}
       <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: compact ? "5px 11px" : "7px 15px", borderRadius: 10, background: `${tier.c1}14`, border: `1px solid ${tier.c1}28`, marginBottom: compact ? 9 : 14 }}>
         <Zap size={compact ? 10 : 13} color={tier.c1} />
-        <span style={{ fontSize: compact ? 16 : 22, fontWeight: 900, color: tier.c1 }}>{tier.value.toLocaleString()} EP</span>
+        <span style={{ fontSize: compact ? 17 : 23, fontWeight: 900, color: tier.c1 }}>{tier.value.toLocaleString()} EP</span>
       </div>
 
       {/* Message */}
       {message && (
-        <div style={{ fontSize: compact ? 11 : 13, color: "rgba(255,255,255,0.52)", fontStyle: "italic", lineHeight: 1.68, padding: compact ? "8px 10px" : "11px 14px", borderRadius: 11, background: "rgba(255,255,255,0.04)", borderLeft: `2px solid ${tier.c1}48`, marginBottom: compact ? 9 : 14, animation: "gcMsgReveal .6s ease" }}>
+        <div style={{ fontSize: compact ? 12 : 14, color: "rgba(255,255,255,0.52)", fontStyle: "italic", lineHeight: 1.68, padding: compact ? "8px 10px" : "11px 14px", borderRadius: 11, background: "rgba(255,255,255,0.04)", borderLeft: `2px solid ${tier.c1}48`, marginBottom: compact ? 9 : 14, animation: "gcMsgReveal .6s ease" }}>
           "{message}"
         </div>
       )}
@@ -502,18 +502,18 @@ const CardFace = ({ tier, message, occasion, senderName, recipientName, code, co
       {hasSong && (
         <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px", borderRadius: 8, background: `${tier.c1}10`, border: `1px solid ${tier.c1}24`, marginBottom: compact ? 9 : 14 }}>
           <Music size={9} color={tier.c1} />
-          <span style={{ fontSize: 9, color: tier.c1, fontWeight: 700 }}>🎵 Song attached</span>
+          <span style={{ fontSize: 10, color: tier.c1, fontWeight: 700 }}>🎵 Song attached</span>
         </div>
       )}
 
       {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          {senderName && <div style={{ fontSize: 10, color: "#3a3a3a" }}>From <span style={{ color: "#606060" }}>{senderName}</span></div>}
-          {recipientName && <div style={{ fontSize: 10, color: "#3a3a3a" }}>To <span style={{ color: "#888" }}>{recipientName}</span></div>}
-          {occasion && <div style={{ fontSize: 10, color: tier.c1, marginTop: 3, fontWeight: 700 }}>{occasion}</div>}
+          {senderName && <div style={{ fontSize: 11, color: "#3a3a3a" }}>From <span style={{ color: "#606060" }}>{senderName}</span></div>}
+          {recipientName && <div style={{ fontSize: 11, color: "#3a3a3a" }}>To <span style={{ color: "#888" }}>{recipientName}</span></div>}
+          {occasion && <div style={{ fontSize: 11, color: tier.c1, marginTop: 3, fontWeight: 700 }}>{occasion}</div>}
         </div>
-        {code && <div style={{ fontSize: 8, fontWeight: 800, color: "#252525", fontFamily: "monospace", letterSpacing: ".4px", background: "rgba(0,0,0,0.55)", padding: "4px 9px", borderRadius: 6 }}>{code}</div>}
+        {code && <div style={{ fontSize: 9, fontWeight: 800, color: "#252525", fontFamily: "monospace", letterSpacing: ".4px", background: "rgba(0,0,0,0.55)", padding: "4px 9px", borderRadius: 6 }}>{code}</div>}
       </div>
     </div>
   );
@@ -621,7 +621,7 @@ const BurstBox = ({ tier, onOpened }) => {
           zIndex: 2, overflow: "hidden",
         }}>
           <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 18, height: "100%", background: "rgba(255,255,255,0.22)" }} />
-          <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 22, lineHeight: 1 }}>
+          <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 23, lineHeight: 1 }}>
             {isWish ? "🌟" : isLion ? (tier.id === "lion" ? "👑" : "🦁") : "🎀"}
           </div>
         </div>
@@ -639,7 +639,7 @@ const BurstBox = ({ tier, onOpened }) => {
           {/* Ribbon vertical stripe */}
           <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", transform: "translateX(-50%)", width: 18, background: tier.c1, opacity: 0.18 }} />
           {/* Main icon */}
-          <div style={{ fontSize: isWish ? 44 : isLion ? 38 : 34, filter: `drop-shadow(0 0 18px ${tier.glow})`, position: "relative", zIndex: 1 }}>
+          <div style={{ fontSize: isWish ? 45 : isLion ? 39 : 35, filter: `drop-shadow(0 0 18px ${tier.glow})`, position: "relative", zIndex: 1 }}>
             {tier.emoji}
           </div>
           {/* Sheen */}
@@ -650,8 +650,8 @@ const BurstBox = ({ tier, onOpened }) => {
       {/* Tap hint */}
       {phase === "idle" && (
         <div style={{ marginTop: 22, animation: "gcFadeIn .5s ease" }}>
-          <div style={{ fontSize: 12, color: "#404040", fontWeight: 700 }}>👆 Tap to open</div>
-          <div style={{ fontSize: 10, color: tier.c1, opacity: 0.55, fontStyle: "italic", marginTop: 4, fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>
+          <div style={{ fontSize: 13, color: "#404040", fontWeight: 700 }}>👆 Tap to open</div>
+          <div style={{ fontSize: 11, color: tier.c1, opacity: 0.55, fontStyle: "italic", marginTop: 4, fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>
             {tier.unlockLine}
           </div>
         </div>
@@ -709,16 +709,16 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
     }}>
       {/* Header strip */}
       <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 15px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: isWish ? `linear-gradient(135deg,${tier.c1}08,${tier.c2}06)` : undefined }}>
-        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${tier.c1}18`, border: `1px solid ${tier.c1}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18, filter: `drop-shadow(0 2px 8px ${tier.glow})` }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${tier.c1}18`, border: `1px solid ${tier.c1}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19, filter: `drop-shadow(0 2px 8px ${tier.glow})` }}>
           {tier.emoji.split("")[0]}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4" }}>From <span style={{ color: tier.c1 }}>@{card.senderUsername || "someone"}</span></div>
-          <div style={{ fontSize: 10, color: "#404040" }}>{card.occasion || "A special gift"}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#d4d4d4" }}>From <span style={{ color: tier.c1 }}>@{card.senderUsername || "someone"}</span></div>
+          <div style={{ fontSize: 11, color: "#404040" }}>{card.occasion || "A special gift"}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {card.has_song && <Music size={11} color={tier.c1} style={{ opacity: 0.7 }} />}
-          <div style={{ fontSize: 13, fontWeight: 900, color: tier.c1 }}>{tier.value.toLocaleString()} EP</div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: tier.c1 }}>{tier.value.toLocaleString()} EP</div>
         </div>
       </div>
 
@@ -736,19 +736,19 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
           }}>
             {isWish && <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle,${tier.c1}15,transparent 70%)`, animation: "gcWishGlow 2.5s ease-in-out infinite", pointerEvents: "none" }} />}
             <div style={{
-              fontSize: isWish ? 64 : isRoyal ? 58 : 52,
+              fontSize: isWish ? 65 : isRoyal ? 59 : 53,
               animation: isLion ? "gcLionPounce 3s ease-in-out infinite" : isWish ? "gcWishFloat 2s ease-in-out infinite" : "gcFloat 2.2s ease-in-out infinite",
               marginBottom: 10, filter: `drop-shadow(0 6px 18px ${tier.glow})`, position: "relative",
             }}>
               {tier.emoji}
             </div>
-            <div style={{ fontSize: 13, color: "#555", fontWeight: 700, marginBottom: 5 }}>Tap to burst open your gift</div>
-            <div style={{ fontSize: 10, color: tier.c1, opacity: 0.6, fontStyle: "italic", fontFamily: useSerifFont ? "'Cinzel',serif" : undefined }}>
+            <div style={{ fontSize: 14, color: "#555", fontWeight: 700, marginBottom: 5 }}>Tap to burst open your gift</div>
+            <div style={{ fontSize: 11, color: tier.c1, opacity: 0.6, fontStyle: "italic", fontFamily: useSerifFont ? "'Cinzel',serif" : undefined }}>
               {tier.unlockLine}
             </div>
             {card.has_song && (
               <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 5, padding: "4px 11px", background: `${tier.c1}10`, border: `1px solid ${tier.c1}22`, borderRadius: 8 }}>
-                <Music size={9} color={tier.c1} /><span style={{ fontSize: 9, color: tier.c1, fontWeight: 700 }}>Song inside 🎵</span>
+                <Music size={9} color={tier.c1} /><span style={{ fontSize: 10, color: tier.c1, fontWeight: 700 }}>Song inside 🎵</span>
               </div>
             )}
           </div>
@@ -758,13 +758,13 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
         {phase === "shaking" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 24px", gap: 12 }}>
             <div style={{
-              fontSize: 56,
+              fontSize: 57,
               animation: isLion ? "gcLionRoar .55s ease infinite" : isWish ? "gcShake .5s ease infinite" : "gcShake .5s ease infinite",
               filter: `drop-shadow(0 4px 20px ${tier.glow})`,
             }}>
               {tier.emoji}
             </div>
-            <div style={{ fontSize: 12, color: "#505050", fontWeight: 700, animation: "gcPulse .65s ease infinite" }}>{tier.openingText}</div>
+            <div style={{ fontSize: 13, color: "#505050", fontWeight: 700, animation: "gcPulse .65s ease infinite" }}>{tier.openingText}</div>
           </div>
         )}
 
@@ -782,7 +782,7 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
 
             {/* Unlock line reveal */}
             <div style={{ margin: "10px 0 8px", textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: tier.c1, fontStyle: "italic", opacity: 0.65, fontFamily: (isRoyal || isWish) ? "'Cinzel',serif" : undefined, animation: "gcSlideUp .5s ease" }}>
+              <div style={{ fontSize: 11, color: tier.c1, fontStyle: "italic", opacity: 0.65, fontFamily: (isRoyal || isWish) ? "'Cinzel',serif" : undefined, animation: "gcSlideUp .5s ease" }}>
                 {tier.unlockLine}
               </div>
               <div style={{ height: 1, background: `linear-gradient(90deg,transparent,${tier.c1}35,transparent)`, marginTop: 8, animation: "gcLineIn .8s ease .2s both" }} />
@@ -795,7 +795,7 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
                 {songData.expires_at && (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6, padding: "5px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
                     <Clock size={9} color="#404040" />
-                    <span style={{ fontSize: 9, color: "#383838" }}>Available until {new Date(songData.expires_at).toLocaleDateString()}</span>
+                    <span style={{ fontSize: 10, color: "#383838" }}>Available until {new Date(songData.expires_at).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -807,18 +807,18 @@ const InboxCard = ({ card, onClaim, currentUser }) => {
                 <button onClick={handleClaim} disabled={claiming} style={{
                   width: "100%", padding: "14px", borderRadius: 13, border: "none",
                   background: `linear-gradient(135deg,${tier.c1},${tier.c2})`,
-                  color: "#000", fontSize: 13, fontWeight: 900,
+                  color: "#000", fontSize: 14, fontWeight: 900,
                   cursor: claiming ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   boxShadow: `0 6px 22px ${tier.glow}`, fontFamily: "inherit", opacity: claiming ? 0.7 : 1,
                 }}>
-                  {claiming ? <Spin size={14} /> : <><Zap size={14} /> Claim {net.toLocaleString()} EP <span style={{ fontSize: 10, opacity: 0.55, fontWeight: 600 }}>(−2% fee)</span></>}
+                  {claiming ? <Spin size={14} /> : <><Zap size={14} /> Claim {net.toLocaleString()} EP <span style={{ fontSize: 11, opacity: 0.55, fontWeight: 600 }}>(−2% fee)</span></>}
                 </button>
               )}
               {phase === "claimed" && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.18)", animation: "gcReveal .4s ease" }}>
                   <CheckCircle size={16} color="#22c55e" />
-                  <span style={{ fontSize: 13, color: "#22c55e", fontWeight: 900 }}>{net.toLocaleString()} EP Claimed! ✨</span>
+                  <span style={{ fontSize: 14, color: "#22c55e", fontWeight: 900 }}>{net.toLocaleString()} EP Claimed! ✨</span>
                 </div>
               )}
             </div>
@@ -848,11 +848,11 @@ const UserSearch = ({ onSelect, selected, currentUser }) => {
   };
   return (
     <div style={{ marginBottom: 16 }}>
-      <label style={{ fontSize: 10, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: 8 }}>Send To</label>
+      <label style={{ fontSize: 11, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: 8 }}>Send To</label>
       <div style={{ position: "relative" }}>
         <Search size={13} color="#404040" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
         <input value={q} onChange={e => { setQ(e.target.value); clearTimeout(db.current); db.current = setTimeout(() => search(e.target.value), 280); }} placeholder="@username or name…"
-          style={{ width: "100%", padding: "11px 12px 11px 36px", background: selected ? "rgba(132,204,22,0.04)" : "rgba(255,255,255,0.04)", border: `1px solid ${selected ? "rgba(132,204,22,0.3)" : "rgba(255,255,255,0.09)"}`, borderRadius: 12, color: "#fff", fontSize: 13, outline: "none", caretColor: "#84cc16", fontFamily: "inherit", transition: "border .2s", boxSizing: "border-box" }} />
+          style={{ width: "100%", padding: "11px 12px 11px 36px", background: selected ? "rgba(132,204,22,0.04)" : "rgba(255,255,255,0.04)", border: `1px solid ${selected ? "rgba(132,204,22,0.3)" : "rgba(255,255,255,0.09)"}`, borderRadius: 12, color: "#fff", fontSize: 14, outline: "none", caretColor: "#84cc16", fontFamily: "inherit", transition: "border .2s", boxSizing: "border-box" }} />
         {busy && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, border: "2px solid rgba(132,204,22,0.15)", borderTopColor: "#84cc16", borderRadius: "50%", animation: "gcSpin .7s linear infinite" }} />}
       </div>
       {res.length > 0 && (
@@ -866,7 +866,7 @@ const UserSearch = ({ onSelect, selected, currentUser }) => {
       )}
       {selected && !res.length && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", marginTop: 5, background: "rgba(132,204,22,0.05)", border: "1px solid rgba(132,204,22,0.16)", borderRadius: 11 }}>
-          <CheckCircle size={13} color="#84cc16" /><span style={{ fontSize: 12, color: "#84cc16", fontWeight: 700, flex: 1 }}>Sending to @{selected.username}</span>
+          <CheckCircle size={13} color="#84cc16" /><span style={{ fontSize: 13, color: "#84cc16", fontWeight: 700, flex: 1 }}>Sending to @{selected.username}</span>
           <button onClick={() => { onSelect(null); setQ(""); }} style={{ background: "none", border: "none", color: "#3a3a3a", cursor: "pointer", padding: 2 }}><X size={12} /></button>
         </div>
       )}
@@ -888,9 +888,9 @@ const PCLeftSidebar = ({ tab, onTab, newInbox, currentEP }) => {
     <div style={{ width: 232, flexShrink: 0, background: "rgba(6,6,6,0.97)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", padding: "0 0 16px" }}>
       {/* Balance */}
       <div style={{ margin: "14px 12px 8px", padding: "14px 16px", background: "linear-gradient(135deg,rgba(56,189,248,0.08),rgba(124,58,237,0.06))", border: "1px solid rgba(56,189,248,0.14)", borderRadius: 15, animation: "gcFadeIn .4s ease" }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 6, opacity: 0.8 }}>Your Balance</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Zap size={13} color="#fbbf24" /><span style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{currentEP !== null ? currentEP.toLocaleString() : "—"}</span><span style={{ fontSize: 11, color: "#404040", fontWeight: 700 }}>EP</span></div>
-        <div style={{ fontSize: 10, color: "#2a2a2a", marginTop: 3 }}>Engagement Points</div>
+        <div style={{ fontSize: 10, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 6, opacity: 0.8 }}>Your Balance</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Zap size={13} color="#fbbf24" /><span style={{ fontSize: 23, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{currentEP !== null ? currentEP.toLocaleString() : "—"}</span><span style={{ fontSize: 12, color: "#404040", fontWeight: 700 }}>EP</span></div>
+        <div style={{ fontSize: 11, color: "#2a2a2a", marginTop: 3 }}>Engagement Points</div>
       </div>
       {/* Nav */}
       <div style={{ flex: 1, padding: "6px 8px" }}>
@@ -902,18 +902,18 @@ const PCLeftSidebar = ({ tab, onTab, newInbox, currentEP }) => {
                 <Icon size={14} color={active ? "#38bdf8" : "#484848"} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: active ? "#fff" : "#606060", marginBottom: 1 }}>{label}</div>
-                <div style={{ fontSize: 10, color: active ? "#38bdf8" : "#2a2a2a" }}>{desc}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: active ? "#fff" : "#606060", marginBottom: 1 }}>{label}</div>
+                <div style={{ fontSize: 11, color: active ? "#38bdf8" : "#2a2a2a" }}>{desc}</div>
               </div>
-              {badge > 0 && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#f87171", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", animation: "gcPulse 1.5s ease infinite", flexShrink: 0 }}>{badge}</div>}
+              {badge > 0 && <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#f87171", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: "#fff", animation: "gcPulse 1.5s ease infinite", flexShrink: 0 }}>{badge}</div>}
               {active && <ChevronRight size={11} color="#38bdf8" style={{ flexShrink: 0 }} />}
             </div>
           );
         })}
       </div>
       <div style={{ margin: "0 10px", padding: "11px 13px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 11 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}><Shield size={10} color="#383838" /><span style={{ fontSize: 9, fontWeight: 800, color: "#303030", textTransform: "uppercase", letterSpacing: "1px" }}>Protocol Fee</span></div>
-        <div style={{ fontSize: 10, color: "#262626", lineHeight: 1.6 }}>2% applied on all gift card transactions.</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}><Shield size={10} color="#383838" /><span style={{ fontSize: 10, fontWeight: 800, color: "#303030", textTransform: "uppercase", letterSpacing: "1px" }}>Protocol Fee</span></div>
+        <div style={{ fontSize: 11, color: "#262626", lineHeight: 1.6 }}>2% applied on all gift card transactions.</div>
       </div>
     </div>
   );
@@ -924,11 +924,11 @@ const PCLeftSidebar = ({ tab, onTab, newInbox, currentEP }) => {
 // ─────────────────────────────────────────────────────────────────
 const PCRightPanel = ({ tier, message, occasion, senderName, recipientName, song }) => (
   <div style={{ width: 276, flexShrink: 0, background: "rgba(5,5,5,0.96)", borderLeft: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", padding: "18px 14px", overflowY: "auto" }} className="gc-scroll">
-    <div style={{ fontSize: 9, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 14 }}>Live Preview</div>
+    <div style={{ fontSize: 10, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 14 }}>Live Preview</div>
     {!tier ? (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.22 }}>
-        <div style={{ fontSize: 52, marginBottom: 14, animation: "gcFloat 3s ease-in-out infinite" }}>🎁</div>
-        <div style={{ fontSize: 11, color: "#303030", textAlign: "center", lineHeight: 1.7 }}>Select a gem tier to see your card preview</div>
+        <div style={{ fontSize: 53, marginBottom: 14, animation: "gcFloat 3s ease-in-out infinite" }}>🎁</div>
+        <div style={{ fontSize: 12, color: "#303030", textAlign: "center", lineHeight: 1.7 }}>Select a gem tier to see your card preview</div>
       </div>
     ) : (
       <>
@@ -941,24 +941,24 @@ const PCRightPanel = ({ tier, message, occasion, senderName, recipientName, song
         {song?.isRequest && (
           <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 7, padding: "9px 12px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.18)", borderRadius: 10 }}>
             <Radio size={11} color="#fbbf24" />
-            <div style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>Song requested: "{song.name}"</div>
+            <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700 }}>Song requested: "{song.name}"</div>
           </div>
         )}
         <div style={{ marginTop: 14, padding: "13px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12 }}>
-          <div style={{ fontSize: 9, fontWeight: 800, color: "#303030", marginBottom: 10, textTransform: "uppercase", letterSpacing: "1px" }}>Summary</div>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#303030", marginBottom: 10, textTransform: "uppercase", letterSpacing: "1px" }}>Summary</div>
           {[
             ["Card Value",       `${tier.value.toLocaleString()} EP`,                                        tier.c1],
             ["Protocol Fee 2%", `-${Math.round(tier.value * FEE).toLocaleString()} EP`,                     "#f87171"],
             ["They Receive",     `${(tier.value - Math.round(tier.value * FEE)).toLocaleString()} EP`,       "#22c55e"],
             ["Price",            `$${tier.price}`,                                                            "#888"],
           ].map(([l, v, c]) => (
-            <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
+            <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
               <span style={{ color: "#333" }}>{l}</span><span style={{ color: c, fontWeight: 700 }}>{v}</span>
             </div>
           ))}
         </div>
         <div style={{ marginTop: 11, padding: "10px 12px", background: `${tier.c1}07`, border: `1px solid ${tier.c1}18`, borderRadius: 10 }}>
-          <div style={{ fontSize: 10, color: tier.c1, lineHeight: 1.6, opacity: 0.75, fontStyle: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "italic" : undefined }}>{tier.desc}</div>
+          <div style={{ fontSize: 11, color: tier.c1, lineHeight: 1.6, opacity: 0.75, fontStyle: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "italic" : undefined }}>{tier.desc}</div>
         </div>
       </>
     )}
@@ -1161,7 +1161,7 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
     <>
       {phase === "browse" && (
         <>
-          <p style={{ fontSize: 11, color: "#383838", margin: "4px 0 16px", lineHeight: 1.75 }}>
+          <p style={{ fontSize: 12, color: "#383838", margin: "4px 0 16px", lineHeight: 1.75 }}>
             Choose a gem tier. Cards arrive as sealed gift boxes — recipient bursts them open to reveal your message & song.
           </p>
           {TIERS.map((t, i) => {
@@ -1189,16 +1189,16 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: isLg ? 15 : 14, fontWeight: 900, color: "#fff", fontFamily: isLg ? "'Cinzel',serif" : undefined }}>{t.name}</span>
-                      <span style={{ padding: isLg ? "2px 9px" : "2px 8px", borderRadius: 6, background: `${t.c1}18`, color: t.c1, border: `1px solid ${t.c1}30`, fontSize: isLg ? 10 : 9, fontWeight: 900 }}>{t.badge}</span>
+                      <span style={{ fontSize: isLg ? 16 : 15, fontWeight: 900, color: "#fff", fontFamily: isLg ? "'Cinzel',serif" : undefined }}>{t.name}</span>
+                      <span style={{ padding: isLg ? "2px 9px" : "2px 8px", borderRadius: 6, background: `${t.c1}18`, color: t.c1, border: `1px solid ${t.c1}30`, fontSize: isLg ? 11 : 10, fontWeight: 900 }}>{t.badge}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: "#383838", marginBottom: 6, lineHeight: 1.45 }}>{t.desc}</div>
+                    <div style={{ fontSize: 12, color: "#383838", marginBottom: 6, lineHeight: 1.45 }}>{t.desc}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: isLg ? 16 : 15, fontWeight: 900, color: t.c1 }}>${t.price.toLocaleString()}</span>
+                      <span style={{ fontSize: isLg ? 17 : 16, fontWeight: 900, color: t.c1 }}>${t.price.toLocaleString()}</span>
                       <span style={{ color: "#282828" }}>·</span>
                       <Zap size={9} color="#484848" />
-                      <span style={{ fontSize: 11, color: "#484848", fontWeight: 700 }}>{t.value.toLocaleString()} EP</span>
-                      <span style={{ fontSize: 9, color: "#252525" }}>· 2% fee</span>
+                      <span style={{ fontSize: 12, color: "#484848", fontWeight: 700 }}>{t.value.toLocaleString()} EP</span>
+                      <span style={{ fontSize: 10, color: "#252525" }}>· 2% fee</span>
                     </div>
                   </div>
 
@@ -1218,12 +1218,12 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           {tier && currentEP !== null && currentEP < tier.value && (
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 12, marginBottom: 12, animation: "gcReveal .3s ease" }}>
               <AlertCircle size={13} color="#f87171" />
-              <span style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>Insufficient EP — you have {currentEP.toLocaleString()} EP, need {tier.value.toLocaleString()} EP.</span>
+              <span style={{ fontSize: 12, color: "#f87171", fontWeight: 700 }}>Insufficient EP — you have {currentEP.toLocaleString()} EP, need {tier.value.toLocaleString()} EP.</span>
             </div>
           )}
 
           <button onClick={handleBuy} disabled={!selId || (tier && currentEP !== null && currentEP < tier.value)} className="gc-btn"
-            style={{ width: "100%", padding: "14px", marginTop: 10, borderRadius: 14, border: "none", background: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? `linear-gradient(135deg,${tier?.c1},${tier?.c2})` : "rgba(255,255,255,0.05)", color: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? "#000" : "#303030", fontSize: 14, fontWeight: 900, cursor: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: selId ? `0 8px 28px ${tier?.glow}` : "none", fontFamily: "inherit" }}>
+            style={{ width: "100%", padding: "14px", marginTop: 10, borderRadius: 14, border: "none", background: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? `linear-gradient(135deg,${tier?.c1},${tier?.c2})` : "rgba(255,255,255,0.05)", color: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? "#000" : "#303030", fontSize: 15, fontWeight: 900, cursor: (selId && !(tier && currentEP !== null && currentEP < tier.value)) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: selId ? `0 8px 28px ${tier?.glow}` : "none", fontFamily: "inherit" }}>
             <Send size={14} /> Continue
           </button>
         </>
@@ -1232,12 +1232,12 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
       {phase === "configure" && tier && (
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1px" }}>Card amount</div>
-            <span style={{ fontSize: 10, color: "#555" }}>Recipient stays selected</span>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1px" }}>Card amount</div>
+            <span style={{ fontSize: 11, color: "#555" }}>Recipient stays selected</span>
           </div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12 }}>
             {TIERS.map((option) => (
-              <button key={option.id} type="button" onClick={() => setSelId(option.id)} style={{ flex: "0 0 auto", padding: "7px 10px", borderRadius: 9, border: `1px solid ${option.id === selId ? option.c1 + "66" : "rgba(255,255,255,0.08)"}`, background: option.id === selId ? `${option.c1}18` : "rgba(255,255,255,0.03)", color: option.id === selId ? option.c1 : "#666", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+              <button key={option.id} type="button" onClick={() => setSelId(option.id)} style={{ flex: "0 0 auto", padding: "7px 10px", borderRadius: 9, border: `1px solid ${option.id === selId ? option.c1 + "66" : "rgba(255,255,255,0.08)"}`, background: option.id === selId ? `${option.c1}18` : "rgba(255,255,255,0.03)", color: option.id === selId ? option.c1 : "#666", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 {option.name} · {option.value.toLocaleString()} EP
               </button>
             ))}
@@ -1246,41 +1246,41 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", background: `${tier.c1}08`, border: `1px solid ${tier.c1}24`, borderRadius: 16, marginBottom: 20 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, background: `${tier.c1}18`, border: `1px solid ${tier.c1}2a`, display: "flex", alignItems: "center", justifyContent: "center" }}>{getTierIcon(tier, 22)}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>{tier.name}</div>
-              <div style={{ fontSize: 11, color: "#444" }}>{tier.value.toLocaleString()} EP · ${tier.price.toLocaleString()}</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>{tier.name}</div>
+              <div style={{ fontSize: 12, color: "#444" }}>{tier.value.toLocaleString()} EP · ${tier.price.toLocaleString()}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, color: "#333", marginBottom: 2 }}>They receive</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: tier.c1 }}>{net.toLocaleString()} EP</div>
-              <div style={{ fontSize: 9, color: "#2a2a2a" }}>−2% fee</div>
+              <div style={{ fontSize: 10, color: "#333", marginBottom: 2 }}>They receive</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: tier.c1 }}>{net.toLocaleString()} EP</div>
+              <div style={{ fontSize: 10, color: "#2a2a2a" }}>−2% fee</div>
             </div>
           </div>
 
           <UserSearch onSelect={setRecipient} selected={recipient} currentUser={currentUser} />
 
           {/* Occasion */}
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 9 }}>Occasion</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 9 }}>Occasion</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
             {OCCASIONS.map(o => (
               <button key={o} className="gc-occ" onClick={() => setOccasion(occasion === o ? "" : o)}
-                style={{ padding: "6px 12px", borderRadius: 9, background: occasion === o ? `${tier.c1}14` : "rgba(255,255,255,0.04)", border: `1px solid ${occasion === o ? tier.c1 + "3a" : "rgba(255,255,255,0.07)"}`, color: occasion === o ? tier.c1 : "#484848", fontSize: 11, fontWeight: 700, fontFamily: "inherit" }}>
+                style={{ padding: "6px 12px", borderRadius: 9, background: occasion === o ? `${tier.c1}14` : "rgba(255,255,255,0.04)", border: `1px solid ${occasion === o ? tier.c1 + "3a" : "rgba(255,255,255,0.07)"}`, color: occasion === o ? tier.c1 : "#484848", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
                 {o}
               </button>
             ))}
           </div>
 
           {/* Message */}
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 9 }}>Message</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 9 }}>Message</div>
           <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} maxLength={220}
             placeholder="Write a message that appears when they burst the box open…"
-            style={{ width: "100%", padding: "12px 13px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, color: "#fff", fontSize: 13, outline: "none", resize: "none", caretColor: "#84cc16", fontFamily: "inherit", lineHeight: 1.65, marginBottom: 5, boxSizing: "border-box" }} />
-          <div style={{ fontSize: 10, color: "#252525", textAlign: "right", marginBottom: 18 }}>{message.length}/220</div>
+            style={{ width: "100%", padding: "12px 13px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, color: "#fff", fontSize: 14, outline: "none", resize: "none", caretColor: "#84cc16", fontFamily: "inherit", lineHeight: 1.65, marginBottom: 5, boxSizing: "border-box" }} />
+          <div style={{ fontSize: 11, color: "#252525", textAlign: "right", marginBottom: 18 }}>{message.length}/220</div>
 
           {/* Song Attachment */}
           <SongPanel tier={tier} song={song} setSong={setSong} senderSubTier={currentUser?.subscription_tier || "free"} />
 
           <button onClick={handleBuy} disabled={!recipient} className="gc-btn"
-            style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: recipient ? `linear-gradient(135deg,${tier.c1},${tier.c2})` : "rgba(255,255,255,0.05)", color: recipient ? "#000" : "#303030", fontSize: 14, fontWeight: 900, cursor: recipient ? "pointer" : "not-allowed", boxShadow: recipient ? `0 8px 28px ${tier.glow}` : "none", fontFamily: "inherit" }}>
+            style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: recipient ? `linear-gradient(135deg,${tier.c1},${tier.c2})` : "rgba(255,255,255,0.05)", color: recipient ? "#000" : "#303030", fontSize: 15, fontWeight: 900, cursor: recipient ? "pointer" : "not-allowed", boxShadow: recipient ? `0 8px 28px ${tier.glow}` : "none", fontFamily: "inherit" }}>
             Preview Gift →
           </button>
         </>
@@ -1293,7 +1293,7 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
             {!burstDone ? (
               <>
                 <BurstBox tier={tier} onOpened={() => setBurstDone(true)} />
-                <p style={{ textAlign: "center", fontSize: 11, color: "#383838", marginTop: 0 }}>Tap to preview what {recipient?.username || "they"} will see</p>
+                <p style={{ textAlign: "center", fontSize: 12, color: "#383838", marginTop: 0 }}>Tap to preview what {recipient?.username || "they"} will see</p>
               </>
             ) : (
               <div style={{ padding: "7px 10px 4px", animation: "gcUnboxZoom .5s cubic-bezier(.34,1.56,.64,1)" }}>
@@ -1314,20 +1314,20 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
               ["Card Value",   `${tier.value.toLocaleString()} EP`, tier.c1],
               ["Protocol Fee", `−${fee} EP (2%)`,                   "#3a3a3a"],
             ].map(([l, v, c]) => (
-              <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#555", marginBottom: 8 }}>
+              <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#555", marginBottom: 8 }}>
                 <span>{l}</span><span style={{ color: c, fontWeight: 700 }}>{v}</span>
               </div>
             ))}
-            {song && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#555", marginBottom: 8 }}>
+            {song && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#555", marginBottom: 8 }}>
               <span>Song</span><span style={{ color: "#38bdf8", fontWeight: 700 }}>🎵 {song.isRequest ? `Requested: "${song.name}"` : song.name}</span>
             </div>}
             <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "5px 0 9px" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 900 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 900 }}>
               <span style={{ color: "#777" }}>They receive</span><span style={{ color: tier.c1 }}>{net.toLocaleString()} EP</span>
             </div>
             {currentEP !== null && <>
               <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "8px 0" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ color: "#444" }}>Your EP after</span><span style={{ color: "#555", fontWeight: 700 }}>{(currentEP - tier.value).toLocaleString()} EP</span>
               </div>
             </>}
@@ -1335,12 +1335,12 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
 
           {epError && (
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 12, marginBottom: 14 }}>
-              <AlertCircle size={13} color="#f87171" /><span style={{ fontSize: 12, color: "#f87171", fontWeight: 700 }}>{epError}</span>
+              <AlertCircle size={13} color="#f87171" /><span style={{ fontSize: 13, color: "#f87171", fontWeight: 700 }}>{epError}</span>
             </div>
           )}
 
           <button onClick={handleBuy} disabled={loading} className="gc-btn"
-            style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: `linear-gradient(135deg,${tier.c1},${tier.c2})`, color: "#000", fontSize: 14, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 8px 30px ${tier.glow}`, opacity: loading ? 0.7 : 1, fontFamily: "inherit" }}>
+            style={{ width: "100%", padding: "15px", borderRadius: 14, border: "none", background: `linear-gradient(135deg,${tier.c1},${tier.c2})`, color: "#000", fontSize: 15, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 8px 30px ${tier.glow}`, opacity: loading ? 0.7 : 1, fontFamily: "inherit" }}>
             {loading ? <Spin size={18} /> : <><Gift size={15} /> Send {tier.value.toLocaleString()} EP Gift Card</>}
           </button>
         </>
@@ -1348,25 +1348,25 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
 
       {phase === "success" && tier && (
         <div style={{ textAlign: "center", padding: "24px 0", animation: "gcSuccess .5s cubic-bezier(.34,1.56,.64,1)" }}>
-          <div style={{ fontSize: 76, marginBottom: 16, animation: "gcFloat 2.2s ease-in-out infinite", filter: `drop-shadow(0 8px 24px ${tier.glow})` }}>{tier.emoji}</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: "-0.5px", fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>Gift Sent!</div>
-          <div style={{ fontSize: 13, color: "#555", marginBottom: 24, lineHeight: 1.6 }}>@{recipient?.username} has a sealed box waiting<br />in their inbox.</div>
+          <div style={{ fontSize: 77, marginBottom: 16, animation: "gcFloat 2.2s ease-in-out infinite", filter: `drop-shadow(0 8px 24px ${tier.glow})` }}>{tier.emoji}</div>
+          <div style={{ fontSize: 25, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: "-0.5px", fontFamily: (tier.id === "lion" || tier.id === "lioness" || tier.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>Gift Sent!</div>
+          <div style={{ fontSize: 14, color: "#555", marginBottom: 24, lineHeight: 1.6 }}>@{recipient?.username} has a sealed box waiting<br />in their inbox.</div>
           <div style={{ marginBottom: 14 }}>
             <CardFace tier={tier} message={message} occasion={occasion} senderName={currentUser?.username || "You"} recipientName={recipient?.username} code={genCode} hasSong={!!song} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 14px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, marginBottom: 13 }}>
-            <span style={{ flex: 1, fontSize: 11, fontFamily: "monospace", color: "#555", letterSpacing: ".5px", textAlign: "left" }}>{genCode}</span>
+            <span style={{ flex: 1, fontSize: 12, fontFamily: "monospace", color: "#555", letterSpacing: ".5px", textAlign: "left" }}>{genCode}</span>
             <button onClick={() => { navigator.clipboard?.writeText(genCode).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-              style={{ padding: "5px 11px", borderRadius: 8, background: copied ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)", border: copied ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.09)", color: copied ? "#22c55e" : "#666", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ padding: "5px 11px", borderRadius: 8, background: copied ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)", border: copied ? "1px solid rgba(34,197,94,0.22)" : "1px solid rgba(255,255,255,0.09)", color: copied ? "#22c55e" : "#666", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               {copied ? "Copied ✓" : <Copy size={12} />}
             </button>
           </div>
           {currentEP !== null && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 13px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 11, marginBottom: 14 }}>
-              <Zap size={12} color="#fbbf24" /><span style={{ fontSize: 12, color: "#888" }}>New balance: <span style={{ color: "#fbbf24", fontWeight: 900 }}>{currentEP.toLocaleString()} EP</span></span>
+              <Zap size={12} color="#fbbf24" /><span style={{ fontSize: 13, color: "#888" }}>New balance: <span style={{ color: "#fbbf24", fontWeight: 900 }}>{currentEP.toLocaleString()} EP</span></span>
             </div>
           )}
-          <button onClick={reset} style={{ width: "100%", padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#707070", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "inherit" }}>
+          <button onClick={reset} style={{ width: "100%", padding: "13px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#707070", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "inherit" }}>
             <RotateCcw size={13} /> Send Another Gift
           </button>
         </div>
@@ -1377,26 +1377,26 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
   // ── Redeem Tab ──
   const renderRedeem = () => (
     <>
-      <p style={{ fontSize: 11, color: "#383838", margin: "4px 0 16px", lineHeight: 1.7 }}>Enter a gift card code to claim EP. 2% protocol fee applied.</p>
+      <p style={{ fontSize: 12, color: "#383838", margin: "4px 0 16px", lineHeight: 1.7 }}>Enter a gift card code to claim EP. 2% protocol fee applied.</p>
       <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: "16px", marginBottom: 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: "#383838", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 11 }}>Gift Code</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#383838", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 11 }}>Gift Code</div>
         <input value={redCode} onChange={e => { setRedCode(e.target.value.toUpperCase()); setRedState("idle"); }} placeholder="GC-XXXX-XXXX-XEEVIA"
-          style={{ width: "100%", padding: "13px 14px", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: `1px solid ${["error","invalid","used","expired","wrong_user"].includes(redState) ? "rgba(248,113,113,0.4)" : redState === "success" ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.09)"}`, borderRadius: 12, color: "#fff", fontSize: 14, outline: "none", caretColor: "#38bdf8", fontFamily: "monospace", letterSpacing: ".5px", transition: "border .2s", boxSizing: "border-box" }} />
+          style={{ width: "100%", padding: "13px 14px", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: `1px solid ${["error","invalid","used","expired","wrong_user"].includes(redState) ? "rgba(248,113,113,0.4)" : redState === "success" ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.09)"}`, borderRadius: 12, color: "#fff", fontSize: 15, outline: "none", caretColor: "#38bdf8", fontFamily: "monospace", letterSpacing: ".5px", transition: "border .2s", boxSizing: "border-box" }} />
         <button onClick={handleRedeem} disabled={!redCode.trim() || redState === "loading"}
-          style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: redCode.trim() ? "linear-gradient(135deg,#38bdf8,#0284c7)" : "rgba(255,255,255,0.05)", color: redCode.trim() ? "#000" : "#383838", fontSize: 13, fontWeight: 900, cursor: redCode.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit" }}>
+          style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: redCode.trim() ? "linear-gradient(135deg,#38bdf8,#0284c7)" : "rgba(255,255,255,0.05)", color: redCode.trim() ? "#000" : "#383838", fontSize: 14, fontWeight: 900, cursor: redCode.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit" }}>
           {redState === "loading" ? <Spin size={16} /> : <><Zap size={14} /> Redeem EP</>}
         </button>
-        {redState === "success" && <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 11, animation: "gcReveal .4s ease" }}><CheckCircle size={15} color="#22c55e" /><div><div style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}>Redeemed! EP added to your balance (−2% fee).</div>{currentEP !== null && <div style={{ fontSize: 10, color: "#22c55e", opacity: 0.7, marginTop: 2 }}>New balance: {currentEP.toLocaleString()} EP</div>}</div></div>}
-        {["error","invalid"].includes(redState) && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 12, color: "#f87171", fontWeight: 800 }}>Invalid or expired code. Please check and try again.</span></div>}
-        {redState === "used" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 12, color: "#f87171", fontWeight: 800 }}>This code has already been redeemed.</span></div>}
-        {redState === "expired" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 12, color: "#f87171", fontWeight: 800 }}>This gift card has expired.</span></div>}
-        {redState === "wrong_user" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.18)", borderRadius: 11 }}><span style={{ fontSize: 12, color: "#fbbf24", fontWeight: 800 }}>This card was sent to someone else.</span></div>}
+        {redState === "success" && <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 11, animation: "gcReveal .4s ease" }}><CheckCircle size={15} color="#22c55e" /><div><div style={{ fontSize: 13, color: "#22c55e", fontWeight: 800 }}>Redeemed! EP added to your balance (−2% fee).</div>{currentEP !== null && <div style={{ fontSize: 11, color: "#22c55e", opacity: 0.7, marginTop: 2 }}>New balance: {currentEP.toLocaleString()} EP</div>}</div></div>}
+        {["error","invalid"].includes(redState) && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 13, color: "#f87171", fontWeight: 800 }}>Invalid or expired code. Please check and try again.</span></div>}
+        {redState === "used" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 13, color: "#f87171", fontWeight: 800 }}>This code has already been redeemed.</span></div>}
+        {redState === "expired" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.18)", borderRadius: 11 }}><span style={{ fontSize: 13, color: "#f87171", fontWeight: 800 }}>This gift card has expired.</span></div>}
+        {redState === "wrong_user" && <div style={{ marginTop: 11, padding: "11px 13px", background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.18)", borderRadius: 11 }}><span style={{ fontSize: 13, color: "#fbbf24", fontWeight: 800 }}>This card was sent to someone else.</span></div>}
       </div>
       <div style={{ padding: "13px 15px", background: "rgba(255,255,255,0.018)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 13 }}>
-        <div style={{ fontSize: 10, color: "#2a2a2a", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", letterSpacing: "1px" }}>Demo Code</div>
+        <div style={{ fontSize: 11, color: "#2a2a2a", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", letterSpacing: "1px" }}>Demo Code</div>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <span style={{ fontSize: 12, fontFamily: "monospace", color: "#484848", flex: 1 }}>GC-X4K2-9M7R-XEEVIA</span>
-          <button onClick={() => { setRedCode("GC-X4K2-9M7R-XEEVIA"); setRedState("idle"); }} style={{ padding: "5px 11px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Use</button>
+          <span style={{ fontSize: 13, fontFamily: "monospace", color: "#484848", flex: 1 }}>GC-X4K2-9M7R-XEEVIA</span>
+          <button onClick={() => { setRedCode("GC-X4K2-9M7R-XEEVIA"); setRedState("idle"); }} style={{ padding: "5px 11px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Use</button>
         </div>
       </div>
     </>
@@ -1405,12 +1405,12 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
   // ── Inbox Tab ──
   const renderInbox = () => (
     <>
-      <p style={{ fontSize: 11, color: "#383838", margin: "4px 0 14px", lineHeight: 1.7 }}>Tap the box to burst it open and claim your EP. Songs play automatically after opening.</p>
-      {loadingCards && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: 10 }}><Spin size={18} color="#38bdf8" /><span style={{ fontSize: 12, color: "#404040" }}>Loading inbox…</span></div>}
+      <p style={{ fontSize: 12, color: "#383838", margin: "4px 0 14px", lineHeight: 1.7 }}>Tap the box to burst it open and claim your EP. Songs play automatically after opening.</p>
+      {loadingCards && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: 10 }}><Spin size={18} color="#38bdf8" /><span style={{ fontSize: 13, color: "#404040" }}>Loading inbox…</span></div>}
       {!loadingCards && inbox.length === 0 && (
         <div style={{ textAlign: "center", padding: "56px 20px", opacity: 0.4 }}>
-          <div style={{ fontSize: 56, marginBottom: 14, animation: "gcFloat 2.5s ease-in-out infinite" }}>🎁</div>
-          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }}>No gifts yet.<br />Share your profile so people can send you gems.</div>
+          <div style={{ fontSize: 57, marginBottom: 14, animation: "gcFloat 2.5s ease-in-out infinite" }}>🎁</div>
+          <div style={{ fontSize: 14, color: "#444", lineHeight: 1.7 }}>No gifts yet.<br />Share your profile so people can send you gems.</div>
         </div>
       )}
       {inbox.map(card => <InboxCard key={card.code} card={card} onClaim={claimInbox} currentUser={currentUser} />)}
@@ -1420,35 +1420,35 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
   // ── My Cards Tab ──
   const renderMyCards = () => (
     <>
-      <p style={{ fontSize: 11, color: "#383838", margin: "4px 0 14px", lineHeight: 1.7 }}>Your gift card history. Unused cards can be sent.</p>
-      {loadingCards && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: 10 }}><Spin size={18} color="#38bdf8" /><span style={{ fontSize: 12, color: "#404040" }}>Loading…</span></div>}
-      {!loadingCards && myCards.length === 0 && <div style={{ textAlign: "center", padding: "56px 20px", opacity: 0.4 }}><Package size={44} color="#2a2a2a" style={{ margin: "0 auto 14px", display: "block" }} /><div style={{ fontSize: 13, color: "#444" }}>No cards yet.</div></div>}
+      <p style={{ fontSize: 12, color: "#383838", margin: "4px 0 14px", lineHeight: 1.7 }}>Your gift card history. Unused cards can be sent.</p>
+      {loadingCards && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: 10 }}><Spin size={18} color="#38bdf8" /><span style={{ fontSize: 13, color: "#404040" }}>Loading…</span></div>}
+      {!loadingCards && myCards.length === 0 && <div style={{ textAlign: "center", padding: "56px 20px", opacity: 0.4 }}><Package size={44} color="#2a2a2a" style={{ margin: "0 auto 14px", display: "block" }} /><div style={{ fontSize: 14, color: "#444" }}>No cards yet.</div></div>}
       {myCards.map((gc, i) => {
         const t = TIERS.find(x => x.id === gc.tier) || TIERS[0];
         const unused = gc.status === "unused";
         const sc = { unused: "#484848", sent: "#38bdf8", redeemed: "#22c55e", expired: "#f87171" }[gc.status] || "#484848";
         return (
           <div key={gc.code || gc.id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 14px", background: "rgba(255,255,255,0.025)", border: `1px solid ${unused ? t.c1 + "22" : "rgba(255,255,255,0.05)"}`, borderRadius: 15, marginBottom: 9, animation: `gcCardIn .3s ease ${i * 0.06}s both` }}>
-            <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: `${t.c1}18`, border: `1px solid ${t.c1}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{t.emoji.split("")[0]}</div>
+            <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: `${t.c1}18`, border: `1px solid ${t.c1}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21 }}>{t.emoji.split("")[0]}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2, fontFamily: (t.id === "lion" || t.id === "lioness" || t.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>{t.name}</div>
-              <div style={{ fontSize: 10, color: "#2a2a2a", fontFamily: "monospace", letterSpacing: ".4px" }}>{gc.code}</div>
-              {gc.has_song && <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3 }}><Music size={8} color="#484848" /><span style={{ fontSize: 8, color: "#404040" }}>Song attached</span></div>}
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 2, fontFamily: (t.id === "lion" || t.id === "lioness" || t.id === "make_a_wish") ? "'Cinzel',serif" : undefined }}>{t.name}</div>
+              <div style={{ fontSize: 11, color: "#2a2a2a", fontFamily: "monospace", letterSpacing: ".4px" }}>{gc.code}</div>
+              {gc.has_song && <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3 }}><Music size={8} color="#484848" /><span style={{ fontSize: 9, color: "#404040" }}>Song attached</span></div>}
             </div>
             <div style={{ textAlign: "right", flexShrink: 0, marginRight: unused ? 8 : 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, color: t.c1 }}>{(gc.value_ep || t.value).toLocaleString()} EP</div>
-              <div style={{ fontSize: 9, color: sc, textTransform: "uppercase", letterSpacing: ".5px", marginTop: 2 }}>{gc.status}</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: t.c1 }}>{(gc.value_ep || t.value).toLocaleString()} EP</div>
+              <div style={{ fontSize: 10, color: sc, textTransform: "uppercase", letterSpacing: ".5px", marginTop: 2 }}>{gc.status}</div>
             </div>
             {unused && (
               <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0 }}>
-                <button onClick={() => { switchTab("send"); setSelId(gc.tier); setPhase("configure"); }} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 10, fontWeight: 800, background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.22)", color: "#84cc16", cursor: "pointer", fontFamily: "inherit" }}>Send</button>
-                <button onClick={() => { switchTab("redeem"); setRedCode(gc.code); }} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 10, fontWeight: 800, background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.22)", color: "#38bdf8", cursor: "pointer", fontFamily: "inherit" }}>Redeem</button>
+                <button onClick={() => { switchTab("send"); setSelId(gc.tier); setPhase("configure"); }} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 800, background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.22)", color: "#84cc16", cursor: "pointer", fontFamily: "inherit" }}>Send</button>
+                <button onClick={() => { switchTab("redeem"); setRedCode(gc.code); }} style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 800, background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.22)", color: "#38bdf8", cursor: "pointer", fontFamily: "inherit" }}>Redeem</button>
               </div>
             )}
           </div>
         );
       })}
-      <button onClick={() => switchTab("send")} style={{ width: "100%", padding: "13px", marginTop: 4, borderRadius: 13, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)", color: "#707070", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "inherit" }}>
+      <button onClick={() => switchTab("send")} style={{ width: "100%", padding: "13px", marginTop: 4, borderRadius: 13, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)", color: "#707070", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "inherit" }}>
         <Plus size={13} /> Buy New Gift Card
       </button>
     </>
@@ -1479,12 +1479,12 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           : <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#707070", flexShrink: 0 }}><X size={15} /></button>
         }
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px" }}>{showPC ? "Gift Cards" : mobileTitle}</div>
-          <div style={{ fontSize: 10, color: "#2e2e2e", marginTop: 1 }}>Precious gems for precious people</div>
+          <div style={{ fontSize: 19, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px" }}>{showPC ? "Gift Cards" : mobileTitle}</div>
+          <div style={{ fontSize: 11, color: "#2e2e2e", marginTop: 1 }}>Precious gems for precious people</div>
         </div>
         {!showPC && currentEP !== null && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.18)", borderRadius: 9 }}>
-            <Zap size={10} color="#fbbf24" /><span style={{ fontSize: 11, fontWeight: 900, color: "#fbbf24" }}>{currentEP.toLocaleString()}</span>
+            <Zap size={10} color="#fbbf24" /><span style={{ fontSize: 12, fontWeight: 900, color: "#fbbf24" }}>{currentEP.toLocaleString()}</span>
           </div>
         )}
         <div style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1498,7 +1498,7 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           {[{ k: "send", l: "Send" }, { k: "redeem", l: "Redeem" }, { k: "inbox", l: newInbox > 0 ? `Inbox ${newInbox}` : "Inbox", dot: newInbox > 0 }, { k: "my_cards", l: "Cards" }].map(({ k, l, dot }) => {
             const active = tab === k;
             return (
-              <button key={k} onClick={() => switchTab(k)} style={{ padding: "6px 15px", borderRadius: 100, position: "relative", border: `1px solid ${active ? "rgba(56,189,248,0.36)" : "rgba(255,255,255,0.07)"}`, background: active ? "rgba(56,189,248,0.12)" : "rgba(255,255,255,0.025)", color: active ? "#38bdf8" : "#484848", boxShadow: active ? "0 2px 14px rgba(56,189,248,0.28)" : "none", fontSize: 11, fontWeight: active ? 800 : 600, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, transition: "all .18s", fontFamily: "inherit" }}>
+              <button key={k} onClick={() => switchTab(k)} style={{ padding: "6px 15px", borderRadius: 100, position: "relative", border: `1px solid ${active ? "rgba(56,189,248,0.36)" : "rgba(255,255,255,0.07)"}`, background: active ? "rgba(56,189,248,0.12)" : "rgba(255,255,255,0.025)", color: active ? "#38bdf8" : "#484848", boxShadow: active ? "0 2px 14px rgba(56,189,248,0.28)" : "none", fontSize: 12, fontWeight: active ? 800 : 600, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, transition: "all .18s", fontFamily: "inherit" }}>
                 {l}{dot && <span style={{ position: "absolute", top: 3, right: 5, width: 6, height: 6, borderRadius: "50%", background: "#f87171", animation: "gcPulse 1.5s ease infinite" }} />}
               </button>
             );
@@ -1513,9 +1513,9 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
             {tab === "send" && phase !== "browse" && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 20px 0", flexShrink: 0 }}>
-                <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}><ArrowLeft size={12} /> Back</button>
-                <span style={{ fontSize: 11, color: "#2a2a2a" }}>→</span>
-                <span style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>{phase === "configure" ? "Configure Gift" : phase === "confirm" ? "Confirm & Send" : "Sent! 🎁"}</span>
+                <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}><ArrowLeft size={12} /> Back</button>
+                <span style={{ fontSize: 12, color: "#2a2a2a" }}>→</span>
+                <span style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{phase === "configure" ? "Configure Gift" : phase === "confirm" ? "Confirm & Send" : "Sent! 🎁"}</span>
               </div>
             )}
             <div className="gc-scroll" style={{ flex: 1, overflowY: "auto", padding: "16px 20px 40px" }}>{renderTab()}</div>

@@ -547,7 +547,7 @@ const ReactionPanel = ({
           background: transparent;
           border: none;
           color: var(--text-secondary);
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: color 0.15s, background 0.15s, transform 0.1s;
@@ -557,7 +557,7 @@ const ReactionPanel = ({
           flex: 1;
           justify-content: center;
         }
-        .rp-panel--compact .rp-btn { padding: 5px 8px; font-size: 12px; border-radius: 10px; }
+        .rp-panel--compact .rp-btn { padding: 5px 8px; font-size: calc((12px) + 1px); border-radius: 10px; }
         .rp-btn:hover:not(:disabled)  { background: var(--surface-highlight); color: var(--text); }
         .rp-btn:active:not(:disabled) { transform: scale(0.93); }
         .rp-btn:disabled { opacity: 0.6; cursor: default; }
@@ -594,7 +594,7 @@ const ReactionPanel = ({
           transition: all 0.15s;
         }
         .rp-ep-label {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           opacity: 0.42;
           margin-left: 1px;
           font-weight: 500;
@@ -607,7 +607,7 @@ const ReactionPanel = ({
           padding: 6px 8px;
           border-radius: 10px;
           color: var(--text-muted);
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           flex: 0 0 auto;
         }
@@ -622,7 +622,7 @@ const ReactionPanel = ({
           color: var(--text);
           padding: 8px 18px;
           border-radius: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           z-index: 99999;
           white-space: nowrap;
@@ -642,7 +642,7 @@ const ReactionPanel = ({
 
         @media (max-width: 768px) {
           .rp-panel { padding: 5px 6px; }
-          .rp-btn   { padding: 7px 6px; font-size: 12px; }
+          .rp-btn   { padding: 7px 6px; font-size: calc((12px) + 1px); }
         }
       `}</style>
     </>

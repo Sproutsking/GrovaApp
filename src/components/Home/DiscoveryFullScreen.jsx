@@ -432,7 +432,7 @@ const DFS_CSS = `
   display:inline-flex;align-items:center;gap:5px;
   padding:4px 12px;border-radius:20px;
   background:rgba(255,255,255,0.12);
-  font-size:11px;font-weight:800;letter-spacing:.06em;
+  font-size:calc((11px) + 1px);font-weight:800;letter-spacing:.06em;
   color:rgba(255,255,255,0.9);text-transform:uppercase;
   border:1px solid rgba(255,255,255,0.16);
 }
@@ -459,17 +459,17 @@ const DFS_CSS = `
   position:absolute;bottom:88px;left:16px;right:82px;z-index:5;
 }
 .dfs-caption-cat{
-  font-size:10px;font-weight:800;letter-spacing:.1em;
+  font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.1em;
   text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:6px;
 }
 .dfs-caption-title{
-  font-size:20px;font-weight:800;color:#fff;
+  font-size:calc((20px) + 1px);font-weight:800;color:#fff;
   line-height:1.2;margin:0 0 8px;
   text-shadow:0 2px 16px rgba(0,0,0,0.92);
 }
-@media(max-width:768px){.dfs-caption-title{font-size:17px;}}
+@media(max-width:768px){.dfs-caption-title{font-size:calc((17px) + 1px);}}
 .dfs-caption-text{
-  font-size:13px;color:rgba(255,255,255,0.72);line-height:1.55;margin:0;
+  font-size:calc((13px) + 1px);color:rgba(255,255,255,0.72);line-height:1.55;margin:0;
   text-shadow:0 1px 8px rgba(0,0,0,0.92);
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
   cursor:pointer;
@@ -493,7 +493,7 @@ const DFS_CSS = `
 .dfs-toast{
   position:absolute;bottom:120px;left:50%;transform:translateX(-50%);
   background:rgba(0,0,0,0.92);
-  font-size:12px;font-weight:700;padding:8px 18px;
+  font-size:calc((12px) + 1px);font-weight:700;padding:8px 18px;
   border-radius:20px;z-index:10;pointer-events:none;
   border:1px solid currentColor;white-space:nowrap;
   animation:dfsIn .2s ease;
@@ -502,7 +502,7 @@ const DFS_CSS = `
 .dfs-upgrade{
   position:absolute;bottom:130px;left:50%;transform:translateX(-50%);
   background:rgba(15,15,15,0.96);border:1px solid rgba(251,191,36,0.5);
-  color:#fbbf24;font-size:11px;font-weight:700;
+  color:#fbbf24;font-size:calc((11px) + 1px);font-weight:700;
   padding:8px 16px;border-radius:14px;z-index:10;pointer-events:none;
   white-space:nowrap;display:flex;align-items:center;gap:6px;
   animation:dfsIn .2s ease;
@@ -527,7 +527,7 @@ const DFS_CSS = `
   backdrop-filter:blur(16px);
 }
 .dfs-interest-q{
-  font-size:15px;font-weight:700;color:#fff;
+  font-size:calc((15px) + 1px);font-weight:700;color:#fff;
   margin:0 0 14px;line-height:1.4;
 }
 .dfs-interest-q strong{color:#a3e635;}
@@ -537,7 +537,7 @@ const DFS_CSS = `
 .dfs-int-yes,.dfs-int-no{
   flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
   padding:11px 14px;border-radius:14px;
-  font-size:13px;font-weight:700;
+  font-size:calc((13px) + 1px);font-weight:700;
   cursor:pointer;transition:all .18s;font-family:inherit;
 }
 .dfs-int-yes{

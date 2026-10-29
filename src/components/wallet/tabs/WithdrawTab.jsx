@@ -87,23 +87,23 @@ const CSS = `
 .wd-hdr { display:flex; align-items:center; gap:12px; padding:8px 0 14px; position:sticky; top:0; z-index:20; background:rgba(5,6,8,.97); backdrop-filter:blur(24px); border-bottom:1px solid rgba(255,255,255,.06); margin-bottom:20px }
 .wd-back { width:32px; height:32px; border-radius:8px; flex-shrink:0; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.04); display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(255,255,255,.45); transition:all .2s }
 .wd-back:hover { border-color:#a3e635; color:#a3e635 }
-.wd-htitle { font-size:15px; font-weight:700; letter-spacing:-.3px }
-.wd-hsub   { font-size:10px; color:rgba(255,255,255,.3); margin-top:1px; font-family:'JetBrains Mono',monospace }
-.wd-spill  { margin-left:auto; display:flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; border:1px solid; font-size:10px; font-weight:600 }
+.wd-htitle { font-size:calc((15px) + 1px); font-weight:700; letter-spacing:-.3px }
+.wd-hsub   { font-size:calc((10px) + 1px); color:rgba(255,255,255,.3); margin-top:1px; font-family:'JetBrains Mono',monospace }
+.wd-spill  { margin-left:auto; display:flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; border:1px solid; font-size:calc((10px) + 1px); font-weight:600 }
 .wd-sdot   { width:6px; height:6px; border-radius:50%; animation:wd-pulse 2s ease infinite }
 
 /* HERO */
 .wd-hero { background:linear-gradient(135deg,rgba(163,230,53,.09) 0%,rgba(163,230,53,.03) 100%); border:1px solid rgba(163,230,53,.15); border-radius:20px; padding:24px; margin-bottom:14px; position:relative; overflow:hidden }
 .wd-hero::before { content:''; position:absolute; top:-50px; right:-50px; width:140px; height:140px; border-radius:50%; background:rgba(163,230,53,.05); pointer-events:none }
-.wd-hlabel { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:rgba(163,230,53,.55); margin-bottom:8px; font-family:'JetBrains Mono',monospace }
+.wd-hlabel { font-size:calc((10px) + 1px); font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:rgba(163,230,53,.55); margin-bottom:8px; font-family:'JetBrains Mono',monospace }
 .wd-hamt   { display:flex; align-items:baseline; gap:8px; margin-bottom:4px }
-.wd-hnum   { font-size:46px; font-weight:900; color:#fff; letter-spacing:-2.5px; font-variant-numeric:tabular-nums; line-height:1 }
-.wd-hunit  { font-size:16px; font-weight:700; color:#a3e635 }
-.wd-husd   { font-size:12px; color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace }
+.wd-hnum   { font-size:calc((46px) + 1px); font-weight:900; color:#fff; letter-spacing:-2.5px; font-variant-numeric:tabular-nums; line-height:1 }
+.wd-hunit  { font-size:calc((16px) + 1px); font-weight:700; color:#a3e635 }
+.wd-husd   { font-size:calc((12px) + 1px); color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace }
 .wd-hdiv   { height:1px; background:rgba(255,255,255,.06); margin:16px 0 }
 .wd-hgrid  { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px }
-.wd-hslbl  { font-size:9px; color:rgba(255,255,255,.3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; font-family:'JetBrains Mono',monospace }
-.wd-hsval  { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums }
+.wd-hslbl  { font-size:calc((9px) + 1px); color:rgba(255,255,255,.3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; font-family:'JetBrains Mono',monospace }
+.wd-hsval  { font-size:calc((13px) + 1px); font-weight:700; font-variant-numeric:tabular-nums }
 .wd-bar    { height:3px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; margin-top:6px }
 .wd-barf   { height:100%; border-radius:3px; transition:width .5s ease }
 
@@ -130,48 +130,48 @@ const CSS = `
 /* Corner badge — positioned top-right */
 .wd-tc-badge {
   position:absolute; top:8px; right:8px;
-  font-size:8px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  font-size:calc((8px) + 1px); font-weight:800; letter-spacing:.06em; text-transform:uppercase;
   padding:2px 6px; border-radius:6px; border:1px solid;
   font-family:'JetBrains Mono',monospace; line-height:1.4;
 }
 /* Icon — top-centre, small */
-.wd-tc-icon { font-size:13px; margin-bottom:6px; display:block }
+.wd-tc-icon { font-size:calc((13px) + 1px); margin-bottom:6px; display:block }
 /* Fee percentage — the main number */
-.wd-tc-pct  { font-size:32px; font-weight:900; letter-spacing:-1.5px; line-height:1; margin-bottom:2px }
-.wd-tc-fee  { font-size:9px; font-weight:600; opacity:.5; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px }
+.wd-tc-pct  { font-size:calc((32px) + 1px); font-weight:900; letter-spacing:-1.5px; line-height:1; margin-bottom:2px }
+.wd-tc-fee  { font-size:calc((9px) + 1px); font-weight:600; opacity:.5; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px }
 /* Thin divider inside card */
 .wd-tc-div  { height:1px; background:rgba(255,255,255,.07); margin:0 -4px 10px }
 /* Bottom row: range and ETA */
 .wd-tc-bot  { display:flex; align-items:center; justify-content:space-between; gap:4px }
-.wd-tc-range{ font-size:8px; opacity:.4; font-family:'JetBrains Mono',monospace }
-.wd-tc-eta  { font-size:9px; font-weight:700; opacity:.65 }
+.wd-tc-range{ font-size:calc((8px) + 1px); opacity:.4; font-family:'JetBrains Mono',monospace }
+.wd-tc-eta  { font-size:calc((9px) + 1px); font-weight:700; opacity:.65 }
 
 /* CARD */
 .wd-card  { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:18px; margin-bottom:12px }
-.wd-clbl  { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.3); margin-bottom:14px; font-family:'JetBrains Mono',monospace }
+.wd-clbl  { font-size:calc((9px) + 1px); font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.3); margin-bottom:14px; font-family:'JetBrains Mono',monospace }
 
 /* AMOUNT INPUT */
 .wd-amtwrap { display:flex; align-items:center; background:rgba(0,0,0,.3); border:1.5px solid rgba(255,255,255,.1); border-radius:12px; padding:14px 16px; transition:border-color .2s }
 .wd-amtwrap:focus-within { border-color:rgba(163,230,53,.5) }
 .wd-amtwrap.err { border-color:rgba(248,113,113,.5); animation:wd-shake .35s ease }
-.wd-amtinp { flex:1; background:none; border:none; outline:none; font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:700; color:#fff; letter-spacing:-.03em; min-width:0 }
-.wd-amtinp::placeholder { color:rgba(255,255,255,.12); font-size:20px }
-.wd-amtunit { font-size:14px; font-weight:700; color:#a3e635; flex-shrink:0 }
+.wd-amtinp { flex:1; background:none; border:none; outline:none; font-family:'JetBrains Mono',monospace; font-size:calc((28px) + 1px); font-weight:700; color:#fff; letter-spacing:-.03em; min-width:0 }
+.wd-amtinp::placeholder { color:rgba(255,255,255,.12); font-size:calc((20px) + 1px) }
+.wd-amtunit { font-size:calc((14px) + 1px); font-weight:700; color:#a3e635; flex-shrink:0 }
 .wd-amtrow  { display:flex; align-items:center; justify-content:space-between; margin-top:10px }
-.wd-maxbtn  { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; color:rgba(163,230,53,.65); background:rgba(163,230,53,.08); border:1px solid rgba(163,230,53,.15); border-radius:6px; padding:4px 8px; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s }
+.wd-maxbtn  { display:inline-flex; align-items:center; gap:4px; font-size:calc((10px) + 1px); font-weight:600; color:rgba(163,230,53,.65); background:rgba(163,230,53,.08); border:1px solid rgba(163,230,53,.15); border-radius:6px; padding:4px 8px; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s }
 .wd-maxbtn:hover { color:#a3e635; background:rgba(163,230,53,.12) }
-.wd-inerr  { font-size:11px; color:#f87171; display:flex; align-items:center; gap:5px }
+.wd-inerr  { font-size:calc((11px) + 1px); color:#f87171; display:flex; align-items:center; gap:5px }
 
 /* BREAKDOWN */
 .wd-brkdn  { margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.06) }
 .wd-brow   { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
 .wd-brow:last-child { margin:0; padding-top:10px; border-top:1px dashed rgba(255,255,255,.08); margin-top:2px }
-.wd-bkey   { font-size:12px; color:rgba(255,255,255,.4) }
-.wd-bval   { font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; color:rgba(255,255,255,.8) }
-.wd-bval.g { color:#a3e635; font-size:16px; font-weight:800 }
+.wd-bkey   { font-size:calc((12px) + 1px); color:rgba(255,255,255,.4) }
+.wd-bval   { font-size:calc((12px) + 1px); font-weight:600; font-variant-numeric:tabular-nums; color:rgba(255,255,255,.8) }
+.wd-bval.g { color:#a3e635; font-size:calc((16px) + 1px); font-weight:800 }
 .wd-bval.y { color:#fbbf24 }
-.wd-bval.b { color:#60a5fa; font-family:'JetBrains Mono',monospace; font-size:11px }
-.wd-bbadge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:6px }
+.wd-bval.b { color:#60a5fa; font-family:'JetBrains Mono',monospace; font-size:calc((11px) + 1px) }
+.wd-bbadge { font-size:calc((9px) + 1px); font-weight:700; padding:2px 6px; border-radius:4px; margin-left:6px }
 
 /* METHOD TABS */
 .wd-methods { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:14px }
@@ -180,39 +180,39 @@ const CSS = `
 .wd-method.on { border-color:rgba(163,230,53,.4); background:rgba(163,230,53,.08) }
 .wd-mico    { flex-shrink:0; color:rgba(255,255,255,.3) }
 .wd-method.on .wd-mico { color:#a3e635 }
-.wd-mlbl    { font-size:11px; font-weight:600; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.06em }
+.wd-mlbl    { font-size:calc((11px) + 1px); font-weight:600; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.06em }
 .wd-method.on .wd-mlbl { color:#a3e635 }
 
 /* FIELDS */
 .wd-field  { margin-bottom:11px }
 .wd-field:last-of-type { margin-bottom:0 }
-.wd-flbl   { display:block; font-size:9px; font-weight:700; color:rgba(255,255,255,.3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; font-family:'JetBrains Mono',monospace }
-.wd-fin    { width:100%; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:10px 13px; color:rgba(255,255,255,.85); font-size:13px; font-family:'JetBrains Mono',monospace; outline:none; transition:border-color .2s }
+.wd-flbl   { display:block; font-size:calc((9px) + 1px); font-weight:700; color:rgba(255,255,255,.3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; font-family:'JetBrains Mono',monospace }
+.wd-fin    { width:100%; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:10px 13px; color:rgba(255,255,255,.85); font-size:calc((13px) + 1px); font-family:'JetBrains Mono',monospace; outline:none; transition:border-color .2s }
 .wd-fin::placeholder { color:rgba(255,255,255,.18) }
 .wd-fin:focus { border-color:rgba(163,230,53,.35) }
-.wd-fnote  { font-size:10px; color:rgba(255,255,255,.22); margin-top:10px; padding:8px 12px; border-radius:8px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06); line-height:1.65; font-family:'JetBrains Mono',monospace }
+.wd-fnote  { font-size:calc((10px) + 1px); color:rgba(255,255,255,.22); margin-top:10px; padding:8px 12px; border-radius:8px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06); line-height:1.65; font-family:'JetBrains Mono',monospace }
 
 /* PIN */
 .wd-pincard { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:18px; margin-bottom:12px }
 .wd-pinh    { display:flex; align-items:center; gap:8px; margin-bottom:4px }
-.wd-pintit  { font-size:13px; font-weight:700 }
-.wd-pinsub  { font-size:10px; color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace; margin-bottom:14px }
+.wd-pintit  { font-size:calc((13px) + 1px); font-weight:700 }
+.wd-pinsub  { font-size:calc((10px) + 1px); color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace; margin-bottom:14px }
 .wd-pinrow  { display:flex; align-items:center; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:12px 14px }
-.wd-pininp  { flex:1; background:none; border:none; outline:none; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:#fff; letter-spacing:.25em }
-.wd-pininp::placeholder { letter-spacing:normal; font-size:13px; color:rgba(255,255,255,.18) }
+.wd-pininp  { flex:1; background:none; border:none; outline:none; font-family:'JetBrains Mono',monospace; font-size:calc((22px) + 1px); font-weight:700; color:#fff; letter-spacing:.25em }
+.wd-pininp::placeholder { letter-spacing:normal; font-size:calc((13px) + 1px); color:rgba(255,255,255,.18) }
 .wd-pintgl  { background:none; border:none; cursor:pointer; color:rgba(255,255,255,.25); display:flex; transition:color .15s }
 .wd-pintgl:hover { color:rgba(255,255,255,.6) }
-.wd-pinbtn  { width:100%; margin-top:10px; padding:11px; border-radius:10px; border:none; cursor:pointer; font-family:'Inter',sans-serif; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .2s }
+.wd-pinbtn  { width:100%; margin-top:10px; padding:11px; border-radius:10px; border:none; cursor:pointer; font-family:'Inter',sans-serif; font-size:calc((12px) + 1px); font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .2s }
 .wd-pinbtn.ok  { background:rgba(163,230,53,.12); color:#a3e635; border:1px solid rgba(163,230,53,.25) }
 .wd-pinbtn.ok:hover { background:rgba(163,230,53,.18) }
 .wd-pinbtn.off { background:rgba(255,255,255,.04); color:rgba(255,255,255,.2); cursor:not-allowed }
 
 /* ALERTS */
-.wd-err     { display:flex; align-items:flex-start; gap:8px; padding:11px 13px; border-radius:10px; font-size:12px; line-height:1.6; margin-bottom:12px; background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.2); color:#fca5a5 }
-.wd-syswarn { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; font-size:12px; line-height:1.6; margin-bottom:12px; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.18); color:#fcd34d }
+.wd-err     { display:flex; align-items:flex-start; gap:8px; padding:11px 13px; border-radius:10px; font-size:calc((12px) + 1px); line-height:1.6; margin-bottom:12px; background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.2); color:#fca5a5 }
+.wd-syswarn { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; font-size:calc((12px) + 1px); line-height:1.6; margin-bottom:12px; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.18); color:#fcd34d }
 
 /* SUBMIT */
-.wd-submit  { width:100%; padding:16px 24px; border-radius:14px; border:none; font-family:'Inter',sans-serif; font-size:15px; font-weight:800; cursor:pointer; transition:all .25s; letter-spacing:-.2px; display:flex; align-items:center; justify-content:center; gap:8px }
+.wd-submit  { width:100%; padding:16px 24px; border-radius:14px; border:none; font-family:'Inter',sans-serif; font-size:calc((15px) + 1px); font-weight:800; cursor:pointer; transition:all .25s; letter-spacing:-.2px; display:flex; align-items:center; justify-content:center; gap:8px }
 .wd-submit.ok   { background:linear-gradient(135deg,#a3e635 0%,#65a30d 100%); color:#0a1200; box-shadow:0 8px 32px rgba(163,230,53,.25) }
 .wd-submit.ok:hover  { transform:translateY(-2px); box-shadow:0 14px 40px rgba(163,230,53,.35) }
 .wd-submit.ok:active { transform:translateY(0) }
@@ -220,24 +220,24 @@ const CSS = `
 .wd-submit.busy { background:rgba(255,255,255,.06); color:rgba(255,255,255,.3); cursor:not-allowed }
 
 /* INFO */
-.wd-info { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; margin-top:12px; background:rgba(96,165,250,.04); border:1px solid rgba(96,165,250,.12); font-size:11px; color:rgba(96,165,250,.7); line-height:1.65; font-family:'JetBrains Mono',monospace }
+.wd-info { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; margin-top:12px; background:rgba(96,165,250,.04); border:1px solid rgba(96,165,250,.12); font-size:calc((11px) + 1px); color:rgba(96,165,250,.7); line-height:1.65; font-family:'JetBrains Mono',monospace }
 
 /* HISTORY */
 .wd-hcard  { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:18px; margin-top:14px }
 .wd-hhd    { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none }
-.wd-hhlbl  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace }
-.wd-hhcnt  { font-size:9px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(163,230,53,.1); color:#a3e635; margin-left:8px }
+.wd-hhlbl  { font-size:calc((10px) + 1px); font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.3); font-family:'JetBrains Mono',monospace }
+.wd-hhcnt  { font-size:calc((9px) + 1px); font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(163,230,53,.1); color:#a3e635; margin-left:8px }
 .wd-hrow   { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.05) }
 .wd-hrow:last-child { border-bottom:none }
 .wd-hico   { width:36px; height:36px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center }
-.wd-chip   { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-size:8px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border:1px solid; white-space:nowrap }
-.wd-cncl   { font-size:9px; font-weight:600; color:rgba(248,113,113,.6); cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; padding:2px 0; transition:color .15s }
+.wd-chip   { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-size:calc((8px) + 1px); font-weight:700; letter-spacing:.06em; text-transform:uppercase; border:1px solid; white-space:nowrap }
+.wd-cncl   { font-size:calc((9px) + 1px); font-weight:600; color:rgba(248,113,113,.6); cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; padding:2px 0; transition:color .15s }
 .wd-cncl:hover { color:#f87171 }
 
 .wd-skel   { background:rgba(255,255,255,.06); border-radius:8px; animation:wd-skel 1.5s ease infinite }
 
 /* TOAST */
-.wd-toast  { position:fixed; bottom:24px; left:16px; right:16px; z-index:9999; padding:13px 16px; border-radius:13px; backdrop-filter:blur(20px); display:flex; align-items:center; gap:10px; animation:wd-toast 5s ease forwards; font-size:12px; font-weight:600; line-height:1.5; box-shadow:0 16px 48px rgba(0,0,0,.7) }
+.wd-toast  { position:fixed; bottom:24px; left:16px; right:16px; z-index:9999; padding:13px 16px; border-radius:13px; backdrop-filter:blur(20px); display:flex; align-items:center; gap:10px; animation:wd-toast 5s ease forwards; font-size:calc((12px) + 1px); font-weight:600; line-height:1.5; box-shadow:0 16px 48px rgba(0,0,0,.7) }
 .wd-toast.ok  { background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.3); color:#6ee7b7 }
 .wd-toast.err { background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.3); color:#fca5a5 }
 .wd-spin   { animation:wd-spin 1s linear infinite }
@@ -355,7 +355,7 @@ function Breakdown({ preview, method }) {
         <span className="wd-bkey" style={{ fontWeight:600, color:"rgba(255,255,255,.65)" }}>You receive</span>
         <div style={{ textAlign:"right" }}>
           <div className="wd-bval g">{fmtEP(preview.netEp)} EP</div>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,.3)", marginTop:2, fontFamily:"'JetBrains Mono',monospace" }}>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,.3)", marginTop:2, fontFamily:"'JetBrains Mono',monospace" }}>
             {method === "bank"
               ? `≈ ₦${epToNGN(preview.netEp, rate).toLocaleString()}`
               : `≈ $${epToUSD(preview.netEp).toFixed(2)}`}
@@ -420,25 +420,25 @@ function HistRow({ item, onCancel }) {
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:3 }}>
-          <span style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,.8)" }}>Withdrawal</span>
+          <span style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,.8)" }}>Withdrawal</span>
           <StatusChip status={item.status} />
-          <span style={{ fontSize:8, fontWeight:700, color, padding:"2px 5px", borderRadius:4, background:`${color}12` }}>T{item.processing_tier}</span>
+          <span style={{ fontSize:9, fontWeight:700, color, padding:"2px 5px", borderRadius:4, background:`${color}12` }}>T{item.processing_tier}</span>
         </div>
-        <div style={{ fontSize:10, color:"rgba(255,255,255,.3)", display:"flex", gap:5, fontFamily:"'JetBrains Mono',monospace", alignItems:"center" }}>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,.3)", display:"flex", gap:5, fontFamily:"'JetBrains Mono',monospace", alignItems:"center" }}>
           <span style={{ display:"flex", alignItems:"center", gap:3 }}><DestIcon size={10}/> {item.destination_type}</span>
           <span>·</span><span>{ago(item.requested_at)}</span>
         </div>
         {canCancel && <button className="wd-cncl" onClick={() => onCancel(item.id)}>Cancel & refund</button>}
       </div>
       <div style={{ textAlign:"right", flexShrink:0 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"#f87171", fontVariantNumeric:"tabular-nums" }}>
+        <div style={{ fontSize:14, fontWeight:700, color:"#f87171", fontVariantNumeric:"tabular-nums" }}>
           −{fmtEP(item.ep_amount)} EP
         </div>
-        <div style={{ fontSize:10, color:"#a3e635", marginTop:1, fontFamily:"'JetBrains Mono',monospace" }}>
+        <div style={{ fontSize:11, color:"#a3e635", marginTop:1, fontFamily:"'JetBrains Mono',monospace" }}>
           {fmtEP(item.net_ep)} net
         </div>
         {item.destination_type === "bank" && item.status === "completed" && (
-          <div style={{ fontSize:9, color:"rgba(255,255,255,.25)", fontFamily:"'JetBrains Mono',monospace" }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,.25)", fontFamily:"'JetBrains Mono',monospace" }}>
             ₦{epToNGN(item.net_ep, rate).toLocaleString()}
           </div>
         )}
@@ -761,15 +761,15 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
             ) : history.length === 0 ? (
               <div style={{ textAlign:"center", padding:"28px 0", color:"rgba(255,255,255,.2)" }}>
                 <TrendingDown size={28} style={{ margin:"0 auto 10px", display:"block", opacity:.3 }}/>
-                <div style={{ fontSize:12, fontWeight:600, marginBottom:3 }}>No withdrawals yet</div>
-                <div style={{ fontSize:10, fontFamily:"'JetBrains Mono',monospace" }}>Your history will appear here</div>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:3 }}>No withdrawals yet</div>
+                <div style={{ fontSize:11, fontFamily:"'JetBrains Mono',monospace" }}>Your history will appear here</div>
               </div>
             ) : (
               <>
                 {history.map((item, idx) => <HistRow key={item.id} item={item} onCancel={handleCancel} idx={idx}/>)}
                 <div style={{ textAlign:"center", marginTop:12 }}>
                   <button onClick={() => { loadHistory(); loadDailyUsage(); }}
-                    style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"6px 14px", borderRadius:8, border:"1px solid rgba(255,255,255,.09)", background:"transparent", color:"rgba(255,255,255,.35)", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>
+                    style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"6px 14px", borderRadius:8, border:"1px solid rgba(255,255,255,.09)", background:"transparent", color:"rgba(255,255,255,.35)", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>
                     <RefreshCw size={10}/> Refresh
                   </button>
                 </div>

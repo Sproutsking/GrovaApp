@@ -90,7 +90,7 @@ const AccessBadge = ({ accessStatus }) => {
   return (
     <span style={{
       display:"inline-flex", alignItems:"center", gap:4,
-      padding:"1px 7px", borderRadius:12, fontSize:9, fontWeight:800,
+      padding:"1px 7px", borderRadius:12, fontSize:10, fontWeight:800,
       color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30`,
     }}>
       ✓ {cfg.label}
@@ -101,8 +101,8 @@ const AccessBadge = ({ accessStatus }) => {
 const ConfirmLogout = ({ onConfirm, onCancel }) => (
   <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.72)" }}>
     <div style={{ width: "min(360px, calc(100vw - 32px))", background: "rgba(15,15,15,0.96)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18, padding: "22px 18px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Sign out?</div>
-      <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 18, lineHeight: 1.5 }}>You can sign back in anytime and keep your content safely saved.</div>
+      <div style={{ fontSize: 21, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Sign out?</div>
+      <div style={{ fontSize: 14, color: "#9ca3af", marginBottom: 18, lineHeight: 1.5 }}>You can sign back in anytime and keep your content safely saved.</div>
       <div style={{ display: "flex", gap: 10 }}>
         <button type="button" onClick={onCancel} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", padding: "12px 12px", cursor: "pointer", fontWeight: 700 }}>
           Stay
@@ -161,8 +161,8 @@ const BoostManagerModal = ({
       .boost-manager-modal-back,.boost-manager-modal-close{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#d9e7d5;cursor:pointer}
       .boost-manager-modal-back:hover,.boost-manager-modal-close:hover{border-color:rgba(156,255,0,.45);color:#9cff00;background:rgba(156,255,0,.1)}
       .boost-manager-modal-heading{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
-      .boost-manager-modal-heading strong{color:#f4fff0;font-size:14px;letter-spacing:.01em}
-      .boost-manager-modal-heading span{color:#7f9180;font-size:11px}
+      .boost-manager-modal-heading strong{color:#f4fff0;font-size:calc((14px) + 1px);letter-spacing:.01em}
+      .boost-manager-modal-heading span{color:#7f9180;font-size:calc((11px) + 1px)}
       .boost-manager-modal-body{overflow:auto;padding:17px 18px 22px;scrollbar-width:thin;scrollbar-color:rgba(156,255,0,.35) transparent}
       @keyframes boostManagerModalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
       @media(max-width:480px){
@@ -206,7 +206,7 @@ const AmbassadorBadge = ({ level, name }) => {
   return (
     <span style={{
       display:"inline-flex", alignItems:"center", gap:4,
-      padding:"2px 8px", borderRadius:20, fontSize:10, fontWeight:800,
+      padding:"2px 8px", borderRadius:20, fontSize:11, fontWeight:800,
       color:cfg.color, background:`${cfg.color}12`,
       border:`1px solid ${cfg.color}30`, flexShrink:0,
     }}>
@@ -241,10 +241,8 @@ const FourStatRow = ({ stats }) => {
   const fontSz  = { 1:"19px", 2:"15px", 3:"13px", 4:"11px" }[tier];
   const labelSz = tier >= 3 ? "9px" : "10px";
   return (
-    <div style={{
+    <div className="profile-overview-stats" style={{
       display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`,
-      background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)",
-      borderRadius:16, padding:"14px 8px", gap:4, overflow:"hidden",
       transition:"grid-template-columns .3s",
     }}>
       {stats.map((s) => (
@@ -696,7 +694,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       id:"ambassador",
       // Icon changes based on whether user is already an ambassador
       icon: isAmbassador
-        ? <span style={{ fontSize:20, lineHeight:1 }}>{ambLevelIcon[ambassadorData.current_level] || "🌱"}</span>
+        ? <span style={{ fontSize:21, lineHeight:1 }}>{ambLevelIcon[ambassadorData.current_level] || "🌱"}</span>
         : <Star size={20} />,
       label: isAmbassador ? "Ambassador" : "Earn with Us",
       sub: isAmbassador
@@ -755,19 +753,22 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
-        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 12px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
-        .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
-        .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:12px;font-weight:900;line-height:1; }
+        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:40px 24px 16px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
+        .profile-header-content::before { content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 75% 48% at 50% 0%,rgba(132,204,22,.12),transparent 72%),radial-gradient(ellipse 55% 45% at 8% 30%,rgba(96,165,250,.055),transparent 75%); }
+        .profile-header-content::after { content:"";position:absolute;top:0;left:12%;right:12%;height:1px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),rgba(132,204,22,.5),rgba(255,255,255,.18),transparent); }
+        .profile-header-content > * { position:relative;z-index:1; }
+        .profile-name { font-size:calc((26px) + 1px);font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
+        .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:calc((12px) + 1px);font-weight:900;line-height:1; }
         .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
-        .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:11px;font-weight:800;color:#fbbf24; }
-        .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:11px;font-weight:800;color:#84cc16; }
-        .profile-username { font-size:15px;color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
+        .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#fbbf24; }
+        .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#84cc16; }
+        .profile-username { font-size:calc((15px) + 1px);color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 10px; }
-        .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:9px;font-weight:800;line-height:1.2; }
-        .profile-bio { color:#d1d1d1;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
+        .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:calc((9px) + 1px);font-weight:800;line-height:1.2; }
+        .profile-bio { color:#d1d1d1;font-size:calc((13px) + 1px);margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
-        .profile-boost-tristat { margin-bottom:12px; }
+        .profile-boost-tristat { margin-bottom:12px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(8,8,8,.95) 58%);border-color:rgba(255,255,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.24); }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
         .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0;width:100%; }
         .tri-stat-pill { box-sizing:border-box;flex:1 1 0;width:0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s;overflow:hidden; }
@@ -776,9 +777,10 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .tri-stat-icon-wrap { display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);flex:0 0 30px; }
         .tri-stat-icon-wrap svg { width:14px!important;height:14px!important; }
         .tri-stat-text { display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1 1 auto; }
-        .tri-stat-value { font-size:18px;font-weight:900;color:var(--accent);line-height:1.15;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
-        .tri-stat-label { font-size:10px;color:#525252;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+        .tri-stat-value { font-size:calc((18px) + 1px);font-weight:900;color:var(--accent);line-height:1.15;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+        .tri-stat-label { font-size:calc((10px) + 1px);color:#525252;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
         .tristat-divider { width:1px;margin:10px 0;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.08) 50%,transparent 100%);flex-shrink:0;align-self:stretch; }
+        .profile-overview-stats { background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(12,12,12,.92) 68%);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:14px 8px;gap:4px;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.045),0 16px 36px rgba(0,0,0,.2);backdrop-filter:blur(12px); }
 
         .actions-card { background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:10px; }
         .actions-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
@@ -786,19 +788,19 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .action-btn:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4); }
         .action-btn-icon { width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
         .action-btn-text { flex:1;min-width:0; }
-        .action-btn-label { font-size:13px;font-weight:800;margin:0 0 2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .action-btn-sub { font-size:11px;font-weight:500;margin:0;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .action-btn-label { font-size:calc((13px) + 1px);font-weight:800;margin:0 0 2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .action-btn-sub { font-size:calc((11px) + 1px);font-weight:500;margin:0;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
-        .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
+        .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:calc((13px) + 1px);color:#84cc16; }
 
         .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
         .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
         .boost-manager-trigger:hover { background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(0,0,0,.2));border-color:rgba(220,220,220,.42);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.2); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
-        .boost-manager-trigger-copy strong { font-size:12px;letter-spacing:.04em; }
-        .boost-manager-trigger-copy small { color:#777;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .boost-manager-trigger-chevron { color:#b8bcc3;font-size:22px;font-weight:300;line-height:1; }
+        .boost-manager-trigger-copy strong { font-size:calc((12px) + 1px);letter-spacing:.04em; }
+        .boost-manager-trigger-copy small { color:#777;font-size:calc((10px) + 1px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .boost-manager-trigger-chevron { color:#b8bcc3;font-size:calc((22px) + 1px);font-weight:300;line-height:1; }
         .boost-manager-panel { display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease,opacity .25s ease;opacity:0; }
         .boost-manager-extension.is-open .boost-manager-panel { grid-template-rows:1fr;opacity:1; }
         .boost-manager-panel-inner { min-height:0;overflow:hidden;padding:0 16px; }
@@ -809,13 +811,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @media (max-width: 480px) {
           .profile-section { padding: 12px; }
           .profile-header-content { padding: 18px 12px 12px; }
-          .profile-name { font-size:20px; }
+          .profile-name { font-size:calc((20px) + 1px); }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
           .tri-stat-inner { gap:6px;padding:10px 6px; }
           .tri-stat-icon-wrap { width:26px;height:26px;flex-basis:26px; }
           .tri-stat-icon-wrap svg { width:12px!important;height:12px!important; }
-          .tri-stat-value { font-size:15px; }
-          .tri-stat-label { font-size:8px; }
+          .tri-stat-value { font-size:calc((15px) + 1px); }
+          .tri-stat-label { font-size:calc((8px) + 1px); }
           .actions-grid { grid-template-columns: 1fr; gap:10px; }
           .action-btn { padding:12px; }
           .boost-manager-trigger { padding:10px 10px; }
@@ -914,7 +916,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                   <div className="contact-chip">
                     <Phone size={14}/>{profile.phone}
                     {profile.phoneVerified && (
-                      <span style={{ display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",background:"rgba(34,197,94,0.2)",borderRadius:"5px",color:"#22c55e",fontSize:"10px",fontWeight:700 }}>
+                      <span style={{ display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",background:"rgba(34,197,94,0.2)",borderRadius:"5px",color:"#22c55e",fontSize:"calc((10px) + 1px)",fontWeight:700 }}>
                         <Shield size={9}/> Verified
                       </span>
                     )}
@@ -936,7 +938,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               </div>
               <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:5,paddingBottom:8 }}>
                 <LiveDot />
-                <span style={{ fontSize:9,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
+                <span style={{ fontSize:10,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
               </div>
             </div>
 
@@ -1015,14 +1017,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
-                    <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(215,175,255,0.16)", color: "#d8b4fe", fontSize: 10, fontWeight: 800, border: "1px solid rgba(168,85,247,0.22)" }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                    <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(215,175,255,0.16)", color: "#d8b4fe", fontSize: 11, fontWeight: 800, border: "1px solid rgba(168,85,247,0.22)" }}>
                       {verificationLoading ? "Loading" : `${verificationSections.length} modules`}
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#c4b5fd", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
+                  <div style={{ fontSize: 13, color: "#c4b5fd", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
                 </div>
-                <button type="button" onClick={() => { setShowVerificationDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                <button type="button" onClick={() => { setShowVerificationDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   Close
                 </button>
               </div>
@@ -1031,16 +1033,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
-                      <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
+                      <div style={{ fontSize: 12, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
                     </div>
-                    <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <ArrowLeft size={13} /> Back
                     </button>
                   </div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
+                  <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
                   {selectedSectionData.items.length === 0 ? (
-                    <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 13 }}>
+                    <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 14 }}>
                       This section is ready and will populate as evidence arrives. Connect a platform or refresh the verification flow to bring in richer proof.
                     </div>
                   ) : (
@@ -1049,17 +1051,17 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                         <div key={item.id || item.title} style={{ padding: "12px 13px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
-                              <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
+                              <div style={{ fontSize: 12, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
                             </div>
-                            <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                            <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
                               {item.verified ? "Verified" : "Tracked"}
                             </div>
                           </div>
-                          {item.summary ? <div style={{ fontSize: 12, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
+                          {item.summary ? <div style={{ fontSize: 13, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
                           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                            <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
-                            {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
+                            <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
+                            {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
                           </div>
                         </div>
                       ))}
@@ -1073,13 +1075,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                     return (
                       <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 18, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", boxShadow: "0 10px 26px rgba(0,0,0,0.14)" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{section.title}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{section.title}</div>
                           <div style={{ width: 30, height: 30, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Icon size={15} style={{ color: section.accent }} />
                           </div>
                         </div>
-                        <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
-                        <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
+                        <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
+                        <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
                       </button>
                     );
                   })}
@@ -1110,7 +1112,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 {btn.id === "ambassador" && !isAmbassador && (
                   <span style={{
                     position:"absolute", top:8, right:8,
-                    fontSize:8, fontWeight:900, letterSpacing:"0.5px",
+                    fontSize:9, fontWeight:900, letterSpacing:"0.5px",
                     color:"#000", background:"#f59e0b",
                     padding:"2px 6px", borderRadius:6,
                   }}>NEW</span>

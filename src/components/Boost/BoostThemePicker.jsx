@@ -111,14 +111,14 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
 
       <div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:10 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#525252", textTransform:"uppercase",
+          <div style={{ fontSize:12, fontWeight:700, color:"#525252", textTransform:"uppercase",
             letterSpacing:"0.08em", display:"flex", alignItems:"center", gap:6,
           }}>
             <Sparkles size={11} color={tierMeta.color} />
             {tierMeta.label}
-            {saving && <span style={{ color:tierMeta.color, fontSize:10 }}>Saving…</span>}
-            {saved  && <span style={{ color:"#22c55e",     fontSize:10 }}>✓ Saved</span>}
-            {saveError && <span style={{ color:"#f87171", fontSize:10, maxWidth:220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={saveError}>Save failed: {saveError}</span>}
+            {saving && <span style={{ color:tierMeta.color, fontSize:11 }}>Saving…</span>}
+            {saved  && <span style={{ color:"#22c55e",     fontSize:11 }}>✓ Saved</span>}
+            {saveError && <span style={{ color:"#f87171", fontSize:11, maxWidth:220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={saveError}>Save failed: {saveError}</span>}
           </div>
 
           {showToggle && (
@@ -131,7 +131,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
                 color: tierMeta.color,
                 borderRadius: 999,
                 padding: "7px 12px",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 letterSpacing: ".08em",
                 textTransform: "uppercase",
@@ -144,12 +144,12 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
         </div>
 
         <div style={{ marginBottom:16 }}>
-          <div style={{ color:tierMeta.color, fontSize:10, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", marginBottom:8 }}>Live preview</div>
+          <div style={{ color:tierMeta.color, fontSize:11, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", marginBottom:8 }}>Live preview</div>
           <BoostProfileCard tier={tier} themeId={previewThemeId} backgroundColorId={backgroundColorId} style={{ borderRadius:16, minHeight:148 }}>
             <div style={{ minHeight:148, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:7, padding:20, textAlign:"center", background:"rgba(0,0,0,.2)" }}>
-              <div style={{ color:previewNameDesign.color?.color || tierMeta.color, fontFamily:previewNameDesign.font?.family, fontWeight:previewNameDesign.font?.weight, letterSpacing:previewNameDesign.font?.spacing, fontSize:22, textShadow:`0 0 16px ${previewNameDesign.color?.shadow || tierMeta.color}` }}>Sprouts King</div>
-              <div style={{ color:"rgba(255,255,255,.62)", fontSize:11 }}>Your selected profile identity</div>
-              {previewBackground && <div style={{ color:"rgba(255,255,255,.48)", fontSize:9 }}>Background: {backgroundColors.find((item) => item.id === backgroundColorId)?.label}</div>}
+              <div style={{ color:previewNameDesign.color?.color || tierMeta.color, fontFamily:previewNameDesign.font?.family, fontWeight:previewNameDesign.font?.weight, letterSpacing:previewNameDesign.font?.spacing, fontSize:23, textShadow:`0 0 16px ${previewNameDesign.color?.shadow || tierMeta.color}` }}>Sprouts King</div>
+              <div style={{ color:"rgba(255,255,255,.62)", fontSize:12 }}>Your selected profile identity</div>
+              {previewBackground && <div style={{ color:"rgba(255,255,255,.48)", fontSize:10 }}>Background: {backgroundColors.find((item) => item.id === backgroundColorId)?.label}</div>}
             </div>
           </BoostProfileCard>
         </div>
@@ -184,7 +184,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
                     background: theme.preview,
                     border: isActive ? `2px solid ${tierMeta.color}60` : "1px solid rgba(255,255,255,0.1)",
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:24,
+                    fontSize:25,
                     boxShadow: isActive ? `0 0 16px ${tierMeta.color}40` : "none",
                     transition:"box-shadow 0.3s, border-color 0.3s",
                   }}>
@@ -193,13 +193,13 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
 
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{
-                      fontSize:14, fontWeight:900,
+                      fontSize:15, fontWeight:900,
                       color: isActive ? tierMeta.color : "rgba(255,255,255,0.85)",
                       marginBottom:3, transition:"color 0.2s",
                     }}>
                       {theme.name}
                     </div>
-                    <div style={{ fontSize:11, color:"#525252", fontWeight:500 }}>
+                    <div style={{ fontSize:12, color:"#525252", fontWeight:500 }}>
                       {theme.tagline}
                     </div>
                   </div>
@@ -219,17 +219,17 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
             })}
           </div>
           <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Name font · {fonts.length} unlocked</div>
+            <div style={{ fontSize:11, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Name font · {fonts.length} unlocked</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:6 }}>
-              {fonts.map((font) => <button key={font.id} disabled={saving} onClick={() => saveNameDesign(font.id, colorId)} style={{ padding:"10px 8px", borderRadius:10, border:fontId===font.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.08)", background:fontId===font.id ? `${tierMeta.color}18` : "rgba(255,255,255,.03)", color:"#fff", fontFamily:font.family, fontSize:14, cursor:"pointer" }}>{font.label}</button>)}
+              {fonts.map((font) => <button key={font.id} disabled={saving} onClick={() => saveNameDesign(font.id, colorId)} style={{ padding:"10px 8px", borderRadius:10, border:fontId===font.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.08)", background:fontId===font.id ? `${tierMeta.color}18` : "rgba(255,255,255,.03)", color:"#fff", fontFamily:font.family, fontSize:15, cursor:"pointer" }}>{font.label}</button>)}
             </div>
-            <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Name color · {colors.length} unlocked</div>
+            <div style={{ fontSize:11, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Name color · {colors.length} unlocked</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(92px,1fr))", gap:6 }}>
-              {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:colorId===color.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:color.gradient || color.color, color:"#fff", fontSize:10, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:colorId===color.id ? `0 0 10px ${color.shadow}` : "none" }}>{color.label}</button>)}
+              {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:colorId===color.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:color.gradient || color.color, color:"#fff", fontSize:11, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:colorId===color.id ? `0 0 10px ${color.shadow}` : "none" }}>{color.label}</button>)}
             </div>
-            <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Background color · {backgroundColors.length} unlocked</div>
+            <div style={{ fontSize:11, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Background color · {backgroundColors.length} unlocked</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(82px,1fr))", gap:6 }}>
-              {backgroundColors.map((backgroundColor) => <button key={backgroundColor.id} aria-label={backgroundColor.label} title={backgroundColor.label} disabled={saving} onClick={() => saveBackgroundColor(backgroundColor.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:backgroundColorId===backgroundColor.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:backgroundColor.color, color:"#d1d5db", fontSize:10, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:backgroundColorId===backgroundColor.id ? `0 0 10px ${tierMeta.color}` : "none" }}>{backgroundColor.label}</button>)}
+              {backgroundColors.map((backgroundColor) => <button key={backgroundColor.id} aria-label={backgroundColor.label} title={backgroundColor.label} disabled={saving} onClick={() => saveBackgroundColor(backgroundColor.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:backgroundColorId===backgroundColor.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:backgroundColor.color, color:"#d1d5db", fontSize:11, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:backgroundColorId===backgroundColor.id ? `0 0 10px ${tierMeta.color}` : "none" }}>{backgroundColor.label}</button>)}
             </div>
           </div>
         </div>

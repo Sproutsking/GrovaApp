@@ -425,7 +425,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           padding: 14px 20px 10px; flex-shrink: 0;
         }
         .sfm-header-left { display: flex; align-items: center; gap: 8px; }
-        .sfm-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+        .sfm-title { font-size: calc((16px) + 1px); font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
         .sfm-close {
           width: 30px; height: 30px; border-radius: 50%;
           background: var(--surface); border: none;
@@ -444,7 +444,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           border-radius: 12px; flex-shrink: 0; min-width: 0;
         }
         .sfm-pill-type {
-          font-size: 11px; font-weight: 700; text-transform: capitalize;
+          font-size: calc((11px) + 1px); font-weight: 700; text-transform: capitalize;
           letter-spacing: 0.03em; color: #84cc16; white-space: nowrap; flex-shrink: 0;
         }
         .sfm-pill-sep {
@@ -452,7 +452,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           background: var(--surface-border); flex-shrink: 0;
         }
         .sfm-pill-name {
-          font-size: 12px; color: var(--text-secondary);
+          font-size: calc((12px) + 1px); color: var(--text-secondary);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
@@ -514,13 +514,13 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;
         }
         .sfm-folder-name {
-          font-size: 14px; font-weight: 600; color: #e5e5e5;
+          font-size: calc((14px) + 1px); font-weight: 600; color: #e5e5e5;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .sfm-folder-count { font-size: 11px; color: #525252; font-weight: 500; }
+        .sfm-folder-count { font-size: calc((11px) + 1px); color: #525252; font-weight: 500; }
 
         .sfm-saved-badge {
-          font-size: 11px; font-weight: 700;
+          font-size: calc((11px) + 1px); font-weight: 700;
           padding: 3px 9px; border-radius: 7px; flex-shrink: 0;
         }
 
@@ -541,7 +541,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           flex: 1; background: var(--surface);
           border: 1px solid var(--surface-border);
           border-radius: 10px; color: var(--text);
-          font-size: 14px; font-weight: 600;
+          font-size: calc((14px) + 1px); font-weight: 600;
           padding: 8px 12px; outline: none; transition: border-color 0.15s;
         }
         .sfm-rename-input:focus, .sfm-new-input:focus { border-color: rgba(132,204,22,0.4); }
@@ -568,7 +568,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           margin: 6px 12px 16px; padding: 13px 16px; border-radius: 16px;
           background: var(--surface);
           border: 1.5px dashed var(--surface-border);
-          color: var(--text-secondary); font-size: 14px; font-weight: 600;
+          color: var(--text-secondary); font-size: calc((14px) + 1px); font-weight: 600;
           cursor: pointer; width: calc(100% - 24px); flex-shrink: 0;
           transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
@@ -580,7 +580,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         .sfm-toast {
           position: absolute; bottom: 76px; left: 50%; transform: translateX(-50%);
           padding: 8px 16px; border-radius: 10px;
-          font-size: 13px; font-weight: 600; white-space: nowrap;
+          font-size: calc((13px) + 1px); font-weight: 600; white-space: nowrap;
           pointer-events: none; z-index: 1;
           animation: sfmToast 0.22s cubic-bezier(0.34,1.56,0.64,1);
         }

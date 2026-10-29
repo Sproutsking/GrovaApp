@@ -200,20 +200,20 @@ const LAYOUT_CSS = `
   }
 
   .wvs-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-  .wvs-kicker{font-size:9px;font-weight:800;letter-spacing:.15em;color:rgba(198,255,0,.66);}
-  .wvs-heading{margin-top:5px;color:#f2f5ef;font-size:18px;font-weight:750;}
-  .wvs-secure{display:flex;align-items:center;gap:5px;color:rgba(198,255,0,.74);font-size:9px;font-weight:700;}
+  .wvs-kicker{font-size:calc((9px) + 1px);font-weight:800;letter-spacing:.15em;color:rgba(198,255,0,.66);}
+  .wvs-heading{margin-top:5px;color:#f2f5ef;font-size:calc((18px) + 1px);font-weight:750;}
+  .wvs-secure{display:flex;align-items:center;gap:5px;color:rgba(198,255,0,.74);font-size:calc((9px) + 1px);font-weight:700;}
   .wvs-summary{padding:15px;border:1px solid rgba(198,255,0,.2);border-radius:12px;background:radial-gradient(ellipse at 90% 0%,rgba(198,255,0,.09),transparent 58%),linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.012));}
-  .wvs-summary-label{font-size:9px;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.42);}
+  .wvs-summary-label{font-size:calc((9px) + 1px);font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.42);}
   .wvs-summary-balance{display:flex;align-items:baseline;gap:8px;margin-top:8px;color:#f7f9f3;}
-  .wvs-summary-balance strong{font-size:30px;font-weight:750;line-height:1;}
-  .wvs-summary-balance span{color:#c6ff00;font-size:12px;font-weight:800;}
-  .wvs-summary-secondary{display:flex;justify-content:space-between;gap:8px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.45);}
+  .wvs-summary-balance strong{font-size:calc((30px) + 1px);font-weight:750;line-height:1;}
+  .wvs-summary-balance span{color:#c6ff00;font-size:calc((12px) + 1px);font-weight:800;}
+  .wvs-summary-secondary{display:flex;justify-content:space-between;gap:8px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:calc((10px) + 1px);color:rgba(255,255,255,.45);}
   .wvs-summary-secondary strong{color:rgba(255,255,255,.8);font-weight:700;}
   .wvs-section{flex-shrink:0;}
   .wvs-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .wvs-section-title{color:#e9ede7;font-size:12px;font-weight:750;}
-  .wvs-section-meta{margin-top:3px;color:rgba(255,255,255,.34);font-size:9px;}
+  .wvs-section-title{color:#e9ede7;font-size:calc((12px) + 1px);font-weight:750;}
+  .wvs-section-meta{margin-top:3px;color:rgba(255,255,255,.34);font-size:calc((9px) + 1px);}
   .wvs-refresh{width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.035);color:rgba(255,255,255,.55);cursor:pointer;}
   .wvs-refresh:hover:not(:disabled){border-color:rgba(198,255,0,.28);color:#c6ff00;}
   .wvs-refresh:disabled{opacity:.45;cursor:wait;}
@@ -222,19 +222,19 @@ const LAYOUT_CSS = `
   .wvs-market-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.055);}
   .wvs-market-row:last-child{border-bottom:0;}
   .wvs-market-name{display:flex;align-items:center;gap:8px;min-width:0;}
-  .wvs-market-icon{width:25px;height:25px;display:grid;place-items:center;flex-shrink:0;border-radius:8px;background:rgba(255,255,255,.055);color:#c6ff00;font-size:9px;font-weight:800;}
-  .wvs-sym{color:rgba(255,255,255,.72);font-size:11px;font-weight:700;}
-  .wvs-price{color:#f0f2ee;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
-  .wvs-chg{font-size:9px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .wvs-market-icon{width:25px;height:25px;display:grid;place-items:center;flex-shrink:0;border-radius:8px;background:rgba(255,255,255,.055);color:#c6ff00;font-size:calc((9px) + 1px);font-weight:800;}
+  .wvs-sym{color:rgba(255,255,255,.72);font-size:calc((11px) + 1px);font-weight:700;}
+  .wvs-price{color:#f0f2ee;font-size:calc((11px) + 1px);font-weight:700;font-variant-numeric:tabular-nums;}
+  .wvs-chg{font-size:calc((9px) + 1px);font-weight:700;font-variant-numeric:tabular-nums;}
   .wvs-chg.up   { color: #a3e635; }
   .wvs-chg.down { color: #f87171; }
   .wvs-chg.flat { color: rgba(255,255,255,0.36); }
-  .wvs-activity-row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:10px;}
+  .wvs-activity-row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.055);font-size:calc((10px) + 1px);}
   .wvs-activity-row:last-child{border-bottom:0;}
   .wvs-activity-label{color:rgba(255,255,255,.5);}
   .wvs-activity-value{color:#a3e635;font-weight:750;font-variant-numeric:tabular-nums;}
-  .wvs-burn-note{margin-top:10px;padding:9px 10px;border-left:2px solid rgba(212,175,55,.55);background:rgba(212,175,55,.055);color:rgba(255,255,255,.48);font-size:9px;line-height:1.5;}
-  .wvs-burn-details{margin-top:8px;color:rgba(255,255,255,.58);font-size:10px;}
+  .wvs-burn-note{margin-top:10px;padding:9px 10px;border-left:2px solid rgba(212,175,55,.55);background:rgba(212,175,55,.055);color:rgba(255,255,255,.48);font-size:calc((9px) + 1px);line-height:1.5;}
+  .wvs-burn-details{margin-top:8px;color:rgba(255,255,255,.58);font-size:calc((10px) + 1px);}
   .wvs-burn-details summary{width:max-content;color:rgba(212,175,55,.8);cursor:pointer;}
   .wvs-burn-details[open] summary{margin-bottom:5px;}
 
@@ -639,7 +639,7 @@ const WalletView = ({
     <CurrencyProvider>
       <style>{LAYOUT_CSS}</style>
       {walletNotice && (
-        <div role="status" style={{ margin: "0 20px 10px", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(163,230,53,.22)", background: "rgba(163,230,53,.06)", color: "#a3e635", fontSize: 12, fontWeight: 700 }}>
+        <div role="status" style={{ margin: "0 20px 10px", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(163,230,53,.22)", background: "rgba(163,230,53,.06)", color: "#a3e635", fontSize: 13, fontWeight: 700 }}>
           {walletNotice}
           <button type="button" onClick={() => setWalletNotice("")} style={{ float: "right", border: 0, background: "transparent", color: "inherit", cursor: "pointer" }}>Dismiss</button>
         </div>

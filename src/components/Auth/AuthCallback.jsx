@@ -109,7 +109,7 @@ export default function AuthCallback() {
       <div style={pageStyle}>
         {/* Logo */}
         <div style={{
-          fontSize: 32, fontWeight: 900, letterSpacing: "-1.5px",
+          fontSize: 33, fontWeight: 900, letterSpacing: "-1.5px",
           background: "linear-gradient(135deg, #a3e635, #4d7c0f)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         }}>
@@ -123,7 +123,7 @@ export default function AuthCallback() {
               border: "3px solid rgba(163,230,53,.1)", borderTopColor: "#a3e635",
               animation: "cbSpin .75s linear infinite",
             }} />
-            <div style={{ fontSize: 14, color: "#444" }}>Completing sign-in…</div>
+            <div style={{ fontSize: 15, color: "#444" }}>Completing sign-in…</div>
           </>
         )}
 
@@ -133,10 +133,10 @@ export default function AuthCallback() {
               width: 60, height: 60, borderRadius: "50%",
               background: "rgba(163,230,53,.1)", border: "2px solid rgba(163,230,53,.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 26,
+              fontSize: 27,
             }}>✓</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#a3e635" }}>Signed in!</div>
-            <div style={{ fontSize: 13, color: "#444" }}>Taking you to the app…</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#a3e635" }}>Signed in!</div>
+            <div style={{ fontSize: 14, color: "#444" }}>Taking you to the app…</div>
           </>
         )}
 
@@ -146,11 +146,11 @@ export default function AuthCallback() {
               width: 56, height: 56, borderRadius: "50%",
               background: "rgba(239,68,68,.08)", border: "2px solid rgba(239,68,68,.25)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 24,
+              fontSize: 25,
             }}>✕</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#f87171" }}>Sign-in failed</div>
-            <div style={{ fontSize: 13, color: "#555", maxWidth: 300, lineHeight: 1.65 }}>{errMsg}</div>
-            <div style={{ fontSize: 12, color: "#444" }}>Redirecting to login…</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#f87171" }}>Sign-in failed</div>
+            <div style={{ fontSize: 14, color: "#555", maxWidth: 300, lineHeight: 1.65 }}>{errMsg}</div>
+            <div style={{ fontSize: 13, color: "#444" }}>Redirecting to login…</div>
           </>
         )}
       </div>

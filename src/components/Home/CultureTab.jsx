@@ -218,7 +218,7 @@ const CultureTab = React.forwardRef(({
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
             <Compass size={48} style={{ opacity: 0.4, marginBottom: 20 }} />
             <p style={{ opacity: 0.6 }}>No content yet in this category</p>
-            <p style={{ fontSize: "12px", opacity: 0.4 }}>Check back soon for amazing cultural content</p>
+            <p style={{ fontSize: "calc((12px) + 1px)", opacity: 0.4 }}>Check back soon for amazing cultural content</p>
           </div>
         ) : null}
       </div>
@@ -258,7 +258,7 @@ const CultureTab = React.forwardRef(({
           border: 1px solid rgba(132, 204, 22, 0.22);
           border-radius: 12px;
           color: #e5f9a7;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           cursor: pointer;
           transition: all 0.18s ease;
@@ -347,7 +347,7 @@ const CultureTab = React.forwardRef(({
           border: none;
           border-left: 3px solid transparent;
           color: rgba(255, 255, 255, 0.75);
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.15s ease;
@@ -369,11 +369,11 @@ const CultureTab = React.forwardRef(({
         .culture-dropdown-item .checkmark {
           margin-left: auto;
           font-weight: 700;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .cat-emoji {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           min-width: 20px;
           display: flex;
           align-items: center;
@@ -381,7 +381,7 @@ const CultureTab = React.forwardRef(({
         }
 
         .cat-name {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
         }
 
@@ -423,11 +423,11 @@ const CultureTab = React.forwardRef(({
           }
 
           .cat-emoji {
-            font-size: 14px;
+            font-size: calc((14px) + 1px);
           }
 
           .cat-name {
-            font-size: 11px;
+            font-size: calc((11px) + 1px);
           }
         }
       `}</style>

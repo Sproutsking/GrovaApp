@@ -146,8 +146,8 @@ const SavedContentModal = ({ currentUser, onClose, isMobile = false }) => {
             )}
             <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center" }}><Bookmark size={20} /></div>
             <div>
-              <div style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>{activeFolder === "all" ? "Saved" : activeFolder}</div>
-              <div style={{ color: "#9ca3af", fontSize: 13 }}>{filtered.length} item{filtered.length !== 1 ? "s" : ""}</div>
+              <div style={{ color: "#fff", fontSize: 17, fontWeight: 700 }}>{activeFolder === "all" ? "Saved" : activeFolder}</div>
+              <div style={{ color: "#9ca3af", fontSize: 14 }}>{filtered.length} item{filtered.length !== 1 ? "s" : ""}</div>
             </div>
           </div>
           <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 18, background: "transparent", border: "none", color: "#c7c7c7" }}><X size={18} /></button>

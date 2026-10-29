@@ -182,7 +182,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           border: 1px solid rgba(255, 255, 255, 0.2);
           background: rgba(255, 255, 255, 0.05);
           color: rgba(255, 255, 255, 0.8);
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
@@ -225,7 +225,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           margin-bottom: 10px;
         }
         .league-name {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           color: #9ca3af;
           text-transform: uppercase;
@@ -237,7 +237,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           gap: 4px;
           padding: 4px 8px;
           border-radius: 4px;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 700;
           color: white;
         }
@@ -272,43 +272,43 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           border-radius: 8px;
           background: rgba(0, 0, 0, 0.32);
           color: #bef264;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 800;
           cursor: pointer;
           justify-content: center;
         }
         .fixture-expand:hover { border-color: #84cc16; background: rgba(132, 204, 22, 0.1); }
         .fixture-stats { margin-top: 10px; padding: 10px; border-top: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.18); border-radius: 8px; }
-        .fixture-stats-head, .fixture-stat-row { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; }
+        .fixture-stats-head, .fixture-stat-row { display: flex; justify-content: space-between; gap: 10px; font-size: calc((10px) + 1px); }
         .fixture-stats-head { color: #84cc16; font-weight: 800; margin-bottom: 8px; }
         .fixture-stats-head span:last-child { color: #64748b; font-weight: 600; }
         .fixture-stat-row { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.06); color: #94a3b8; }
         .fixture-stat-row strong { color: #f8fafc; }
-        .fixture-stat-empty { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 10px; line-height: 1.5; }
+        .fixture-stat-empty { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: calc((10px) + 1px); line-height: 1.5; }
         .team {
           flex: 1;
           text-align: center;
         }
         .team-name {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #f1f5f9;
           margin-bottom: 4px;
         }
         .team-score {
-          font-size: 28px;
+          font-size: calc((28px) + 1px);
           font-weight: 900;
           color: #84cc16;
         }
         .vs-minute {
           text-align: center;
           color: #9ca3af;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           flex-shrink: 0;
         }
         .vs-minute .minute {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 800;
           color: #fff;
         }
@@ -371,7 +371,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           padding: 12px;
         }
         .video-title {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           color: #f1f5f9;
           margin-bottom: 6px;
@@ -380,7 +380,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         .video-meta {
           display: flex;
           justify-content: space-between;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           color: #9ca3af;
         }
         .standings-table {
@@ -393,13 +393,13 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           padding: 10px;
           text-align: left;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
         .standings-table th {
           font-weight: 700;
           color: #9ca3af;
           text-transform: uppercase;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
         }
         .standings-table td {
           color: #e5e7eb;
@@ -472,18 +472,18 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         }
         .sports-section-card-value {
           color: var(--card-accent);
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 900;
         }
         .sports-section-card-label {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
         }
         .sports-section-card-detail {
           margin-top: 4px;
           overflow: hidden;
           color: #94a3b8;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           text-overflow: ellipsis;
           white-space: nowrap;
         }
@@ -507,7 +507,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         .sports-detail-title {
           margin: 0;
           color: #f8fafc;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 800;
         }
         .sports-detail-copy {
@@ -531,7 +531,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           border-radius: 8px;
           background: rgba(255, 255, 255, 0.035);
           color: #cbd5e1;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           cursor: pointer;
         }
@@ -568,16 +568,16 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         .live-video-thumb { position: relative; aspect-ratio: 16 / 9; display: grid; place-items: center; background: linear-gradient(135deg,#1f2937,#080808); }
         .live-video-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .live-video-placeholder { color: #f87171; }
-        .live-video-badge { position: absolute; top: 10px; left: 10px; padding: 5px 8px; border-radius: 5px; background: #dc2626; font-size: 10px; font-weight: 900; }
+        .live-video-badge { position: absolute; top: 10px; left: 10px; padding: 5px 8px; border-radius: 5px; background: #dc2626; font-size: calc((10px) + 1px); font-weight: 900; }
         .live-video-play { position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,.9); }
-        .live-video-copy { display: grid; gap: 5px; padding: 12px; }.live-video-copy strong { font-size: 13px; }.live-video-copy span,.live-video-unavailable span { color: #94a3b8; font-size: 10px; }
+        .live-video-copy { display: grid; gap: 5px; padding: 12px; }.live-video-copy strong { font-size: calc((13px) + 1px); }.live-video-copy span,.live-video-unavailable span { color: #94a3b8; font-size: calc((10px) + 1px); }
         .live-video-unavailable { display: grid; gap: 6px; padding: 18px; border: 1px dashed rgba(248,113,113,.35); border-radius: 14px; background: rgba(248,113,113,.04); }
         .video-card { text-align: left; }
         .sports-modal-backdrop { position: fixed; inset: 0; z-index: 10050; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.76); backdrop-filter: blur(14px); }
         .sports-stats-modal,.sports-viewer-modal { position: relative; width: min(720px,100%); max-height: min(850px,calc(100vh - 40px)); overflow: auto; padding: 24px; border: 1px solid rgba(132,204,22,.3); border-radius: 18px; background: #0b0f0d; color: #f8fafc; box-shadow: 0 25px 90px rgba(0,0,0,.55); }
         .sports-viewer-modal { width: min(980px,100%); }.sports-modal-close { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(255,255,255,.06); color: #fff; cursor: pointer; }.sports-stats-modal > .sports-modal-close { position: absolute; top: 18px; right: 18px; }
-        .sports-modal-kicker { color: #84cc16; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }.sports-stats-modal h2,.sports-viewer-copy h2 { margin: 12px 48px 6px 0; font-size: clamp(20px,3vw,30px); }.sports-stats-modal h2 b { color: #bef264; }.sports-stats-modal h2 span { color: #64748b; font-size: 13px; }.sports-modal-muted { margin: 0; color: #94a3b8; font-size: 12px; }.fixture-stats-modal { margin-top: 22px; }
-        .sports-viewer-head { display: flex; justify-content: space-between; align-items: center; }.sports-viewer-back { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #bef264; font-size: 12px; font-weight: 800; cursor: pointer; }.sports-source-tabs { display: flex; gap: 8px; margin: 18px 0 12px; overflow-x: auto; }.sports-source-tabs button { flex: 0 0 auto; padding: 9px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: #050505; color: #cbd5e1; font-size: 11px; font-weight: 800; cursor: pointer; }.sports-source-tabs button.active { border-color: #84cc16; color: #bef264; background: rgba(132,204,22,.1); }.sports-player-shell { overflow: hidden; min-height: 260px; border-radius: 12px; background: #000; }.sports-player-shell iframe,.sports-player-shell video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }.sports-player-error { min-height: 260px; display: grid; place-content: center; justify-items: center; gap: 8px; color: #fbbf24; text-align: center; }.sports-player-error span { color: #94a3b8; font-size: 12px; }
+        .sports-modal-kicker { color: #84cc16; font-size: calc((10px) + 1px); font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }.sports-stats-modal h2,.sports-viewer-copy h2 { margin: 12px 48px 6px 0; font-size: calc((clamp(20px,3vw,30px)) + 1px); }.sports-stats-modal h2 b { color: #bef264; }.sports-stats-modal h2 span { color: #64748b; font-size: calc((13px) + 1px); }.sports-modal-muted { margin: 0; color: #94a3b8; font-size: calc((12px) + 1px); }.fixture-stats-modal { margin-top: 22px; }
+        .sports-viewer-head { display: flex; justify-content: space-between; align-items: center; }.sports-viewer-back { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #bef264; font-size: calc((12px) + 1px); font-weight: 800; cursor: pointer; }.sports-source-tabs { display: flex; gap: 8px; margin: 18px 0 12px; overflow-x: auto; }.sports-source-tabs button { flex: 0 0 auto; padding: 9px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: #050505; color: #cbd5e1; font-size: calc((11px) + 1px); font-weight: 800; cursor: pointer; }.sports-source-tabs button.active { border-color: #84cc16; color: #bef264; background: rgba(132,204,22,.1); }.sports-player-shell { overflow: hidden; min-height: 260px; border-radius: 12px; background: #000; }.sports-player-shell iframe,.sports-player-shell video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }.sports-player-error { min-height: 260px; display: grid; place-content: center; justify-items: center; gap: 8px; color: #fbbf24; text-align: center; }.sports-player-error span { color: #94a3b8; font-size: calc((12px) + 1px); }
         @media (max-width: 600px) {
           .sports-view { width: min(100% - 24px, 1280px); padding-top: 14px; }
           .sports-section-cards { flex-direction: column; }
@@ -585,7 +585,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           .sports-controls { flex-direction: row; align-items: center; }
           .sports-control { flex: 0 0 auto; }
           .sports-filter-select { width: auto; }
-          .sports-modal-backdrop { padding: 0; place-items: stretch; }.sports-stats-modal,.sports-viewer-modal { width: 100%; max-height: none; min-height: 100dvh; border: 0; border-radius: 0; padding: 18px 14px calc(18px + env(safe-area-inset-bottom, 0px)); }.sports-viewer-modal { display: flex; flex-direction: column; justify-content: flex-start; }.sports-player-shell { margin-top: auto; margin-bottom: auto; width: 100%; }.sports-viewer-copy h2 { font-size: 24px; }
+          .sports-modal-backdrop { padding: 0; place-items: stretch; }.sports-stats-modal,.sports-viewer-modal { width: 100%; max-height: none; min-height: 100dvh; border: 0; border-radius: 0; padding: 18px 14px calc(18px + env(safe-area-inset-bottom, 0px)); }.sports-viewer-modal { display: flex; flex-direction: column; justify-content: flex-start; }.sports-player-shell { margin-top: auto; margin-bottom: auto; width: 100%; }.sports-viewer-copy h2 { font-size: calc((24px) + 1px); }
         }
       `}</style>
 
@@ -700,10 +700,10 @@ const SportsView = ({ currentUser, userId, onClose }) => {
                       {fixture.status === "LIVE" ? (
                         <>
                           <div className="minute">{fixture.minute}'</div>
-                          <div style={{ fontSize: 9, marginTop: 2 }}>LIVE</div>
+                          <div style={{ fontSize: 10, marginTop: 2 }}>LIVE</div>
                         </>
                       ) : (
-                        <div style={{ fontSize: 11 }}>
+                        <div style={{ fontSize: 12 }}>
                           {fixture.kickoffTime
                             ? new Date(fixture.kickoffTime).toLocaleTimeString([], {
                                 hour: "2-digit",

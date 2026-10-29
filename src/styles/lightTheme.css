@@ -100,7 +100,7 @@ html.theme-light .post-category-badge,
   border: 1.5px solid rgba(15, 23, 42, 0.18) !important;
   color: #0f172a !important;
   font-weight: 700 !important;
-  font-size: 11px !important;
+  font-size: calc((11px) + 1px) !important;
   letter-spacing: 0.5px !important;
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08) !important;
   backdrop-filter: blur(12px) !important;
@@ -137,7 +137,7 @@ html.theme-light .post-action-btn,
 [data-light-theme="true"] .post-action-btn {
   color: #0f172a !important;
   font-weight: 600 !important;
-  font-size: 13px !important;
+  font-size: calc((13px) + 1px) !important;
 }
 
 html.theme-light .gvp-expand:hover,
@@ -760,7 +760,7 @@ html.theme-light .rp-btn,
   font-weight: 600 !important;
   padding: 8px 12px !important;
   border-radius: 8px !important;
-  font-size: 12px !important;
+  font-size: calc((12px) + 1px) !important;
   flex: 1 !important;
   display: flex !important;
   align-items: center !important;
@@ -804,7 +804,7 @@ html.theme-light .rp-stat,
   color: #0f172a !important;
   border: none !important;
   font-weight: 700 !important;
-  font-size: 13px !important;
+  font-size: calc((13px) + 1px) !important;
   padding: 0 !important;
 }
 
@@ -1126,7 +1126,7 @@ html.theme-light .message-meta,
 [data-theme="light"] .message-meta,
 [data-light-theme="true"] .message-meta {
   color: #64748b;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 500;
 }
 
@@ -1395,7 +1395,7 @@ html.theme-light .streamer-meta,
 [data-theme="light"] .streamer-meta,
 [data-light-theme="true"] .streamer-meta {
   color: #64748b;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
 }
 
 /* Streamer circle (Live Now) */
@@ -1418,7 +1418,7 @@ html.theme-light .sc-cat,
 [data-theme="light"] .sc-cat,
 [data-light-theme="true"] .sc-cat {
   color: #64748b;
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
 }
 
 /* Tags and trending items */
@@ -1454,7 +1454,7 @@ html.theme-light .tag-stats,
 [data-theme="light"] .tag-stats,
 [data-light-theme="true"] .tag-stats {
   color: #64748b;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
 }
 
 /* Creator and view-more buttons */
@@ -1668,7 +1668,7 @@ html.theme-light [class*="section-header"] h2,
 [data-light-theme="true"] [class*="section-header"] h2 {
   color: #0f172a !important;
   font-weight: 800 !important;
-  font-size: 22px !important;
+  font-size: calc((22px) + 1px) !important;
   letter-spacing: -0.5px !important;
 }
 
@@ -1810,7 +1810,7 @@ html.theme-light textarea,
   border: 1.5px solid #e5e7eb !important;
   border-radius: 10px !important;
   padding: 12px 14px !important;
-  font-size: 14px !important;
+  font-size: calc((14px) + 1px) !important;
   transition: all 0.2s ease !important;
 }
 
@@ -1984,7 +1984,7 @@ html.theme-light .call-duration,
 [data-theme="light"] .call-duration,
 [data-light-theme="true"] .call-duration {
   color: #64748b !important;
-  font-size: 12px !important;
+  font-size: calc((12px) + 1px) !important;
 }
 
 html.theme-light .call-status-icon,
@@ -2049,7 +2049,7 @@ html.theme-light .update-timestamp,
 [data-theme="light"] .update-timestamp,
 [data-light-theme="true"] .update-timestamp {
   color: #64748b !important;
-  font-size: 11px !important;
+  font-size: calc((11px) + 1px) !important;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── 
@@ -2105,7 +2105,7 @@ html.theme-light .pw-label,
 [data-theme="light"] .pw-label,
 [data-light-theme="true"] .pw-label {
   color: #64748b !important;
-  font-size: 11px !important;
+  font-size: calc((11px) + 1px) !important;
   font-weight: 700 !important;
   letter-spacing: 0.05em !important;
   text-transform: uppercase !important;
@@ -2119,7 +2119,7 @@ html.theme-light .amount,
 [data-light-theme="true"] .amount {
   color: #0f172a !important;
   font-weight: 800 !important;
-  font-size: 20px !important;
+  font-size: calc((20px) + 1px) !important;
 }
 
 html.theme-light .pw-action-btn,
@@ -2197,7 +2197,7 @@ html.theme-light .transaction-time,
 [data-theme="light"] .transaction-time,
 [data-light-theme="true"] .transaction-time {
   color: #64748b !important;
-  font-size: 11px !important;
+  font-size: calc((11px) + 1px) !important;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── 
@@ -2211,7 +2211,7 @@ html.theme-light [class*="badge"],
   border: 1px solid rgba(132, 204, 22, 0.25) !important;
   color: #084c15 !important;
   font-weight: 700 !important;
-  font-size: 10px !important;
+  font-size: calc((10px) + 1px) !important;
   padding: 4px 8px !important;
   border-radius: 6px !important;
 }
@@ -2224,7 +2224,7 @@ html.theme-light [class*="tag"],
   color: #0f172a !important;
   padding: 6px 12px !important;
   border-radius: 8px !important;
-  font-size: 12px !important;
+  font-size: calc((12px) + 1px) !important;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── 

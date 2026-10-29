@@ -282,13 +282,13 @@ const VideoViewer = ({ videos = [], initialIndex = 0, onClose }) => {
 
         .viewer-author {
           color: #fff;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 700;
         }
 
         .viewer-index {
           color: rgba(255, 255, 255, 0.6);
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .video-viewer-close {
@@ -400,7 +400,7 @@ const VideoViewer = ({ videos = [], initialIndex = 0, onClose }) => {
           padding: 8px 14px;
           border-radius: 8px;
           color: white;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           display: flex;
           gap: 6px;
@@ -441,7 +441,7 @@ const VideoViewer = ({ videos = [], initialIndex = 0, onClose }) => {
         .video-viewer-caption p {
           margin: 0;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.5;
         }
 

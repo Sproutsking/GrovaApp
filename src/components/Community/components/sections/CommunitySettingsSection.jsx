@@ -566,7 +566,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .settings-unauthorized h3 {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 800;
           color: #fff;
           margin: 16px 0 8px 0;
@@ -574,7 +574,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
         .settings-unauthorized p {
           color: #999;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .settings-header {
@@ -588,14 +588,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .settings-header h2 {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 800;
           color: #fff;
           margin-bottom: 4px;
         }
 
         .settings-header p {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #999;
         }
 
@@ -640,7 +640,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           align-items: center;
           justify-content: space-between;
           gap: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
         }
 
@@ -651,7 +651,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           min-width: 58px;
           padding: 4px 8px;
           border-radius: 999px;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 800;
           letter-spacing: 0.08em;
           text-transform: uppercase;
@@ -678,7 +678,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .tool-layer-label {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 800;
           letter-spacing: 0.12em;
           text-transform: uppercase;
@@ -706,12 +706,12 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .tool-option strong {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
         }
 
         .tool-option span {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #9ca89d;
           line-height: 1.4;
         }
@@ -728,7 +728,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .tool-channel-label {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 700;
           letter-spacing: 0.08em;
           text-transform: uppercase;
@@ -747,9 +747,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           cursor: pointer;
         }
 
-        .tool-config-input { width: 100%; box-sizing: border-box; padding: 10px 12px; resize: vertical; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; font: inherit; font-size: 12px; }
+        .tool-config-input { width: 100%; box-sizing: border-box; padding: 10px 12px; resize: vertical; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; font: inherit; font-size: calc((12px) + 1px); }
 
-        .tool-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; color: #eee; font-size: 13px; font-weight: 700; }
+        .tool-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; color: #eee; font-size: calc((13px) + 1px); font-weight: 700; }
         .tool-toggle input { accent-color: #9cff00; }
         .tool-row select { min-width: 150px; max-width: 55%; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; }
 
@@ -757,7 +757,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #9cff00;
           text-transform: uppercase;
@@ -773,7 +773,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 12px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-family: inherit;
           transition: all 0.3s;
           resize: none;
@@ -788,7 +788,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .setting-input.icon-input {
-          font-size: 32px;
+          font-size: calc((32px) + 1px);
           text-align: center;
           padding: 20px;
         }
@@ -812,7 +812,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          font-size: 34px;
+          font-size: calc((34px) + 1px);
         }
 
         .icon-preview img {
@@ -833,7 +833,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           background: rgba(156, 255, 0, 0.1);
           border: 1px solid rgba(156, 255, 0, 0.3);
           color: #9cff00;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           cursor: pointer;
         }
@@ -841,11 +841,11 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         .icon-editor .icon-input {
           width: 100%;
           box-sizing: border-box;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           padding: 10px 12px;
         }
 
-        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin:0 0 8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:12px; font-weight:700; cursor:pointer; }
+        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin:0 0 8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:calc((12px) + 1px); font-weight:700; cursor:pointer; }
         .community-emoji-picker { position:fixed; z-index:100001; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100vw - 20px); max-height:calc(100vh - 20px); }
 
         .border-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -856,7 +856,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           background: rgba(26, 26, 26, 0.7);
           border: 1px solid rgba(42, 42, 42, 0.9);
           color: #999;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           text-transform: capitalize;
           cursor: pointer;
@@ -880,14 +880,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           background: rgba(255, 107, 107, 0.1);
           border: 1px solid rgba(255, 107, 107, 0.35);
           color: #ff8b8b;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
         }
 
         .setting-hint {
           display: block;
           margin-top: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #666;
         }
 
@@ -922,13 +922,13 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .privacy-title {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           margin-bottom: 2px;
         }
 
         .privacy-desc {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           opacity: 0.7;
         }
 
@@ -971,7 +971,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .theme-icon {
-          font-size: 32px;
+          font-size: calc((32px) + 1px);
           filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
         }
 
@@ -994,14 +994,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .theme-name {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #fff;
           margin-bottom: 4px;
         }
 
         .theme-desc {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #999;
         }
 
@@ -1012,9 +1012,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .banner-category-row { display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin; }
-        .banner-category { flex:0 0 auto;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.04);color:#a6ada7;font-size:11px;font-weight:700;cursor:pointer; }
+        .banner-category { flex:0 0 auto;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.04);color:#a6ada7;font-size:calc((11px) + 1px);font-weight:700;cursor:pointer; }
         .banner-category.selected { border-color:rgba(156,255,0,.48);background:rgba(156,255,0,.09);color:#b6ff65; }
-        .banner-category-hint { margin:-2px 0 9px;color:#7f8980;font-size:11px; }
+        .banner-category-hint { margin:-2px 0 9px;color:#7f8980;font-size:calc((11px) + 1px); }
         .mode-select { appearance:auto; }
 
         .gradient-option {
@@ -1053,7 +1053,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           border: none;
           border-radius: 12px;
           color: #000;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 700;
           cursor: pointer;
           transition: all 0.3s;

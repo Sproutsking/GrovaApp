@@ -131,19 +131,19 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         .message-context-item:hover,.message-context-item.primary{background:rgba(156,255,0,.09);color:#9cff00}
         .message-context-item.danger{color:#ff8585}.message-context-item.danger:hover{background:rgba(255,107,107,.09);color:#ff6b6b}
         .message-quick-reactions{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:5px 2px}
-        .message-quick-reactions button,.message-more-grid button{height:30px;border:0;border-radius:7px;background:rgba(255,255,255,.04);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .message-quick-reactions button,.message-more-grid button{height:30px;border:0;border-radius:7px;background:rgba(255,255,255,.04);font-size:calc((18px) + 1px);cursor:pointer;display:flex;align-items:center;justify-content:center}
         .message-quick-reactions button:hover,.message-more-grid button:hover{background:rgba(156,255,0,.12);transform:translateY(-1px)}
         .message-more-reaction{color:#888}.message-more-reaction.active{color:#9cff00;background:rgba(156,255,0,.12)!important}
         .message-more-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:3px 2px 6px;border-top:1px solid rgba(255,255,255,.06)}
-        .message-more-grid button{font-size:16px}
+        .message-more-grid button{font-size:calc((16px) + 1px)}
         .message-context-divider{height:1px;background:rgba(255,255,255,.07);margin:4px 0}
         @media(max-width:520px){.message-context-menu{width:min(238px,calc(100vw - 24px))}}
         .message-delete-dialog-backdrop{position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.58);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;}
         .message-delete-dialog{width:min(360px,calc(100vw - 32px));display:grid;grid-template-columns:44px 1fr;gap:12px;padding:18px;background:linear-gradient(160deg,#182019,#0b100d);border:1px solid rgba(156,255,0,.3);border-radius:16px;box-shadow:0 22px 70px rgba(0,0,0,.8),0 0 30px rgba(156,255,0,.08);animation:deleteDialogIn .16s ease-out;}
         @keyframes deleteDialogIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
         .message-delete-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#ff8b8b;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.28);}
-        .message-delete-dialog h3{margin:2px 0 5px;color:#f5f8f2;font-size:15px;font-weight:800;}
-        .message-delete-dialog p{margin:0;color:#9da79b;font-size:12px;line-height:1.5;}
+        .message-delete-dialog h3{margin:2px 0 5px;color:#f5f8f2;font-size:calc((15px) + 1px);font-weight:800;}
+        .message-delete-dialog p{margin:0;color:#9da79b;font-size:calc((12px) + 1px);line-height:1.5;}
         .message-delete-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;margin-top:5px;}
         .message-delete-actions button{border-radius:9px;padding:8px 12px;font:700 12px inherit;cursor:pointer;}
         .message-delete-cancel{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#b8c0b6;}

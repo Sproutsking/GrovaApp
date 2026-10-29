@@ -89,12 +89,12 @@ function buildPopupHTML(provider, supabaseUrl, supabaseAnonKey, redirectOrigin) 
       justify-content:center;min-height:100vh;gap:16px;
       text-align:center;padding:24px;
     }
-    .logo{font-size:28px;font-weight:900;letter-spacing:-1px;
+    .logo{font-size:calc((28px) + 1px);font-weight:900;letter-spacing:-1px;
       background:linear-gradient(135deg,#a3e635,#4d7c0f);
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;
       margin-bottom:4px;
     }
-    .tagline{font-size:11px;color:#333;letter-spacing:3px;
+    .tagline{font-size:calc((11px) + 1px);color:#333;letter-spacing:3px;
       text-transform:uppercase;margin-bottom:24px}
     .spinner{
       width:40px;height:40px;border-radius:50%;
@@ -103,8 +103,8 @@ function buildPopupHTML(provider, supabaseUrl, supabaseAnonKey, redirectOrigin) 
       animation:spin .7s linear infinite;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
-    .status{font-size:14px;color:#555;margin-top:8px}
-    .err{color:#ef4444;font-size:13px;max-width:300px;line-height:1.6}
+    .status{font-size:calc((14px) + 1px);color:#555;margin-top:8px}
+    .err{color:#ef4444;font-size:calc((13px) + 1px);max-width:300px;line-height:1.6}
   </style>
 </head>
 <body>
@@ -469,8 +469,8 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           display:flex;align-items:center;justify-content:center;
           flex-shrink:0;
         }
-        .aao-header-title { font-size:15px;font-weight:800;color:#f0f0f0; }
-        .aao-header-sub   { font-size:11px;color:#383838;font-weight:500;margin-top:1px; }
+        .aao-header-title { font-size:calc((15px) + 1px);font-weight:800;color:#f0f0f0; }
+        .aao-header-sub   { font-size:calc((11px) + 1px);color:#383838;font-weight:500;margin-top:1px; }
         .aao-close-btn {
           width:28px;height:28px;border-radius:8px;
           background:rgba(255,255,255,0.04);
@@ -493,7 +493,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
         .aao-slot.filled { background:linear-gradient(90deg,#a3e635,#65a30d); }
         .aao-slot.empty  { background:rgba(255,255,255,0.07); }
         .aao-slots-label {
-          text-align:center;font-size:10px;color:#333;
+          text-align:center;font-size:calc((10px) + 1px);color:#333;
           font-weight:600;letter-spacing:.5px;margin-top:6px;
           padding-bottom:16px;
         }
@@ -503,7 +503,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
 
         /* Pick step */
         .aao-note {
-          font-size:12px;color:#3a3a3a;line-height:1.65;
+          font-size:calc((12px) + 1px);color:#3a3a3a;line-height:1.65;
           text-align:center;margin-bottom:16px;
           padding:10px 14px;
           background:rgba(163,230,53,0.04);
@@ -517,7 +517,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           display:flex;align-items:center;gap:13px;
           padding:13px 16px;border-radius:14px;
           border-width:1px;border-style:solid;
-          font-size:14px;font-weight:700;
+          font-size:calc((14px) + 1px);font-weight:700;
           cursor:pointer;transition:all 0.22s ease;
           text-align:left;position:relative;overflow:hidden;
         }
@@ -537,7 +537,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           display:flex;align-items:center;justify-content:center;flex-shrink:0;
         }
         .aao-p-label{flex:1;color:#e0e0e0;}
-        .aao-p-arrow{color:#333;font-size:16px;transition:transform 0.18s,color 0.18s;}
+        .aao-p-arrow{color:#333;font-size:calc((16px) + 1px);transition:transform 0.18s,color 0.18s;}
         .aao-provider-btn:hover .aao-p-arrow{color:#a3e635;transform:translateX(3px);}
 
         /* Waiting step */
@@ -559,10 +559,10 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           border-bottom-color:rgba(163,230,53,0.4);
           animation:aaoSpin .6s linear infinite reverse;
         }
-        .aao-waiting-title {font-size:15px;font-weight:800;color:#f0f0f0;}
-        .aao-waiting-sub   {font-size:12px;color:#444;line-height:1.65;max-width:260px;}
+        .aao-waiting-title {font-size:calc((15px) + 1px);font-weight:800;color:#f0f0f0;}
+        .aao-waiting-sub   {font-size:calc((12px) + 1px);color:#444;line-height:1.65;max-width:260px;}
         .aao-waiting-note  {
-          font-size:11px;color:#2a2a2a;
+          font-size:calc((11px) + 1px);color:#2a2a2a;
           background:rgba(163,230,53,0.04);
           border:1px solid rgba(163,230,53,0.08);
           border-radius:10px;padding:8px 12px;
@@ -582,10 +582,10 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           animation:aaoPop 0.45s cubic-bezier(0.34,1.56,0.64,1);
           box-shadow:0 0 30px rgba(163,230,53,0.2);
         }
-        .aao-success-name {font-size:17px;font-weight:900;color:#fff;}
-        .aao-success-user {font-size:13px;color:#a3e635;font-weight:600;}
+        .aao-success-name {font-size:calc((17px) + 1px);font-weight:900;color:#fff;}
+        .aao-success-user {font-size:calc((13px) + 1px);color:#a3e635;font-weight:600;}
         .aao-success-note {
-          font-size:12px;color:#444;line-height:1.65;
+          font-size:calc((12px) + 1px);color:#444;line-height:1.65;
           padding:10px 14px;background:rgba(163,230,53,0.04);
           border:1px solid rgba(163,230,53,0.1);border-radius:12px;
           width:100%;
@@ -604,8 +604,8 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           display:flex;align-items:center;justify-content:center;
           animation:aaoPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .aao-error-title {font-size:15px;font-weight:800;color:#f87171;}
-        .aao-error-msg   {font-size:12.5px;color:#555;line-height:1.65;max-width:280px;}
+        .aao-error-title {font-size:calc((15px) + 1px);font-weight:800;color:#f87171;}
+        .aao-error-msg   {font-size:calc((12.5px) + 1px);color:#555;line-height:1.65;max-width:280px;}
 
         /* Blocked (max accounts) */
         .aao-blocked {
@@ -613,17 +613,17 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           gap:12px;padding:8px 0;text-align:center;
         }
         .aao-blocked-icon {
-          font-size:36px;
+          font-size:calc((36px) + 1px);
           animation:aaoPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .aao-blocked-title{font-size:15px;font-weight:800;color:#fbbf24;}
-        .aao-blocked-msg  {font-size:12px;color:#555;line-height:1.65;max-width:260px;}
+        .aao-blocked-title{font-size:calc((15px) + 1px);font-weight:800;color:#fbbf24;}
+        .aao-blocked-msg  {font-size:calc((12px) + 1px);color:#555;line-height:1.65;max-width:260px;}
 
         /* Buttons */
         .aao-btn-primary {
           width:100%;padding:13px;border-radius:13px;border:none;
           background:linear-gradient(135deg,#a3e635 0%,#65a30d 100%);
-          color:#040a00;font-size:14px;font-weight:800;
+          color:#040a00;font-size:calc((14px) + 1px);font-weight:800;
           cursor:pointer;transition:all 0.18s;font-family:inherit;
           box-shadow:0 4px 18px rgba(163,230,53,0.3);
           display:flex;align-items:center;justify-content:center;gap:8px;
@@ -633,7 +633,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           width:100%;padding:11px;border-radius:12px;
           background:transparent;
           border:1px solid rgba(255,255,255,0.08);
-          color:#555;font-size:13px;font-weight:700;
+          color:#555;font-size:calc((13px) + 1px);font-weight:700;
           cursor:pointer;transition:all 0.18s;font-family:inherit;
         }
         .aao-btn-ghost:hover{background:rgba(255,255,255,0.06);color:#999;border-color:rgba(255,255,255,0.15);}
@@ -641,7 +641,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           width:100%;padding:11px;border-radius:12px;
           background:rgba(239,68,68,0.07);
           border:1px solid rgba(239,68,68,0.2);
-          color:#f87171;font-size:13px;font-weight:700;
+          color:#f87171;font-size:calc((13px) + 1px);font-weight:700;
           cursor:pointer;transition:all 0.18s;font-family:inherit;
         }
         .aao-btn-danger:hover{background:rgba(239,68,68,0.14);border-color:rgba(239,68,68,0.35);}
@@ -654,7 +654,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
           padding:9px 13px;
           background:rgba(251,191,36,0.06);
           border:1px solid rgba(251,191,36,0.18);
-          border-radius:11px;font-size:12px;color:#fbbf24;
+          border-radius:11px;font-size:calc((12px) + 1px);color:#fbbf24;
           font-weight:700;margin-bottom:14px;
         }
       `}</style>

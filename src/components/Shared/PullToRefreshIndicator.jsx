@@ -46,7 +46,7 @@ const PullToRefreshIndicator = ({ indicatorRef, isRefreshing }) => (
           data-pull-refresh-icon
           className="bx bx-refresh"
           style={{
-            fontSize: "20px",
+            fontSize: "calc((20px) + 1px)",
             color: "#84cc16",
             transform: "rotate(0deg)",
           }}

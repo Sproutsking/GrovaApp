@@ -243,7 +243,7 @@ const AdvancedToast = ({
         }
 
         .toast-message {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 700;
           color: #ffffff !important;
           margin: 0 0 4px 0;
@@ -252,7 +252,7 @@ const AdvancedToast = ({
         }
 
         .toast-description {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #d4d4d4 !important;
           margin: 0;
           line-height: 1.6;
@@ -329,11 +329,11 @@ const AdvancedToast = ({
           }
 
           .toast-message {
-            font-size: 14px;
+            font-size: calc((14px) + 1px);
           }
 
           .toast-description {
-            font-size: 12px;
+            font-size: calc((12px) + 1px);
           }
         }
       `}</style>

@@ -38,8 +38,8 @@ const CSS = `
   .psWrap { display:flex; flex-direction:column; gap:12px; color:#f5f5f5; }
   .psHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .psHeaderCopy { min-width:0; }
-  .psEyebrow { margin:0; color:#f4f4f5; font-size:13px; font-weight:750; letter-spacing:-.01em; }
-  .psDescription { margin:3px 0 0; color:#87878f; font-size:11px; line-height:1.5; }
+  .psEyebrow { margin:0; color:#f4f4f5; font-size:calc((13px) + 1px); font-weight:750; letter-spacing:-.01em; }
+  .psDescription { margin:3px 0 0; color:#87878f; font-size:calc((11px) + 1px); line-height:1.5; }
   .psRefresh { display:grid; place-items:center; width:32px; height:32px; flex:none; border:1px solid rgba(255,255,255,.11); border-radius:9px; color:#c4f075; background:transparent; cursor:pointer; transition:background .16s ease,border-color .16s ease,color .16s ease; }
   .psRefresh:hover:not(:disabled) { border-color:rgba(190,242,100,.4); background:rgba(190,242,100,.08); }
   .psRefresh:disabled { opacity:.48; cursor:wait; }
@@ -53,10 +53,10 @@ const CSS = `
   .psCard:disabled { cursor:not-allowed; }
   .psCard.psLocked { border-color:rgba(255,255,255,.055); background:rgba(255,255,255,.012); opacity:.48; }
   .psCard.psReconnect:not(.psOn) { border-color:rgba(251,191,36,.2); background:rgba(251,191,36,.025); }
-  .psIcon { width:34px; height:34px; display:grid; place-items:center; flex:none; border:1px solid; border-radius:9px; font-size:14px; font-weight:800; }
+  .psIcon { width:34px; height:34px; display:grid; place-items:center; flex:none; border:1px solid; border-radius:9px; font-size:calc((14px) + 1px); font-weight:800; }
   .psCopy { min-width:0; flex:1; }
-  .psPName { margin:0; color:#f3f4f6; font-size:12px; font-weight:720; letter-spacing:-.01em; }
-  .psPSub { margin:3px 0 0; overflow:hidden; color:#8c8c94; font-size:10px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+  .psPName { margin:0; color:#f3f4f6; font-size:calc((12px) + 1px); font-weight:720; letter-spacing:-.01em; }
+  .psPSub { margin:3px 0 0; overflow:hidden; color:#8c8c94; font-size:calc((10px) + 1px); line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
   .psReconnect .psPSub { color:#d6a843; }
   .psState { width:19px; height:19px; display:grid; place-items:center; padding:0; flex:none; border:1px solid rgba(255,255,255,.15); border-radius:50%; color:#73737b; background:transparent; }
   button.psState { cursor:pointer; }
@@ -68,27 +68,27 @@ const CSS = `
   .psCard.psOn .psToggle::after { transform:translateX(12px); background:#17220a; }
   .psCard:disabled .psToggle { border-color:rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
   .psCard:disabled .psToggle::after { background:#62626a; }
-  .psNotice { display:flex; align-items:flex-start; gap:7px; padding:8px 10px; border:1px solid rgba(255,255,255,.07); border-radius:9px; color:#a1a1aa; font-size:10.5px; line-height:1.45; }
+  .psNotice { display:flex; align-items:flex-start; gap:7px; padding:8px 10px; border:1px solid rgba(255,255,255,.07); border-radius:9px; color:#a1a1aa; font-size:calc((10.5px) + 1px); line-height:1.45; }
   .psNotice svg { flex:none; margin-top:1px; color:#fbbf24; }
   .psNotice.psError { border-color:rgba(248,113,113,.24); color:#fca5a5; }
   .psNotice.psError svg { color:#f87171; }
   .psSummary { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:36px; padding:7px 9px; border-top:1px solid rgba(255,255,255,.07); }
-  .psSummaryText { margin:0; flex:1; color:#96969e; font-size:10.5px; line-height:1.4; }
+  .psSummaryText { margin:0; flex:1; color:#96969e; font-size:calc((10.5px) + 1px); line-height:1.4; }
   .psSummaryText strong { color:#d9f99d; font-weight:700; }
   .psCopy { display:block; min-width:0; flex:1; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
   .psCard:focus-visible,.psLinkBtn:focus-visible,.psRefresh:focus-visible,.psState:focus-visible { outline:2px solid #bef264; outline-offset:2px; }
-  .psLinkBtn { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:28px; padding:0 8px; flex:none; border:1px solid rgba(190,242,100,.23); border-radius:7px; color:#d9f99d; background:rgba(190,242,100,.045); font-family:inherit; font-size:10px; font-weight:650; text-decoration:none; white-space:nowrap; cursor:pointer; transition:background .16s ease,border-color .16s ease; }
+  .psLinkBtn { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:28px; padding:0 8px; flex:none; border:1px solid rgba(190,242,100,.23); border-radius:7px; color:#d9f99d; background:rgba(190,242,100,.045); font-family:inherit; font-size:calc((10px) + 1px); font-weight:650; text-decoration:none; white-space:nowrap; cursor:pointer; transition:background .16s ease,border-color .16s ease; }
   .psLinkBtn:hover { border-color:rgba(190,242,100,.42); background:rgba(190,242,100,.09); }
-  .psSectionLabel { display:flex; align-items:center; gap:6px; margin:2px 0 -4px; color:#c4c4cc; font-size:10px; font-weight:700; }
+  .psSectionLabel { display:flex; align-items:center; gap:6px; margin:2px 0 -4px; color:#c4c4cc; font-size:calc((10px) + 1px); font-weight:700; }
   .psSectionLabel svg { color:#bef264; }
   .psCommunityGrid { display:grid; grid-template-columns:1fr; gap:7px; }
   .psCommunityCard { min-height:46px; padding:7px 9px; display:flex; align-items:center; gap:9px; border:1px solid rgba(255,255,255,.08); border-radius:9px; background:rgba(255,255,255,.015); }
   .psCommunityCard.psOn { border-color:rgba(190,242,100,.4); background:rgba(190,242,100,.055); }
   .psCommunityIcon { width:28px; height:28px; display:grid; place-items:center; flex:none; border-radius:8px; color:#bef264; background:rgba(190,242,100,.09); }
   .psCommunityCopy { min-width:0; flex:1; }
-  .psCommunityName { margin:0; overflow:hidden; color:#ededf0; font-size:11px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-  .psCommunitySub { margin:2px 0 0; overflow:hidden; color:#85858d; font-size:9.5px; text-overflow:ellipsis; white-space:nowrap; }
-  .psCommunityStatus { flex:none; color:#bef264; font-size:9px; font-weight:750; }
+  .psCommunityName { margin:0; overflow:hidden; color:#ededf0; font-size:calc((11px) + 1px); font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+  .psCommunitySub { margin:2px 0 0; overflow:hidden; color:#85858d; font-size:calc((9.5px) + 1px); text-overflow:ellipsis; white-space:nowrap; }
+  .psCommunityStatus { flex:none; color:#bef264; font-size:calc((9px) + 1px); font-weight:750; }
   .psCommunityCard .psState { width:18px; height:18px; border-radius:6px; }
   @media(max-width:460px) { .psGrid { grid-template-columns:1fr; } .psCard { min-height:52px; } }
 `;

@@ -82,7 +82,7 @@ function DeltaFlash({ delta, currency }) {
   if (!visible || !val) return null;
   const isPos = val > 0;
   return (
-    <div style={{ position: "absolute", top: -22, right: 0, padding: "3px 9px", borderRadius: 100, fontSize: 11, fontWeight: 800, fontFamily: "var(--font-mono,'DM Mono',monospace)", color: isPos ? "#a3e635" : "#f87171", background: isPos ? "rgba(163,230,53,0.12)" : "rgba(248,113,113,0.1)", border: `1px solid ${isPos ? "rgba(163,230,53,0.3)" : "rgba(248,113,113,0.2)"}`, pointerEvents: "none", animation: "ovDeltaIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards", whiteSpace: "nowrap" }}>
+    <div style={{ position: "absolute", top: -22, right: 0, padding: "3px 9px", borderRadius: 100, fontSize: 12, fontWeight: 800, fontFamily: "var(--font-mono,'DM Mono',monospace)", color: isPos ? "#a3e635" : "#f87171", background: isPos ? "rgba(163,230,53,0.12)" : "rgba(248,113,113,0.1)", border: `1px solid ${isPos ? "rgba(163,230,53,0.3)" : "rgba(248,113,113,0.2)"}`, pointerEvents: "none", animation: "ovDeltaIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards", whiteSpace: "nowrap" }}>
       {isPos ? "+" : ""}{Math.abs(val).toLocaleString()} {currency}
     </div>
   );
@@ -95,10 +95,10 @@ function TxDirectionChip({ isIn, isPending }) {
 
 const CSS = `
   .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
-  .ov-section-title{font-size:10.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
+  .ov-section-title{font-size:calc((10.5px) + 1px);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
   .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);}
   .ov-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
-  .ov-act-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .18s;color:rgba(255,255,255,0.55);font-size:11.5px;font-weight:600;font-family:inherit;}
+  .ov-act-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .18s;color:rgba(255,255,255,0.55);font-size:calc((11.5px) + 1px);font-weight:600;font-family:inherit;}
   .ov-act-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);transform:translateY(-1px);}
   .ov-act-btn.primary{background:rgba(163,230,53,0.08);border-color:rgba(163,230,53,0.22);color:#a3e635;}
   .ov-act-btn.primary:hover{background:rgba(163,230,53,0.13);border-color:rgba(163,230,53,0.35);}
@@ -121,19 +121,19 @@ const CSS = `
   .ov-asset-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .ov-asset-icon.xev{background:rgba(163,230,53,0.1);color:#a3e635;}
   .ov-asset-icon.ep{background:rgba(34,211,238,0.1);color:#22d3ee;}
-  .ov-asset-name{font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);line-height:1.3;}
-  .ov-asset-desc{font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;}
+  .ov-asset-name{font-size:calc((14px) + 1px);font-weight:700;color:rgba(255,255,255,0.85);line-height:1.3;}
+  .ov-asset-desc{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.28);margin-top:2px;}
   .ov-asset-right{margin-left:auto;text-align:right;position:relative;}
-  .ov-asset-amount{font-size:19px;font-weight:800;font-family:"DM Mono",monospace;letter-spacing:-0.04em;transition:color 0.3s;}
+  .ov-asset-amount{font-size:calc((19px) + 1px);font-weight:800;font-family:"DM Mono",monospace;letter-spacing:-0.04em;transition:color 0.3s;}
   .ov-asset-amount.xev{color:#a3e635;}
   .ov-asset-amount.ep{color:#22d3ee;}
-  .ov-asset-fiat{font-size:11px;color:rgba(255,255,255,0.25);margin-top:3px;font-family:"DM Mono",monospace;}
-  .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);font-size:9px;font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;}
+  .ov-asset-fiat{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.25);margin-top:3px;font-family:"DM Mono",monospace;}
+  .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);font-size:calc((9px) + 1px);font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;}
   .ov-paywave-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(34,211,238,0.07) 0%,rgba(59,130,246,0.05) 100%);border:1px solid rgba(34,211,238,0.15);cursor:pointer;transition:all .2s;margin-bottom:0;}
   .ov-paywave-card:hover{background:linear-gradient(135deg,rgba(34,211,238,0.11) 0%,rgba(59,130,246,0.08) 100%);border-color:rgba(34,211,238,0.28);transform:translateY(-1px);}
   .ov-pw-logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0ea5e9,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(14,165,233,0.3);}
-  .ov-pw-name{font-size:16px;font-weight:800;color:rgba(255,255,255,0.9);}
-  .ov-pw-desc{font-size:12px;color:rgba(255,255,255,0.32);margin-top:2px;}
+  .ov-pw-name{font-size:calc((16px) + 1px);font-weight:800;color:rgba(255,255,255,0.9);}
+  .ov-pw-desc{font-size:calc((12px) + 1px);color:rgba(255,255,255,0.32);margin-top:2px;}
   .ov-pw-arrow{margin-left:auto;opacity:0.3;transition:all .2s;}
   .ov-paywave-card:hover .ov-pw-arrow{opacity:0.7;transform:translateX(3px);}
   .ov-tx-list{display:flex;flex-direction:column;gap:6px;}
@@ -146,22 +146,22 @@ const CSS = `
   .ov-tx-dir-badge.in{background:rgba(163,230,53,0.9);}
   .ov-tx-dir-badge.out{background:rgba(248,113,113,0.9);}
   .ov-tx-dir-badge.pending-badge{background:rgba(245,158,11,0.9);}
-  .ov-tx-label{font-size:13.5px;font-weight:700;color:rgba(255,255,255,0.82);display:flex;align-items:center;gap:6px;}
-  .ov-tx-sub{font-size:11px;color:rgba(255,255,255,0.25);margin-top:2px;}
-  .ov-tx-counterparty{font-size:10.5px;color:rgba(255,255,255,0.3);margin-top:1px;font-family:"DM Mono",monospace;}
-  .ov-pending-tag{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);font-size:9px;font-weight:700;color:#f59e0b;letter-spacing:0.06em;}
+  .ov-tx-label{font-size:calc((13.5px) + 1px);font-weight:700;color:rgba(255,255,255,0.82);display:flex;align-items:center;gap:6px;}
+  .ov-tx-sub{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.25);margin-top:2px;}
+  .ov-tx-counterparty{font-size:calc((10.5px) + 1px);color:rgba(255,255,255,0.3);margin-top:1px;font-family:"DM Mono",monospace;}
+  .ov-pending-tag{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);font-size:calc((9px) + 1px);font-weight:700;color:#f59e0b;letter-spacing:0.06em;}
   .ov-tx-right{margin-left:auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
-  .ov-tx-amount{font-size:14px;font-weight:800;font-family:"DM Mono",monospace;white-space:nowrap;letter-spacing:-0.02em;}
+  .ov-tx-amount{font-size:calc((14px) + 1px);font-weight:800;font-family:"DM Mono",monospace;white-space:nowrap;letter-spacing:-0.02em;}
   .ov-tx-amount.in{color:#a3e635;}
   .ov-tx-amount.out{color:#f87171;}
-  .ov-tx-dir-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:800;letter-spacing:0.06em;}
+  .ov-tx-dir-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:100px;font-size:calc((9px) + 1px);font-weight:800;letter-spacing:0.06em;}
   .ov-tx-dir-pill.in{background:rgba(163,230,53,0.1);color:#a3e635;border:1px solid rgba(163,230,53,0.2);}
   .ov-tx-dir-pill.out{background:rgba(248,113,113,0.08);color:#f87171;border:1px solid rgba(248,113,113,0.15);}
-  .ov-burn-strip{display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;margin-top:18px;margin-bottom:24px;background:rgba(248,113,113,0.04);border:1px solid rgba(248,113,113,0.1);font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;}
+  .ov-burn-strip{display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;margin-top:18px;margin-bottom:24px;background:rgba(248,113,113,0.04);border:1px solid rgba(248,113,113,0.1);font-size:calc((12px) + 1px);color:rgba(255,255,255,0.3);line-height:1.6;}
   .ov-empty{display:flex;flex-direction:column;align-items:center;padding:40px 20px;color:rgba(255,255,255,0.2);}
   .ov-empty-icon{opacity:0.15;margin-bottom:12px;}
-  .ov-empty-title{font-size:14px;font-weight:700;margin-bottom:4px;}
-  .ov-empty-sub{font-size:12px;}
+  .ov-empty-title{font-size:calc((14px) + 1px);font-weight:700;margin-bottom:4px;}
+  .ov-empty-sub{font-size:calc((12px) + 1px);}
   .ov-skel{background:rgba(255,255,255,0.04);border-radius:12px;animation:ovSkel 1.5s ease-in-out infinite;}
   @keyframes ovSkel{0%,100%{opacity:1}50%{opacity:0.4}}
   @keyframes ovDeltaIn{from{opacity:0;transform:translateY(6px) scale(0.85);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -309,7 +309,7 @@ export default function OverviewTab({ balance, setActiveTab, loading, transactio
                   <div className="ov-tx-sub">{isPending ? "Processing…" : dateStr}</div>
                 </div>
                 <div className="ov-tx-right">
-                  <div className={`ov-tx-amount ${amtClass}`}>{isReceived ? "+" : "−"}{(tx.amount || 0).toLocaleString()} <span style={{ fontSize: 10, opacity: 0.7 }}>{currency}</span></div>
+                  <div className={`ov-tx-amount ${amtClass}`}>{isReceived ? "+" : "−"}{(tx.amount || 0).toLocaleString()} <span style={{ fontSize: 11, opacity: 0.7 }}>{currency}</span></div>
                   <div className={`ov-tx-dir-pill ${amtClass}`}>
                     {isReceived ? <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M8 2L2 8M2 8H6M2 8V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> : <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M2 8L8 2M8 2H4M8 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     {isReceived ? "IN" : "OUT"}

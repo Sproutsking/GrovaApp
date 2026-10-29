@@ -181,7 +181,7 @@ const FilteredFeedView = ({
           gap: 10px;
           padding: 8px 16px;
           border-radius: 999px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           flex: 1;
           min-width: 0;
@@ -212,7 +212,7 @@ const FilteredFeedView = ({
         }
 
         .ffv-pill-count {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           opacity: 0.7;
           flex-shrink: 0;
         }
@@ -226,7 +226,7 @@ const FilteredFeedView = ({
           align-items: center;
           justify-content: center;
           font-weight: 900;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #000;
           overflow: hidden;
           flex-shrink: 0;
@@ -254,7 +254,7 @@ const FilteredFeedView = ({
           border: none;
           background: transparent;
           color: #737373;
-          font-size: 13.5px;
+          font-size: calc((13.5px) + 1px);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
@@ -273,7 +273,7 @@ const FilteredFeedView = ({
           color: #84cc16;
           border-radius: 999px;
           padding: 1px 7px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 800;
           min-width: 20px;
           text-align: center;
@@ -312,9 +312,9 @@ const FilteredFeedView = ({
           gap: 14px;
           color: #737373;
         }
-        .ffv-empty-icon { font-size: 56px; opacity: 0.4; }
-        .ffv-empty-title { font-size: 17px; font-weight: 700; color: #a3a3a3; margin: 0; }
-        .ffv-empty-sub { font-size: 13px; margin: 0; }
+        .ffv-empty-icon { font-size: calc((56px) + 1px); opacity: 0.4; }
+        .ffv-empty-title { font-size: calc((17px) + 1px); font-weight: 700; color: #a3a3a3; margin: 0; }
+        .ffv-empty-sub { font-size: calc((13px) + 1px); margin: 0; }
 
         /* ── REELS GRID (inside filter view) ── */
         .ffv-reels-grid {
@@ -332,7 +332,7 @@ const FilteredFeedView = ({
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 800;
           color: #737373;
           text-transform: uppercase;

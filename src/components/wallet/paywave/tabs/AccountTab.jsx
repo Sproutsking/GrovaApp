@@ -34,8 +34,8 @@ function ListRow({ icon:Icon, label, sub, right, onClick, accent }) {
             <Icon size={13} color={accent?"var(--lime)":"var(--t2)"} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"var(--fd)", fontSize:12.5, fontWeight:600, color:"var(--t1)" }}>{label}</div>
-            {sub && <div style={{ fontSize:10.5, color:"var(--t2)", marginTop:1 }}>{sub}</div>}
+            <div style={{ fontFamily:"var(--fd)", fontSize:13.5, fontWeight:600, color:"var(--t1)" }}>{label}</div>
+            {sub && <div style={{ fontSize:11.5, color:"var(--t2)", marginTop:1 }}>{sub}</div>}
           </div>
         </div>
         {right || <ChevronRight size={12} color="rgba(255,255,255,0.15)" />}
@@ -77,7 +77,7 @@ export default function AccountTab({ setPage, onSuccess }) {
   const tierColor  = tier==="Tier 2"?"#a3e635":tier==="Tier 3"?"#d4a847":"rgba(255,255,255,0.35)";
 
   const SectionLabel = ({ children }) => (
-    <div style={{ fontFamily:"var(--fd)", fontSize:9.5, fontWeight:700,
+    <div style={{ fontFamily:"var(--fd)", fontSize:10.5, fontWeight:700,
       color:"rgba(255,255,255,0.22)", textTransform:"uppercase",
       letterSpacing:"0.07em", marginBottom:8, marginTop:16 }}>
       {children}
@@ -87,7 +87,7 @@ export default function AccountTab({ setPage, onSuccess }) {
   return (
     <div className="pw-scroll-px">
       <div style={{ paddingTop:14, paddingBottom:12 }}>
-        <div style={{ fontFamily:"var(--fd)", fontSize:18, fontWeight:800, letterSpacing:"-0.025em" }}>
+        <div style={{ fontFamily:"var(--fd)", fontSize:19, fontWeight:800, letterSpacing:"-0.025em" }}>
           Account
         </div>
       </div>
@@ -111,17 +111,17 @@ export default function AccountTab({ setPage, onSuccess }) {
               width:60, height:60, borderRadius:"50%",
               background:"linear-gradient(135deg,#a3e635,#65a30d)",
               display:"flex", alignItems:"center", justifyContent:"center",
-              fontFamily:"var(--fd)", fontSize:22, fontWeight:800, color:"#060e02",
+              fontFamily:"var(--fd)", fontSize:23, fontWeight:800, color:"#060e02",
               boxShadow:"0 5px 16px rgba(163,230,53,0.26)", border:"2px solid rgba(163,230,53,0.28)",
             }}>{initials}</div>
           )}
           <div style={{ textAlign:"center" }}>
-            <div style={{ fontFamily:"var(--fd)", fontSize:16, fontWeight:800, marginBottom:5 }}>{displayName}</div>
+            <div style={{ fontFamily:"var(--fd)", fontSize:17, fontWeight:800, marginBottom:5 }}>{displayName}</div>
             <div style={{
               display:"inline-flex", alignItems:"center", gap:4,
               padding:"3px 10px", borderRadius:20,
               background:`${tierColor}18`, border:`1px solid ${tierColor}38`,
-              fontSize:"9.5px", fontWeight:700, color:tierColor, fontFamily:"var(--fd)",
+              fontSize:"calc((9.5px) + 1px)", fontWeight:700, color:tierColor, fontFamily:"var(--fd)",
             }}>
               <Star size={8} fill={tierColor} color={tierColor} />
               {tier} Account
@@ -134,8 +134,8 @@ export default function AccountTab({ setPage, onSuccess }) {
             background:"rgba(255,255,255,0.035)", border:"1px solid rgba(255,255,255,0.065)",
             width:"100%", justifyContent:"center",
           }}>
-            <span style={{ color:"var(--t3)", fontSize:"10.5px", fontFamily:"var(--fb)" }}>Acct No.</span>
-            <span style={{ fontFamily:"var(--fm)", fontSize:13, color:"var(--t1)", letterSpacing:"0.04em" }}>
+            <span style={{ color:"var(--t3)", fontSize:"calc((10.5px) + 1px)", fontFamily:"var(--fb)" }}>Acct No.</span>
+            <span style={{ fontFamily:"var(--fm)", fontSize:14, color:"var(--t1)", letterSpacing:"0.04em" }}>
               {accountNo}
             </span>
             <CopyBtn value={accountNo} />
@@ -145,13 +145,13 @@ export default function AccountTab({ setPage, onSuccess }) {
             <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:20,
               background:"rgba(34,211,238,0.07)", border:"1px solid rgba(34,211,238,0.14)" }}>
               <Zap size={9} color="#22d3ee" />
-              <span style={{ fontSize:"10px", fontWeight:700, color:"#22d3ee", fontFamily:"var(--fd)" }}>
+              <span style={{ fontSize:"calc((10px) + 1px)", fontWeight:700, color:"#22d3ee", fontFamily:"var(--fd)" }}>
                 {epBalance.toLocaleString()} EP
               </span>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:20,
               background:"rgba(163,230,53,0.07)", border:"1px solid rgba(163,230,53,0.14)" }}>
-              <span style={{ fontSize:"10px", fontWeight:700, color:"var(--lime)", fontFamily:"var(--fd)" }}>
+              <span style={{ fontSize:"calc((10px) + 1px)", fontWeight:700, color:"var(--lime)", fontFamily:"var(--fd)" }}>
                 ₦{fmtNGN(pwBalance)}
               </span>
             </div>
@@ -162,10 +162,10 @@ export default function AccountTab({ setPage, onSuccess }) {
       {/* Completeness */}
       <div className="xg" style={{ padding:"11px 13px", marginBottom:12 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:7 }}>
-          <span style={{ fontFamily:"var(--fb)", fontSize:11.5, fontWeight:600, color:"var(--t1)" }}>
+          <span style={{ fontFamily:"var(--fb)", fontSize:12.5, fontWeight:600, color:"var(--t1)" }}>
             Profile Completeness
           </span>
-          <span style={{ fontFamily:"var(--fd)", fontSize:12, fontWeight:800, color:"#d4a847" }}>
+          <span style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800, color:"#d4a847" }}>
             {completeness}%
           </span>
         </div>
@@ -176,7 +176,7 @@ export default function AccountTab({ setPage, onSuccess }) {
             transition:"width 1s ease",
           }} />
         </div>
-        <div style={{ fontSize:"10.5px", color:"var(--t2)", fontFamily:"var(--fb)" }}>
+        <div style={{ fontSize:"calc((10.5px) + 1px)", color:"var(--t2)", fontFamily:"var(--fb)" }}>
           Complete profile to unlock higher limits & {tier==="Tier 1"?"Tier 2":"Tier 3"} benefits
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function AccountTab({ setPage, onSuccess }) {
           right={!phone ? (
             <div style={{ display:"flex", alignItems:"center", gap:5 }}>
               <div style={{ padding:"2px 7px", borderRadius:20, background:"rgba(34,211,238,0.09)",
-                border:"1px solid rgba(34,211,238,0.18)", fontSize:"9px", color:"#22d3ee", fontWeight:700 }}>
+                border:"1px solid rgba(34,211,238,0.18)", fontSize:"calc((9px) + 1px)", color:"#22d3ee", fontWeight:700 }}>
                 +50 EP
               </div>
               <ChevronRight size={12} color="rgba(255,255,255,0.15)" />
@@ -223,7 +223,7 @@ export default function AccountTab({ setPage, onSuccess }) {
         <LogOut size={13} /> Sign Out
       </button>
       <div style={{ textAlign:"center", paddingTop:10, paddingBottom:4 }}>
-        <span style={{ fontSize:"9.5px", color:"rgba(255,255,255,0.14)", fontFamily:"var(--fb)" }}>
+        <span style={{ fontSize:"calc((9.5px) + 1px)", color:"rgba(255,255,255,0.14)", fontFamily:"var(--fb)" }}>
           Xeevia PayWave · Built with ♥ in Nigeria
         </span>
       </div>

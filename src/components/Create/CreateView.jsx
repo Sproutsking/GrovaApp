@@ -52,7 +52,7 @@ const DistributionBlock = ({ label, userId, distribution }) => {
         selectedPlatforms={distribution.selectedPlatforms}
       />
       {distribution.distributionError && (
-        <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, fontSize: 12, color: "#f87171" }}>
+        <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, fontSize: 13, color: "#f87171" }}>
           {distribution.distributionError}
         </div>
       )}
@@ -887,7 +887,7 @@ const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUse
                 <div className="form-group">
                   <div className="text-card-preview-studio" style={{ background: cardGradient }}>
                     <p style={{
-                      fontSize:    `${previewFontPx}px`,
+                      fontSize:    `calc(${previewFontPx}px + 1px)`,
                       textAlign,
                       color:       customTextColor,
                       fontWeight:  800,
@@ -902,9 +902,9 @@ const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUse
                     </p>
                   </div>
                   {cardFontSize !== null && (
-                    <div style={{ textAlign: "right", fontSize: "10px", color: "#444", marginTop: "3px" }}>
+                    <div style={{ textAlign: "right", fontSize: "calc((10px) + 1px)", color: "#444", marginTop: "3px" }}>
                       Font locked at {cardFontSize}px ·{" "}
-                      <button onClick={() => setCardFontSize(null)} style={{ background: "none", border: "none", color: "#84cc16", fontSize: "10px", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
+                      <button onClick={() => setCardFontSize(null)} style={{ background: "none", border: "none", color: "#84cc16", fontSize: "calc((10px) + 1px)", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
                         Reset to Auto
                       </button>
                     </div>
@@ -1015,7 +1015,7 @@ const CreateViewContent = ({ currentUser: initialCurrentUser, userId: initialUse
                     Link + preview
                   </button>
                 </div>
-                <small style={{ display: "block", marginTop: 7, color: "rgba(255,255,255,.52)", fontSize: 11 }}>
+                <small style={{ display: "block", marginTop: 7, color: "rgba(255,255,255,.52)", fontSize: 12 }}>
                   Viewers will see the presentation you choose.
                 </small>
               </div>

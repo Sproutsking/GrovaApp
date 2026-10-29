@@ -169,9 +169,9 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
 
         .inv-body { text-align:center; }
         .invite-community-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:18px 14px;margin-bottom:18px;border-radius:14px;box-shadow:inset 0 -34px 40px rgba(0,0,0,.32),0 8px 22px rgba(0,0,0,.25);color:#fff}
-        .invite-community-image{width:62px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,.36);font-size:30px;box-shadow:0 5px 16px rgba(0,0,0,.28)}
+        .invite-community-image{width:62px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,.36);font-size:calc((30px) + 1px);box-shadow:0 5px 16px rgba(0,0,0,.28)}
         .invite-community-image img{width:100%;height:100%;object-fit:cover}
-        .invite-community-card strong{font-size:15px}.invite-community-card small{max-width:280px;color:rgba(255,255,255,.72);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .invite-community-card strong{font-size:calc((15px) + 1px)}.invite-community-card small{max-width:280px;color:rgba(255,255,255,.72);font-size:calc((11px) + 1px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
         /* Spinner */
         .inv-spinner-wrap {
@@ -209,15 +209,15 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
           25%{transform:translateX(-8px)}75%{transform:translateX(8px)}
         }
 
-        .inv-title { font-size:22px; font-weight:900; color:#fff; margin:0 0 8px; }
-        .inv-msg   { font-size:14px; color:#999; line-height:1.5; margin:0 0 8px; }
-        .inv-sub   { font-size:12px; color:#555; font-style:italic; margin:0 0 20px; }
+        .inv-title { font-size:calc((22px) + 1px); font-weight:900; color:#fff; margin:0 0 8px; }
+        .inv-msg   { font-size:calc((14px) + 1px); color:#999; line-height:1.5; margin:0 0 8px; }
+        .inv-sub   { font-size:calc((12px) + 1px); color:#555; font-style:italic; margin:0 0 20px; }
 
         .go-btn {
           display:inline-flex; align-items:center; gap:7px;
           padding:12px 24px; border-radius:10px;
           background:linear-gradient(135deg,#9cff00,#667eea);
-          border:none; color:#000; font-size:14px; font-weight:800;
+          border:none; color:#000; font-size:calc((14px) + 1px); font-weight:800;
           cursor:pointer; transition:all .25s;
           box-shadow:0 4px 16px rgba(156,255,0,.3);
         }
@@ -227,14 +227,14 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
         .retry-btn {
           padding:11px; border-radius:10px;
           background:rgba(18,18,18,.95); border:1.5px solid rgba(156,255,0,.35);
-          color:#9cff00; font-size:14px; font-weight:700; cursor:pointer;
+          color:#9cff00; font-size:calc((14px) + 1px); font-weight:700; cursor:pointer;
           transition:all .2s;
         }
         .retry-btn:hover { background:rgba(156,255,0,.1); }
         .dismiss-btn {
           padding:11px; border-radius:10px;
           background:transparent; border:1.5px solid rgba(42,42,42,.8);
-          color:#666; font-size:14px; font-weight:700; cursor:pointer;
+          color:#666; font-size:calc((14px) + 1px); font-weight:700; cursor:pointer;
           transition:all .2s;
         }
         .dismiss-btn:hover { border-color:rgba(255,107,107,.4); color:#ff6b6b; }

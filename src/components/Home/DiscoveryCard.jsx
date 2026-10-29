@@ -595,7 +595,7 @@ const DC_CSS = `
   position:absolute;top:12px;left:12px;z-index:5;
   display:inline-flex;align-items:center;gap:5px;
   padding:4px 10px;border-radius:20px;
-  font-size:9.5px;font-weight:800;letter-spacing:.06em;
+  font-size:calc((9.5px) + 1px);font-weight:800;letter-spacing:.06em;
   color:#fff;text-transform:uppercase;cursor:pointer;
   box-shadow:0 2px 12px rgba(0,0,0,0.5);
   transition:transform .15s,opacity .15s;
@@ -633,18 +633,18 @@ const DC_CSS = `
   padding:0 14px;z-index:5;pointer-events:none;
 }
 .dc-cat-label{
-  font-size:10px;font-weight:800;letter-spacing:.08em;
+  font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.08em;
   text-transform:uppercase;margin-bottom:4px;
   text-shadow:0 1px 6px rgba(0,0,0,0.95);
 }
 .dc-title{
-  font-size:16px;font-weight:800;color:#fff;
+  font-size:calc((16px) + 1px);font-weight:800;color:#fff;
   line-height:1.25;margin:0 0 6px;
   text-shadow:0 2px 12px rgba(0,0,0,0.92);
 }
-@media(max-width:768px){.dc-title{font-size:14px;}}
+@media(max-width:768px){.dc-title{font-size:calc((14px) + 1px);}}
 .dc-caption{
-  font-size:12.5px;font-weight:500;color:rgba(255,255,255,0.76);
+  font-size:calc((12.5px) + 1px);font-weight:500;color:rgba(255,255,255,0.76);
   line-height:1.5;margin:0;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
   overflow:hidden;text-shadow:0 1px 6px rgba(0,0,0,0.95);
@@ -653,7 +653,7 @@ const DC_CSS = `
 .dc-caption--exp{-webkit-line-clamp:unset;overflow:visible;display:block;}
 .dc-caption-more{display:inline-flex;align-items:center;margin-left:3px;opacity:.6;}
 .dc-photographer{
-  font-size:9px;color:rgba(255,255,255,0.25);margin-top:5px;
+  font-size:calc((9px) + 1px);color:rgba(255,255,255,0.25);margin-top:5px;
   font-weight:500;pointer-events:none;
 }
 
@@ -676,14 +676,14 @@ const DC_CSS = `
 .dc-act--locked{color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.08);}
 .dc-views{
   display:flex;align-items:center;gap:3px;
-  font-size:9px;font-weight:700;
+  font-size:calc((9px) + 1px);font-weight:700;
   color:rgba(255,255,255,0.35);margin-top:-6px;
 }
 
 .dc-toast{
   position:absolute;bottom:84px;left:50%;transform:translateX(-50%);
   background:rgba(0,0,0,0.9);
-  font-size:11px;font-weight:700;padding:7px 16px;
+  font-size:calc((11px) + 1px);font-weight:700;padding:7px 16px;
   border-radius:20px;z-index:10;pointer-events:none;
   border:1px solid currentColor;white-space:nowrap;
   animation:dcToastIn .22s ease;
@@ -698,7 +698,7 @@ const DC_CSS = `
   background:rgba(15,15,15,0.96);
   border:1px solid rgba(251,191,36,0.5);
   color:#fbbf24;
-  font-size:11px;font-weight:700;
+  font-size:calc((11px) + 1px);font-weight:700;
   padding:8px 16px;border-radius:14px;
   z-index:10;pointer-events:none;white-space:nowrap;
   display:flex;align-items:center;gap:6px;
@@ -729,12 +729,12 @@ const DC_CSS = `
 }
 .dc-interest-label{
   display:inline-flex;align-items:center;gap:5px;
-  font-size:9px;font-weight:800;letter-spacing:.08em;
+  font-size:calc((9px) + 1px);font-weight:800;letter-spacing:.08em;
   text-transform:uppercase;color:var(--mood-accent);
   margin-bottom:6px;
 }
 .dc-interest-q{
-  font-size:14px;font-weight:700;color:#fff;
+  font-size:calc((14px) + 1px);font-weight:700;color:#fff;
   margin:0 0 12px;line-height:1.3;
 }
 .dc-interest-btns{
@@ -744,7 +744,7 @@ const DC_CSS = `
 .dc-interest-no{
   flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
   padding:9px 12px;border-radius:12px;
-  font-size:12px;font-weight:700;
+  font-size:calc((12px) + 1px);font-weight:700;
   cursor:pointer;transition:all .18s;font-family:inherit;
 }
 .dc-interest-yes{

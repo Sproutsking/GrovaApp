@@ -73,8 +73,8 @@ function DepositMethodSelector({ onSelect, loading }) {
             <m.icon size={20} />
           </div>
           <div style={{ flex: 1, textAlign: "left" }}>
-            <div style={{ color: "var(--t1)", fontFamily: "var(--fd)", fontSize: 13, fontWeight: 700 }}>{m.label}</div>
-            <div style={{ color: "var(--t2)", fontSize: 11.5, marginTop: 1 }}>{m.sublabel}</div>
+            <div style={{ color: "var(--t1)", fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700 }}>{m.label}</div>
+            <div style={{ color: "var(--t2)", fontSize: 12.5, marginTop: 1 }}>{m.sublabel}</div>
           </div>
           <ChevronRight size={14} color="var(--t2)" />
         </button>
@@ -128,7 +128,7 @@ function PaystackDeposit({ onBack, onSuccess, onRefresh }) {
       
       <div className="xf-section xf-stack">
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>Amount to Deposit</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>Amount to Deposit</div>
           <input
             type="number"
             value={amount}
@@ -140,18 +140,18 @@ function PaystackDeposit({ onBack, onSuccess, onRefresh }) {
               border: "none",
               color: "var(--lime)",
               fontFamily: "var(--fd)",
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 800,
               textAlign: "center",
               outline: "none",
             }}
             min="100"
           />
-          <div style={{ color: "var(--t2)", fontSize: 10, marginTop: 8 }}>Minimum ₦100</div>
+          <div style={{ color: "var(--t2)", fontSize: 11, marginTop: 8 }}>Minimum ₦100</div>
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>Email</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>Email</label>
           <input
             type="email"
             value={email}
@@ -163,7 +163,7 @@ function PaystackDeposit({ onBack, onSuccess, onRefresh }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}
@@ -252,13 +252,13 @@ function OPayDeposit({ onBack, onSuccess, onRefresh }) {
           alignItems: "flex-start",
         }}>
           <AlertCircle size={14} color="var(--lime)" style={{ marginTop: 2, flexShrink: 0 }} />
-          <div style={{ fontSize: 11, color: "var(--t2)", lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: "var(--t2)", lineHeight: 1.4 }}>
             You'll receive a push notification in your OPay app. Approve the payment there to complete the deposit.
           </div>
         </div>
 
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>Amount</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>Amount</div>
           <input
             type="number"
             value={amount}
@@ -270,7 +270,7 @@ function OPayDeposit({ onBack, onSuccess, onRefresh }) {
               border: "none",
               color: "var(--lime)",
               fontFamily: "var(--fd)",
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 800,
               textAlign: "center",
               outline: "none",
@@ -280,7 +280,7 @@ function OPayDeposit({ onBack, onSuccess, onRefresh }) {
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>OPay Phone Number</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>OPay Phone Number</label>
           <input
             type="tel"
             value={phone}
@@ -293,7 +293,7 @@ function OPayDeposit({ onBack, onSuccess, onRefresh }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}
@@ -379,13 +379,13 @@ function FlutterwaveDeposit({ onBack, onSuccess, onRefresh }) {
           alignItems: "flex-start",
         }}>
           <AlertCircle size={14} color="#8B5CF6" style={{ marginTop: 2, flexShrink: 0 }} />
-          <div style={{ fontSize: 11, color: "var(--t2)", lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: "var(--t2)", lineHeight: 1.4 }}>
             Pay with MTN MoMo, M-Pesa, or Airtel Money across Africa. Also accepts international cards.
           </div>
         </div>
 
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>Amount</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>Amount</div>
           <input
             type="number"
             value={amount}
@@ -397,7 +397,7 @@ function FlutterwaveDeposit({ onBack, onSuccess, onRefresh }) {
               border: "none",
               color: "var(--lime)",
               fontFamily: "var(--fd)",
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 800,
               textAlign: "center",
               outline: "none",
@@ -407,7 +407,7 @@ function FlutterwaveDeposit({ onBack, onSuccess, onRefresh }) {
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>Payment Method</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>Payment Method</label>
           <select
             value={method}
             onChange={e => setMethod(e.target.value)}
@@ -418,7 +418,7 @@ function FlutterwaveDeposit({ onBack, onSuccess, onRefresh }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}

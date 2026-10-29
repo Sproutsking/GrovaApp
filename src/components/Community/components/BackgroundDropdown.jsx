@@ -151,7 +151,7 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose, canMan
           gap: 8px;
           padding: 12px 16px;
           border-bottom: 1px solid rgba(156, 255, 0, 0.1);
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #9cff00;
         }
@@ -170,7 +170,7 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose, canMan
           border: 1px dashed rgba(156, 255, 0, 0.4);
           background: rgba(156, 255, 0, 0.06);
           color: #d5f7bd;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           cursor: pointer;
         }
@@ -209,7 +209,7 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose, canMan
           border: 1px solid rgba(42, 42, 42, 0.6);
           border-radius: 8px;
           color: #ccc;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           cursor: pointer;
           transition: all 0.2s;
           margin-bottom: 4px;

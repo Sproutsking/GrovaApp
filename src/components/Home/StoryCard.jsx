@@ -222,7 +222,7 @@ const StoryCard = ({
       {/* Styles for new elements only */}
       <style>{`
         .story-timestamp {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: rgba(255,255,255,0.35);
           font-weight: 500;
           white-space: nowrap;
@@ -234,7 +234,7 @@ const StoryCard = ({
           gap: 5px;
           padding: 5px 11px;
           border-radius: 999px;
-          font-size: 11.5px;
+          font-size: calc((11.5px) + 1px);
           font-weight: 700;
           cursor: pointer;
           flex-shrink: 0;
@@ -277,7 +277,7 @@ const StoryCard = ({
           flex-shrink: 0;
         }
         .story-category-tag span:last-child {
-          font-size: 10.5px;
+          font-size: calc((10.5px) + 1px);
           font-weight: 700;
           color: rgba(132,204,22,0.8);
           letter-spacing: 0.04em;

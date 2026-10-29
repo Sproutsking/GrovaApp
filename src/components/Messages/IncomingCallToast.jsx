@@ -314,19 +314,19 @@ const CallToastCard = ({ callerName, avatarUrl, initials, isVideo, isGroup, grou
         .ict-avatar-fallback {
           width:100%; height:100%;
           display:flex; align-items:center; justify-content:center;
-          font-size:30px; font-weight:800; color:#84cc16;
+          font-size:calc((30px) + 1px); font-weight:800; color:#84cc16;
         }
         .ict-info        { text-align:center; z-index:1; }
-        .ict-call-type   { font-size:11px; font-weight:700; color:#84cc16; text-transform:uppercase; letter-spacing:.8px; margin-bottom:5px; }
-        .ict-caller-name { font-size:21px; font-weight:900; color:#fff; letter-spacing:-.4px; }
-        .ict-group-name  { font-size:12px; color:rgba(255,255,255,.45); margin-top:2px; }
+        .ict-call-type   { font-size:calc((11px) + 1px); font-weight:700; color:#84cc16; text-transform:uppercase; letter-spacing:.8px; margin-bottom:5px; }
+        .ict-caller-name { font-size:calc((21px) + 1px); font-weight:900; color:#fff; letter-spacing:-.4px; }
+        .ict-group-name  { font-size:calc((12px) + 1px); color:rgba(255,255,255,.45); margin-top:2px; }
         .ict-actions     { display:flex; gap:44px; z-index:1; margin-top:4px; }
         .ict-btn {
           display:flex; flex-direction:column; align-items:center; gap:9px;
           cursor:pointer; border:none; background:none; padding:0; transition:transform .15s;
         }
         .ict-btn:active { transform:scale(.9); }
-        .ict-btn-label  { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+        .ict-btn-label  { font-size:calc((11px) + 1px); font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
         .ict-btn-icon   { width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:transform .15s, box-shadow .15s; }
         .ict-btn-icon:hover { transform:scale(1.08); }
         .ict-decline-icon { background:linear-gradient(135deg,#dc2626,#b91c1c); box-shadow:0 6px 28px rgba(220,38,38,.45); color:#fff; }
@@ -339,7 +339,7 @@ const CallToastCard = ({ callerName, avatarUrl, initials, isVideo, isGroup, grou
         .ict-accept  .ict-btn-label { color:#4ade80; }
         @media(max-width:480px) {
           .ict-card { border-radius:22px; padding:18px 20px 22px; }
-          .ict-caller-name { font-size:19px; }
+          .ict-caller-name { font-size:calc((19px) + 1px); }
           .ict-btn-icon { width:54px; height:54px; }
         }
       `}</style>

@@ -266,7 +266,7 @@ const AddPaymentMethodForm = ({ userId, onAdded }) => {
         style={{ marginTop: 8 }}
         onClick={() => setOpen(true)}
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add Payment
+        <span style={{ fontSize: 19, lineHeight: 1 }}>+</span> Add Payment
         Method
       </button>
     );
@@ -1237,7 +1237,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                   borderRadius: "50%",
                   width: 15,
                   height: 15,
-                  fontSize: 8,
+                  fontSize: 9,
                   fontWeight: 800,
                   display: "flex",
                   alignItems: "center",
@@ -1298,7 +1298,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           padding: "48px 0",
                           color: "#333",
                           fontFamily: "'Syne',sans-serif",
-                          fontSize: 12,
+                          fontSize: 13,
                         }}
                       >
                         Loading offers…
@@ -1442,7 +1442,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           padding: "48px 0",
                           color: "#333",
                           fontFamily: "'Syne',sans-serif",
-                          fontSize: 12,
+                          fontSize: 13,
                         }}
                       >
                         Loading offers…
@@ -1705,7 +1705,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                     {paymentMethods.length === 0 && (
                       <p
                         style={{
-                          fontSize: 11,
+                          fontSize: 12,
                           color: "#444",
                           fontFamily: "'Syne',sans-serif",
                           marginBottom: 8,
@@ -1720,7 +1720,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           <div className="ad-header">
                             <div
                               className="ad-type sell"
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: 12 }}
                             >
                               {pm.label}
                             </div>
@@ -1852,7 +1852,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         className="btn-create-ad"
                         onClick={() => setShowCreateAd(true)}
                       >
-                        <span style={{ fontSize: 20, lineHeight: 1 }}>+</span>{" "}
+                        <span style={{ fontSize: 21, lineHeight: 1 }}>+</span>{" "}
                         Create New Offer
                       </button>
                     </div>
@@ -1898,7 +1898,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                                   borderRadius: 9,
                                   fontFamily: "'Syne',sans-serif",
                                   fontWeight: 700,
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   cursor: "pointer",
                                   border: "1px solid",
                                   transition: "all .18s",
@@ -1929,7 +1929,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           </div>
                           <div
                             style={{
-                              fontSize: 10,
+                              fontSize: 11,
                               color: "#444",
                               fontFamily: "'Syne',sans-serif",
                               lineHeight: 1.6,
@@ -1993,7 +1993,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         {/* Balance hint */}
                         <div
                           style={{
-                            fontSize: 10,
+                            fontSize: 11,
                             color: "#444",
                             fontFamily: "'DM Mono',monospace",
                             marginTop: -4,
@@ -2106,7 +2106,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           {paymentMethods.length === 0 ? (
                             <p
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "#f87171",
                                 fontFamily: "'Syne',sans-serif",
                                 margin: 0,
@@ -2143,7 +2143,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                                 <div>
                                   <div
                                     style={{
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: "#bbb",
                                       fontFamily: "'Syne',sans-serif",
                                       fontWeight: 600,
@@ -2154,7 +2154,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                                   {pm.bank_name && (
                                     <div
                                       style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: "#444",
                                         fontFamily: "'DM Mono',monospace",
                                       }}
@@ -2198,7 +2198,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                               border: "1px solid rgba(132,204,22,0.15)",
                               borderRadius: 10,
                               padding: "10px 14px",
-                              fontSize: 12,
+                              fontSize: 13,
                               fontFamily: "'DM Mono',monospace",
                             }}
                           >
@@ -2211,7 +2211,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                             >
                               <span style={{ color: "#555" }}>Total value</span>
                               <strong
-                                style={{ color: "#a3e635", fontSize: 14 }}
+                                style={{ color: "#a3e635", fontSize: 15 }}
                               >
                                 {(
                                   Number(createForm.amount) *
@@ -2421,7 +2421,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                   </div>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       color: "#555",
                       fontFamily: "JetBrains Mono,monospace",
                     }}
@@ -2498,7 +2498,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         Terms
                       </div>
                       <div
-                        style={{ fontSize: 13, color: "#aaa", lineHeight: 1.5 }}
+                        style={{ fontSize: 14, color: "#aaa", lineHeight: 1.5 }}
                       >
                         {selectedOffer.terms}
                       </div>
@@ -2515,7 +2515,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                     border: "1px solid rgba(248,113,113,0.2)",
                     borderRadius: 12,
                     padding: 12,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: "#f87171",
                     fontFamily: "'Syne',sans-serif",
                   }}
@@ -2529,7 +2529,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                   <div className="summary-title">Your Payment Method</div>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: "#aaa",
                       fontFamily: "'Syne',sans-serif",
                     }}
@@ -2568,14 +2568,14 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        fontSize: 15,
+                        fontSize: 16,
                       }}
                     >
                       <span
                         style={{
                           color: "#666",
                           fontFamily: "JetBrains Mono,monospace",
-                          fontSize: 12,
+                          fontSize: 13,
                         }}
                       >
                         Total Cost
@@ -2598,7 +2598,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          fontSize: 12,
+                          fontSize: 13,
                         }}
                       >
                         <span
@@ -2635,7 +2635,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                 style={{
                   width: "100%",
                   padding: 14,
-                  fontSize: 15,
+                  fontSize: 16,
                   opacity: tradeAmount && paymentMethods.length > 0 ? 1 : 0.4,
                 }}
               >
@@ -2686,7 +2686,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           color: "#fbbf24",
                           marginLeft: 8,
                           fontFamily: "JetBrains Mono,monospace",
-                          fontSize: 11,
+                          fontSize: 12,
                         }}
                       >
                         ⏱ {countdown}
@@ -2753,7 +2753,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                               ? "#2563eb"
                               : "rgba(255,255,255,0.08)",
                           color: step.state === "pending" ? "#888" : "#fff",
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: 700,
                         }}
                       >
@@ -2761,7 +2761,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                       </div>
                       <span
                         style={{
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: 700,
                           color:
                             step.state === "active"
@@ -2778,10 +2778,10 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           : "Pending"}
                       </span>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
                       {step.title}
                     </div>
-                    <div style={{ fontSize: 12, lineHeight: 1.5, color: "#aaa" }}>
+                    <div style={{ fontSize: 13, lineHeight: 1.5, color: "#aaa" }}>
                       {step.description}
                     </div>
                   </div>
@@ -2831,7 +2831,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                     <span
                       className="summary-detail-value"
                       style={{
-                        fontSize: 18,
+                        fontSize: 19,
                         color: "#84cc16",
                         fontFamily: "JetBrains Mono,monospace",
                       }}
@@ -2887,7 +2887,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                       ? "⚠ Dispute Opened"
                       : "❌ Trade Cancelled"}
                   </div>
-                  <div style={{ color: "#ccc", fontSize: 13, lineHeight: 1.7 }}>
+                  <div style={{ color: "#ccc", fontSize: 14, lineHeight: 1.7 }}>
                     {activeTrade?.status === "COMPLETED"
                       ? `This trade is fully settled. ${selectedOffer.asset} has been delivered and ${selectedOffer.currency} has been released.`
                       : activeTrade?.status === "DISPUTED"
@@ -2917,7 +2917,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                     </div>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         color: "#ccc",
                         lineHeight: 1.8,
                         fontFamily: "Syne,sans-serif",
@@ -2939,7 +2939,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           <p
                             style={{
                               color: "#555",
-                              fontSize: 12,
+                              fontSize: 13,
                               fontFamily: "JetBrains Mono,monospace",
                             }}
                           >
@@ -2966,7 +2966,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                           <p
                             style={{
                               color: "#555",
-                              fontSize: 12,
+                              fontSize: 13,
                               fontFamily: "JetBrains Mono,monospace",
                             }}
                           >
@@ -2985,7 +2985,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         className="btn-buy"
                         onClick={() => handleConfirm(true)}
                         disabled={actionLoading}
-                        style={{ width: "100%", padding: 14, fontSize: 14 }}
+                        style={{ width: "100%", padding: 14, fontSize: 15 }}
                       >
                         {actionLoading ? (
                           "Processing…"
@@ -3053,7 +3053,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                   style={{
                     display: "flex",
                     gap: 10,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "#555",
                     fontFamily: "JetBrains Mono,monospace",
                   }}
@@ -3134,7 +3134,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                     color: "#333",
                     marginTop: 60,
                     fontFamily: "Syne,sans-serif",
-                    fontSize: 14,
+                    fontSize: 15,
                   }}
                 >
                   Start a conversation with support

@@ -72,10 +72,10 @@ const CSS = `
   background:rgba(255,255,255,.02);
 }
 .cp-head-title {
-  font-size:14px;font-weight:800;color:#f0f0f0;
+  font-size:calc((14px) + 1px);font-weight:800;color:#f0f0f0;
   display:flex;align-items:center;gap:8px;
 }
-.cp-head-sub { font-size:11px;color:#404040;font-weight:500;margin-top:2px; }
+.cp-head-sub { font-size:calc((11px) + 1px);color:#404040;font-weight:500;margin-top:2px; }
 .cp-close {
   width:28px;height:28px;border-radius:8px;
   background:rgba(255,255,255,.05);
@@ -129,12 +129,12 @@ const CSS = `
 .cp-card-icon {
   width:36px;height:36px;border-radius:10px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  font-size:15px;font-weight:900;border:1px solid;font-style:normal;
+  font-size:calc((15px) + 1px);font-weight:900;border:1px solid;font-style:normal;
 }
-.cp-card-plat { font-size:13px;font-weight:800;color:#e0e0e0;margin:0; }
-.cp-card-note { font-size:10px;color:#3a3a3a;margin:0;margin-top:1px; }
+.cp-card-plat { font-size:calc((13px) + 1px);font-weight:800;color:#e0e0e0;margin:0; }
+.cp-card-note { font-size:calc((10px) + 1px);color:#3a3a3a;margin:0;margin-top:1px; }
 .cp-char-badge {
-  margin-left:auto;font-size:10px;font-weight:700;
+  margin-left:auto;font-size:calc((10px) + 1px);font-weight:700;
   padding:2px 8px;border-radius:12px;
 }
 .cp-char-ok  { background:rgba(132,204,22,.1);color:#84cc16;border:1px solid rgba(132,204,22,.2); }
@@ -144,14 +144,14 @@ const CSS = `
 /* ── Content area ── */
 .cp-content { padding:12px 14px; }
 .cp-caption {
-  font-size:12.5px;line-height:1.6;color:#c0c0c0;
+  font-size:calc((12.5px) + 1px);line-height:1.6;color:#c0c0c0;
   white-space:pre-wrap;word-break:break-word;
   min-height:64px;
 }
 .cp-caption-edit {
   width:100%;padding:8px 0;
   background:none;border:none;outline:none;
-  font-size:12.5px;line-height:1.6;color:#e0e0e0;
+  font-size:calc((12.5px) + 1px);line-height:1.6;color:#e0e0e0;
   font-family:inherit;resize:none;
   min-height:80px;
 }
@@ -162,7 +162,7 @@ const CSS = `
 }
 .cp-edit-btn {
   display:inline-flex;align-items:center;gap:5px;
-  padding:5px 11px;border-radius:8px;font-size:11px;font-weight:700;
+  padding:5px 11px;border-radius:8px;font-size:calc((11px) + 1px);font-weight:700;
   cursor:pointer;font-family:inherit;transition:all .14s;
 }
 .cp-edit-btn.edit {
@@ -193,7 +193,7 @@ const CSS = `
   margin:0 14px 12px;
   padding:8px 10px;
   background:rgba(244,114,182,.06);border:1px solid rgba(244,114,182,.15);
-  border-radius:8px;font-size:11px;color:#f472b6;line-height:1.5;
+  border-radius:8px;font-size:calc((11px) + 1px);color:#f472b6;line-height:1.5;
 }
 
 /* ── Nav buttons ── */
@@ -205,7 +205,7 @@ const CSS = `
 .cp-nav-btn {
   display:flex;align-items:center;gap:6px;
   padding:9px 16px;border-radius:11px;
-  font-size:12.5px;font-weight:700;
+  font-size:calc((12.5px) + 1px);font-weight:700;
   cursor:pointer;font-family:inherit;transition:all .15s;
   border:1px solid;
 }
@@ -225,7 +225,7 @@ const CSS = `
   padding:14px;
   background:linear-gradient(135deg,#84cc16,#65a30d);
   border:none;border-radius:13px;color:#040a00;
-  font-size:14px;font-weight:900;
+  font-size:calc((14px) + 1px);font-weight:900;
   cursor:pointer;font-family:inherit;
   display:flex;align-items:center;justify-content:center;gap:8px;
   transition:all .2s;
@@ -241,10 +241,10 @@ const CSS = `
   background:rgba(132,204,22,.04);
   border:1px solid rgba(132,204,22,.15);
   border-radius:10px;
-  font-size:11.5px;color:#6a9a3a;line-height:1.5;
+  font-size:calc((11.5px) + 1px);color:#6a9a3a;line-height:1.5;
 }
 .cp-xeevia-label {
-  font-size:9px;font-weight:800;letter-spacing:1px;
+  font-size:calc((9px) + 1px);font-weight:800;letter-spacing:1px;
   color:#4a6a2a;text-transform:uppercase;margin-bottom:5px;
 }
 `;
@@ -559,7 +559,7 @@ const CrossPostPreviewModal = ({
                         </button>
                       )}
                       {pOver && (
-                        <span style={{ fontSize:11, color:"#f87171", marginLeft:"auto" }}>
+                        <span style={{ fontSize:12, color:"#f87171", marginLeft:"auto" }}>
                           {pcap.length - pcfg.limit} chars over limit
                         </span>
                       )}
@@ -582,7 +582,7 @@ const CrossPostPreviewModal = ({
             {activeIdx > 0 ? (PLATFORM_PREVIEW[platforms[activeIdx - 1]]?.name || "Back") : "Back"}
           </button>
 
-          <span style={{ fontSize:11, color:"#383838", fontWeight:600 }}>
+          <span style={{ fontSize:12, color:"#383838", fontWeight:600 }}>
             {activeIdx + 1} / {total}
           </span>
 

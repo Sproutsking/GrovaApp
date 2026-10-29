@@ -411,7 +411,7 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
           <div className="mcs-card-hover">
             {item.views > 0 && <span><Eye size={10} />{fmt(item.views)}</span>}
             {item.likes > 0 && <span><Heart size={10} />{fmt(item.likes)}</span>}
-            {!hasStats && <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>View</span>}
+            {!hasStats && <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>View</span>}
           </div>
         )}
 
@@ -652,7 +652,7 @@ const MyContentSection = ({
         /* ── Tabs ── */
         .mcs-top { padding: 14px 14px 0; }
         .mcs-label {
-          font-size: 11px; font-weight: 800; color: #525252;
+          font-size: calc((11px) + 1px); font-weight: 800; color: #525252;
           text-transform: uppercase; letter-spacing: 1px;
           margin: 0 0 10px;
         }
@@ -666,7 +666,7 @@ const MyContentSection = ({
           display: flex; align-items: center; gap: 5px;
           padding: 9px 13px;
           background: none; border: none; border-bottom: 2px solid transparent;
-          color: #404040; font-size: 12px; font-weight: 700;
+          color: #404040; font-size: calc((12px) + 1px); font-weight: 700;
           cursor: pointer; white-space: nowrap; flex-shrink: 0;
           transition: color 0.18s;
         }
@@ -679,7 +679,7 @@ const MyContentSection = ({
         .mcs-tab[data-tab="comments"].mcs-active { color: #34d399; border-bottom-color: #34d399; }
 
         .mcs-badge {
-          font-size: 9px; padding: 1px 5px; border-radius: 20px;
+          font-size: calc((9px) + 1px); padding: 1px 5px; border-radius: 20px;
           font-weight: 800; background: rgba(255,255,255,0.05); color: #404040;
         }
         .mcs-tab[data-tab="posts"].mcs-active    .mcs-badge { background: rgba(132,204,22,0.15); color: #84cc16; }
@@ -699,7 +699,7 @@ const MyContentSection = ({
         .mcs-search:focus-within { border-color: rgba(132,204,22,0.35); }
         .mcs-search input {
           flex: 1; background: none; border: none; outline: none;
-          color: #e5e5e5; font-size: 12px;
+          color: #e5e5e5; font-size: calc((12px) + 1px);
         }
         .mcs-search input::placeholder { color: #333; }
         .mcs-search svg { color: #404040; flex-shrink: 0; }
@@ -756,12 +756,12 @@ const MyContentSection = ({
           background: radial-gradient(circle at 15% 10%,rgba(255,255,255,.2),transparent 35%), linear-gradient(to top,rgba(0,0,0,.28),transparent 60%);
         }
         .mcs-text-preview-label {
-          font-size: 8px; font-weight: 900; letter-spacing: .12em;
+          font-size: calc((8px) + 1px); font-weight: 900; letter-spacing: .12em;
           opacity: .7; text-transform: uppercase;
         }
         .mcs-text-preview-copy {
           display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
-          overflow: hidden; font-size: clamp(12px, 2.6vw, 17px);
+          overflow: hidden; font-size: calc((clamp(12px, 2.6vw, 17px)) + 1px);
           line-height: 1.18; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.35);
         }
 
@@ -811,7 +811,7 @@ const MyContentSection = ({
         }
         .mcs-fb-text {
           position: relative; z-index: 1;
-          font-size: 7.5px; color: rgba(255,255,255,0.28);
+          font-size: calc((7.5px) + 1px); color: rgba(255,255,255,0.28);
           text-align: center; line-height: 1.6; margin: 0;
           overflow: hidden; display: -webkit-box;
           -webkit-line-clamp: 5; -webkit-box-orient: vertical;
@@ -819,7 +819,7 @@ const MyContentSection = ({
         }
         .mcs-fb-label {
           position: relative; z-index: 1;
-          font-size: 9px; font-weight: 800; letter-spacing: 1px;
+          font-size: calc((9px) + 1px); font-weight: 800; letter-spacing: 1px;
           text-transform: uppercase; opacity: 0.6;
         }
 
@@ -833,7 +833,7 @@ const MyContentSection = ({
         }
         .mcs-card-hover span {
           display: flex; align-items: center; gap: 3px;
-          color: #fff; font-size: 12px; font-weight: 800;
+          color: #fff; font-size: calc((12px) + 1px); font-weight: 800;
           text-shadow: 0 1px 6px rgba(0,0,0,0.9);
         }
 
@@ -852,7 +852,7 @@ const MyContentSection = ({
           display: flex; align-items: center; gap: 2px;
           background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
           border-radius: 6px; padding: 2px 5px;
-          color: #fff; font-size: 8px; font-weight: 700;
+          color: #fff; font-size: calc((8px) + 1px); font-weight: 700;
           z-index: 2;
         }
 
@@ -867,7 +867,7 @@ const MyContentSection = ({
         .mcs-card-foot {
           padding: 3px 5px; background: #080808;
           display: flex; align-items: center; gap: 3px;
-          color: #2a2a2a; font-size: 8.5px;
+          color: #2a2a2a; font-size: calc((8.5px) + 1px);
         }
 
         /* ── State ── */
@@ -882,13 +882,13 @@ const MyContentSection = ({
           border-radius: 50%; animation: mcs-spin 0.8s linear infinite;
         }
         @keyframes mcs-spin { to { transform: rotate(360deg); } }
-        .mcs-state p   { color: #525252; font-size: 13px; font-weight: 600; margin: 0; }
-        .mcs-state small { color: #333; font-size: 11px; }
-        .mcs-emoji { font-size: 34px; }
+        .mcs-state p   { color: #525252; font-size: calc((13px) + 1px); font-weight: 600; margin: 0; }
+        .mcs-state small { color: #333; font-size: calc((11px) + 1px); }
+        .mcs-emoji { font-size: calc((34px) + 1px); }
         .mcs-retry {
           padding: 6px 14px;
           background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
-          border-radius: 8px; color: #ef4444; font-size: 12px; font-weight: 600; cursor: pointer;
+          border-radius: 8px; color: #ef4444; font-size: calc((12px) + 1px); font-weight: 600; cursor: pointer;
         }
 
         /* ════════════════════════════════════════════════════════════════════
@@ -922,6 +922,9 @@ const MyContentSection = ({
           }
           @keyframes mcs-vslideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
         }
+        @media (max-width: 768px) {
+          .mcs-root { width:calc(100% + 40px); margin-left:-20px; border-left:0; border-right:0; border-radius:0; }
+        }
         @media (max-width: 480px) {
           .mcs-root { width:calc(100% + 24px); margin-left:-12px; border-left:0; border-right:0; border-radius:0; }
         }
@@ -942,7 +945,7 @@ const MyContentSection = ({
         .mcs-viewer-back:hover { background: rgba(255,255,255,0.1); }
         .mcs-viewer-title {
           display: flex; align-items: center; gap: 7px;
-          font-size: 15px; font-weight: 800;
+          font-size: calc((15px) + 1px); font-weight: 800;
         }
         .mcs-viewer-body {
           flex: 1; overflow-y: auto; overflow-x: hidden;
@@ -969,21 +972,21 @@ const MyContentSection = ({
         .mcs-cpc-left { padding-top: 2px; flex-shrink: 0; }
         .mcs-cpc-body { flex: 1; min-width: 0; }
         .mcs-cpc-text {
-          font-size: 13px; color: #c0c0c0; line-height: 1.55; margin: 0 0 4px;
+          font-size: calc((13px) + 1px); color: #c0c0c0; line-height: 1.55; margin: 0 0 4px;
           overflow: hidden; display: -webkit-box;
           -webkit-line-clamp: 2; -webkit-box-orient: vertical;
         }
-        .mcs-cpc-time { font-size: 10px; color: #383838; }
+        .mcs-cpc-time { font-size: calc((10px) + 1px); color: #383838; }
         .mcs-cpc-right {
           display: flex; flex-direction: column; align-items: flex-end;
           gap: 6px; flex-shrink: 0;
         }
         .mcs-cpc-likes {
           display: flex; align-items: center; gap: 3px;
-          font-size: 10px; color: #525252;
+          font-size: calc((10px) + 1px); color: #525252;
         }
         .mcs-cpc-arrow {
-          font-size: 16px; color: #2a2a2a; line-height: 1;
+          font-size: calc((16px) + 1px); color: #2a2a2a; line-height: 1;
         }
 
         /* Open all button */
@@ -993,7 +996,7 @@ const MyContentSection = ({
           padding: 11px 16px; border-radius: 12px;
           background: rgba(52,211,153,0.05);
           border: 1px solid rgba(52,211,153,0.14);
-          color: #34d399; font-size: 12px; font-weight: 700;
+          color: #34d399; font-size: calc((12px) + 1px); font-weight: 700;
           cursor: pointer; transition: all 0.18s; width: calc(100% - 28px);
         }
         .mcs-open-cv-btn:hover {

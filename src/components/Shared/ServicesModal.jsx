@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import ComingSoonModal from "./ComingSoonModal";
 
-const OracleIcon = () => <span style={{ fontSize: 15, lineHeight: 1 }}>⛓</span>;
+const OracleIcon = () => <span style={{ fontSize: 16, lineHeight: 1 }}>⛓</span>;
 
 const ALL_SERVICES = [
   { id:"home",      Icon:Home,       label:"Home",       color:"#84cc16", bg:"rgba(132,204,22,0.12)",  section:"Navigate", desc:"Your feed"         },
@@ -365,7 +365,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
           flex-shrink: 0;
         }
         .dsm-hdr-title {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 800;
           color: #f0f0f0;
           letter-spacing: -0.2px;
@@ -396,7 +396,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
           border: none;
           outline: none;
           color: #e5e5e5;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
           caret-color: #84cc16;
           min-width: 0;
@@ -443,7 +443,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
         /* Section */
         .dsm-section { display: flex; flex-direction: column; gap: 8px; }
         .dsm-sec-label {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 1.4px;
@@ -513,7 +513,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
         .dsm-label {
           position: relative;
           z-index: 1;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           /* FIX: was #3a3a3a (nearly invisible on dark bg). Now legible. */
           color: #888888;
@@ -527,12 +527,12 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
 
         /* Search results */
         .dsm-res-label {
-          font-size: 9px; font-weight: 800;
+          font-size: calc((9px) + 1px); font-weight: 800;
           letter-spacing: 1.2px; text-transform: uppercase;
           color: #555; margin-bottom: 4px;
         }
         .dsm-no-res {
-          color: #555; font-size: 13px; font-weight: 600;
+          color: #555; font-size: calc((13px) + 1px); font-weight: 600;
           padding: 28px 0; text-align: center;
         }
 
@@ -580,22 +580,22 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
         .sm-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px 12px; }
         .sm-hdr-l { display: flex; align-items: center; gap: 10px; }
         .sm-hdr-icon { width: 32px; height: 32px; border-radius: 10px; background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.2); display: flex; align-items: center; justify-content: center; }
-        .sm-hdr-title { font-size: 17px; font-weight: 900; color: #fff; letter-spacing: -.2px; font-family: 'Syne', sans-serif; }
+        .sm-hdr-title { font-size: calc((17px) + 1px); font-weight: 900; color: #fff; letter-spacing: -.2px; font-family: 'Syne', sans-serif; }
         .sm-close { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #525252; transition: all 0.18s; }
         .sm-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .sm-search-wrap { padding: 0 16px 14px; }
         .sm-search-box { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 11px 14px; transition: border-color 0.2s, background 0.2s; }
         .sm-search-box:focus-within { border-color: rgba(132,204,22,0.38); background: rgba(132,204,22,0.03); }
         .sm-si { color: #525252; flex-shrink: 0; }
-        .sm-inp { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 14px; font-weight: 500; caret-color: #84cc16; font-family: 'Manrope', sans-serif; }
+        .sm-inp { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: calc((14px) + 1px); font-weight: 500; caret-color: #84cc16; font-family: 'Manrope', sans-serif; }
         .sm-inp::placeholder { color: #333; }
         .sm-clr { background: rgba(255,255,255,0.07); border: none; border-radius: 6px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #525252; transition: all 0.18s; flex-shrink: 0; }
         .sm-clr:hover { background: rgba(255,255,255,0.14); color: #fff; }
         .sm-res { padding: 0 16px; }
-        .sm-res-lbl { font-size: 9.5px; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px; padding: 0 2px; }
-        .sm-no-res { text-align: center; padding: 32px 20px; color: #444; font-size: 13px; font-weight: 600; }
+        .sm-res-lbl { font-size: calc((9.5px) + 1px); font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px; padding: 0 2px; }
+        .sm-no-res { text-align: center; padding: 32px 20px; color: #444; font-size: calc((13px) + 1px); font-weight: 600; }
         .sm-secs { padding: 0 16px; display: flex; flex-direction: column; gap: 20px; }
-        .sm-sec-lbl { font-size: 9.5px; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 1.2px; padding: 0 4px; margin-bottom: 8px; }
+        .sm-sec-lbl { font-size: calc((9.5px) + 1px); font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 1.2px; padding: 0 4px; margin-bottom: 8px; }
         .sm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         @media (max-width: 340px) { .sm-grid { grid-template-columns: repeat(3, 1fr); } }
         .sm-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 13px 6px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.025); cursor: pointer; position: relative; transition: all 0.22s cubic-bezier(0.34,1.4,0.64,1); animation: smItemIn 0.26s ease both; -webkit-tap-highlight-color: transparent; }
@@ -603,7 +603,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
         .sm-item:hover { background: var(--bg); border-color: color-mix(in srgb, var(--c) 28%, transparent); transform: translateY(-3px) scale(1.04); box-shadow: 0 8px 22px rgba(0,0,0,0.32); }
         .sm-item-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
         .sm-item:hover .sm-item-icon { transform: scale(1.1); }
-        .sm-item-label { font-size: 9.5px; font-weight: 700; color: #666; text-align: center; transition: color 0.2s; white-space: nowrap; }
+        .sm-item-label { font-size: calc((9.5px) + 1px); font-weight: 700; color: #666; text-align: center; transition: color 0.2s; white-space: nowrap; }
         .sm-item:hover .sm-item-label { color: #a3a3a3; }
         .sm-item[data-oracle="true"]:hover { border-color: rgba(168,85,247,0.4); box-shadow: 0 8px 22px rgba(168,85,247,0.2); }
       `}</style>

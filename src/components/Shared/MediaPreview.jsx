@@ -150,7 +150,7 @@ const MediaPreview = ({
           background: rgba(0, 0, 0, 0.85);
           backdrop-filter: blur(10px);
           border-radius: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           color: #84cc16;
         }

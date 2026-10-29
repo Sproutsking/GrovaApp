@@ -156,24 +156,24 @@ const UserSearchModal = ({ currentUser, onClose, onSelect }) => {
         .search-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(12px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .search-modal { width: 100%; max-width: 520px; max-height: 80vh; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%); border: 1px solid rgba(132, 204, 22, 0.3); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
         .search-header { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid rgba(132, 204, 22, 0.15); background: rgba(0, 0, 0, 0.5); color: #84cc16; }
-        .search-title { flex: 1; font-size: 18px; font-weight: 800; color: #84cc16; }
+        .search-title { flex: 1; font-size: calc((18px) + 1px); font-weight: 800; color: #84cc16; }
         .search-close { width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; color: #666; cursor: pointer; }
         .search-input-wrap { position: relative; padding: 18px 20px; border-bottom: 1px solid rgba(132, 204, 22, 0.1); }
-        .search-input-wrap input { width: 100%; padding: 12px 12px 12px 40px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(132, 204, 22, 0.2); border-radius: 10px; color: #fff; font-size: 14px; outline: none; }
+        .search-input-wrap input { width: 100%; padding: 12px 12px 12px 40px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(132, 204, 22, 0.2); border-radius: 10px; color: #fff; font-size: calc((14px) + 1px); outline: none; }
         .search-input-wrap svg:first-child { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); color: #84cc16; }
         .search-loading { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); }
         .spinner { color: #84cc16; animation: spin 0.7s linear infinite; }
         .search-results { flex: 1; overflow-y: auto; }
         .search-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 30px; text-align: center; color: #666; }
-        .empty-title { font-size: 17px; font-weight: 700; color: #fff; margin: 14px 0 6px; }
-        .empty-subtitle { font-size: 13px; color: #666; }
+        .empty-title { font-size: calc((17px) + 1px); font-weight: 700; color: #fff; margin: 14px 0 6px; }
+        .empty-subtitle { font-size: calc((13px) + 1px); color: #666; }
         .search-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
         .search-item:hover, .search-item.selected { background: linear-gradient(90deg, rgba(132, 204, 22, 0.08) 0%, transparent 100%); border-left: 3px solid #84cc16; padding-left: 17px; }
-        .item-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #000; overflow: hidden; border: 2px solid rgba(132, 204, 22, 0.3); }
+        .item-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%); display: flex; align-items: center; justify-content: center; font-size: calc((18px) + 1px); font-weight: 800; color: #000; overflow: hidden; border: 2px solid rgba(132, 204, 22, 0.3); }
         .item-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .item-info { flex: 1; }
-        .item-name { font-size: 14px; font-weight: 700; color: #fff; }
-        .item-username { font-size: 12px; color: #666; }
+        .item-name { font-size: calc((14px) + 1px); font-weight: 700; color: #fff; }
+        .item-username { font-size: calc((12px) + 1px); color: #666; }
         .item-action { width: 32px; height: 32px; border-radius: 50%; background: rgba(132, 204, 22, 0.15); border: 1px solid rgba(132, 204, 22, 0.3); display: flex; align-items: center; justify-content: center; color: #84cc16; }
       `}</style>
     </div>

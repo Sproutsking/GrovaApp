@@ -100,18 +100,18 @@ export default function TransactionsTab({ setPage }) {
         <div className="xg" style={{ padding:"12px 14px", marginBottom:12,
           display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div>
-            <div style={{ color:"var(--t3)", fontSize:"9.5px", fontWeight:600, letterSpacing:"0.05em",
+            <div style={{ color:"var(--t3)", fontSize:"calc((9.5px) + 1px)", fontWeight:600, letterSpacing:"0.05em",
               textTransform:"uppercase", marginBottom:3 }}>Money In</div>
-            <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:16, color:"var(--lime)" }}>
+            <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:17, color:"var(--lime)" }}>
               +₦{fmtNGN(summary.in)}
             </div>
           </div>
           <div style={{ width:1, height:28,
             background:"linear-gradient(to bottom,transparent,rgba(212,168,71,0.3),transparent)" }} />
           <div style={{ textAlign:"right" }}>
-            <div style={{ color:"var(--t3)", fontSize:"9.5px", fontWeight:600, letterSpacing:"0.05em",
+            <div style={{ color:"var(--t3)", fontSize:"calc((9.5px) + 1px)", fontWeight:600, letterSpacing:"0.05em",
               textTransform:"uppercase", marginBottom:3 }}>Money Out</div>
-            <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:16 }}>
+            <div style={{ fontFamily:"var(--fd)", fontWeight:800, fontSize:17 }}>
               −₦{fmtNGN(summary.out)}
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function TransactionsTab({ setPage }) {
           {FILTERS.map(f => (
             <button key={f.key} onClick={()=>setFilter(f.key)} style={{
               padding:"5px 12px", borderRadius:100, border:"1px solid",
-              fontSize:"10.5px", fontWeight:600, fontFamily:"var(--fb)", cursor:"pointer",
+              fontSize:"calc((10.5px) + 1px)", fontWeight:600, fontFamily:"var(--fb)", cursor:"pointer",
               background:filter===f.key?"rgba(163,230,53,0.09)":"transparent",
               borderColor:filter===f.key?"rgba(163,230,53,0.25)":"rgba(255,255,255,0.065)",
               color:filter===f.key?"var(--lime)":"var(--t2)",
@@ -144,7 +144,7 @@ export default function TransactionsTab({ setPage }) {
 
         {/* Error */}
         {error && !loading && (
-          <div style={{ textAlign:"center", padding:"36px 0", color:"#f87171", fontSize:12 }}>
+          <div style={{ textAlign:"center", padding:"36px 0", color:"#f87171", fontSize:13 }}>
             {error}
             <div style={{ marginTop:10 }}>
               <button className="btn-p sm" onClick={fetchTxs}>Retry</button>
@@ -154,14 +154,14 @@ export default function TransactionsTab({ setPage }) {
 
         {/* Empty */}
         {!loading && !error && visible.length === 0 && (
-          <div style={{ textAlign:"center", padding:"50px 0", color:"var(--t2)", fontSize:12 }}>
+          <div style={{ textAlign:"center", padding:"50px 0", color:"var(--t2)", fontSize:13 }}>
             <div style={{ width:38, height:38, borderRadius:"50%",
               background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.065)",
               display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
               <ArrowUpRight size={15} style={{ opacity:0.3 }} />
             </div>
-            <div style={{ fontWeight:600, color:"var(--t3)", fontSize:12 }}>No transactions yet</div>
-            <div style={{ fontSize:10.5, marginTop:3, opacity:.5 }}>
+            <div style={{ fontWeight:600, color:"var(--t3)", fontSize:13 }}>No transactions yet</div>
+            <div style={{ fontSize:11.5, marginTop:3, opacity:.5 }}>
               {filter!=="all" ? `No ${filter==="credit"?"incoming":"outgoing"} transactions` : "Send or receive ₦ to get started"}
             </div>
           </div>

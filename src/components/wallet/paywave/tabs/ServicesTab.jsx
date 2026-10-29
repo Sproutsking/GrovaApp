@@ -28,13 +28,13 @@ export default function ServicesTab({ setPage }) {
   return (
     <div className="pw-scroll-px">
       <div style={{ paddingTop:14, paddingBottom:12 }}>
-        <div style={{ fontFamily:"var(--fd)", fontSize:18, fontWeight:800, letterSpacing:"-0.025em" }}>
+        <div style={{ fontFamily:"var(--fd)", fontSize:19, fontWeight:800, letterSpacing:"-0.025em" }}>
           Services
         </div>
       </div>
 
       {/* Bills & Payments */}
-      <div style={{ fontFamily:"var(--fd)", fontSize:"9.5px", fontWeight:700,
+      <div style={{ fontFamily:"var(--fd)", fontSize:"calc((9.5px) + 1px)", fontWeight:700,
         color:"rgba(255,255,255,0.2)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:9 }}>
         Bills & Payments
       </div>
@@ -48,7 +48,7 @@ export default function ServicesTab({ setPage }) {
       </div>
 
       {/* Financial Services */}
-      <div style={{ fontFamily:"var(--fd)", fontSize:"9.5px", fontWeight:700,
+      <div style={{ fontFamily:"var(--fd)", fontSize:"calc((9.5px) + 1px)", fontWeight:700,
         color:"rgba(255,255,255,0.2)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:9 }}>
         Financial Services
       </div>
@@ -62,8 +62,8 @@ export default function ServicesTab({ setPage }) {
                   <item.icon size={16} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800 }}>{item.label}</div>
-                  <div style={{ color:"var(--t2)", fontSize:11 }}>{item.sub}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800 }}>{item.label}</div>
+                  <div style={{ color:"var(--t2)", fontSize:12 }}>{item.sub}</div>
                 </div>
               </div>
               <ChevronRight size={12} color="var(--t4)" />
@@ -141,12 +141,12 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             animation:"pw-pulse 2s infinite" }}>
             <CheckCircle size={24} color="var(--lime)" />
           </div>
-          <div style={{ fontFamily:"var(--fd)", fontSize:17, fontWeight:800 }}>Application Submitted!</div>
-          <div style={{ color:"var(--t2)", fontSize:12, lineHeight:1.7, maxWidth:280 }}>
+          <div style={{ fontFamily:"var(--fd)", fontSize:18, fontWeight:800 }}>Application Submitted!</div>
+          <div style={{ color:"var(--t2)", fontSize:13, lineHeight:1.7, maxWidth:280 }}>
             Your <strong style={{ color:tier?.color }}>{tier?.name}</strong> application is received. Review takes <strong style={{ color:"var(--t1)" }}>5–7 working days</strong>.
           </div>
           <button className="btn-p full" onClick={onBack}>Back to Services</button>
-          <div style={{ fontSize:10.5, color:"var(--t2)" }}>No student should have to drop out.</div>
+          <div style={{ fontSize:11.5, color:"var(--t2)" }}>No student should have to drop out.</div>
         </div>
       </div>
     );
@@ -160,10 +160,10 @@ export function ScholarshipsView({ pwBalance, onBack }) {
           <div style={{ borderRadius:10, padding:"10px 12px",
             background:`${tier.color}16`, border:`1px solid ${tier.color}30`,
             display:"flex", alignItems:"center", gap:9 }}>
-            <div style={{ fontSize:20 }}>{tier.icon}</div>
+            <div style={{ fontSize:21 }}>{tier.icon}</div>
             <div>
-              <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:800, color:tier.color }}>{tier.name} · {tier.pct}%</div>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,0.38)" }}>{tier.desc}</div>
+              <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800, color:tier.color }}>{tier.name} · {tier.pct}%</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.38)" }}>{tier.desc}</div>
             </div>
           </div>
 
@@ -172,14 +172,14 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             {[1,2].map(s=>(
               <React.Fragment key={s}>
                 <div style={{ width:24, height:24, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:11, fontWeight:700,
+                  fontSize:12, fontWeight:700,
                   background:step>=s?"var(--lime)":"rgba(255,255,255,0.055)",
                   color:step>=s?"#060e02":"var(--t2)",
                   border:step>=s?"none":"1px solid var(--b1)" }}>{s}</div>
                 {s<2 && <div style={{ flex:1, height:1, background:step>=2?"var(--lime)":"rgba(255,255,255,0.055)" }} />}
               </React.Fragment>
             ))}
-            <div style={{ marginLeft:6, fontSize:10.5, color:"var(--t2)" }}>Step {step} of 2</div>
+            <div style={{ marginLeft:6, fontSize:11.5, color:"var(--t2)" }}>Step {step} of 2</div>
           </div>
 
           {step===1 && (
@@ -219,13 +219,13 @@ export function ScholarshipsView({ pwBalance, onBack }) {
           {step===2 && (
             <>
               <div style={{ borderRadius:10, padding:"11px 12px", background:"rgba(255,255,255,0.02)", border:"1px solid var(--b1)" }}>
-                <div style={{ fontFamily:"var(--fd)", fontSize:12, fontWeight:700, marginBottom:7, color:tier.color }}>
+                <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:700, marginBottom:7, color:tier.color }}>
                   Eligibility Requirements
                 </div>
                 {tier.conditions.map((c,i)=>(
                   <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:6, marginBottom:4 }}>
                     <CheckCircle size={10} color={tier.color} style={{ flexShrink:0, marginTop:2 }} />
-                    <span style={{ fontSize:11, color:"rgba(255,255,255,0.42)", lineHeight:1.5 }}>{c}</span>
+                    <span style={{ fontSize:12, color:"rgba(255,255,255,0.42)", lineHeight:1.5 }}>{c}</span>
                   </div>
                 ))}
               </div>
@@ -237,7 +237,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                     placeholder="Tell us your story. Your background, ambitions, how this changes your trajectory…"
                     className="xf-in" style={{ minHeight:100, resize:"vertical", lineHeight:1.6 }} />
                 </div>
-                <div style={{ fontSize:10.5, color:"var(--t2)", marginTop:3 }}>Minimum 100 characters.</div>
+                <div style={{ fontSize:11.5, color:"var(--t2)", marginTop:3 }}>Minimum 100 characters.</div>
               </div>
               <div>
                 <label className="xf-lbl">School Fee Invoice Reference</label>
@@ -292,11 +292,11 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                 <GraduationCap size={18} color="#fff" />
               </div>
               <div>
-                <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800 }}>Xeevia Scholarships</div>
-                <div style={{ color:"#60a5fa", fontSize:11 }}>No student should drop out</div>
+                <div style={{ fontFamily:"var(--fd)", fontSize:16, fontWeight:800 }}>Xeevia Scholarships</div>
+                <div style={{ color:"#60a5fa", fontSize:12 }}>No student should drop out</div>
               </div>
             </div>
-            <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.38)", lineHeight:1.65 }}>
+            <div style={{ fontSize:12.5, color:"rgba(255,255,255,0.38)", lineHeight:1.65 }}>
               PayWave funds verified tuition directly — no loans, no debt, no strings except academic excellence.
             </div>
           </div>
@@ -307,15 +307,15 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             onClick={()=>{setSelTier(t.id);setView("apply");setStep(1);}}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:8 }}>
               <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-                <div style={{ fontSize:24, lineHeight:1 }}>{t.icon}</div>
+                <div style={{ fontSize:25, lineHeight:1 }}>{t.icon}</div>
                 <div>
-                  <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:800, color:t.color }}>{t.name}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.38)", marginTop:1 }}>{t.desc}</div>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800, color:t.color }}>{t.name}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.38)", marginTop:1 }}>{t.desc}</div>
                 </div>
               </div>
               <div style={{ flexShrink:0, padding:"4px 10px",
                 background:`${t.color}16`, border:`1px solid ${t.color}30`,
-                borderRadius:20, fontFamily:"var(--fd)", fontWeight:800, fontSize:14, color:t.color }}>
+                borderRadius:20, fontFamily:"var(--fd)", fontWeight:800, fontSize:15, color:t.color }}>
                 {t.pct}%
               </div>
             </div>
@@ -323,13 +323,13 @@ export function ScholarshipsView({ pwBalance, onBack }) {
               {t.conditions.slice(0,3).map((c,i)=>(
                 <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
                   <div style={{ width:3, height:3, borderRadius:"50%", background:t.color, flexShrink:0 }} />
-                  <span style={{ fontSize:11, color:"rgba(255,255,255,0.33)" }}>{c}</span>
+                  <span style={{ fontSize:12, color:"rgba(255,255,255,0.33)" }}>{c}</span>
                 </div>
               ))}
             </div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div style={{ fontSize:10.5, color:"rgba(255,255,255,0.22)" }}>Max: ₦{t.maxAmt.toLocaleString()} / semester</div>
-              <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:11.5, fontWeight:600, color:t.color }}>
+              <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.22)" }}>Max: ₦{t.maxAmt.toLocaleString()} / semester</div>
+              <div style={{ display:"flex", alignItems:"center", gap:3, fontSize:12.5, fontWeight:600, color:t.color }}>
                 Apply <ChevronRight size={11}/>
               </div>
             </div>
@@ -338,7 +338,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
 
         <div style={{ borderRadius:10, padding:"11px 12px",
           background:"rgba(255,255,255,0.015)", border:"1px dashed rgba(255,255,255,0.065)",
-          fontSize:11, color:"rgba(255,255,255,0.26)", lineHeight:1.7 }}>
+          fontSize:12, color:"rgba(255,255,255,0.26)", lineHeight:1.7 }}>
           <div style={{ fontWeight:700, color:"rgba(255,255,255,0.4)", marginBottom:3 }}>How it works</div>
           Applications reviewed in 5–7 days. Approved scholarships go direct to your institution. No repayment — this is a grant. Funded by Xeevia Global Impact Fund (5% of platform revenue).
         </div>

@@ -509,7 +509,7 @@ const NotificationsSection = ({
           cursor: pointer;
           color: #9cff00;
           font-weight: 600;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           transition: all 0.2s;
           margin-bottom: 16px;
         }
@@ -531,7 +531,7 @@ const NotificationsSection = ({
           display: flex;
           align-items: center;
           gap: 12px;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
         }
@@ -544,7 +544,7 @@ const NotificationsSection = ({
           background: rgba(255, 107, 107, 0.15);
           border: 1px solid rgba(255, 107, 107, 0.3);
           border-radius: 8px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           color: #ff6b6b;
         }
@@ -570,7 +570,7 @@ const NotificationsSection = ({
           align-items: center;
           justify-content: center;
           gap: 8px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .notif-tab:hover {
@@ -608,7 +608,7 @@ const NotificationsSection = ({
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #9cff00;
           margin-bottom: 12px;
@@ -662,14 +662,14 @@ const NotificationsSection = ({
         }
 
         .notif-label {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #fff;
           margin-bottom: 2px;
         }
 
         .notif-desc {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #999;
         }
 
@@ -749,7 +749,7 @@ const NotificationsSection = ({
         }
 
         .delivery-label {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #fff;
         }
@@ -778,7 +778,7 @@ const NotificationsSection = ({
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .mute-btn:hover {
@@ -802,7 +802,7 @@ const NotificationsSection = ({
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #ff6b6b;
         }
@@ -816,7 +816,7 @@ const NotificationsSection = ({
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
 
         .unmute-btn:hover {
@@ -848,7 +848,7 @@ const NotificationsSection = ({
 
         .quiet-title,
         .priority-title {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #fff;
           margin-bottom: 4px;
@@ -856,7 +856,7 @@ const NotificationsSection = ({
 
         .quiet-desc,
         .priority-desc {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #999;
         }
 
@@ -876,7 +876,7 @@ const NotificationsSection = ({
 
         .time-input-group label {
           display: block;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           color: #9cff00;
           text-transform: uppercase;
@@ -891,7 +891,7 @@ const NotificationsSection = ({
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 8px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           cursor: pointer;
         }
@@ -902,7 +902,7 @@ const NotificationsSection = ({
         }
 
         .time-separator {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           color: #9cff00;
           font-weight: 700;
           margin-top: 20px;
@@ -923,7 +923,7 @@ const NotificationsSection = ({
           justify-content: center;
           gap: 10px;
           transition: all 0.3s;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .save-settings-btn:hover {

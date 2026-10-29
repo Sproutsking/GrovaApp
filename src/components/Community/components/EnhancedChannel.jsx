@@ -247,7 +247,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
                     <span
                       style={{
                         color: "#666",
-                        fontSize: "11px",
+                        fontSize: "calc((11px) + 1px)",
                         marginLeft: "4px",
                       }}
                     >
@@ -451,7 +451,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         }
 
         .edit-indicator {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           color: #9cff00;
         }
 
@@ -461,14 +461,14 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         }
 
         .edit-label {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #9cff00;
           font-weight: 600;
           margin-bottom: 2px;
         }
 
         .edit-text {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #d4d4d4;
           white-space: nowrap;
           overflow: hidden;
@@ -483,7 +483,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
           border: none;
           color: #fff;
           cursor: pointer;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           line-height: 1;
           transition: all 0.2s;
         }
@@ -561,7 +561,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
           height: 17px;
           overflow: hidden;
           flex: 0 0 17px;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           line-height: 1;
         }
 

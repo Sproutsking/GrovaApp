@@ -92,7 +92,7 @@ const StreamerAvatar = ({ profile }) => {
       {/* Initials show instantly as placeholder */}
       <span
         style={{
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: 900,
           color: "#000",
           userSelect: "none",
@@ -333,15 +333,15 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
           flex-shrink: 0;
         }
         .lsr-sidebar-title {
-          font-size: 11px; font-weight: 800; color: #e5e5e5;
+          font-size: calc((11px) + 1px); font-weight: 800; color: #e5e5e5;
           letter-spacing: .5px; text-transform: uppercase;
         }
-        .lsr-sidebar-sub { font-size: 10px; color: #484848; font-weight: 500; margin-top: 1px; }
+        .lsr-sidebar-sub { font-size: calc((10px) + 1px); color: #484848; font-weight: 500; margin-top: 1px; }
         .lsr-count-badge {
           display: flex; align-items: center; gap: 3px;
           padding: 2px 7px; border-radius: 5px;
           background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2);
-          font-size: 9px; font-weight: 800; color: #ef4444;
+          font-size: calc((9px) + 1px); font-weight: 800; color: #ef4444;
         }
         .lsr-count-dot {
           width: 5px; height: 5px; border-radius: 50%;
@@ -359,14 +359,14 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
           display: flex; align-items: center; gap: 5px;
           padding: 3px 9px; border-radius: 7px;
           background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.22);
-          font-size: 10px; font-weight: 900; color: #ef4444;
+          font-size: calc((10px) + 1px); font-weight: 900; color: #ef4444;
           letter-spacing: .4px; text-transform: uppercase;
         }
         .lsr-home-live-dot {
           width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
           animation: lsrPulse 1.4s ease-in-out infinite;
         }
-        .lsr-home-count { font-size: 11px; color: #484848; font-weight: 600; }
+        .lsr-home-count { font-size: calc((11px) + 1px); color: #484848; font-weight: 600; }
 
         /* ── Scroll container ── */
         .lsr-scroll {
@@ -470,21 +470,21 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
           padding: 2px 5px; border-radius: 5px;
           background: rgba(0,0,0,.8);
           border: 1px solid rgba(255,255,255,.1);
-          font-size: 8px; font-weight: 800; color: #c4c4c4;
+          font-size: calc((8px) + 1px); font-weight: 800; color: #c4c4c4;
           backdrop-filter: blur(6px);
           z-index: 3;
         }
 
         /* Text labels */
         .lsr-name {
-          font-size: 10px; font-weight: 700; color: #c4c4c4;
+          font-size: calc((10px) + 1px); font-weight: 700; color: #c4c4c4;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           max-width: var(--card-w, 60px);
           text-align: center; transition: color .15s; line-height: 1.3;
         }
         .lsr-card:hover .lsr-name { color: #fff; }
         .lsr-cat {
-          font-size: 8.5px; font-weight: 600; color: #383838;
+          font-size: calc((8.5px) + 1px); font-weight: 600; color: #383838;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           max-width: var(--card-w, 60px); text-align: center;
         }

@@ -77,7 +77,7 @@ export function SolveStamp({ solvedBy, solvedAt, action, compact = false }) {
           background: `${C.accent}10`,
           border: `1px solid ${C.accent}20`,
           borderRadius: 20,
-          fontSize: 10,
+          fontSize: 11,
           color: C.accent,
         }}
       >
@@ -98,7 +98,7 @@ export function SolveStamp({ solvedBy, solvedAt, action, compact = false }) {
         background: `${C.accent}06`,
         border: `1px solid ${C.accent}18`,
         borderRadius: 9,
-        fontSize: 11,
+        fontSize: 12,
       }}
     >
       <div
@@ -155,7 +155,7 @@ export function LivePulse({ color = C.success, label = "Live", size = 8 }) {
         />
       </div>
       {label && (
-        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{label}</span>
+        <span style={{ fontSize: 12, color, fontWeight: 700 }}>{label}</span>
       )}
       <style>{`@keyframes livePulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.5); opacity: 0; } }`}</style>
     </div>
@@ -207,7 +207,7 @@ export function ActivityRing({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 800,
             color,
           }}
@@ -297,7 +297,7 @@ export function MetricCard({
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: trendPositive ? C.success : C.danger,
                 background: trendPositive ? `${C.success}18` : `${C.danger}18`,
@@ -317,7 +317,7 @@ export function MetricCard({
       </div>
       <div
         style={{
-          fontSize: 26,
+          fontSize: 27,
           fontWeight: 900,
           color: C.text,
           letterSpacing: "-1px",
@@ -326,9 +326,9 @@ export function MetricCard({
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, marginTop: 5 }}>{label}</div>
+      <div style={{ fontSize: 13, color: C.muted, marginTop: 5 }}>{label}</div>
       {subValue && (
-        <div style={{ fontSize: 11, color, marginTop: 3 }}>{subValue}</div>
+        <div style={{ fontSize: 12, color, marginTop: 3 }}>{subValue}</div>
       )}
     </div>
   );
@@ -379,7 +379,7 @@ export function Section({
               {title && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span
-                    style={{ fontSize: 14, fontWeight: 700, color: C.text }}
+                    style={{ fontSize: 15, fontWeight: 700, color: C.text }}
                   >
                     {title}
                   </span>
@@ -387,7 +387,7 @@ export function Section({
                 </div>
               )}
               {subtitle && (
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 1 }}>
                   {subtitle}
                 </div>
               )}
@@ -419,7 +419,7 @@ export function DataTable({
           style={{ animation: "spin .8s linear infinite" }}
           color={C.accent}
         />
-        <div style={{ marginTop: 10, fontSize: 12 }}>Loading…</div>
+        <div style={{ marginTop: 10, fontSize: 13 }}>Loading…</div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -430,7 +430,7 @@ export function DataTable({
           padding: 40,
           textAlign: "center",
           color: C.muted,
-          fontSize: 12,
+          fontSize: 13,
         }}
       >
         <Info
@@ -451,7 +451,7 @@ export function DataTable({
                 style={{
                   textAlign: "left",
                   padding: "10px 14px",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: ".07em",
                   textTransform: "uppercase",
@@ -490,7 +490,7 @@ export function DataTable({
                   key={col.key || col.label}
                   style={{
                     padding: "12px 14px",
-                    fontSize: 12,
+                    fontSize: 13,
                     color: C.muted,
                     verticalAlign: "middle",
                   }}
@@ -519,7 +519,7 @@ export function Pagination({ page, pageSize, total, onPageChange }) {
         justifyContent: "space-between",
         padding: "10px 14px",
         borderTop: `1px solid ${C.border}`,
-        fontSize: 12,
+        fontSize: 13,
         color: C.muted,
       }}
     >
@@ -548,7 +548,7 @@ export function Pagination({ page, pageSize, total, onPageChange }) {
                 background: pg === page ? C.accent : C.bg3,
                 color: pg === page ? "#000" : C.muted,
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
               }}
             >
@@ -649,7 +649,7 @@ export function Badge({ label, color = C.muted, bg, dot }) {
         gap: 4,
         padding: "2px 8px",
         borderRadius: 20,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 700,
         background: bg || `${color}15`,
         color,
@@ -708,7 +708,7 @@ export function StatusBadge({ status }) {
         gap: 4,
         padding: "2px 8px",
         borderRadius: 20,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 700,
         background: `${color}15`,
         color,
@@ -777,7 +777,7 @@ export function Modal({
         >
           <div
             style={{
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 700,
               color: isDanger ? C.danger : C.text,
             }}
@@ -797,7 +797,7 @@ export function Modal({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
             ✕
@@ -833,7 +833,7 @@ export function Field({ label, hint, error, required, children }) {
         <label
           style={{
             display: "block",
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             color: error ? C.danger : C.muted,
             marginBottom: 6,
@@ -845,14 +845,14 @@ export function Field({ label, hint, error, required, children }) {
       )}
       {children}
       {hint && !error && (
-        <div style={{ fontSize: 10, color: C.muted2, marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: C.muted2, marginTop: 4 }}>
           {hint}
         </div>
       )}
       {error && (
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             color: C.danger,
             marginTop: 4,
             display: "flex",
@@ -886,7 +886,7 @@ export function Input({
     border: `1px solid ${C.border2}`,
     borderRadius: 8,
     color: C.text,
-    fontSize: 12,
+    fontSize: 13,
     transition: "border-color .2s",
     outline: "none",
     fontFamily: "inherit",
@@ -936,7 +936,7 @@ export function Select({ value, onChange, options, disabled }) {
         border: `1px solid ${C.border2}`,
         borderRadius: 8,
         color: C.text,
-        fontSize: 12,
+        fontSize: 13,
         fontFamily: "inherit",
         cursor: "pointer",
         outline: "none",
@@ -974,7 +974,7 @@ export function Alert({ type = "info", message, onClose }) {
         border: `1px solid ${color}30`,
         borderRadius: 9,
         color,
-        fontSize: 12,
+        fontSize: 13,
         marginBottom: 14,
       }}
     >
@@ -1033,7 +1033,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…" }) {
           background: "none",
           border: "none",
           color: C.text,
-          fontSize: 12,
+          fontSize: 13,
           outline: "none",
           fontFamily: "inherit",
         }}
@@ -1047,7 +1047,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…" }) {
             color: C.muted,
             cursor: "pointer",
             padding: 0,
-            fontSize: 14,
+            fontSize: 15,
             lineHeight: 1,
           }}
         >
@@ -1087,7 +1087,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6 }}>{message}</p>
+      <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>{message}</p>
     </Modal>
   );
 }
@@ -1118,7 +1118,7 @@ export function Avatar({ name, src, size = 34, color = C.accent, online }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: size * 0.38,
+            fontSize: (size * 0.38) + 1,
             fontWeight: 800,
             color,
           }}
@@ -1168,7 +1168,7 @@ export function Tabs({ tabs, active, onChange }) {
             border: "none",
             background: active === tab.id ? C.accent : "transparent",
             color: active === tab.id ? "#000" : C.muted,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
             transition: "all .15s",
@@ -1188,7 +1188,7 @@ export function Tabs({ tabs, active, onChange }) {
                 padding: "1px 6px",
                 borderRadius: 10,
                 background: active === tab.id ? "rgba(0,0,0,.2)" : C.border2,
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
               }}
             >
@@ -1224,7 +1224,7 @@ export function EmptyState({ icon: Icon, title, description, action }) {
       )}
       <div
         style={{
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: 700,
           color: C.text,
           marginBottom: 6,
@@ -1233,7 +1233,7 @@ export function EmptyState({ icon: Icon, title, description, action }) {
         {title}
       </div>
       {description && (
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 18 }}>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>
           {description}
         </div>
       )}
@@ -1249,7 +1249,7 @@ export function ActivityTimeline({ events }) {
       <div
         style={{
           color: C.muted,
-          fontSize: 12,
+          fontSize: 13,
           textAlign: "center",
           padding: 20,
         }}
@@ -1283,17 +1283,17 @@ export function ActivityTimeline({ events }) {
               border: `2px solid ${C.bg1}`,
             }}
           />
-          <div style={{ fontSize: 12, color: C.text2, fontWeight: 600 }}>
+          <div style={{ fontSize: 13, color: C.text2, fontWeight: 600 }}>
             {ev.action}
           </div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
             {ev.by && <span style={{ color: C.accent }}>{ev.by} · </span>}
             {ev.time && formatTimeAgo(new Date(ev.time))}
           </div>
           {ev.detail && (
             <div
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: C.muted2,
                 marginTop: 3,
                 fontStyle: "italic",
@@ -1355,7 +1355,7 @@ export function CaseCard({ caseData, onClick, adminData }) {
           >
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 800,
                 color: pColor,
                 textTransform: "uppercase",
@@ -1369,7 +1369,7 @@ export function CaseCard({ caseData, onClick, adminData }) {
           </div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               color: C.text,
               marginBottom: 4,
@@ -1377,22 +1377,22 @@ export function CaseCard({ caseData, onClick, adminData }) {
           >
             {caseData.title || caseData.subject}
           </div>
-          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
             {caseData.description?.slice(0, 100)}
             {caseData.description?.length > 100 ? "…" : ""}
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {caseData.user_email && (
-            <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
               {caseData.user_email}
             </div>
           )}
-          <div style={{ fontSize: 10, color: C.muted }}>
+          <div style={{ fontSize: 11, color: C.muted }}>
             {formatTimeAgo(new Date(caseData.created_at))}
           </div>
           {caseData.assigned_to_name && (
-            <div style={{ fontSize: 10, color: C.cyan, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: C.cyan, marginTop: 4 }}>
               → {caseData.assigned_to_name}
             </div>
           )}
@@ -1468,7 +1468,7 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
       {displayList.length === 0 ? (
         <div
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: C.muted,
             textAlign: "center",
             padding: "12px 0",
@@ -1507,7 +1507,7 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
                   >
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: isYou ? C.accent : C.text,
                         overflow: "hidden",
@@ -1521,7 +1521,7 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
                     {isYou && (
                       <span
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 700,
                           color: C.accent,
                           background: `${C.accent}15`,
@@ -1536,7 +1536,7 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
                   </div>
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       color: roleColor,
                       fontWeight: 600,
                       marginTop: 1,
@@ -1547,7 +1547,7 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
                 </div>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     color: isOnline ? C.success : C.muted,
                     fontWeight: 600,
                   }}

@@ -20,12 +20,12 @@ const S = `
   @keyframes cwIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
   @keyframes cwSpin{ to{transform:rotate(360deg)} }
   .cw-spin{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(163,230,53,.15);border-top-color:#a3e635;animation:cwSpin .6s linear infinite;flex-shrink:0}
-  .cw-btn-out{padding:9px 14px;border-radius:10px;border:1.5px solid rgba(163,230,53,.3);background:rgba(163,230,53,.05);color:#a3e635;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;transition:all .15s;white-space:nowrap}
+  .cw-btn-out{padding:9px 14px;border-radius:10px;border:1.5px solid rgba(163,230,53,.3);background:rgba(163,230,53,.05);color:#a3e635;font-weight:700;font-size:calc((12px) + 1px);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;transition:all .15s;white-space:nowrap}
   .cw-btn-out:hover:not(:disabled){border-color:rgba(163,230,53,.5);background:rgba(163,230,53,.09)}
   .cw-btn-out:disabled{opacity:.35;cursor:not-allowed}
-  .cw-btn-ghost{padding:8px 12px;border-radius:9px;border:1px solid #252525;background:transparent;color:#555;font-weight:600;font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+  .cw-btn-ghost{padding:8px 12px;border-radius:9px;border:1px solid #252525;background:transparent;color:#555;font-weight:600;font-size:calc((11px) + 1px);cursor:pointer;font-family:inherit;transition:all .15s}
   .cw-btn-ghost:hover{color:#888;border-color:#333}
-  .cw-btn-danger{padding:8px 12px;border-radius:9px;border:1.5px solid rgba(239,68,68,.2);background:rgba(239,68,68,.04);color:#f87171;font-weight:600;font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+  .cw-btn-danger{padding:8px 12px;border-radius:9px;border:1.5px solid rgba(239,68,68,.2);background:rgba(239,68,68,.04);color:#f87171;font-weight:600;font-size:calc((11px) + 1px);cursor:pointer;font-family:inherit;transition:all .15s}
   .cw-btn-danger:hover{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08)}
   .cw-wallet-row{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid #161616;animation:cwIn .25s ease;transition:background .15s}
   .cw-wallet-row:hover{background:#0f0f0f}
@@ -59,26 +59,26 @@ function WalletRow({ wallet, onDisconnect }) {
   return (
     <div className="cw-wallet-row">
       {/* Ecosystem badge */}
-      <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: meta.bg, border: `1px solid ${meta.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+      <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: meta.bg, border: `1px solid ${meta.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19 }}>
         {meta.icon}
       </div>
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: "#d8d8d8" }}>{wallet.label || meta.label + " Wallet"}</span>
-          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: 20, padding: "2px 8px" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8" }}>{wallet.label || meta.label + " Wallet"}</span>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: 20, padding: "2px 8px" }}>
             {meta.label}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "#444", ...mono, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(wallet.address)}</span>
-          <button onClick={copy} style={{ background: "transparent", border: "none", cursor: "pointer", color: copied ? "#a3e635" : "#333", fontSize: 11, padding: 0, flexShrink: 0, transition: "color .2s" }}>
+          <span style={{ fontSize: 12, color: "#444", ...mono, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(wallet.address)}</span>
+          <button onClick={copy} style={{ background: "transparent", border: "none", cursor: "pointer", color: copied ? "#a3e635" : "#333", fontSize: 12, padding: 0, flexShrink: 0, transition: "color .2s" }}>
             {copied ? "✓" : "⎘"}
           </button>
         </div>
         {wallet.connected_at && (
-          <div style={{ fontSize: 10, color: "#292929", marginTop: 3 }}>
+          <div style={{ fontSize: 11, color: "#292929", marginTop: 3 }}>
             Connected {new Date(wallet.connected_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </div>
         )}
@@ -96,7 +96,7 @@ function WalletRow({ wallet, onDisconnect }) {
 function ConnectRow({ label, icon, onConnect, connecting }) {
   return (
     <button className="cw-btn-out" onClick={onConnect} disabled={connecting} style={{ width: "100%", justifyContent: "center", padding: "11px 16px" }}>
-      <span style={{ fontSize: 15 }}>{icon}</span>
+      <span style={{ fontSize: 16 }}>{icon}</span>
       {connecting ? <><Spin />Detecting…</> : `Connect ${label} Wallet`}
     </button>
   );
@@ -219,24 +219,24 @@ export default function ConnectedWalletsSection() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3, letterSpacing: "-0.3px" }}>Connected Wallets</div>
-            <div style={{ fontSize: 12, color: "#3a3a3a", lineHeight: 1.6 }}>Wallets you've used to pay or connect to Xeevia.</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 3, letterSpacing: "-0.3px" }}>Connected Wallets</div>
+            <div style={{ fontSize: 13, color: "#3a3a3a", lineHeight: 1.6 }}>Wallets you've used to pay or connect to Xeevia.</div>
           </div>
-          {hasAny && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "#a3e635", background: "rgba(163,230,53,.08)", border: "1px solid rgba(163,230,53,.18)", borderRadius: 20, padding: "4px 12px" }}>
+          {hasAny && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "#a3e635", background: "rgba(163,230,53,.08)", border: "1px solid rgba(163,230,53,.18)", borderRadius: 20, padding: "4px 12px" }}>
             {wallets.length} wallet{wallets.length !== 1 ? "s" : ""}
           </span>}
         </div>
 
         {/* Error */}
         {err && (
-          <div style={{ background: "rgba(239,68,68,.07)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "#fca5a5", lineHeight: 1.6, marginBottom: 16 }}>
+          <div style={{ background: "rgba(239,68,68,.07)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "#fca5a5", lineHeight: 1.6, marginBottom: 16 }}>
             <span style={{ flexShrink: 0 }}>⚠️</span>{err}
           </div>
         )}
 
         {/* Wallet list */}
         {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 10, color: "#444", fontSize: 13 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 10, color: "#444", fontSize: 14 }}>
             <Spin /> Loading wallets…
           </div>
         ) : hasAny ? (
@@ -245,15 +245,15 @@ export default function ConnectedWalletsSection() {
           </div>
         ) : (
           <div style={{ background: "#0e0e0e", border: "1px dashed #1e1e1e", borderRadius: 14, padding: "28px 20px", textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>🔗</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#333", marginBottom: 6 }}>No wallets connected</div>
-            <div style={{ fontSize: 12, color: "#252525", lineHeight: 1.75 }}>Connect a crypto wallet to manage your Web3 identity on Xeevia.</div>
+            <div style={{ fontSize: 29, marginBottom: 10 }}>🔗</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#333", marginBottom: 6 }}>No wallets connected</div>
+            <div style={{ fontSize: 13, color: "#252525", lineHeight: 1.75 }}>Connect a crypto wallet to manage your Web3 identity on Xeevia.</div>
           </div>
         )}
 
         {/* Connect new */}
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "#333", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "#333", marginBottom: 12 }}>
             Connect a wallet
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -264,7 +264,7 @@ export default function ConnectedWalletsSection() {
         </div>
 
         {/* Footer note */}
-        <div style={{ marginTop: 16, fontSize: 11, color: "#252525", lineHeight: 1.75 }}>
+        <div style={{ marginTop: 16, fontSize: 12, color: "#252525", lineHeight: 1.75 }}>
           Connecting a wallet does not give Xeevia access to your funds. We only read your address for identity purposes.
         </div>
       </div>

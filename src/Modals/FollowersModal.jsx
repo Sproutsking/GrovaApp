@@ -106,20 +106,20 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
         }
         .fm-header { padding: 24px 24px 0; flex-shrink: 0; }
         .fm-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .fm-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .fm-title { font-size: calc((20px) + 1px); font-weight: 800; color: #fff; margin: 0; display: flex; align-items: center; gap: 10px; }
         .fm-title-icon { width: 36px; height: 36px; background: rgba(132,204,22,0.12); border: 1px solid rgba(132,204,22,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
         .fm-close { width: 36px; height: 36px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #a3a3a3; transition: all 0.2s; }
         .fm-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .fm-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border-radius: 14px; padding: 4px; margin-bottom: 20px; }
-        .fm-tab { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.25s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .fm-tab { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: calc((13px) + 1px); font-weight: 700; cursor: pointer; transition: all 0.25s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .fm-tab.active { background: rgba(132,204,22,0.15); color: #84cc16; border: 1px solid rgba(132,204,22,0.3); }
         .fm-tab:not(.active) { background: transparent; color: #737373; border: 1px solid transparent; }
         .fm-tab:not(.active):hover { color: #a3a3a3; background: rgba(255,255,255,0.04); }
-        .fm-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 6px; border-radius: 9px; font-size: 11px; font-weight: 800; }
+        .fm-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 6px; border-radius: 9px; font-size: calc((11px) + 1px); font-weight: 800; }
         .fm-tab.active .fm-count { background: rgba(132,204,22,0.2); color: #84cc16; }
         .fm-tab:not(.active) .fm-count { background: rgba(255,255,255,0.08); color: #525252; }
         .fm-search { padding: 0 20px 14px; position: relative; flex-shrink: 0; }
-        .fm-search-input { width: 100%; padding: 10px 16px 10px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
+        .fm-search-input { width: 100%; padding: 10px 16px 10px 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: calc((14px) + 1px); outline: none; box-sizing: border-box; transition: border-color 0.2s; }
         .fm-search-input:focus { border-color: rgba(132,204,22,0.4); }
         .fm-search-input::placeholder { color: #525252; }
         .fm-search-icon { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); color: #525252; pointer-events: none; }
@@ -130,24 +130,24 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
         .fm-item { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 16px; transition: background 0.2s; margin-bottom: 4px; }
         .fm-item:hover { background: rgba(255,255,255,0.04); }
         .fm-avatar-wrap { position: relative; flex-shrink: 0; }
-        .fm-avatar { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #1a2e05 0%, #0d1a02 100%); border: 1.5px solid rgba(132,204,22,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #84cc16; font-weight: 800; overflow: hidden; }
+        .fm-avatar { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #1a2e05 0%, #0d1a02 100%); border: 1.5px solid rgba(132,204,22,0.2); display: flex; align-items: center; justify-content: center; font-size: calc((20px) + 1px); color: #84cc16; font-weight: 800; overflow: hidden; }
         .fm-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .fm-verified { position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; background: #84cc16; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #0a0a0a; }
         .fm-pro { position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; background: #fbbf24; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #0a0a0a; }
         .fm-info { flex: 1; min-width: 0; }
         .fm-name-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-        .fm-name { font-size: 14px; font-weight: 700; color: #fff; }
-        .fm-username { font-size: 12px; color: #737373; font-weight: 600; }
-        .fm-time { font-size: 11px; color: #404040; font-weight: 600; margin-top: 3px; }
-        .fm-mutual-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; background: rgba(132,204,22,0.08); border: 1px solid rgba(132,204,22,0.2); border-radius: 6px; font-size: 10px; color: #84cc16; font-weight: 700; }
-        .fm-follow-btn { padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; gap: 5px; }
+        .fm-name { font-size: calc((14px) + 1px); font-weight: 700; color: #fff; }
+        .fm-username { font-size: calc((12px) + 1px); color: #737373; font-weight: 600; }
+        .fm-time { font-size: calc((11px) + 1px); color: #404040; font-weight: 600; margin-top: 3px; }
+        .fm-mutual-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; background: rgba(132,204,22,0.08); border: 1px solid rgba(132,204,22,0.2); border-radius: 6px; font-size: calc((10px) + 1px); color: #84cc16; font-weight: 700; }
+        .fm-follow-btn { padding: 8px 14px; border-radius: 10px; font-size: calc((12px) + 1px); font-weight: 700; cursor: pointer; border: 1px solid; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; gap: 5px; }
         .fm-follow-btn.following { background: rgba(132,204,22,0.08); border-color: rgba(132,204,22,0.25); color: #84cc16; }
         .fm-follow-btn.follow { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); color: #a3a3a3; }
         .fm-follow-btn.follow:hover { background: rgba(132,204,22,0.1); border-color: rgba(132,204,22,0.3); color: #84cc16; }
         .fm-empty { padding: 60px 20px; text-align: center; }
         .fm-empty-icon { width: 64px; height: 64px; background: rgba(132,204,22,0.06); border: 1px solid rgba(132,204,22,0.15); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-        .fm-empty-title { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 8px 0; }
-        .fm-empty-sub { font-size: 13px; color: #525252; margin: 0; }
+        .fm-empty-title { font-size: calc((16px) + 1px); font-weight: 700; color: #fff; margin: 0 0 8px 0; }
+        .fm-empty-sub { font-size: calc((13px) + 1px); color: #525252; margin: 0; }
         .fm-loading { padding: 60px 20px; text-align: center; }
         .fm-spinner { width: 40px; height: 40px; border: 3px solid rgba(132,204,22,0.15); border-top-color: #84cc16; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
         @keyframes spin { to { transform: rotate(360deg) } }
@@ -186,7 +186,7 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
             {loading ? (
               <div className="fm-loading">
                 <div className="fm-spinner" />
-                <p style={{ color: "#737373", fontSize: "14px", margin: 0 }}>Loading...</p>
+                <p style={{ color: "#737373", fontSize: "calc((14px) + 1px)", margin: 0 }}>Loading...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="fm-empty">

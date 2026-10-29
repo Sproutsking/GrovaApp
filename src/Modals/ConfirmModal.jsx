@@ -30,10 +30,10 @@ const ConfirmModal = ({
         maxWidth: '450px',
         width: '90%'
       }} onClick={e => e.stopPropagation()}>
-        <h3 style={{ fontSize: '20px', color: '#fff', marginBottom: '16px', fontWeight: '700' }}>
+        <h3 style={{ fontSize: "calc((20px) + 1px)", color: '#fff', marginBottom: '16px', fontWeight: '700' }}>
           {title}
         </h3>
-        <p style={{ fontSize: '15px', color: '#a3a3a3', marginBottom: '24px', lineHeight: '1.6' }}>
+        <p style={{ fontSize: "calc((15px) + 1px)", color: '#a3a3a3', marginBottom: '24px', lineHeight: '1.6' }}>
           {message}
         </p>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -46,7 +46,7 @@ const ConfirmModal = ({
             color: '#84cc16',
             fontWeight: '600',
             cursor: 'pointer',
-            fontSize: '15px'
+            fontSize: "calc((15px) + 1px)"
           }}>
             Cancel
           </button>
@@ -61,7 +61,7 @@ const ConfirmModal = ({
             color: dangerous ? '#fff' : '#000',
             fontWeight: '600',
             cursor: 'pointer',
-            fontSize: '15px'
+            fontSize: "calc((15px) + 1px)"
           }}>
             {confirmText}
           </button>

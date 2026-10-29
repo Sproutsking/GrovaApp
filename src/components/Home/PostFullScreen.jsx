@@ -541,12 +541,12 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
 
         .pfs-post-author-name {
           font-weight: 600;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           color: var(--text);
         }
 
         .pfs-post-author-handle {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: var(--text-secondary);
         }
 
@@ -567,7 +567,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         }
 
         .pfs-post-text {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           line-height: 1.6;
           color: var(--text);
           margin-bottom: 20px;
@@ -590,7 +590,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         }
 
         .pfs-post-meta {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: var(--text-secondary);
           margin-bottom: 16px;
           padding-bottom: 16px;
@@ -613,12 +613,12 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
 
         .pfs-stat-count {
           font-weight: 600;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           color: var(--text);
         }
 
         .pfs-stat-label {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: var(--text-secondary);
         }
 
@@ -641,7 +641,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           gap: 4px;
           padding: 8px;
           transition: color 0.2s;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .pfs-action-btn:hover {
@@ -665,7 +665,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         }
 
         .pfs-comments-header h3 {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 600;
           color: var(--text);
           margin: 0;
@@ -695,7 +695,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         }
 
         .pfs-replying-to {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: var(--text-secondary);
           display: flex;
           align-items: center;
@@ -708,7 +708,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           color: var(--accent);
           cursor: pointer;
           padding: 0;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .pfs-input-wrapper {
@@ -724,7 +724,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           border-radius: 20px;
           padding: 10px 16px;
           color: var(--text);
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           outline: none;
           transition: border-color 0.2s;
         }
@@ -759,7 +759,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         }
 
         .pfs-error-msg {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #e74c3c;
           padding: 0 4px;
         }
@@ -778,7 +778,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           text-align: center;
           color: var(--text-secondary);
           padding: 40px 20px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .pfs-comment-thread {
@@ -824,20 +824,20 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
 
         .pfs-comment-author-name {
           font-weight: 600;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: var(--text);
           display: inline;
         }
 
         .pfs-comment-author-handle {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: var(--text-secondary);
           display: inline;
           margin-left: 4px;
         }
 
         .pfs-comment-text {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.5;
           color: var(--text);
           margin-bottom: 8px;
@@ -847,7 +847,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
         .pfs-comment-actions {
           display: flex;
           gap: 20px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           margin-bottom: 8px;
         }
 
@@ -856,7 +856,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           border: none;
           color: var(--accent);
           cursor: pointer;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           padding: 4px 0;
           margin-top: 4px;
@@ -926,7 +926,7 @@ const PostFullScreen = ({ post, currentUser, onClose }) => {
           }
 
           .pfs-post-text {
-            font-size: 16px;
+            font-size: calc((16px) + 1px);
             margin-bottom: 12px;
           }
 

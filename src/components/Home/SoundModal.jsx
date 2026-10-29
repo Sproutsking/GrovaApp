@@ -330,7 +330,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
 
         .loading-container p {
           color: #a3a3a3;
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
         }
 
         .sound-modal-header {
@@ -375,14 +375,14 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .sound-name {
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           font-weight: 900;
           color: #fff;
           margin: 0 0 4px 0;
         }
 
         .sound-subtitle {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #84cc16;
           margin: 0;
           font-weight: 600;
@@ -437,14 +437,14 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .stat-value {
-          font-size: 28px;
+          font-size: calc((28px) + 1px);
           font-weight: 900;
           color: #fff;
           margin-bottom: 4px;
         }
 
         .stat-label {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #737373;
           font-weight: 600;
           text-transform: uppercase;
@@ -456,7 +456,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .section-title {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0 0 16px 0;
@@ -488,7 +488,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           font-weight: 700;
           color: #000;
           flex-shrink: 0;
@@ -499,7 +499,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .creator-name {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
           margin-bottom: 4px;
@@ -517,17 +517,17 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
           background: #84cc16;
           border-radius: 50%;
           color: #000;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
 
         .creator-username {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #84cc16;
           margin-bottom: 4px;
         }
 
         .creator-date {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #737373;
         }
 
@@ -609,7 +609,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .reel-stats-overlay {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #fff;
           font-weight: 600;
         }
@@ -624,14 +624,14 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
         }
 
         .reel-author-small {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #fff;
           margin: 0 0 4px 0;
         }
 
         .reel-caption-small {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: rgba(255, 255, 255, 0.7);
           margin: 0;
           display: -webkit-box;
@@ -658,7 +658,7 @@ const SoundModal = ({ soundName, originReel, onClose, onReelClick }) => {
           }
 
           .stat-value {
-            font-size: 20px;
+            font-size: calc((20px) + 1px);
           }
 
           .reels-grid {

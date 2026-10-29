@@ -26,55 +26,55 @@ const getAutoTypo = (text = "") => {
 
   if (words <= 2 && chars <= 10)
     return {
-      fontSize: "52px",
+      fontSize: "calc((52px) + 1px)",
       lineHeight: "1.0",
       letterSpacing: "-0.03em",
       fontWeight: 900,
     };
   if (words <= 3 && chars <= 22)
     return {
-      fontSize: "40px",
+      fontSize: "calc((40px) + 1px)",
       lineHeight: "1.08",
       letterSpacing: "-0.02em",
       fontWeight: 900,
     };
   if (words <= 6 && chars <= 40)
     return {
-      fontSize: "32px",
+      fontSize: "calc((32px) + 1px)",
       lineHeight: "1.15",
       letterSpacing: "-0.015em",
       fontWeight: 800,
     };
   if (words <= 10 && chars <= 65)
     return {
-      fontSize: "25px",
+      fontSize: "calc((25px) + 1px)",
       lineHeight: "1.22",
       letterSpacing: "-0.01em",
       fontWeight: 800,
     };
   if (chars <= 100)
     return {
-      fontSize: "21px",
+      fontSize: "calc((21px) + 1px)",
       lineHeight: "1.3",
       letterSpacing: "-0.01em",
       fontWeight: 700,
     };
   if (chars <= 160)
     return {
-      fontSize: "18px",
+      fontSize: "calc((18px) + 1px)",
       lineHeight: "1.35",
       letterSpacing: "-0.005em",
       fontWeight: 700,
     };
   if (chars <= 240)
     return {
-      fontSize: "16px",
+      fontSize: "calc((16px) + 1px)",
       lineHeight: "1.4",
       letterSpacing: "0",
       fontWeight: 650,
     };
   return {
-    fontSize: "15px",
+    fontSize: "calc((15px) + 1px)",
     lineHeight: "1.45",
     letterSpacing: "0",
     fontWeight: 600,
@@ -147,7 +147,7 @@ const CardPostDisplay = ({ post }) => {
     // User picked a size — use it exactly
     const locked = getLockedTypo(userFontSize);
     textStyle = {
-      fontSize: `${userFontSize}px`,
+      fontSize: `calc(${userFontSize}px + 1px)`,
       lineHeight: locked.lineHeight,
       letterSpacing: locked.letterSpacing,
       fontWeight: locked.fontWeight,

@@ -66,7 +66,7 @@ const WRAPPER_CSS = `
 
   .rw-title {
     font-family:'Syne',sans-serif;
-    font-size:11px; font-weight:700; margin-bottom:9px;
+    font-size:calc((11px) + 1px); font-weight:700; margin-bottom:9px;
     display:flex; align-items:center; gap:5px;
   }
   .rw-title.lime  { color:rgba(163,230,53,0.65); }
@@ -90,7 +90,7 @@ const WRAPPER_CSS = `
     padding:2px 7px; border-radius:20px;
     background:rgba(16,185,129,0.09);
     border:1px solid rgba(16,185,129,0.32);
-    font-size:9.5px; color:#10b981;
+    font-size:calc((9.5px) + 1px); color:#10b981;
     font-family:'DM Sans',sans-serif; font-weight:600;
   }
 
@@ -102,9 +102,9 @@ const WRAPPER_CSS = `
     border-radius:7px; cursor:pointer; transition:all .13s;
   }
   .srv-mini:hover { border-color:rgba(16,185,129,0.22); background:rgba(16,185,129,0.06); }
-  .srv-mini-ico { font-size:12px; margin-bottom:2px; }
-  .srv-mini-nm  { font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600; color:rgba(255,255,255,0.6); }
-  .srv-mini-sub { font-family:'DM Sans',sans-serif; font-size:8.5px; color:rgba(255,255,255,0.24); }
+  .srv-mini-ico { font-size:calc((12px) + 1px); margin-bottom:2px; }
+  .srv-mini-nm  { font-family:'DM Sans',sans-serif; font-size:calc((10px) + 1px); font-weight:600; color:rgba(255,255,255,0.6); }
+  .srv-mini-sub { font-family:'DM Sans',sans-serif; font-size:calc((8.5px) + 1px); color:rgba(255,255,255,0.24); }
 
   .bank-row-r {
     display:flex; align-items:center; justify-content:space-between;
@@ -286,7 +286,7 @@ export default function PayWaveWrapper({ onBack, userId }) {
               OPay Ecosystem
             </div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:7 }}>
-              <span style={{ fontSize:"10px", color:"rgba(255,255,255,0.35)", fontFamily:"DM Sans,sans-serif" }}>Status</span>
+              <span style={{ fontSize:"calc((10px) + 1px)", color:"rgba(255,255,255,0.35)", fontFamily:"DM Sans,sans-serif" }}>Status</span>
               <span className="opay-badge">● Connected</span>
             </div>
             <div className="srv-mini-grid">
@@ -308,7 +308,7 @@ export default function PayWaveWrapper({ onBack, userId }) {
                 <polyline points="16 7 22 7 22 13"/>
               </svg>
               NGN Live Rates
-              <span style={{ marginLeft:"auto", fontSize:"8px", color:"rgba(163,230,53,0.3)",
+              <span style={{ marginLeft:"auto", fontSize:"calc((8px) + 1px)", color:"rgba(163,230,53,0.3)",
                 letterSpacing:"0.07em", fontWeight:700 }}>
                 {rateLastFetch ? "LIVE" : "—"}
               </span>
@@ -316,20 +316,20 @@ export default function PayWaveWrapper({ onBack, userId }) {
             </div>
             {rates.map(item => (
               <div key={item.sym} className="mkt-row">
-                <span style={{ fontSize:"10.5px", color:"var(--t2)", fontFamily:"DM Mono,monospace" }}>
+                <span style={{ fontSize:"calc((10.5px) + 1px)", color:"var(--t2)", fontFamily:"DM Mono,monospace" }}>
                   {item.sym}
                 </span>
                 <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:"11px", fontWeight:600, color:"rgba(255,255,255,0.65)",
+                  <div style={{ fontSize:"calc((11px) + 1px)", fontWeight:600, color:"rgba(255,255,255,0.65)",
                     fontFamily:"DM Mono,monospace" }}>{item.val}</div>
-                  <div style={{ fontSize:"9.5px", fontWeight:600, color:item.up?"#a3e635":"#f87171" }}>
+                  <div style={{ fontSize:"calc((9.5px) + 1px)", fontWeight:600, color:item.up?"#a3e635":"#f87171" }}>
                     {item.chg}
                   </div>
                 </div>
               </div>
             ))}
             {rateLastFetch && (
-              <div style={{ fontSize:"8.5px", color:"rgba(255,255,255,0.14)",
+              <div style={{ fontSize:"calc((8.5px) + 1px)", color:"rgba(255,255,255,0.14)",
                 fontFamily:"DM Sans,sans-serif", marginTop:5, textAlign:"right" }}>
                 {rateLastFetch.toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"})} · auto 1min
               </div>
@@ -353,9 +353,9 @@ export default function PayWaveWrapper({ onBack, userId }) {
               { label:"Bills Month",     val:activity.billsMonth,     color:"rgba(255,255,255,0.38)" },
             ].map(({label,val,color}) => (
               <div key={label} className="stat-row">
-                <span style={{ fontSize:"10.5px", color:"rgba(255,255,255,0.24)",
+                <span style={{ fontSize:"calc((10.5px) + 1px)", color:"rgba(255,255,255,0.24)",
                   fontFamily:"DM Sans,sans-serif" }}>{label}</span>
-                <span style={{ fontSize:"11px", fontWeight:700, color,
+                <span style={{ fontSize:"calc((11px) + 1px)", fontWeight:700, color,
                   fontFamily:"DM Mono,monospace" }}>
                   {actLoading ? "…" : val}
                 </span>
@@ -381,10 +381,10 @@ export default function PayWaveWrapper({ onBack, userId }) {
               <div key={b.name} className="bank-row-r">
                 <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                   <div style={{ width:5, height:5, borderRadius:"50%", background:b.color }} />
-                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"11px",
+                  <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"calc((11px) + 1px)",
                     color:"rgba(255,255,255,0.46)" }}>{b.name}</span>
                 </div>
-                <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"9.5px",
+                <span style={{ fontFamily:"DM Sans,sans-serif", fontSize:"calc((9.5px) + 1px)",
                   color:"rgba(255,255,255,0.18)" }}>Send →</span>
               </div>
             ))}

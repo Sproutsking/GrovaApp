@@ -99,17 +99,17 @@ const StatusModal = ({ show, type = "success", message, onClose }) => {
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: cfg.color, marginBottom: 3 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: cfg.color, marginBottom: 3 }}>
               {cfg.label}
             </div>
-            <div style={{ fontSize: 13, color: "#a3a3a3", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: "#a3a3a3", lineHeight: 1.5 }}>
               {message}
             </div>
           </div>
 
           <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 2, fontSize: 18, lineHeight: 1 }}
+            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 2, fontSize: 19, lineHeight: 1 }}
           >
             ×
           </button>

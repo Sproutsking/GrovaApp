@@ -196,7 +196,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           border-radius: 6px;
           padding: 6px 10px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           outline: none;
         }
         .mp-search-input:focus { border-color: rgba(132,204,22,0.4); }
@@ -226,7 +226,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           border: 1px solid transparent;
           border-radius: 6px;
           color: #666;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           cursor: pointer;
           transition: all 0.15s;
         }
@@ -272,12 +272,12 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
         }
 
         .mp-card-emoji {
-          font-size: 28px;
+          font-size: calc((28px) + 1px);
           line-height: 1;
         }
 
         .mp-card-text {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #888;
           font-weight: 600;
           text-transform: uppercase;
@@ -291,7 +291,7 @@ const MemePanel = ({ onSelect, onClose, style = {} }) => {
           grid-column: 1 / -1;
           text-align: center;
           color: #444;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           padding: 40px 0;
         }
 

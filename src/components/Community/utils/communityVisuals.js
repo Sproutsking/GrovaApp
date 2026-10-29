@@ -180,7 +180,7 @@ export const CommunityAvatar = ({
       <div className="cav-bg" style={{ backgroundImage: bg, backgroundSize: bgSize || "cover", borderRadius: r }} />
       <div className="cav-sheen" style={{ borderRadius: r }} />
       {borderStyle !== "none" && <div className={`cav-ring cav-ring-${borderStyle}`} style={{ borderRadius: r }} />}
-      <div className="cav-content" style={{ fontSize: Math.max(12, Math.round(size * 0.42)) }}>
+      <div className="cav-content" style={{ fontSize: (Math.max(12, Math.round(size * 0.42))) + 1 }}>
         {isImage ? (
           <img src={icon} alt="" className="cav-img" style={{ borderRadius: r }} />
         ) : icon ? (

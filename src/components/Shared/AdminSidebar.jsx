@@ -52,14 +52,14 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: calc((18px) + 1px);
     font-weight: 900;
     color: var(--accent-contrast);
     flex-shrink: 0;
   }
 
   .xv-logo-name {
-    font-size: 16px;
+    font-size: calc((16px) + 1px);
     font-weight: 800;
     color: var(--text);
     letter-spacing: 0.5px;
@@ -67,7 +67,7 @@ const STYLES = `
   }
 
   .xv-logo-sub {
-    font-size: 9.5px;
+    font-size: calc((9.5px) + 1px);
     letter-spacing: 0.15em;
     text-transform: uppercase;
     font-weight: 700;
@@ -88,7 +88,7 @@ const STYLES = `
   .xv-nav::-webkit-scrollbar { display: none; }
 
   .xv-section-label {
-    font-size: 9.5px;
+    font-size: calc((9.5px) + 1px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -111,7 +111,7 @@ const STYLES = `
       background: #030303;
       border: 1px solid var(--item-border, var(--surface-border));
     color: var(--text-secondary);
-    font-size: 13.5px;
+    font-size: calc((13.5px) + 1px);
     font-weight: 500;
     cursor: pointer;
     margin-bottom: 0;
@@ -180,7 +180,7 @@ const STYLES = `
       background: #030303;
       border: 1px solid color-mix(in srgb, var(--text-secondary) 42%, transparent);
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: calc((14px) + 1px);
     font-weight: 500;
     cursor: pointer;
     margin-bottom: 0;
@@ -213,7 +213,7 @@ const STYLES = `
     gap: 11px;
     padding: 11px 13px;
     border-radius: 12px;
-    font-size: 13.5px;
+    font-size: calc((13.5px) + 1px);
     font-weight: 700;
     cursor: pointer;
     position: relative;
@@ -284,13 +284,13 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: calc((14px) + 1px);
     font-weight: 800;
     flex-shrink: 0;
   }
 
   .xv-profile-name {
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     font-weight: 700;
     color: var(--text);
     overflow: hidden;
@@ -300,7 +300,7 @@ const STYLES = `
   }
 
   .xv-profile-role {
-    font-size: 10px;
+    font-size: calc((10px) + 1px);
     font-weight: 700;
     letter-spacing: 0.04em;
     margin-top: 3px;
@@ -319,7 +319,7 @@ const STYLES = `
     border: 1px solid rgba(239,68,68,0.5);
     border-radius: 10px;
     color: #f87171;
-    font-size: 12.5px;
+    font-size: calc((12.5px) + 1px);
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -335,7 +335,7 @@ const STYLES = `
   .xv-credits {
     text-align: center;
     margin-top: 12px;
-    font-size: 9.5px;
+    font-size: calc((9.5px) + 1px);
     color: var(--text-secondary);
     letter-spacing: 0.06em;
     font-style: italic;

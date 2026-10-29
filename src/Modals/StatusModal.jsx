@@ -67,10 +67,10 @@ const StatusModal = ({ show, type, message, onClose }) => {
               <X size={40} style={{ color: '#ef4444' }} />
             )}
           </div>
-          <h3 style={{ color: '#fff', marginBottom: '12px', fontSize: '20px', fontWeight: '700' }}>
+          <h3 style={{ color: '#fff', marginBottom: '12px', fontSize: "calc((20px) + 1px)", fontWeight: '700' }}>
             {type === 'success' ? 'Success!' : 'Error!'}
           </h3>
-          <p style={{ color: '#a3a3a3', fontSize: '15px', margin: 0 }}>{message}</p>
+          <p style={{ color: '#a3a3a3', fontSize: "calc((15px) + 1px)", margin: 0 }}>{message}</p>
         </div>
       </div>
     </>

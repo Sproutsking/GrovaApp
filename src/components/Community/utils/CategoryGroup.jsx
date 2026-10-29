@@ -24,7 +24,7 @@ export default function CategoryGroup({ name, folderStyle = "simple", collapsibl
       {open && <div className="cfg-body">{children}</div>}
       <style>{`
         .cfg{box-sizing:border-box;flex:0 0 auto;width:100%;min-width:0;margin-bottom:6px;border:1px solid rgba(255,255,255,.05);border-radius:14px;background:linear-gradient(180deg, rgba(11,16,12,.7), rgba(12,18,14,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.03);overflow:visible}
-        .cfg-head{width:100%;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.018);border:none;cursor:pointer;padding:10px 12px;font-family:inherit;color:rgba(255,255,255,.54);font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+        .cfg-head{width:100%;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.018);border:none;cursor:pointer;padding:10px 12px;font-family:inherit;color:rgba(255,255,255,.54);font-size:calc((9px) + 1px);font-weight:800;letter-spacing:.8px;text-transform:uppercase}
         .cfg-chevron{margin-left:auto;transition:transform .15s;opacity:.6}
         .cfg-chevron.open{transform:rotate(90deg)}
         .cfg-body{display:flex;flex:0 0 auto;flex-direction:column;gap:4px;min-width:0;padding:6px 6px 8px}

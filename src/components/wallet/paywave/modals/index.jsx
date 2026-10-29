@@ -40,7 +40,7 @@ function BottomSheet({ children, onClose, title, maxWidth = 340, accentColor }) 
           padding: "8px 16px 0",
         }}>
           <span style={{
-            fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700,
+            fontFamily: "var(--fd)", fontSize: 15, fontWeight: 700,
             color: "var(--t1)",
           }}>{title}</span>
           <button onClick={onClose} style={{
@@ -106,7 +106,7 @@ export function PinModal({ onClose, onVerify }) {
                 background: k === "" ? "transparent" : k === "del" ? "rgba(248,113,113,0.07)" : "rgba(255,255,255,0.035)",
                 border: k === "" ? "none" : k === "del" ? "1px solid rgba(248,113,113,0.13)" : "1px solid rgba(255,255,255,0.065)",
                 color: k === "del" ? "#f87171" : "var(--t1)",
-                fontFamily: "var(--fd)", fontSize: 17, fontWeight: 700,
+                fontFamily: "var(--fd)", fontSize: 18, fontWeight: 700,
                 cursor: k ? "pointer" : "default",
                 transition: "background .11s, transform .09s",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -126,7 +126,7 @@ export function PinModal({ onClose, onVerify }) {
           </div>
         ))}
 
-        <div style={{ textAlign: "center", marginTop: 10, color: "rgba(255,255,255,0.2)", fontSize: 10.5, fontFamily: "var(--fb)" }}>
+        <div style={{ textAlign: "center", marginTop: 10, color: "rgba(255,255,255,0.2)", fontSize: 11.5, fontFamily: "var(--fb)" }}>
           Demo PIN: <span style={{ color: "var(--lime)", fontFamily: "var(--fm)" }}>1234</span>
         </div>
       </div>
@@ -202,20 +202,20 @@ export function SendTypeModal({ onClose, onSelect }) {
             {/* Text */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
-                <span style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 700, color: "var(--t1)" }}>
+                <span style={{ fontFamily: "var(--fd)", fontSize: 14.5, fontWeight: 700, color: "var(--t1)" }}>
                   {opt.title}
                 </span>
                 <span style={{
                   padding: "1.5px 6px", borderRadius: 20,
                   background: opt.badgeBg, border: `1px solid ${opt.badgeBorder}`,
-                  fontSize: "8.5px", fontWeight: 700, color: opt.badgeColor,
+                  fontSize: "calc((8.5px) + 1px)", fontWeight: 700, color: opt.badgeColor,
                   fontFamily: "var(--fb)", letterSpacing: "0.04em", flexShrink: 0,
                 }}>{opt.badge}</span>
               </div>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.38)", fontFamily: "var(--fb)", marginBottom: 3 }}>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.38)", fontFamily: "var(--fb)", marginBottom: 3 }}>
                 {opt.subtitle}
               </div>
-              <div style={{ fontSize: 10.5, color: opt.descColor, fontFamily: "var(--fb)" }}>
+              <div style={{ fontSize: 11.5, color: opt.descColor, fontFamily: "var(--fb)" }}>
                 {opt.desc}
               </div>
             </div>
@@ -229,7 +229,7 @@ export function SendTypeModal({ onClose, onSelect }) {
         <div style={{
           marginTop: 2, padding: "9px 11px", borderRadius: 9,
           background: "rgba(163,230,53,0.035)", border: "1px dashed rgba(163,230,53,0.1)",
-          fontSize: 10.5, color: "rgba(255,255,255,0.2)", fontFamily: "var(--fb)", lineHeight: 1.65,
+          fontSize: 11.5, color: "rgba(255,255,255,0.2)", fontFamily: "var(--fb)", lineHeight: 1.65,
         }}>
           <span style={{ color: "rgba(163,230,53,0.4)" }}>⚡ Pro tip:</span>{" "}
           PayWave transfers are instant and completely free between Xeevia users.
@@ -272,14 +272,14 @@ export function SuccessModal({ message, onClose }) {
         </div>
 
         <div style={{
-          fontFamily: "var(--fd)", fontSize: 16, fontWeight: 800,
+          fontFamily: "var(--fd)", fontSize: 17, fontWeight: 800,
           color: "var(--t1)", marginBottom: 7,
         }}>{title}</div>
 
         {details.length > 0 && (
           <div style={{ marginBottom: 18 }}>
             {details.map((line, i) => (
-              <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", fontFamily: "var(--fb)", lineHeight: 1.7 }}>
+              <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,0.38)", fontFamily: "var(--fb)", lineHeight: 1.7 }}>
                 {line}
               </div>
             ))}

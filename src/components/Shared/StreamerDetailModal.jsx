@@ -170,7 +170,7 @@ const MediaPlayer = ({ url, mode }) => {
         </div>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 800,
             color: "#ef4444",
             letterSpacing: 0.4,
@@ -179,7 +179,7 @@ const MediaPlayer = ({ url, mode }) => {
           {isAudio ? "AUDIO RECORDING" : "VIDEO RECORDING"}
         </span>
         {!ready && !err && (
-          <span style={{ fontSize: 10, color: "#484848" }}>Loading…</span>
+          <span style={{ fontSize: 11, color: "#484848" }}>Loading…</span>
         )}
       </div>
 
@@ -189,7 +189,7 @@ const MediaPlayer = ({ url, mode }) => {
             textAlign: "center",
             padding: "8px 0",
             color: "#484848",
-            fontSize: 12,
+            fontSize: 13,
           }}
         >
           Unable to load recording
@@ -279,7 +279,7 @@ const MediaPlayer = ({ url, mode }) => {
             <div
               style={{
                 flex: 1,
-                fontSize: 11,
+                fontSize: 12,
                 color: "#525252",
                 fontWeight: 700,
                 fontVariantNumeric: "tabular-nums",
@@ -347,7 +347,7 @@ const NotRecordedCard = ({ session }) => {
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          fontSize: 18,
+          fontSize: 19,
         }}
       >
         📭
@@ -355,7 +355,7 @@ const NotRecordedCard = ({ session }) => {
       <div style={{ flex: 1 }}>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 700,
             color: "#484848",
             marginBottom: 4,
@@ -365,7 +365,7 @@ const NotRecordedCard = ({ session }) => {
         </div>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "#363636",
             lineHeight: 1.5,
             marginBottom: 8,
@@ -376,7 +376,7 @@ const NotRecordedCard = ({ session }) => {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "#484848",
               display: "flex",
               alignItems: "center",
@@ -391,7 +391,7 @@ const NotRecordedCard = ({ session }) => {
           </span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "#484848",
               display: "flex",
               alignItems: "center",
@@ -407,7 +407,7 @@ const NotRecordedCard = ({ session }) => {
           {dur && (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: "#484848",
                 display: "flex",
                 alignItems: "center",
@@ -480,7 +480,7 @@ const SessionCard = ({ session, defaultOpen }) => {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               color: "#d4d4d4",
               marginBottom: 3,
@@ -496,7 +496,7 @@ const SessionCard = ({ session, defaultOpen }) => {
               display: "flex",
               alignItems: "center",
               gap: 5,
-              fontSize: 10,
+              fontSize: 11,
               color: "#484848",
               flexWrap: "wrap",
             }}
@@ -536,7 +536,7 @@ const SessionCard = ({ session, defaultOpen }) => {
           {hasRec ? (
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
                 padding: "2px 6px",
                 background: "rgba(239,68,68,.15)",
@@ -549,7 +549,7 @@ const SessionCard = ({ session, defaultOpen }) => {
           ) : (
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 700,
                 padding: "2px 6px",
                 background: "rgba(255,255,255,.05)",
@@ -562,7 +562,7 @@ const SessionCard = ({ session, defaultOpen }) => {
           )}
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               color: "#484848",
               display: "flex",
               alignItems: "center",
@@ -606,13 +606,13 @@ const SessionCard = ({ session, defaultOpen }) => {
               <React.Fragment key={label}>
                 <div style={{ flex: 1, textAlign: "center" }}>
                   <div
-                    style={{ fontSize: 16, fontWeight: 800, color: "#ef4444" }}
+                    style={{ fontSize: 17, fontWeight: 800, color: "#ef4444" }}
                   >
                     {value}
                   </div>
                   <div
                     style={{
-                      fontSize: 8.5,
+                      fontSize: 9.5,
                       color: "#484848",
                       fontWeight: 700,
                       letterSpacing: 0.4,
@@ -778,7 +778,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: 800,
                 color: "#fff",
                 overflow: "hidden",
@@ -788,7 +788,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
             >
               {pr.full_name || pr.username || "Streamer"}
             </div>
-            <div style={{ fontSize: 11, color: "#484848", marginTop: 1 }}>
+            <div style={{ fontSize: 12, color: "#484848", marginTop: 1 }}>
               Streamer profile
             </div>
           </div>
@@ -844,7 +844,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
                   justifyContent: "center",
                   color: "#fff",
                   fontWeight: 900,
-                  fontSize: 26,
+                  fontSize: 27,
                   overflow: "hidden",
                   border: "2px solid rgba(239,68,68,.35)",
                   flexShrink: 0,
@@ -868,7 +868,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 18,
+                    fontSize: 19,
                     fontWeight: 800,
                     color: "#fff",
                     display: "flex",
@@ -906,7 +906,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
                 </div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     color: "#525252",
                     marginBottom: pr.bio ? 6 : 0,
                   }}
@@ -915,7 +915,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
                 </div>
                 {pr.bio && (
                   <div
-                    style={{ fontSize: 12, color: "#484848", lineHeight: 1.55 }}
+                    style={{ fontSize: 13, color: "#484848", lineHeight: 1.55 }}
                   >
                     {pr.bio}
                   </div>
@@ -954,13 +954,13 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
                   }}
                 >
                   <div
-                    style={{ fontSize: 17, fontWeight: 800, color: "#ef4444" }}
+                    style={{ fontSize: 18, fontWeight: 800, color: "#ef4444" }}
                   >
                     {value}
                   </div>
                   <div
                     style={{
-                      fontSize: 8,
+                      fontSize: 9,
                       color: "#484848",
                       fontWeight: 700,
                       letterSpacing: 0.5,
@@ -988,7 +988,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
               >
                 <Radio size={13} color="#ef4444" />
                 <span
-                  style={{ fontSize: 12, color: "#d4d4d4", fontWeight: 600 }}
+                  style={{ fontSize: 13, color: "#d4d4d4", fontWeight: 600 }}
                 >
                   {recordedCount > 0
                     ? `${recordedCount} of ${sessions.length} sessions recorded`
@@ -1001,7 +1001,7 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
           {/* Session list */}
           <div
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 800,
               color: "#484848",
               letterSpacing: 0.6,
@@ -1023,10 +1023,10 @@ const StreamerDetailModal = ({ streamer, onClose }) => {
                 color: "#2e2e2e",
               }}
             >
-              <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.4 }}>
+              <div style={{ fontSize: 37, marginBottom: 8, opacity: 0.4 }}>
                 📡
               </div>
-              <p style={{ fontSize: 13, margin: 0 }}>No stream history found</p>
+              <p style={{ fontSize: 14, margin: 0 }}>No stream history found</p>
             </div>
           ) : (
             sessions.map((session, i) => (

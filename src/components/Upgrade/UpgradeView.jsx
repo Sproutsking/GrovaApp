@@ -73,7 +73,7 @@ const LivePreview = ({ tierId, themeId, fontId, colorId, backgroundColorId, curr
       width:"100%", maxWidth:380, aspectRatio:"3 / 4", minHeight:0,
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16,
     }}>
-      <div style={{ position:"absolute", top:12, left:14, fontSize:9, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:v?.color ?? "#fff" }}>
+      <div style={{ position:"absolute", top:12, left:14, fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:v?.color ?? "#fff" }}>
         {v?.badgeLabel ?? tierId} boost
       </div>
       <div style={{ position:"relative" }}>
@@ -84,7 +84,7 @@ const LivePreview = ({ tierId, themeId, fontId, colorId, backgroundColorId, curr
           animation: avatarAnim,
           display:"flex", alignItems:"center", justifyContent:"center",
           background: avatarUrl ? "transparent" : (v ? `linear-gradient(135deg,${v.grad[0]},${v.grad[1]})` : "#222"),
-          fontSize:28, fontWeight:900, color:"#000",
+          fontSize:29, fontWeight:900, color:"#000",
           overflow:"hidden",
           position:"relative",
         }}>
@@ -109,36 +109,36 @@ const LivePreview = ({ tierId, themeId, fontId, colorId, backgroundColorId, curr
             background:`linear-gradient(135deg,${v.grad[0]},${v.grad[1]})`,
             border:"2px solid #060606",
             display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:11, boxShadow:`0 2px 8px ${v.glow}`,
+            fontSize:12, boxShadow:`0 2px 8px ${v.glow}`,
           }}>{v.badge}</div>
         )}
       </div>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:15, fontWeight:nameDesign.font?.weight || 900, fontFamily:nameDesign.font?.family, letterSpacing:nameDesign.font?.spacing, color:nameDesign.color?.color || "#fff", textShadow:nameDesign.color?.shadow ? `0 0 16px ${nameDesign.color.shadow}` : "none", marginBottom:2, display:"flex", alignItems:"center", justifyContent:"center", gap:6, flexWrap:"wrap" }}>
+        <div style={{ fontSize:16, fontWeight:nameDesign.font?.weight || 900, fontFamily:nameDesign.font?.family, letterSpacing:nameDesign.font?.spacing, color:nameDesign.color?.color || "#fff", textShadow:nameDesign.color?.shadow ? `0 0 16px ${nameDesign.color.shadow}` : "none", marginBottom:2, display:"flex", alignItems:"center", justifyContent:"center", gap:6, flexWrap:"wrap" }}>
           <span>{currentUser?.fullName || currentUser?.full_name || "Your Name"}</span>
-          <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:"#22c55e", color:"#ffffff", fontSize:12, fontWeight:900, lineHeight:1, boxShadow:"0 0 12px rgba(34,197,94,0.5)" }} title="Verified paid member" aria-label="Verified paid member">✓</span>
-          <span style={{ fontSize:13 }}>{v?.badge}</span>
+          <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:"#22c55e", color:"#ffffff", fontSize:13, fontWeight:900, lineHeight:1, boxShadow:"0 0 12px rgba(34,197,94,0.5)" }} title="Verified paid member" aria-label="Verified paid member">✓</span>
+          <span style={{ fontSize:14 }}>{v?.badge}</span>
         </div>
-        <div style={{ fontSize:12, color: nameDesign.color?.color ? `${nameDesign.color.color}b3` : (v?.color ?? "#737373"), fontFamily:nameDesign.font?.family }}>
+        <div style={{ fontSize:13, color: nameDesign.color?.color ? `${nameDesign.color.color}b3` : (v?.color ?? "#737373"), fontFamily:nameDesign.font?.family }}>
           @{currentUser?.username ?? "username"}
         </div>
         {theme && (
           <div style={{
             marginTop:6, padding:"2px 10px", borderRadius:10, display:"inline-block",
             background:`${v?.color ?? "#fff"}18`, border:`1px solid ${v?.color ?? "#fff"}30`,
-            fontSize:10, fontWeight:700, color: v?.color ?? "#fff",
+            fontSize:11, fontWeight:700, color: v?.color ?? "#fff",
           }}>
             {theme.emoji} {theme.name}
           </div>
         )}
-        <div style={{ marginTop:6, fontSize:10, fontWeight:800, color:"#4ade80", letterSpacing:"0.05em", textTransform:"uppercase" }}>
+        <div style={{ marginTop:6, fontSize:11, fontWeight:800, color:"#4ade80", letterSpacing:"0.05em", textTransform:"uppercase" }}>
           ✓ Verified paid member
         </div>
         {/* EP bonus pill */}
         <div style={{
           marginTop:6, padding:"2px 10px", borderRadius:10, display:"inline-block",
           background:"rgba(132,204,22,0.12)", border:"1px solid rgba(132,204,22,0.25)",
-          fontSize:10, fontWeight:800, color:"#84cc16", marginLeft:6,
+          fontSize:11, fontWeight:800, color:"#84cc16", marginLeft:6,
         }}>
           +{EP_BONUS[tierId]}% EP
         </div>
@@ -160,16 +160,16 @@ const SystemGrantBanner = ({ boost, userId }) => {
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
         <Shield size={18} color={v.color} />
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:14, fontWeight:900, color:v.color }}>
+          <div style={{ fontSize:15, fontWeight:900, color:v.color }}>
             {boost.tier.charAt(0).toUpperCase()+boost.tier.slice(1)} Boost
             {isCeo ? " — CEO Grant" : " — Admin Grant"}
           </div>
-          <div style={{ fontSize:11, color:"#737373", marginTop:1 }}>
+          <div style={{ fontSize:12, color:"#737373", marginTop:1 }}>
             Complimentary · No EP charged · Permanent
           </div>
         </div>
         <div style={{
-          padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:800,
+          padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:800,
           background:"rgba(132,204,22,0.12)", color:"#84cc16",
           border:"1px solid rgba(132,204,22,0.25)",
         }}>Active</div>
@@ -192,17 +192,17 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
       boxShadow:`0 4px 24px ${v.glow}`,
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-        <span style={{ fontSize:22 }}>{v.badge}</span>
+        <span style={{ fontSize:23 }}>{v.badge}</span>
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:14, fontWeight:900, color:v.color }}>
+          <div style={{ fontSize:15, fontWeight:900, color:v.color }}>
             {boost.tier.charAt(0).toUpperCase()+boost.tier.slice(1)} Boost Active
           </div>
-          <div style={{ fontSize:11, color:"#737373", marginTop:1 }}>
+          <div style={{ fontSize:12, color:"#737373", marginTop:1 }}>
             {boost.billing==="yearly"?"Annual":"Monthly"} plan · {fmtEP(boost.ep_cost)} EP paid · +{EP_BONUS[boost.tier]}% EP bonus
           </div>
         </div>
         <div style={{
-          padding:"3px 10px", borderRadius:20, fontSize:10, fontWeight:800,
+          padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:800,
           background: days<=7 ? "rgba(239,68,68,0.15)" : "rgba(132,204,22,0.12)",
           color:      days<=7 ? "#ef4444"               : "#84cc16",
           border:     days<=7 ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(132,204,22,0.25)",
@@ -212,11 +212,11 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
       </div>
       <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0",
         borderTop:"1px solid rgba(255,255,255,0.05)", marginBottom:12,
-        fontSize:12, color:"#a3a3a3",
+        fontSize:13, color:"#a3a3a3",
       }}>
         <span><strong style={{ color:"#fff" }}>Expires:</strong> {fmtDate(boost.expires_at)}</span>
         <span style={{
-          fontSize:10, fontWeight:800, color:"#84cc16",
+          fontSize:11, fontWeight:800, color:"#84cc16",
           background:"rgba(132,204,22,0.1)", padding:"2px 8px",
           borderRadius:10, border:"1px solid rgba(132,204,22,0.2)",
         }}>+{EP_BONUS[boost.tier]}% EP bonus active</span>
@@ -230,8 +230,8 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
         background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)",
       }}>
         <div>
-          <div style={{ fontSize:12, fontWeight:700, color:"#fff" }}>Auto-Renew</div>
-          <div style={{ fontSize:10, color:"#525252", marginTop:2 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#fff" }}>Auto-Renew</div>
+          <div style={{ fontSize:11, color:"#525252", marginTop:2 }}>
             {boost.auto_renew
               ? `Renews ${fmtDate(boost.expires_at)} — EP deducted automatically`
               : "Off — renew manually before it expires"}
@@ -249,7 +249,7 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
         width:"100%", padding:10, borderRadius:12,
         border:"1px solid rgba(239,68,68,0.25)",
         background:"rgba(239,68,68,0.06)", color:"#ef4444",
-        fontSize:12, fontWeight:700, cursor:working?"default":"pointer",
+        fontSize:13, fontWeight:700, cursor:working?"default":"pointer",
         opacity:working?0.5:1,
       }}>Cancel Boost</button>
     </div>
@@ -291,7 +291,7 @@ const TierCard = ({
           position:"absolute", top:0, left:"50%", transform:"translateX(-50%)",
           padding:"3px 14px", borderRadius:"0 0 10px 10px",
           background:`linear-gradient(90deg,${v.grad[0]},${v.grad[1]})`,
-          fontSize:10, fontWeight:800, color:"#000", zIndex:2,
+          fontSize:11, fontWeight:800, color:"#000", zIndex:2,
         }}>⭐ Most Popular</div>
       )}
       {isActive && !isSystemGrant && (
@@ -299,7 +299,7 @@ const TierCard = ({
           position:"absolute", top:0, right:0,
           padding:"4px 10px", borderRadius:"0 18px 0 10px",
           background:`linear-gradient(135deg,${v.grad[0]},${v.grad[1]})`,
-          fontSize:9, fontWeight:800, color:"#000", zIndex:2,
+          fontSize:10, fontWeight:800, color:"#000", zIndex:2,
         }}>ACTIVE</div>
       )}
 
@@ -315,13 +315,13 @@ const TierCard = ({
             width:48, height:48, borderRadius:14, flexShrink:0,
             background:`${v.color}18`, border:`1px solid ${v.color}30`,
             display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:22, boxShadow: isSel ? `0 0 20px ${v.glow}` : "none",
+            fontSize:23, boxShadow: isSel ? `0 0 20px ${v.glow}` : "none",
           }}>{v.badge}</div>
           <div>
-            <div style={{ fontSize:14, fontWeight:900, color:v.color, lineHeight:1.1 }}>
+            <div style={{ fontSize:15, fontWeight:900, color:v.color, lineHeight:1.1 }}>
               {cfg.name}
             </div>
-            <div style={{ fontSize:11, color:"#525252", marginTop:2 }}>
+            <div style={{ fontSize:12, color:"#525252", marginTop:2 }}>
               {cfg.theme_count === 1 ? "1 exclusive design"
                 : `${cfg.theme_count} exclusive designs`} · <span style={{ color:"#84cc16" }}>+{bonus}% EP</span>
             </div>
@@ -335,23 +335,23 @@ const TierCard = ({
             background: canAfford ? `${v.color}15` : "rgba(239,68,68,0.1)",
             border:     canAfford ? `1px solid ${v.color}35` : "1px solid rgba(239,68,68,0.3)",
           }}>
-            <span style={{ fontSize:16, fontWeight:900, color:canAfford?v.color:"#ef4444" }}>
+            <span style={{ fontSize:17, fontWeight:900, color:canAfford?v.color:"#ef4444" }}>
               {cfg.usd_display[billing]}
             </span>
-            <span style={{ fontSize:10, color:"#737373", fontWeight:700 }}>
+            <span style={{ fontSize:11, color:"#737373", fontWeight:700 }}>
               {billing==="yearly"?"/yr":"/mo"}
             </span>
           </div>
-          <div style={{ fontSize:9, color:"#84cc16", fontWeight:700, marginTop:2 }}>
+          <div style={{ fontSize:10, color:"#84cc16", fontWeight:700, marginTop:2 }}>
             ≡ {fmtEP(epCost)} EP/{billing==="yearly"?"yr":"mo"}
           </div>
           {billing==="yearly" && savings>0 && (
-            <div style={{ fontSize:9, color:"#22c55e", fontWeight:800 }}>
+            <div style={{ fontSize:10, color:"#22c55e", fontWeight:800 }}>
               Save {fmtEP(savings)} EP/yr
             </div>
           )}
           {!canAfford && (
-            <div style={{ fontSize:9, color:"#ef4444", fontWeight:700 }}>
+            <div style={{ fontSize:10, color:"#ef4444", fontWeight:700 }}>
               Need {fmtEP(epCost-epBalance)} more EP
             </div>
           )}
@@ -370,7 +370,7 @@ const TierCard = ({
           {/* Live preview — only in single-column (mobile) mode */}
           {expanded && !isWide && (
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"#525252",
+              <div style={{ fontSize:11, fontWeight:700, color:"#525252",
                 textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8,
               }}>Live Preview</div>
               <LivePreview tierId={tierId} themeId={previewThemeId} currentUser={currentUser} />
@@ -380,7 +380,7 @@ const TierCard = ({
           {/* Theme mini-picker */}
           {themes.length > 1 && (
             <div style={{ marginBottom:14 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"#525252",
+              <div style={{ fontSize:11, fontWeight:700, color:"#525252",
                 textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8,
               }}>Choose Your Design</div>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -398,9 +398,9 @@ const TierCard = ({
                       <div style={{
                         width:36, height:36, borderRadius:10, background:t.preview,
                         border: isP ? `2px solid ${v.color}60` : "1px solid rgba(255,255,255,0.1)",
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:18,
+                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:19,
                       }}>{t.emoji}</div>
-                      <span style={{ fontSize:9, fontWeight:700, color:isP?v.color:"#525252",
+                      <span style={{ fontSize:10, fontWeight:700, color:isP?v.color:"#525252",
                         whiteSpace:"nowrap", maxWidth:56, overflow:"hidden", textOverflow:"ellipsis",
                       }}>{t.name}</span>
                     </button>
@@ -415,7 +415,7 @@ const TierCard = ({
             <div key={i} style={{
               display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0",
               borderBottom:"1px solid rgba(255,255,255,0.04)",
-              fontSize:13, color:"#c4c4c4", fontWeight:500,
+              fontSize:14, color:"#c4c4c4", fontWeight:500,
             }}>
               <div style={{
                 width:20, height:20, borderRadius:6, flexShrink:0,
@@ -432,7 +432,7 @@ const TierCard = ({
           <div style={{
             display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0",
             borderBottom:"1px solid rgba(255,255,255,0.04)",
-            fontSize:13, color:"#c4c4c4", fontWeight:500,
+            fontSize:14, color:"#c4c4c4", fontWeight:500,
           }}>
             <div style={{
               width:20, height:20, borderRadius:6, flexShrink:0,
@@ -451,7 +451,7 @@ const TierCard = ({
               border:"1px solid rgba(239,68,68,0.2)",
             }}>
               <AlertCircle size={14} color="#ef4444"/>
-              <span style={{ fontSize:11, color:"#ef4444" }}>
+              <span style={{ fontSize:12, color:"#ef4444" }}>
                 Need <strong>{fmtEP(epCost-epBalance)} more EP</strong>. Top up in Wallet.
               </span>
             </div>
@@ -469,7 +469,7 @@ const TierCard = ({
                   ? `linear-gradient(135deg,${v.grad[0]},${v.grad[1]})`
                   : "rgba(255,255,255,0.05)",
               color: isSystemGrant ? "#525252" : isActive ? "#84cc16" : canAfford ? "#000" : "#525252",
-              fontSize:14, fontWeight:900,
+              fontSize:15, fontWeight:900,
               cursor:(!isSystemGrant && canAfford && !isActive)?"pointer":"default",
               boxShadow:(!isSystemGrant && canAfford && !isActive)?`0 6px 20px ${v.glow}`:"none",
             }}
@@ -505,16 +505,16 @@ const ConfirmSheet = ({
       animation:"cardIn 0.3s cubic-bezier(0.34,1.4,0.64,1)",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
-        <span style={{ fontSize:26 }}>{v.badge}</span>
+        <span style={{ fontSize:27 }}>{v.badge}</span>
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:14, fontWeight:900, color:"#fff" }}>
+          <div style={{ fontSize:15, fontWeight:900, color:"#fff" }}>
             {cfg.name} — {billing}
           </div>
-          <div style={{ fontSize:11, color:"#737373" }}>
+          <div style={{ fontSize:12, color:"#737373" }}>
             {fmtEP(epCost)} EP · Balance after: {fmtEP(Math.max(0,newBalance))} EP
           </div>
         </div>
-        <div style={{ fontSize:11, fontWeight:800, color:canAfford?"#22c55e":"#ef4444" }}>
+        <div style={{ fontSize:12, fontWeight:800, color:canAfford?"#22c55e":"#ef4444" }}>
           {canAfford ? "✓ Ready" : "⚠ Low EP"}
         </div>
       </div>
@@ -528,11 +528,11 @@ const ConfirmSheet = ({
             background:`${v.color}10`, border:`1px solid ${v.color}25`,
           }}>
             <div style={{ width:28, height:28, borderRadius:8, background:t.preview,
-              display:"flex", alignItems:"center", justifyContent:"center", fontSize:14,
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:15,
             }}>{t.emoji}</div>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:11, fontWeight:800, color:v.color }}>{t.name}</div>
-              <div style={{ fontSize:9, color:"#525252" }}>Design selected</div>
+              <div style={{ fontSize:12, fontWeight:800, color:v.color }}>{t.name}</div>
+              <div style={{ fontSize:10, color:"#525252" }}>Design selected</div>
             </div>
             <Check size={12} color={v.color}/>
           </div>
@@ -545,10 +545,10 @@ const ConfirmSheet = ({
         background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)",
       }}>
         <div>
-          <div style={{ fontSize:12, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#fff", display:"flex", alignItems:"center", gap:6 }}>
             <RefreshCw size={11} color="#84cc16"/> Auto-Renew
           </div>
-          <div style={{ fontSize:10, color:"#525252", marginTop:1 }}>
+          <div style={{ fontSize:11, color:"#525252", marginTop:1 }}>
             {autoRenew
               ? `Deducts ${fmtEP(epCost)} EP automatically when boost expires`
               : "Manual — you decide when to pay next"}
@@ -568,7 +568,7 @@ const ConfirmSheet = ({
         border:"1px solid rgba(251,191,36,0.15)",
       }}>
         <Info size={13} color="#fbbf24" style={{ flexShrink:0, marginTop:1 }}/>
-        <div style={{ fontSize:10, color:"#a3a3a3", lineHeight:1.5 }}>
+        <div style={{ fontSize:11, color:"#a3a3a3", lineHeight:1.5 }}>
           Instant EP payment — $1 = 100 EP, your ecosystem currency.
           No card needed. Top up EP in Wallet anytime.
         </div>
@@ -579,12 +579,12 @@ const ConfirmSheet = ({
           padding:"12px 16px", borderRadius:12,
           border:"1px solid rgba(255,255,255,0.1)",
           background:"rgba(255,255,255,0.04)", color:"#737373",
-          fontSize:13, fontWeight:700, cursor:"pointer",
+          fontSize:14, fontWeight:700, cursor:"pointer",
         }}>Back</button>
         <button onClick={onConfirm} disabled={working || !canAfford} style={{
           flex:1, padding:13, borderRadius:12, border:"none",
           background:canAfford?`linear-gradient(135deg,${v.grad[0]},${v.grad[1]})`:"rgba(255,255,255,0.05)",
-          color:canAfford?"#000":"#525252", fontSize:14, fontWeight:900,
+          color:canAfford?"#000":"#525252", fontSize:15, fontWeight:900,
           cursor:(canAfford&&!working)?"pointer":"default",
           boxShadow:canAfford?`0 6px 20px ${v.glow}`:"none",
           display:"flex", alignItems:"center", justifyContent:"center", gap:8,
@@ -611,13 +611,13 @@ const SuccessScreen = ({ tierId, billing, result, pickedThemeId, currentUser, on
       <div style={{ marginBottom:24, width:"100%", maxWidth:360 }}>
         <LivePreview tierId={tierId} themeId={pickedThemeId} currentUser={currentUser}/>
       </div>
-      <div style={{ fontSize:64, marginBottom:16, animation:"popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
+      <div style={{ fontSize:65, marginBottom:16, animation:"popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
         {v.badge}
       </div>
-      <h2 style={{ fontSize:26, fontWeight:900, color:"#fff", margin:"0 0 8px" }}>
+      <h2 style={{ fontSize:27, fontWeight:900, color:"#fff", margin:"0 0 8px" }}>
         {cfg.name} Active!
       </h2>
-      <p style={{ fontSize:13, color:"#737373", lineHeight:1.7, margin:"0 0 24px" }}>
+      <p style={{ fontSize:14, color:"#737373", lineHeight:1.7, margin:"0 0 24px" }}>
         Your boost is now live everywhere on the platform.<br/>
         <span style={{ color:v.color, fontWeight:700 }}>{fmtEP(result.ep_cost)} EP deducted.</span>
         <br/>+{EP_BONUS[tierId]}% EP bonus is now active.
@@ -626,7 +626,7 @@ const SuccessScreen = ({ tierId, billing, result, pickedThemeId, currentUser, on
       <button onClick={onClose} style={{
         padding:"14px 32px", borderRadius:14, border:"none",
         background:`linear-gradient(135deg,${v.grad[0]},${v.grad[1]})`,
-        color:"#000", fontSize:15, fontWeight:900, cursor:"pointer",
+        color:"#000", fontSize:16, fontWeight:900, cursor:"pointer",
         boxShadow:`0 8px 24px ${v.glow}`,
       }}>Back to Profile ✓</button>
     </div>
@@ -699,7 +699,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
         border:"3px solid rgba(251,191,36,0.2)", borderTop:"3px solid #fbbf24",
         animation:"spin 0.8s linear infinite",
       }}/>
-      <div style={{ color:"#737373", fontSize:13 }}>Loading…</div>
+      <div style={{ color:"#737373", fontSize:14 }}>Loading…</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -734,9 +734,9 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
           width:34, height:34, borderRadius:10,
           background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)",
           display:"flex", alignItems:"center", justifyContent:"center",
-          cursor:"pointer", color:"#737373", fontSize:18,
+          cursor:"pointer", color:"#737373", fontSize:19,
         }}>‹</button>
-        <span style={{ fontSize:17, fontWeight:900, color:"#fff", flex:1 }}>
+        <span style={{ fontSize:18, fontWeight:900, color:"#fff", flex:1 }}>
           {boost ? "Manage Profile Upgrade" : "Profile Upgrade"}
         </span>
         <div style={{
@@ -745,7 +745,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
           border:"1px solid rgba(251,191,36,0.25)",
         }}>
           <Zap size={12} color="#fbbf24"/>
-          <span style={{ fontSize:12, fontWeight:800, color:"#fbbf24" }}>{fmtEP(epBalance)} EP</span>
+          <span style={{ fontSize:13, fontWeight:800, color:"#fbbf24" }}>{fmtEP(epBalance)} EP</span>
         </div>
       </div>
 
@@ -791,22 +791,22 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                   margin:"16px 0 0", padding:16, borderRadius:18,
                   background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.25)",
                 }}>
-                  <p style={{ color:"#fff", fontSize:13, fontWeight:700, margin:"0 0 6px" }}>
+                  <p style={{ color:"#fff", fontSize:14, fontWeight:700, margin:"0 0 6px" }}>
                     Cancel your boost?
                   </p>
-                  <p style={{ color:"#737373", fontSize:11, margin:"0 0 14px" }}>
+                  <p style={{ color:"#737373", fontSize:12, margin:"0 0 14px" }}>
                     Boost ends immediately. No EP refund.
                   </p>
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={() => setCancelConfirm(false)} style={{
                       flex:1, padding:10, borderRadius:10,
                       background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)",
-                      color:"#a3a3a3", fontSize:13, fontWeight:600, cursor:"pointer",
+                      color:"#a3a3a3", fontSize:14, fontWeight:600, cursor:"pointer",
                     }}>Keep Boost</button>
                     <button onClick={handleCancel} disabled={working} style={{
                       flex:1, padding:10, borderRadius:10,
                       background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)",
-                      color:"#ef4444", fontSize:13, fontWeight:800, cursor:"pointer",
+                      color:"#ef4444", fontSize:14, fontWeight:800, cursor:"pointer",
                       opacity:working?0.5:1,
                     }}>
                       {working ? "Cancelling…" : "Yes, Cancel"}
@@ -839,15 +839,15 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                       background:"linear-gradient(135deg, rgba(251,191,36,0.34), rgba(251,191,36,0.1))",
                       border:"1px solid rgba(251,191,36,0.38)",
                       boxShadow:"0 12px 30px rgba(251,191,36,0.22)",
-                      animation:"float 3s ease-in-out infinite", fontSize:36,
+                      animation:"float 3s ease-in-out infinite", fontSize:37,
                     }}>👑</div>
-                    <div style={{ fontSize:11, color:"#fbbf24", fontWeight:900, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>
+                    <div style={{ fontSize:12, color:"#fbbf24", fontWeight:900, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>
                       Premium identity
                     </div>
-                    <h2 style={{ fontSize:28, fontWeight:900, color:"#fff", margin:"0 0 10px" }}>
+                    <h2 style={{ fontSize:29, fontWeight:900, color:"#fff", margin:"0 0 10px" }}>
                       Upgrade your profile presence
                     </h2>
-                    <p style={{ fontSize:13, color:"#d4d4d4", lineHeight:1.75, margin:"0 0 12px" }}>
+                    <p style={{ fontSize:14, color:"#d4d4d4", lineHeight:1.75, margin:"0 0 12px" }}>
                       Unlock luxury tier styling, animated profile visuals, elite theme packs,
                       and stronger creator visibility across the app.
                     </p>
@@ -857,11 +857,11 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                           padding:"6px 10px", borderRadius:999,
                           border:"1px solid rgba(255,255,255,0.1)",
                           background:"rgba(255,255,255,0.03)",
-                          fontSize:10, fontWeight:800, color:"#f5f5f5",
+                          fontSize:11, fontWeight:800, color:"#f5f5f5",
                         }}>{label}</span>
                       ))}
                     </div>
-                    <p style={{ fontSize:11, color:"#9ca3af", margin:0 }}>
+                    <p style={{ fontSize:12, color:"#9ca3af", margin:0 }}>
                       Economy: $1 = 100 EP · Instant payment · Cancel anytime
                     </p>
                   </div>
@@ -878,7 +878,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                     <button key={b} onClick={() => setBilling(b)} style={{
                       padding:"8px 20px", borderRadius:9,
                       border: billing===b ? "1px solid rgba(251,191,36,0.25)" : "none",
-                      fontSize:12, fontWeight:800, cursor:"pointer",
+                      fontSize:13, fontWeight:800, cursor:"pointer",
                       background: billing===b ? "rgba(251,191,36,0.12)" : "transparent",
                       color:      billing===b ? "#fbbf24" : "#525252",
                       display:"flex", alignItems:"center", gap:6, transition:"all 0.22s",
@@ -886,7 +886,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                       {b.charAt(0).toUpperCase()+b.slice(1)}
                       {b==="yearly" && (
                         <span style={{
-                          padding:"1px 6px", borderRadius:5, fontSize:9, fontWeight:800,
+                          padding:"1px 6px", borderRadius:5, fontSize:10, fontWeight:800,
                           background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.25)",
                           color:"#22c55e",
                         }}>Up to ~2mo free</span>
@@ -928,7 +928,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                   display:"flex", alignItems:"center", gap:8,
                 }}>
                   <AlertCircle size={14} color="#ef4444"/>
-                  <div style={{ fontSize:12, color:"#ef4444", flex:1 }}>{error}</div>
+                  <div style={{ fontSize:13, color:"#ef4444", flex:1 }}>{error}</div>
                   <button onClick={() => setError(null)} style={{ background:"none", border:"none", color:"#ef4444", cursor:"pointer" }}>
                     <X size={14}/>
                   </button>
@@ -963,7 +963,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                 }}>
                   <div style={{
                     padding:"12px 16px 8px",
-                    fontSize:10, fontWeight:700, color:"#525252",
+                    fontSize:11, fontWeight:700, color:"#525252",
                     textTransform:"uppercase", letterSpacing:"0.08em",
                     borderBottom:"1px solid rgba(255,255,255,0.05)",
                   }}>
@@ -990,7 +990,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                             padding:"4px 10px", borderRadius:20, border:"none",
                             background: active ? `${v.color}20` : "rgba(255,255,255,0.05)",
                             color: active ? v.color : "#525252",
-                            fontSize:10, fontWeight:800, cursor:"pointer",
+                            fontSize:11, fontWeight:800, cursor:"pointer",
                             outline: active ? `1px solid ${v.color}40` : "none",
                             transition:"all 0.18s",
                           }}>
@@ -1018,7 +1018,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                 <div style={{
                   padding:"12px 14px", borderRadius:14,
                   background:"rgba(251,191,36,0.05)", border:"1px solid rgba(251,191,36,0.12)",
-                  fontSize:11, color:"#737373", lineHeight:1.6,
+                  fontSize:12, color:"#737373", lineHeight:1.6,
                 }}>
                   <div style={{ fontWeight:800, color:"#fbbf24", marginBottom:4 }}>💡 EP Economy</div>
                   $1 = 100 EP · No card stored · Cancel anytime · EP refills in Wallet

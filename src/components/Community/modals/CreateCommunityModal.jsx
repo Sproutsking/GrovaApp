@@ -395,7 +395,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         }
 
         .modal-title {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 800;
           color: #fff;
           flex: 1;
@@ -442,21 +442,21 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         .cc-section-header {
           display: flex; align-items: center; gap: 9px;
-          font-size: 12.5px; font-weight: 800; color: #9cff00;
+          font-size: calc((12.5px) + 1px); font-weight: 800; color: #9cff00;
           text-transform: uppercase; letter-spacing: 0.6px;
           margin-bottom: 14px; padding-bottom: 11px;
           border-bottom: 1.5px solid rgba(156,255,0,0.16);
         }
 
         .cc-subhead {
-          font-size: 10.5px; font-weight: 800; color: #555;
+          font-size: calc((10.5px) + 1px); font-weight: 800; color: #555;
           text-transform: uppercase; letter-spacing: 0.6px;
           margin: 14px 0 8px;
         }
 
         .cc-field-label {
           display: flex; align-items: center; gap: 5px;
-          font-size: 10.5px; font-weight: 800; color: #666;
+          font-size: calc((10.5px) + 1px); font-weight: 800; color: #666;
           text-transform: uppercase; letter-spacing: 0.6px;
           margin-bottom: 7px;
         }
@@ -488,12 +488,12 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           width: 60px; height: 60px; border-radius: 15px;
           background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
           display: flex; align-items: center; justify-content: center;
-          font-size: 30px; z-index: 2;
+          font-size: calc((30px) + 1px); z-index: 2;
           border: 2px solid rgba(255,255,255,0.14);
           box-shadow: 0 8px 22px -6px var(--cc-glow), inset 0 0 0 1px rgba(255,255,255,.06);
         }
         .icon-img { width:100%; height:100%; object-fit:cover; border-radius:13px; }
-        .icon-emoji { font-size:30px; line-height:1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+        .icon-emoji { font-size:calc((30px) + 1px); line-height:1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
         .shuffle-btn {
           position:absolute; bottom:9px; right:10px;
           width:28px; height:28px; border-radius:8px;
@@ -510,12 +510,12 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .cc-cat-tab {
           flex-shrink:0; padding:6px 12px; border-radius:8px;
           background: rgba(18,18,18,.95); border:1.5px solid rgba(42,42,42,.9);
-          color:#888; font-size:11px; font-weight:800; cursor:pointer;
+          color:#888; font-size:calc((11px) + 1px); font-weight:800; cursor:pointer;
           transition: all .16s; white-space:nowrap;
         }
         .cc-cat-tab:hover { border-color: rgba(156,255,0,.3); color:#ccc; }
         .cc-cat-tab.active { background: rgba(156,255,0,.12); border-color: rgba(156,255,0,.5); color:#9cff00; }
-        .cc-cat-blurb { font-size: 11px; color: #555; margin: 6px 2px 10px; }
+        .cc-cat-blurb { font-size: calc((11px) + 1px); color: #555; margin: 6px 2px 10px; }
 
         .cc-gradient-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
         .cc-grad-swatch {
@@ -528,7 +528,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .cc-grad-swatch:hover { transform: translateY(-2px); }
         .cc-grad-swatch.active { border-color:#fff; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
         .cc-grad-label {
-          font-size:9.5px; font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7);
+          font-size:calc((9.5px) + 1px); font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7);
           padding:4px 6px; text-transform:uppercase; letter-spacing:.3px;
         }
         .cc-grad-check {
@@ -540,7 +540,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .icon-tabs { display: flex; gap: 6px; }
         .icon-tab {
           display: flex; align-items: center; gap: 5px;
-          padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+          padding: 7px 14px; border-radius: 8px; font-size: calc((12px) + 1px); font-weight: 700;
           cursor: pointer; border: 1.5px solid rgba(42,42,42,.9);
           background: rgba(18,18,18,.95); color: #888;
           transition: all .2s;
@@ -548,10 +548,10 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .icon-tab.active { border-color: rgba(156,255,0,.5); color: #9cff00; background: rgba(156,255,0,.1); }
 
         .emoji-grid-sm { display: grid; grid-template-columns: repeat(10,1fr); gap: 4px; margin-top: 8px; }
-        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin-top:8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:12px; font-weight:700; cursor:pointer; }
+        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin-top:8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:calc((12px) + 1px); font-weight:700; cursor:pointer; }
         .community-emoji-picker { position:fixed; z-index:100001; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100vw - 20px); max-height:calc(100vh - 20px); }
         .emoji-btn {
-          aspect-ratio:1; border-radius:8px; font-size:18px;
+          aspect-ratio:1; border-radius:8px; font-size:calc((18px) + 1px);
           background:rgba(18,18,18,.95); border:1.5px solid rgba(30,30,30,.9);
           cursor:pointer; display:flex; align-items:center; justify-content:center;
           transition:all .18s;
@@ -566,12 +566,12 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           background: rgba(156,255,0,0.03);
           display:flex; flex-direction:column; align-items:center; justify-content:center;
           gap:5px; cursor:pointer; transition:all .2s;
-          color:#666; font-size:12.5px; font-weight:600;
+          color:#666; font-size:calc((12.5px) + 1px); font-weight:600;
           position:relative; overflow:hidden;
         }
         .upload-zone:hover { border-color:rgba(156,255,0,.5); background:rgba(156,255,0,.06); }
         .upload-preview { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; border-radius:10px; }
-        .upload-hint { font-size:10px; color:#444; font-weight:500; }
+        .upload-hint { font-size:calc((10px) + 1px); color:#444; font-weight:500; }
         .hidden-file { display:none; }
 
         /* Fields */
@@ -579,7 +579,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           display:block; width:100%; box-sizing:border-box;
           padding: 11px 14px;
           background: rgba(18,18,18,.95); border:1.5px solid rgba(42,42,42,.9);
-          border-radius:10px; color:#fff; font-size:14px; font-family:inherit;
+          border-radius:10px; color:#fff; font-size:calc((14px) + 1px); font-family:inherit;
           outline:none; resize:none; transition:border-color .2s;
         }
         .field-input:focus, .field-textarea:focus { border-color: rgba(156,255,0,.45); }
@@ -587,8 +587,8 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         /* Toggle */
         .toggle-row { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
-        .toggle-label { font-size:13px; font-weight:700; color:#ddd; }
-        .toggle-hint  { font-size:11px; color:#555; margin-top:2px; }
+        .toggle-label { font-size:calc((13px) + 1px); font-weight:700; color:#ddd; }
+        .toggle-hint  { font-size:calc((11px) + 1px); color:#555; margin-top:2px; }
         .cc-toggle {
           width: 38px; height: 20px; border-radius: 10px;
           background: rgba(40,40,40,.9); border: none; cursor: pointer;
@@ -608,7 +608,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .error-msg {
           padding:10px 14px;
           background:rgba(255,100,100,.1); border:1px solid rgba(255,100,100,.3);
-          border-radius:10px; color:#ff6b6b; font-size:12px; font-weight:600;
+          border-radius:10px; color:#ff6b6b; font-size:calc((12px) + 1px); font-weight:600;
         }
 
         /* Create btn */
@@ -616,7 +616,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           display:flex; align-items:center; justify-content:center;
           width:100%; padding:14px; border-radius:12px;
           background:linear-gradient(135deg,#9cff00,#667eea);
-          border:none; color:#000; font-size:15px; font-weight:800;
+          border:none; color:#000; font-size:calc((15px) + 1px); font-weight:800;
           cursor:pointer; transition:all .25s;
           box-shadow:0 4px 16px rgba(156,255,0,.25);
         }
@@ -631,7 +631,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         @keyframes spin { to { transform:rotate(360deg); } }
 
         @media (max-width:480px) {
-          .modal-title { font-size: 16px; }
+          .modal-title { font-size: calc((16px) + 1px); }
           .emoji-grid-sm { grid-template-columns: repeat(8,1fr); }
           .cc-gradient-grid { grid-template-columns: repeat(2,1fr); }
           .cc-cat-row { gap: 4px; }

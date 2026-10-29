@@ -124,7 +124,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
           justify-content: center;
           font-weight: 800;
           color: #000;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           overflow: hidden;
           border: 2px solid rgba(132, 204, 22, 0.4);
         }
@@ -141,7 +141,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
         }
 
         .recipient-name {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 700;
           color: #fff;
           display: flex;
@@ -150,7 +150,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
         }
 
         .recipient-username {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #737373;
         }
 
@@ -190,13 +190,13 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
         }
 
         .empty-state-icon {
-          font-size: 64px;
+          font-size: calc((64px) + 1px);
           margin-bottom: 16px;
           opacity: 0.3;
         }
 
         .empty-state-text {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .message-modal-footer {
@@ -248,7 +248,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
           border: 1px solid rgba(132, 204, 22, 0.2);
           border-radius: 12px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           resize: none;
           font-family: inherit;
           transition: all 0.2s;
@@ -296,7 +296,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
           border: 1px solid rgba(59, 130, 246, 0.4);
           border-radius: 8px;
           color: #3b82f6;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           margin-top: 12px;
         }

@@ -34,18 +34,18 @@ function DownloadTab() {
             <Smartphone size={20} color="#a3e635" />
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{installed ? "Xeevia is installed" : "Stay inside the app"}</div>
-            <div style={{ fontSize: 11, color: "#6b7280" }}>{installed ? "Your app is ready for the latest updates" : "Smooth, native-feeling access to Xeevia"}</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff" }}>{installed ? "Xeevia is installed" : "Stay inside the app"}</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>{installed ? "Your app is ready for the latest updates" : "Smooth, native-feeling access to Xeevia"}</div>
           </div>
         </div>
 
-        <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, marginBottom: 18 }}>
+        <div style={{ color: "#d1d5db", fontSize: 14, lineHeight: 1.7, marginBottom: 18 }}>
           {installed ? "This device already has Xeevia installed. Use the button to check the app upgrade path when a new release is available." : "Use the install flow from inside the app to add Xeevia to your home screen. It feels like a native app, keeps your sessions fast, and avoids browser chrome."}
         </div>
 
         <button onClick={installApp} style={{
           width: "100%", border: "none", borderRadius: 12, background: "linear-gradient(135deg, #84cc16, #65a30d)",
-          color: "#061400", fontSize: 14, fontWeight: 800, padding: "12px 14px", cursor: "pointer",
+          color: "#061400", fontSize: 15, fontWeight: 800, padding: "12px 14px", cursor: "pointer",
           boxShadow: "0 10px 28px rgba(132, 204, 22, 0.28)",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -59,7 +59,7 @@ function DownloadTab() {
             "Keeps your messages, feeds, and wallet inside the app shell",
             "Works cleanly on desktop and mobile with the same Xeevia interface",
           ].map((point) => (
-            <div key={point} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "#b7c1b2", fontSize: 12.5, lineHeight: 1.5 }}>
+            <div key={point} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "#b7c1b2", fontSize: 13.5, lineHeight: 1.5 }}>
               <span style={{ color: "#a3e635", marginTop: 2 }}>✓</span>
               <span>{point}</span>
             </div>
@@ -176,8 +176,8 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
               <HelpCircle size={18} color="#000" strokeWidth={2.5} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1.1, letterSpacing: "-.2px" }}>{headerTitle}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "var(--text)", lineHeight: 1.1, letterSpacing: "-.2px" }}>{headerTitle}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
                 <Sparkles size={9} color="#84cc16" /> Xeevia Support Center
               </div>
             </div>
@@ -202,11 +202,11 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
                     border: `1px solid ${isActive ? "rgba(132,204,22,0.4)" : "var(--surface-border)"}`,
                     background: isActive ? "rgba(132,204,22,0.1)" : "var(--surface)",
                     color: isActive ? "#a3e635" : "var(--text-secondary)",
-                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    fontSize: 13, fontWeight: 700, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     boxShadow: isActive ? "0 2px 12px rgba(132,204,22,.1)" : "none",
                   }}>
-                  <span style={{ fontSize: 15 }}>{tab.emoji}</span>
+                  <span style={{ fontSize: 16 }}>{tab.emoji}</span>
                   {tab.label}
                 </button>
               );

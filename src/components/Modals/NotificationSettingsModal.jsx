@@ -152,7 +152,7 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
                 margin: "0 auto 16px",
               }}
             ></div>
-            <p style={{ color: "#737373", fontSize: "14px" }}>
+            <p style={{ color: "#737373", fontSize: "calc((14px) + 1px)" }}>
               Loading settings...
             </p>
           </div>
@@ -318,14 +318,14 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
         }
 
         .notification-header-content h3 {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0 0 4px 0;
         }
 
         .notification-header-content p {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #737373;
           margin: 0;
         }
@@ -346,7 +346,7 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
 
         .notification-status-banner {
           padding: 12px 20px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           text-align: center;
         }
@@ -407,14 +407,14 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
         }
 
         .notification-option-label {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 600;
           color: #fff;
           margin-bottom: 4px;
         }
 
         .notification-option-desc {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #737373;
           line-height: 1.4;
         }
@@ -469,7 +469,7 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
           padding: 14px;
           border-radius: 12px;
           font-weight: 700;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           cursor: pointer;
           transition: all 0.2s;
           border: none;

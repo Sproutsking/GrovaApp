@@ -124,7 +124,7 @@ const NewReelBanner = ({ count, onShow, isActive }) => {
         {count} new reel{count !== 1 ? "s" : ""}
       </button>
       <style>{`
-        .rlb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(168,85,247,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(168,85,247,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:rlbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
+        .rlb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(168,85,247,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(168,85,247,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:rlbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
         .rlb-pill:hover{background:rgba(147,64,226,1);transform:translateX(-50%) scale(1.04);}
         .rlb-pill:active{transform:translateX(-50%) scale(0.97);}
         @keyframes rlbIn{from{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.88);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
@@ -172,7 +172,7 @@ const EndOfReels = () => (
   <div style={{
     display:"flex", alignItems:"center", gap:12,
     padding:"28px 20px",
-    color:"rgba(255,255,255,0.2)", fontSize:12, fontWeight:600,
+    color:"rgba(255,255,255,0.2)", fontSize:13, fontWeight:600,
     letterSpacing:"0.05em", textTransform:"uppercase",
   }}>
     <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.06)" }} />
@@ -437,7 +437,7 @@ const ReelsTab = React.forwardRef(function ReelsTab({
           <div className="empty-reels-icon">🎬</div>
           <p>No reels to display</p>
           <span>Start creating amazing content!</span>
-          <style>{`.empty-reels{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;}.empty-reels-icon{font-size:64px;opacity:0.3;}.empty-reels p{color:#a3a3a3;font-size:18px;font-weight:600;margin:0;}.empty-reels span{color:#737373;font-size:14px;}`}</style>
+          <style>{`.empty-reels{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;gap:16px;}.empty-reels-icon{font-size:calc((64px) + 1px);opacity:0.3;}.empty-reels p{color:#a3a3a3;font-size:calc((18px) + 1px);font-weight:600;margin:0;}.empty-reels span{color:#737373;font-size:calc((14px) + 1px);}`}</style>
         </div>
       </>
     );
@@ -465,7 +465,7 @@ const ReelsTab = React.forwardRef(function ReelsTab({
           <ScrollSentinel onVisible={handleSentinel} disabled={!hasMore || isLoadingMore} />
           {!hasMore && localReels.length > 0 && <EndOfReels />}
           {isLoadingMore && (
-            <div style={{ display:"flex", justifyContent:"center", padding:"20px", color:"rgba(255,255,255,0.3)", fontSize:12 }}>
+            <div style={{ display:"flex", justifyContent:"center", padding:"20px", color:"rgba(255,255,255,0.3)", fontSize:13 }}>
               <div style={{ width:16, height:16, border:"2px solid rgba(255,255,255,0.08)", borderTopColor:"rgba(168,85,247,0.6)", borderRadius:"50%", animation:"rlSpin 0.8s linear infinite" }} />
               <style>{`@keyframes rlSpin{to{transform:rotate(360deg)}}`}</style>
             </div>

@@ -83,7 +83,7 @@ export default function CommunityToolPanelPosts({
             : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={post.tool_type} onVerified={onVerified} />}
         </section>
       ))}
-      <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error{margin:12px;color:#ffaaa3;font-size:12px;text-align:center}`}</style>
+      <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error{margin:12px;color:#ffaaa3;font-size:calc((12px) + 1px);text-align:center}`}</style>
     </>
   );
 }

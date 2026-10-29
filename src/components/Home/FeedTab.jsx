@@ -185,7 +185,7 @@ const NewPostBanner = ({ isActive, count, onShow }) => {
         <ArrowUp size={13} />{count} new post{count !== 1 ? "s" : ""}
       </button>
       <style>{`
-        .npb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(84,163,10,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(84,163,10,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:npbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
+        .npb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(84,163,10,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(84,163,10,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:npbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
         .npb-pill:hover{background:rgba(74,143,8,1);transform:translateX(-50%) scale(1.04);}
         @keyframes npbIn{from{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.88);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
       `}</style>
@@ -260,7 +260,7 @@ const ScrollSentinel = ({ onVisible, disabled }) => {
 };
 
 const EndOfFeed = () => (
-  <div style={{ display:"flex",alignItems:"center",gap:12,padding:"28px 20px",color:"rgba(255,255,255,0.2)",fontSize:12,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase" }}>
+  <div style={{ display:"flex",alignItems:"center",gap:12,padding:"28px 20px",color:"rgba(255,255,255,0.2)",fontSize:13,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase" }}>
     <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.06)" }}/>
     You're all caught up
     <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.06)" }}/>

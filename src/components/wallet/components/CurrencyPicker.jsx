@@ -78,10 +78,10 @@ export default function CurrencyPicker({ open, onClose }) {
           padding: "14px 20px 12px",
         }}>
           <div>
-            <div style={{ fontFamily:"Rajdhani,sans-serif", fontSize:16, fontWeight:700, color:"#fff" }}>
+            <div style={{ fontFamily:"Rajdhani,sans-serif", fontSize:17, fontWeight:700, color:"#fff" }}>
               Display Currency
             </div>
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, color:"rgba(255,255,255,0.3)", letterSpacing:"0.18em", marginTop:2 }}>
+            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"rgba(255,255,255,0.3)", letterSpacing:"0.18em", marginTop:2 }}>
               FIAT EQUIVALENT
             </div>
           </div>
@@ -141,11 +141,11 @@ export default function CurrencyPicker({ open, onClose }) {
                   if (!active) e.currentTarget.style.background = "transparent";
                 }}
               >
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{c.flag}</span>
+                <span style={{ fontSize: 21, flexShrink: 0 }}>{c.flag}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{
                     fontFamily: "Rajdhani,sans-serif",
-                    fontSize: 14, fontWeight: 700,
+                    fontSize: 15, fontWeight: 700,
                     color: active ? "#a3e635" : "rgba(255,255,255,0.85)",
                     marginBottom: 1,
                   }}>
@@ -153,7 +153,7 @@ export default function CurrencyPicker({ open, onClose }) {
                   </div>
                   <div style={{
                     fontFamily: "JetBrains Mono,monospace",
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "rgba(255,255,255,0.28)",
                     letterSpacing: "0.06em",
                   }}>

@@ -55,13 +55,13 @@ const AccountSwitchPrompt = memo(({ userId, userName, onSwitchAccount }) => {
           boxShadow: "0 16px 60px rgba(0, 0, 0, 0.6)",
         }}
       >
-        <div style={{ fontSize: "12px", fontWeight: 800, color: "#a8e63d", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
+        <div style={{ fontSize: "calc((12px) + 1px)", fontWeight: 800, color: "#a8e63d", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
           Account switch
         </div>
-        <div style={{ fontSize: "18px", fontWeight: 800, color: "#f7f7f7", marginBottom: "8px" }}>
+        <div style={{ fontSize: "calc((18px) + 1px)", fontWeight: 800, color: "#f7f7f7", marginBottom: "8px" }}>
           You already have another account active on this device
         </div>
-        <div style={{ fontSize: "13px", color: "#95a38d", lineHeight: 1.5, marginBottom: "16px" }}>
+        <div style={{ fontSize: "calc((13px) + 1px)", color: "#95a38d", lineHeight: 1.5, marginBottom: "16px" }}>
           {userName ? `${userName} is now active.` : "Switch safely to the account you want to use."}
           <br />
           Sign out and sign back in to move between accounts without confusion.

@@ -45,7 +45,7 @@ export const CopyField = ({ label, value }) => {
   return (
     <div style={{ marginBottom: 9 }}>
       {label && (
-        <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>{label}</div>
+        <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>{label}</div>
       )}
       <div className="copy-row">
         <span className="copy-val">{value}</span>
@@ -60,12 +60,12 @@ export const CopyField = ({ label, value }) => {
 export const PlainField = ({ label, value }) => (
   <div style={{ marginBottom: 9 }}>
     {label && (
-      <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>{label}</div>
+      <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>{label}</div>
     )}
     <div style={{
       padding: "9px 11px", borderRadius: "var(--r2)",
       background: "var(--s1)", border: "1px solid var(--b1)",
-      color: "var(--t1)", fontSize: 13,
+      color: "var(--t1)", fontSize: 14,
     }}>{value}</div>
   </div>
 );
@@ -75,9 +75,9 @@ export const StatBox = ({ label, value, accent }) => (
     background: "rgba(0,0,0,0.2)", border: "1px solid var(--b1)",
     borderRadius: "var(--r2)", padding: "9px 11px",
   }}>
-    <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 2 }}>{label}</div>
+    <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 2 }}>{label}</div>
     <div style={{
-      fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14,
+      fontFamily: "var(--fd)", fontWeight: 700, fontSize: 15,
       color: accent ? "var(--lime)" : "var(--t1)",
     }}>{value}</div>
   </div>
@@ -98,8 +98,8 @@ export const ListRow = ({ icon: Icon, label, sub, right, onClick, goldAccent }) 
           </div>
         )}
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 600, color: "var(--t1)" }}>{label}</div>
-          {sub && <div style={{ color: "var(--t2)", fontSize: 10.5, marginTop: 1 }}>{sub}</div>}
+          <div style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 600, color: "var(--t1)" }}>{label}</div>
+          {sub && <div style={{ color: "var(--t2)", fontSize: 11.5, marginTop: 1 }}>{sub}</div>}
         </div>
       </div>
       {right}
@@ -112,11 +112,11 @@ export const PlanCard = ({ icon: Icon, cls, name, desc, meta, onClick }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <PlanIcon cls={cls} size={36}><Icon size={16} color="#fff" /></PlanIcon>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13, color: "var(--t1)", marginBottom: 1 }}>{name}</div>
-        <div style={{ color: "var(--t2)", fontSize: 11, marginBottom: meta ? 3 : 0 }}>{desc}</div>
+        <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14, color: "var(--t1)", marginBottom: 1 }}>{name}</div>
+        <div style={{ color: "var(--t2)", fontSize: 12, marginBottom: meta ? 3 : 0 }}>{desc}</div>
         {meta}
       </div>
-      <div style={{ color: "var(--t4)", flexShrink: 0, fontSize: 14 }}>›</div>
+      <div style={{ color: "var(--t4)", flexShrink: 0, fontSize: 15 }}>›</div>
     </div>
   </div>
 );

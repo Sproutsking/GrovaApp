@@ -221,7 +221,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           background: none;
           border: none;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           outline: none;
           font-family: inherit;
         }
@@ -240,7 +240,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
         .gp-clear:hover { color: #9cff00; }
 
         .gp-powered {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           color: #444;
           white-space: nowrap;
           font-weight: 600;
@@ -265,7 +265,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 20px;
           color: #888;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
@@ -285,7 +285,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
 
         .gp-section-label {
           padding: 6px 12px 4px;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 700;
           color: #555;
           text-transform: uppercase;
@@ -311,7 +311,7 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           height: 200px;
           gap: 10px;
           color: #555;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .gp-spinner {
@@ -328,9 +328,9 @@ const GifPanel = ({ onSelect, onClose, style = {} }) => {
           height: 200px;
           gap: 8px;
           color: #444;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
-        .gp-empty span { font-size: 32px; }
+        .gp-empty span { font-size: calc((32px) + 1px); }
         .gp-empty p { margin: 0; }
 
         .gp-masonry {
@@ -416,7 +416,7 @@ const GifCard = ({ gif, onClick }) => {
           right: 0;
           background: linear-gradient(transparent, rgba(0,0,0,0.8));
           padding: 16px 6px 4px;
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           color: #ccc;
           text-align: center;
           white-space: nowrap;

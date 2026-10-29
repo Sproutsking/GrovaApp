@@ -1267,7 +1267,7 @@ const ChatTab = ({
               ))}
             </div>
           </section>
-          <style>{`.mentioned-role-overlay{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.38);backdrop-filter:blur(2px)}.mentioned-role-card{position:relative;width:min(320px,calc(100vw - 28px));max-height:min(430px,calc(100vh - 32px));overflow:hidden;padding:18px;background:#0b130d;border:1px solid color-mix(in srgb,${mentionedRole.color || "#9cff00"} 40%,transparent);border-radius:15px;box-shadow:0 22px 60px rgba(0,0,0,.7)}.mentioned-role-card>button{position:absolute;right:10px;top:9px;border:0;background:transparent;color:#78917b;font-size:22px;cursor:pointer}.mentioned-role-title{display:flex;align-items:center;gap:8px;font-size:16px}.mentioned-role-title span{font-size:20px}.mentioned-role-card p{margin:5px 0 12px;color:#718774;font-size:11px}.mentioned-role-list{overflow-y:auto;max-height:320px}.mentioned-role-list button{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:8px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.mentioned-role-list button:hover{background:rgba(156,255,0,.1)}.mentioned-role-list button>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.13);color:#baff82;font-weight:800}.mentioned-role-list b{font-size:11px}.mentioned-role-list small{margin-left:auto;color:#69816d;font-size:9px}`}</style>
+          <style>{`.mentioned-role-overlay{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.38);backdrop-filter:blur(2px)}.mentioned-role-card{position:relative;width:min(320px,calc(100vw - 28px));max-height:min(430px,calc(100vh - 32px));overflow:hidden;padding:18px;background:#0b130d;border:1px solid color-mix(in srgb,${mentionedRole.color || "#9cff00"} 40%,transparent);border-radius:15px;box-shadow:0 22px 60px rgba(0,0,0,.7)}.mentioned-role-card>button{position:absolute;right:10px;top:9px;border:0;background:transparent;color:#78917b;font-size:calc((22px) + 1px);cursor:pointer}.mentioned-role-title{display:flex;align-items:center;gap:8px;font-size:calc((16px) + 1px)}.mentioned-role-title span{font-size:calc((20px) + 1px)}.mentioned-role-card p{margin:5px 0 12px;color:#718774;font-size:calc((11px) + 1px)}.mentioned-role-list{overflow-y:auto;max-height:320px}.mentioned-role-list button{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:8px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.mentioned-role-list button:hover{background:rgba(156,255,0,.1)}.mentioned-role-list button>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.13);color:#baff82;font-weight:800}.mentioned-role-list b{font-size:calc((11px) + 1px)}.mentioned-role-list small{margin-left:auto;color:#69816d;font-size:calc((9px) + 1px)}`}</style>
         </div>
       )}
 
@@ -1356,9 +1356,9 @@ const ChatTab = ({
       {channelDeleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 100000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setChannelDeleteConfirm(null)}>
           <div style={{ width: "min(380px, calc(100vw - 32px))", background: "#111", border: "1px solid rgba(239,68,68,0.24)", borderRadius: 18, padding: 20, boxShadow: "0 18px 50px rgba(0,0,0,0.7)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 22, marginBottom: 10, textAlign: "center" }}>🗑️</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 8 }}>Delete #{channelDeleteConfirm.name}?</div>
-            <div style={{ color: "#9ca3af", fontSize: 13, lineHeight: 1.65, textAlign: "center", marginBottom: 18 }}>This channel and its posts will be removed for the community. This action cannot be undone.</div>
+            <div style={{ fontSize: 23, marginBottom: 10, textAlign: "center" }}>🗑️</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 8 }}>Delete #{channelDeleteConfirm.name}?</div>
+            <div style={{ color: "#9ca3af", fontSize: 14, lineHeight: 1.65, textAlign: "center", marginBottom: 18 }}>This channel and its posts will be removed for the community. This action cannot be undone.</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setChannelDeleteConfirm(null)} style={{ flex: 1, borderRadius: 10, padding: "11px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#e5e7eb", fontWeight: 700, cursor: "pointer" }}>Keep</button>
               <button onClick={async () => {
@@ -1455,7 +1455,7 @@ const ChatTab = ({
         .channels-plus-btn:hover { background: linear-gradient(180deg, rgba(156,255,0,0.2), rgba(156,255,0,0.08)); border-color: rgba(156,255,0,0.38); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(156,255,0,0.18); }
         .channels-plus-btn:active { transform: translateY(0) scale(0.96); }
 
-        .channels-menu-btn { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 34px; border-radius: 12px; border: 1px solid rgba(156,255,0,0.18); background: linear-gradient(180deg, rgba(156,255,0,0.1), rgba(156,255,0,0.04)); color: var(--accent); font-size: 10px; font-weight: 800; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+        .channels-menu-btn { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 34px; border-radius: 12px; border: 1px solid rgba(156,255,0,0.18); background: linear-gradient(180deg, rgba(156,255,0,0.1), rgba(156,255,0,0.04)); color: var(--accent); font-size: calc((10px) + 1px); font-weight: 800; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
         .channels-header.has-manage .channels-menu-btn { flex-shrink: 0; }
         .channels-menu-btn:hover { background: linear-gradient(180deg, rgba(156,255,0,0.18), rgba(156,255,0,0.1)); border-color: rgba(156,255,0,0.35); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(156,255,0,0.18); }
         .channels-menu-btn:active { transform: translateY(0) scale(0.97); }
@@ -1465,7 +1465,7 @@ const ChatTab = ({
         .channels-list::-webkit-scrollbar-track { background: transparent; }
         .channels-list::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.22); border-radius: 2px; }
 
-        .channels-eyebrow { display: flex; align-items: center; gap: 6px; padding: 2px 8px 10px; font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.8px; }
+        .channels-eyebrow { display: flex; align-items: center; gap: 6px; padding: 2px 8px 10px; font-size: calc((10px) + 1px); font-weight: 800; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.8px; }
         .channels-refresh-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: chRefreshPulse 1.1s ease-in-out infinite; }
         @keyframes chRefreshPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
 
@@ -1480,14 +1480,14 @@ const ChatTab = ({
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
         .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }
 
-        .chat-reaction-error{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;background:rgba(127,29,29,.35);border-top:1px solid rgba(248,113,113,.25);color:#fecaca;font-size:11px}
-        .chat-reaction-error button{border:0;background:transparent;color:inherit;font-size:16px;cursor:pointer}
+        .chat-reaction-error{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;background:rgba(127,29,29,.35);border-top:1px solid rgba(248,113,113,.25);color:#fecaca;font-size:calc((11px) + 1px)}
+        .chat-reaction-error button{border:0;background:transparent;color:inherit;font-size:calc((16px) + 1px);cursor:pointer}
         .chat-input-area { position: relative; flex-shrink: 0; }
 
         .jump-btn { position: fixed; bottom: 80px; right: 18px; z-index: 5; width: 38px; height: 38px; border-radius: 50%; background: var(--panel-strong); border: 1.5px solid var(--accent-border-strong); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.4); transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .jump-btn:hover { transform: scale(1.1) translateY(-2px); box-shadow: 0 8px 24px var(--accent-shadow); }
         .welcome-browse-footer { position: sticky; bottom: 8px; z-index: 6; display: flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; max-width: calc(100% - 24px); margin: 12px auto 4px; padding: 7px 8px 7px 11px; border: 1px solid var(--accent-border); border-radius: 10px; background: color-mix(in srgb, var(--panel-strong) 92%, transparent); box-shadow: 0 8px 22px rgba(0,0,0,.25); backdrop-filter: blur(8px); }
-        .welcome-browse-footer span { color: var(--text-secondary); font-size: 10px; }
+        .welcome-browse-footer span { color: var(--text-secondary); font-size: calc((10px) + 1px); }
         .welcome-browse-footer button { padding: 6px 9px; border: 1px solid var(--accent-border); border-radius: 7px; background: var(--accent-bg); color: var(--accent); font: 700 10px inherit; cursor: pointer; }
         .welcome-browse-footer button:last-child { border-color: var(--surface-border); background: transparent; color: var(--text-secondary); }
         .welcome-browse-footer button:disabled { cursor: default; opacity: .45; }
@@ -1498,13 +1498,13 @@ const ChatTab = ({
           .mobile-chat-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 6px; border-bottom: 1px solid rgba(156,255,0,0.12); background: rgba(10, 12, 16, 0.96); z-index: 11; flex-shrink: 0; }
           .mobile-back-btn, .mobile-menu-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(156,255,0,0.14); background: rgba(156,255,0,0.06); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
           .mobile-back-btn:hover, .mobile-menu-btn:hover { background: rgba(156,255,0,0.12); border-color: rgba(156,255,0,0.2); transform: translateY(-1px); }
-          .mobile-chat-title { flex: 1; text-align: center; font-size: 13px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
+          .mobile-chat-title { flex: 1; text-align: center; font-size: calc((13px) + 1px); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
           .channels-container { display: none; }
           .chat-msgs { padding-left: 2px; padding-right: 2px; }
           .jump-btn { bottom: 72px; right: 12px; width: 36px; height: 36px; }
         }
         .category-context-menu { position: fixed; z-index: 10001; width: 220px; padding: 7px; border: 1px solid rgba(156,255,0,.3); border-radius: 13px; background: linear-gradient(145deg,rgba(17,27,19,.99),rgba(8,13,11,.99)); box-shadow: 0 18px 50px rgba(0,0,0,.68),0 0 20px rgba(156,255,0,.08); }
-        .category-menu-title{padding:7px 9px 8px;color:#789879;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
+        .category-menu-title{padding:7px 9px 8px;color:#789879;font-size:calc((9px) + 1px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
         .category-context-menu button { display:block; width:100%; margin-top:4px; padding:10px 9px; border:1px solid transparent; border-radius:8px; background:rgba(255,255,255,.035); color:#d8e7d8; text-align:left; font:700 11px inherit; cursor:pointer; }
         .category-context-menu button:hover { background:rgba(156,255,0,.12); border-color:rgba(156,255,0,.22); color:#cfff80; transform:translateX(2px) }
         .category-context-menu .category-menu-create{background:rgba(156,255,0,.1);color:#cfff80;border-color:rgba(156,255,0,.24)}

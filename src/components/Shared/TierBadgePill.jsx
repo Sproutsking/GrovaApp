@@ -14,7 +14,7 @@ const TierBadgePill = ({ tier, paymentStatus, style = {}, className = "" }) => {
         gap: 4,
         padding: "2px 8px",
         borderRadius: 20,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 800,
         color: badge.color,
         background: `${badge.color}18`,

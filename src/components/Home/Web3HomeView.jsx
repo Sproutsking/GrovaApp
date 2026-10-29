@@ -17,8 +17,8 @@ const Web3HomeView = (props) => {
   if (activeHomeTab === "tokens") {
     return <div style={{ padding: "16px" }}>{TOKENS.map((token) => (
       <div key={token.symbol} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--surface-border)" }}>
-        <div><strong style={{ color: "var(--text)" }}>{token.symbol}</strong><div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{token.name}</div></div>
-        <div style={{ textAlign: "right" }}><strong style={{ color: "var(--text)" }}>${token.price}</strong><div style={{ fontSize: "11px", color: token.up ? "#22c55e" : "#ef4444" }}>{token.change}</div></div>
+        <div><strong style={{ color: "var(--text)" }}>{token.symbol}</strong><div style={{ fontSize: "calc((11px) + 1px)", color: "var(--text-secondary)" }}>{token.name}</div></div>
+        <div style={{ textAlign: "right" }}><strong style={{ color: "var(--text)" }}>${token.price}</strong><div style={{ fontSize: "calc((11px) + 1px)", color: token.up ? "#22c55e" : "#ef4444" }}>{token.change}</div></div>
       </div>
     ))}</div>;
   }
@@ -27,7 +27,7 @@ const Web3HomeView = (props) => {
   const Icon = signals ? AlertCircle : TrendingUp;
   return <div style={{ padding: "16px" }}>
     <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}><Icon size={16} color="#a855f7" /></div>
-    {signals && <div style={{ color: "var(--text-secondary)", fontSize: "12px" }}>No signals yet</div>}
+    {signals && <div style={{ color: "var(--text-secondary)", fontSize: "calc((12px) + 1px)" }}>No signals yet</div>}
   </div>;
 };
 

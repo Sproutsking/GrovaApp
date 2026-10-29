@@ -81,7 +81,7 @@ const STYLES = `
   .pvm-body { padding: 22px; }
 
   .pvm-info {
-    text-align: center; color: #a3a3a3; font-size: 13.5px;
+    text-align: center; color: #a3a3a3; font-size: calc((13.5px) + 1px);
     margin-bottom: 22px; line-height: 1.65;
   }
   .pvm-info strong { color: #fff; }
@@ -90,17 +90,17 @@ const STYLES = `
   .pvm-err {
     background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25);
     border-radius: 11px; padding: 11px 14px; color: #ef4444;
-    font-size: 12.5px; margin-bottom: 16px;
+    font-size: calc((12.5px) + 1px); margin-bottom: 16px;
     display: flex; align-items: center; gap: 8px;
     animation: pvmShake .35s ease;
   }
 
-  .pvm-label { font-size: 11px; font-weight: 700; color: #737373; text-transform: uppercase; letter-spacing: .6px; display: block; margin-bottom: 7px; }
+  .pvm-label { font-size: calc((11px) + 1px); font-weight: 700; color: #737373; text-transform: uppercase; letter-spacing: .6px; display: block; margin-bottom: 7px; }
   .pvm-wrap  { position: relative; margin-bottom: 14px; }
   .pvm-input {
     width: 100%; padding: 12px 42px 12px 13px; box-sizing: border-box;
     background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.09);
-    border-radius: 11px; color: #fff; font-size: 14.5px; font-weight: 600;
+    border-radius: 11px; color: #fff; font-size: calc((14.5px) + 1px); font-weight: 600;
     transition: all .2s; outline: none;
   }
   .pvm-input::placeholder { color: #484848; font-weight: 400; }
@@ -112,7 +112,7 @@ const STYLES = `
   .pvm-select {
     width: 115px; padding: 12px 8px;
     background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.09);
-    border-radius: 11px; color: #fff; font-size: 13.5px; font-weight: 600;
+    border-radius: 11px; color: #fff; font-size: calc((13.5px) + 1px); font-weight: 600;
     cursor: pointer; transition: all .2s; flex-shrink: 0; outline: none;
   }
   .pvm-select:focus { border-color: #84cc16; background: rgba(132,204,22,.05); }
@@ -122,7 +122,7 @@ const STYLES = `
   .pvm-otp {
     width: 50px; height: 58px;
     background: rgba(255,255,255,.04); border: 2px solid rgba(255,255,255,.09);
-    border-radius: 13px; color: #fff; font-size: 22px; font-weight: 800;
+    border-radius: 13px; color: #fff; font-size: calc((22px) + 1px); font-weight: 800;
     text-align: center; transition: all .2s; outline: none;
   }
   .pvm-otp:focus  { border-color: #84cc16; background: rgba(132,204,22,.07); transform: scale(1.05); }
@@ -130,7 +130,7 @@ const STYLES = `
 
   .pvm-btn {
     width: 100%; padding: 14px; border: none; border-radius: 13px;
-    font-size: 14.5px; font-weight: 800; cursor: pointer;
+    font-size: calc((14.5px) + 1px); font-weight: 800; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 9px;
     transition: all .22s;
   }
@@ -150,7 +150,7 @@ const STYLES = `
 
   .pvm-back {
     display: inline-flex; align-items: center; gap: 6px;
-    color: #737373; font-size: 12.5px; font-weight: 600;
+    color: #737373; font-size: calc((12.5px) + 1px); font-weight: 600;
     background: none; border: none; cursor: pointer;
     margin-bottom: 18px; padding: 0; transition: color .2s;
   }
@@ -160,7 +160,7 @@ const STYLES = `
     display: flex; align-items: flex-start; gap: 9px;
     background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.18);
     border-radius: 11px; padding: 12px 13px;
-    color: #93c5fd; font-size: 12.5px; margin-bottom: 18px; line-height: 1.55;
+    color: #93c5fd; font-size: calc((12.5px) + 1px); margin-bottom: 18px; line-height: 1.55;
   }
 `;
 
@@ -428,8 +428,8 @@ export default function PhoneVerificationModal({
             <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
               <div className="pvm-icon">{cur.icon}</div>
               <div>
-                <div style={{ fontSize: 16.5, fontWeight: 800, color: "#fff", margin: 0 }}>{cur.title}</div>
-                <div style={{ fontSize: 11.5, color: "#737373", marginTop: 2 }}>{cur.subtitle}</div>
+                <div style={{ fontSize: 17.5, fontWeight: 800, color: "#fff", margin: 0 }}>{cur.title}</div>
+                <div style={{ fontSize: 12.5, color: "#737373", marginTop: 2 }}>{cur.subtitle}</div>
               </div>
             </div>
             <button className="pvm-close" onClick={onClose}><X size={15} /></button>
@@ -453,8 +453,8 @@ export default function PhoneVerificationModal({
                 <div style={{ width: 64, height: 64, background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.25)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   <Check size={28} color="#22c55e" />
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#22c55e", marginBottom: 6 }}>Phone Verified!</div>
-                <div style={{ fontSize: 13, color: "#737373" }}>Your security level has been updated.</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: "#22c55e", marginBottom: 6 }}>Phone Verified!</div>
+                <div style={{ fontSize: 14, color: "#737373" }}>Your security level has been updated.</div>
               </div>
             )}
 
@@ -557,7 +557,7 @@ export default function PhoneVerificationModal({
                   />
                 </div>
 
-                <div style={{ fontSize: 11.5, color: "#484848", marginBottom: 16, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, color: "#484848", marginBottom: 16, lineHeight: 1.5 }}>
                   A one-time code will be sent via SMS. Standard messaging rates may apply.
                 </div>
 

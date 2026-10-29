@@ -239,7 +239,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
 
         /* ── Label ── */
         .mbn-lbl {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 700;
           letter-spacing: 0.3px;
           white-space: nowrap;
@@ -331,7 +331,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
         .mbn-menu-btn:hover .mbn-grid span:nth-child(3) { transform: scale(1.2);  }
 
         .mbn-menu-lbl {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 700;
           color: var(--text-muted);
           letter-spacing: 0.3px;

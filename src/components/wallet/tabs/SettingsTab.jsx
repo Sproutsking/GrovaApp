@@ -80,7 +80,7 @@ const SettingsTab = ({ setActiveTab, userId }) => {
       {saved && (
         <div style={{ margin:"0 22px 16px", padding:"12px 14px", background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.16)", borderRadius:8, display:"flex", gap:8, alignItems:"center" }}>
           <CheckCircle size={15} color="#22c55e" />
-          <span style={{ fontSize:13, color:"#22c55e", fontWeight:600 }}>PIN updated successfully</span>
+          <span style={{ fontSize:14, color:"#22c55e", fontWeight:600 }}>PIN updated successfully</span>
         </div>
       )}
       <button
@@ -104,7 +104,7 @@ const SettingsTab = ({ setActiveTab, userId }) => {
         </div>
       </div>
       <div style={{ padding:"0 22px" }}>
-        <div style={{ padding:"13px 15px", background:"rgba(239,68,68,0.05)", border:"1px solid rgba(239,68,68,0.13)", borderRadius:8, marginBottom:16, fontSize:12, color:"#f87171", lineHeight:1.6 }}>
+        <div style={{ padding:"13px 15px", background:"rgba(239,68,68,0.05)", border:"1px solid rgba(239,68,68,0.13)", borderRadius:8, marginBottom:16, fontSize:13, color:"#f87171", lineHeight:1.6 }}>
           ⚠️ Never share your recovery phrase. Anyone with it has full access to your wallet.
         </div>
         {!showPhrase ? (
@@ -116,8 +116,8 @@ const SettingsTab = ({ setActiveTab, userId }) => {
             <div style={{ background:"var(--b2)", border:"1px solid var(--br1)", borderRadius:12, padding:16, marginBottom:16 }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6 }}>
                 {Array.from({length:12},(_,i) => `word${i+1}`).map((w,i) => (
-                  <div key={w} style={{ padding:"7px 10px", background:"var(--black)", borderRadius:7, fontSize:11, color:"var(--t2)", fontFamily:"JetBrains Mono,monospace" }}>
-                    <span style={{ color:"var(--t3)", fontSize:9 }}>{i+1}. </span>{w}
+                  <div key={w} style={{ padding:"7px 10px", background:"var(--black)", borderRadius:7, fontSize:12, color:"var(--t2)", fontFamily:"JetBrains Mono,monospace" }}>
+                    <span style={{ color:"var(--t3)", fontSize:10 }}>{i+1}. </span>{w}
                   </div>
                 ))}
               </div>
@@ -151,13 +151,13 @@ const SettingsTab = ({ setActiveTab, userId }) => {
 
         {/* Currency selector row */}
         <button className="settings-item" onClick={() => setCurrPicker(true)}>
-          <div className="settings-item-icon" style={{ fontSize:18 }}>{cur.flag}</div>
+          <div className="settings-item-icon" style={{ fontSize:19 }}>{cur.flag}</div>
           <div className="settings-item-info">
             <div className="settings-item-title">Display Currency</div>
             <div className="settings-item-sub">{cur.name} · {cur.symbol} ({cur.code})</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"var(--lime)", letterSpacing:"0.1em", padding:"2px 7px", border:"1px solid rgba(132,204,22,0.22)", borderRadius:4, background:"rgba(132,204,22,0.06)" }}>
+            <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:11, color:"var(--lime)", letterSpacing:"0.1em", padding:"2px 7px", border:"1px solid rgba(132,204,22,0.22)", borderRadius:4, background:"rgba(132,204,22,0.06)" }}>
               {cur.code}
             </span>
             <ChevronRight size={15} color="var(--t3)" />
@@ -165,7 +165,7 @@ const SettingsTab = ({ setActiveTab, userId }) => {
         </button>
 
         <div style={{ padding:"8px 4px" }}>
-          <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, color:"var(--t3)", lineHeight:1.6 }}>
+          <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"var(--t3)", lineHeight:1.6 }}>
             Fiat values are displayed as a reference equivalent. Auto-detected from your region — you can always change it above.
           </div>
         </div>

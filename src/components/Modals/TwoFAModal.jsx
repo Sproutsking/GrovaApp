@@ -175,8 +175,8 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
                 <Shield size={20} />
               </div>
               <div>
-                <div style={{ fontSize: 15.5, fontWeight: 800, color: "#fff" }}>{copy.title}</div>
-                <div style={{ fontSize: 11.5, color: "#737373", marginTop: 2 }}>{copy.sub}</div>
+                <div style={{ fontSize: 16.5, fontWeight: 800, color: "#fff" }}>{copy.title}</div>
+                <div style={{ fontSize: 12.5, color: "#737373", marginTop: 2 }}>{copy.sub}</div>
               </div>
             </div>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", color: "#737373", cursor: "pointer" }}>
@@ -199,7 +199,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
                   background: mode === m.key ? "rgba(132,204,22,.1)" : "rgba(255,255,255,.03)",
                   border: `1.5px solid ${mode === m.key ? "rgba(132,204,22,.4)" : "rgba(255,255,255,.07)"}`,
                   color: mode === m.key ? "#a3e635" : "#737373",
-                  fontSize: 11.5, fontWeight: 700, cursor: "pointer", transition: "all .18s",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer", transition: "all .18s",
                 }}>
                   {m.label}
                 </button>
@@ -210,7 +210,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
               <div style={{
                 background: "rgba(239,68,68,.07)", border: "1px solid rgba(239,68,68,.22)",
                 borderRadius: 11, padding: "10px 13px", color: "#ef4444",
-                fontSize: 12.5, marginBottom: 16,
+                fontSize: 13.5, marginBottom: 16,
                 display: "flex", alignItems: "center", gap: 8,
                 animation: "tfa2Shake .35s ease",
               }}>
@@ -221,7 +221,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
             {/* TOTP mode */}
             {mode === "totp" && (
               <>
-                <div style={{ textAlign: "center", color: "#a3a3a3", fontSize: 13, marginBottom: 18, lineHeight: 1.65 }}>
+                <div style={{ textAlign: "center", color: "#a3a3a3", fontSize: 14, marginBottom: 18, lineHeight: 1.65 }}>
                   Open your authenticator app and enter the current <strong style={{ color: "#fff" }}>6-digit code</strong>.
                 </div>
 
@@ -241,14 +241,14 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
                         width: 50, height: 58,
                         background: otp[i] ? "rgba(132,204,22,.07)" : "rgba(255,255,255,.04)",
                         border: `2px solid ${otp[i] ? "rgba(132,204,22,.45)" : "rgba(255,255,255,.09)"}`,
-                        borderRadius: 13, color: "#fff", fontSize: 22, fontWeight: 800,
+                        borderRadius: 13, color: "#fff", fontSize: 23, fontWeight: 800,
                         textAlign: "center", outline: "none", transition: "all .18s",
                       }}
                     />
                   ))}
                 </div>
 
-                <div style={{ fontSize: 11, color: "#484848", textAlign: "center", marginBottom: 18 }}>
+                <div style={{ fontSize: 12, color: "#484848", textAlign: "center", marginBottom: 18 }}>
                   Code refreshes every 30 seconds
                 </div>
               </>
@@ -257,7 +257,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
             {/* Backup code mode */}
             {mode === "backup" && (
               <>
-                <div style={{ textAlign: "center", color: "#a3a3a3", fontSize: 13, marginBottom: 18, lineHeight: 1.65 }}>
+                <div style={{ textAlign: "center", color: "#a3a3a3", fontSize: 14, marginBottom: 18, lineHeight: 1.65 }}>
                   Enter one of your <strong style={{ color: "#fff" }}>backup codes</strong>. Each code works once only.
                 </div>
                 <input
@@ -273,7 +273,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
                     background: "rgba(255,255,255,.04)",
                     border: "1.5px solid rgba(255,255,255,.09)",
                     borderRadius: 12, color: "#fff",
-                    fontSize: 16, fontWeight: 700, fontFamily: "monospace",
+                    fontSize: 17, fontWeight: 700, fontFamily: "monospace",
                     textAlign: "center", letterSpacing: 3, outline: "none",
                     marginBottom: 18, transition: "border-color .2s",
                   }}
@@ -289,7 +289,7 @@ export default function TwoFAModal({ show, onClose, userId, onSuccess, context =
               disabled={loading || (mode === "totp" ? otp.join("").length !== 6 : !backup.trim())}
               style={{
                 width: "100%", padding: "14px", border: "none", borderRadius: 13,
-                fontSize: 14.5, fontWeight: 800, cursor: "pointer",
+                fontSize: 15.5, fontWeight: 800, cursor: "pointer",
                 background: loading || (mode === "totp" ? otp.join("").length !== 6 : !backup.trim())
                   ? "rgba(255,255,255,.06)"
                   : "linear-gradient(135deg,#84cc16,#4d7c0f)",

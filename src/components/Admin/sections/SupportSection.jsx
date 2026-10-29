@@ -114,7 +114,7 @@ function UserAvatar({ profile, size = 30 }) {
     <div style={{
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
       background: color, display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.38, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px",
+      fontSize: (size * 0.38) + 1, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px",
       border: "2px solid rgba(255,255,255,0.08)",
     }}>
       {initials(name)}
@@ -135,7 +135,7 @@ function AdminBadge({ adminId, xaId, size = 30 }) {
       padding: "0 8px", gap: 4,
     }}>
       <Shield size={size * 0.38} style={{ color, flexShrink: 0 }} />
-      <span style={{ fontSize: 10, fontWeight: 800, color, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
         {tag}
       </span>
     </div>
@@ -168,7 +168,7 @@ function StatusBadge({ status }) {
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "3px 9px", borderRadius: 20,
       background: s.bg, color: s.color,
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.3px",
+      fontSize: 11, fontWeight: 700, letterSpacing: "0.3px",
     }}>
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, display: "inline-block",
         ...(["open","in_progress"].includes(status) ? { animation: "pulse 2s infinite" } : {})
@@ -184,7 +184,7 @@ function PriorityBadge({ priority }) {
     <span style={{
       padding: "2px 8px", borderRadius: 20,
       background: `${p.color}18`, color: p.color,
-      fontSize: 10, fontWeight: 700,
+      fontSize: 11, fontWeight: 700,
     }}>
       {p.label}
     </span>
@@ -227,8 +227,8 @@ function StatsBar({ stats }) {
             }} />
           )}
           <item.icon size={12} style={{ color: item.color, marginBottom: 4, opacity: 0.7 }} />
-          <div style={{ fontSize: 22, fontWeight: 900, color: item.color, lineHeight: 1 }}>{item.value}</div>
-          <div style={{ fontSize: 9, color: "#4b5563", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.5px" }}>{item.label}</div>
+          <div style={{ fontSize: 23, fontWeight: 900, color: item.color, lineHeight: 1 }}>{item.value}</div>
+          <div style={{ fontSize: 10, color: "#4b5563", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.5px" }}>{item.label}</div>
         </div>
       ))}
     </div>
@@ -281,7 +281,7 @@ function TicketRow({ ticket, isSelected, onClick, isUserTyping }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
             <div style={{
-              fontSize: 13, fontWeight: 700, color: "#f1f5f9",
+              fontSize: 14, fontWeight: 700, color: "#f1f5f9",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {ticket.subject}
@@ -292,21 +292,21 @@ function TicketRow({ ticket, isSelected, onClick, isUserTyping }) {
           {/* Meta row */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <PriorityBadge priority={ticket.priority} />
-            <span style={{ fontSize: 10, color: "#4b5563" }}>·</span>
-            <span style={{ fontSize: 10, color: "#6b7280" }}>{ticket.profiles?.full_name || "User"}</span>
-            <span style={{ fontSize: 10, color: "#4b5563" }}>·</span>
-            <span style={{ fontSize: 10, color: "#6b7280" }}>{CATEGORIES[ticket.category] || "💬 General"}</span>
+            <span style={{ fontSize: 11, color: "#4b5563" }}>·</span>
+            <span style={{ fontSize: 11, color: "#6b7280" }}>{ticket.profiles?.full_name || "User"}</span>
+            <span style={{ fontSize: 11, color: "#4b5563" }}>·</span>
+            <span style={{ fontSize: 11, color: "#6b7280" }}>{CATEGORIES[ticket.category] || "💬 General"}</span>
             {ticket.assigned_to_name && (
               <>
-                <span style={{ fontSize: 10, color: "#4b5563" }}>·</span>
-                <span style={{ fontSize: 10, color: "#3b82f6" }}>👤 {ticket.assigned_to_name}</span>
+                <span style={{ fontSize: 11, color: "#4b5563" }}>·</span>
+                <span style={{ fontSize: 11, color: "#3b82f6" }}>👤 {ticket.assigned_to_name}</span>
               </>
             )}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-          <span style={{ fontSize: 10, color: "#374151", whiteSpace: "nowrap" }}>{ago(ticket.updated_at)}</span>
+          <span style={{ fontSize: 11, color: "#374151", whiteSpace: "nowrap" }}>{ago(ticket.updated_at)}</span>
         </div>
       </div>
 
@@ -318,7 +318,7 @@ function TicketRow({ ticket, isSelected, onClick, isUserTyping }) {
           animation: "fadeInSlide 0.2s ease",
         }}>
           <TypingDots color="#22c55e" size={4} />
-          <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 600 }}>
+          <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>
             {ticket.profiles?.full_name || "User"} is typing…
           </span>
         </div>
@@ -340,7 +340,7 @@ function TypingIndicator({ isUser, userProfile }) {
       }
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {isUser && userProfile?.full_name && (
-          <div style={{ fontSize: 10, color: "#6b7280" }}>{userProfile.full_name}</div>
+          <div style={{ fontSize: 11, color: "#6b7280" }}>{userProfile.full_name}</div>
         )}
         <div style={{
           padding: "10px 16px", borderRadius: "16px 16px 16px 4px",
@@ -370,14 +370,14 @@ function Bubble({ msg, adminUserId }) {
         borderRadius: 10,
         borderLeft: "3px solid #f59e0b",
       }}>
-        <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
           <span>📌 INTERNAL NOTE</span>
           <span style={{ color: "#6b7280", fontWeight: 400 }}>· {msg.staff_name || "Admin"}</span>
         </div>
-        <div style={{ fontSize: 13, color: "#9ca3af", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.6 }}>
           {msg.content.replace(/^\[Internal Note\] /, "")}
         </div>
-        <div style={{ fontSize: 10, color: "#374151", marginTop: 5 }}>{ago(msg.created_at)}</div>
+        <div style={{ fontSize: 11, color: "#374151", marginTop: 5 }}>{ago(msg.created_at)}</div>
       </div>
     );
   }
@@ -398,7 +398,7 @@ function Bubble({ msg, adminUserId }) {
       )}
 
       <div style={{ maxWidth: "70%", display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
-        <div style={{ fontSize: 10, color: "#4b5563", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: "#4b5563", marginBottom: 4 }}>
           {isMe
             ? "You"
             : msg.is_staff
@@ -414,13 +414,13 @@ function Bubble({ msg, adminUserId }) {
           border: msg.is_staff && !isMe ? "1px solid rgba(132,204,22,0.15)" : isMe ? "none" : "1px solid rgba(255,255,255,0.04)",
         }}>
           <div style={{
-            fontSize: 13, color: isMe ? "#000" : "#e5e7eb",
+            fontSize: 14, color: isMe ? "#000" : "#e5e7eb",
             lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>
             {msg.content}
           </div>
         </div>
-        <div style={{ fontSize: 10, color: "#374151", marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>
           {new Date(msg.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
@@ -644,19 +644,19 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
     flex: 1, padding: 12,
     background: "linear-gradient(135deg,#84cc16,#65a30d)",
     border: "none", borderRadius: 10,
-    color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer",
+    color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer",
   };
   const btnCancel = {
     flex: 1, padding: 12,
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 10, color: "#9ca3af", fontSize: 13, cursor: "pointer",
+    borderRadius: 10, color: "#9ca3af", fontSize: 14, cursor: "pointer",
   };
   const ta = {
     width: "100%", padding: "11px 14px",
     background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 10, color: "#fff", fontSize: 13, outline: "none",
+    borderRadius: 10, color: "#fff", fontSize: 14, outline: "none",
     resize: "vertical", fontFamily: "inherit", boxSizing: "border-box",
   };
 
@@ -690,7 +690,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
             <ArrowLeft size={14} />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {ticket.subject}
             </div>
           </div>
@@ -720,31 +720,31 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
                 }}>
                   {isActive && (
                     <button onClick={() => { setShowMenu(false); setShowAssign(true); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#e5e7eb", fontSize: 13, fontFamily: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#e5e7eb", fontSize: 14, fontFamily: "inherit" }}>
                       <UserCheck size={13} style={{ color: "#3b82f6" }} /> Assign to Admin
                     </button>
                   )}
                   {["low","medium","high","urgent"].map((p) => (
                     <button key={p} onClick={() => { setShowMenu(false); setPriority(p); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#e5e7eb", fontSize: 13, fontFamily: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#e5e7eb", fontSize: 14, fontFamily: "inherit" }}>
                       <Flag size={13} style={{ color: PRIORITIES[p].color }} /> Set {PRIORITIES[p].label}
                     </button>
                   ))}
                   {isActive && (
                     <button onClick={() => { setShowMenu(false); setShowResolve(true); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#a3e635", fontSize: 13, fontFamily: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", color: "#a3e635", fontSize: 14, fontFamily: "inherit" }}>
                       <CheckCircle size={13} /> Resolve Ticket
                     </button>
                   )}
                   {ticket.status !== "closed" && (
                     <button onClick={() => { setShowMenu(false); closeTicket(); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, fontFamily: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14, fontFamily: "inherit" }}>
                       <XCircle size={13} /> Close Ticket
                     </button>
                   )}
                   {["closed","resolved"].includes(ticket.status) && (
                     <button onClick={() => { setShowMenu(false); reopenTicket(); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", cursor: "pointer", color: "#e5e7eb", fontSize: 13, fontFamily: "inherit" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", background: "none", border: "none", cursor: "pointer", color: "#e5e7eb", fontSize: 14, fontFamily: "inherit" }}>
                       <RotateCcw size={13} /> Reopen
                     </button>
                   )}
@@ -771,10 +771,10 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
             )}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
               {ticketUserProfile?.full_name || "User"}
             </div>
-            <div style={{ fontSize: 11, color: "#4b5563", display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: 12, color: "#4b5563", display: "flex", alignItems: "center", gap: 6 }}>
               {userTyping
                 ? <><TypingDots color="#22c55e" size={4} /><span style={{ color: "#22c55e", fontWeight: 600 }}>typing…</span></>
                 : <span>Opened {ago(ticket.created_at)}{ticket.assigned_to_name ? ` · 👤 ${ticket.assigned_to_name}` : ""}</span>
@@ -785,7 +785,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
             <button onClick={() => setShowNote(true)} style={{
               padding: "6px 12px", background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8,
-              cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#9ca3af",
+              cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#9ca3af",
               transition: "all 0.15s",
             }}>
               📌 Note
@@ -794,7 +794,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
               <button onClick={() => setShowAssign(true)} style={{
                 padding: "6px 12px", background: "rgba(59,130,246,0.08)",
                 border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8,
-                cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#3b82f6",
+                cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#3b82f6",
               }}>
                 Assign
               </button>
@@ -803,7 +803,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
               <button onClick={() => setShowResolve(true)} style={{
                 padding: "6px 12px", background: "rgba(132,204,22,0.08)",
                 border: "1px solid rgba(132,204,22,0.2)", borderRadius: 8,
-                cursor: "pointer", fontSize: 11, fontWeight: 700, color: "#a3e635",
+                cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#a3e635",
               }}>
                 ✅ Resolve
               </button>
@@ -820,9 +820,9 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
           </div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60 }}>
-            <div style={{ fontSize: 42, marginBottom: 12 }}>💬</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>No messages yet</div>
-            <div style={{ fontSize: 12, color: "#1f2937", marginTop: 4 }}>Send the first reply below</div>
+            <div style={{ fontSize: 43, marginBottom: 12 }}>💬</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#374151" }}>No messages yet</div>
+            <div style={{ fontSize: 13, color: "#1f2937", marginTop: 4 }}>Send the first reply below</div>
           </div>
         ) : (
           messages.map((msg, i) => <Bubble key={msg.id || i} msg={msg} adminUserId={adminData.user_id} />)
@@ -833,7 +833,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
             margin: "0 0 12px", padding: "9px 12px", borderRadius: 10,
             background: "rgba(239,68,68,0.06)",
             border: "1px solid rgba(239,68,68,0.18)",
-            color: "#fca5a5", fontSize: 12, lineHeight: 1.5,
+            color: "#fca5a5", fontSize: 13, lineHeight: 1.5,
           }}>
             {sendError}
           </div>
@@ -852,7 +852,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
         }}>
           <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
             <AdminBadge adminId={adminData.user_id} xaId={adminData.xa_id} size={22} />
-            <span style={{ fontSize: 11, color: "#374151", fontWeight: 500 }}>
+            <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>
               Replying to {ticketUserProfile?.full_name || "User"} — visible to user
             </span>
           </div>
@@ -868,7 +868,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
                 flex: 1, padding: "11px 14px",
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 14, color: "#fff", fontSize: 13,
+                borderRadius: 14, color: "#fff", fontSize: 14,
                 outline: "none", resize: "vertical", fontFamily: "inherit",
                 transition: "border-color 0.15s",
               }}
@@ -904,9 +904,9 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
           background: "rgba(0,0,0,0.3)",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
         }}>
-          <span style={{ fontSize: 13, color: "#4b5563" }}>Ticket is {ticket.status}.</span>
+          <span style={{ fontSize: 14, color: "#4b5563" }}>Ticket is {ticket.status}.</span>
           <button onClick={reopenTicket} style={{
-            fontSize: 12, color: "#a3e635",
+            fontSize: 13, color: "#a3e635",
             background: "rgba(132,204,22,0.08)",
             border: "1px solid rgba(132,204,22,0.2)",
             borderRadius: 8, padding: "5px 14px", cursor: "pointer",
@@ -920,8 +920,8 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
       {showNote && (
         <div style={overlayStyle} onClick={() => setShowNote(false)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📌 Internal Note</div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>Only visible to admin team, never shown to the user.</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📌 Internal Note</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>Only visible to admin team, never shown to the user.</div>
             <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Write note..." rows={4} style={ta} />
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button onClick={() => setShowNote(false)} style={btnCancel}>Cancel</button>
@@ -934,8 +934,8 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
       {showAssign && (
         <div style={overlayStyle} onClick={() => setShowAssign(false)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>👤 Assign Ticket</div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>Choose an admin to handle this ticket.</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>👤 Assign Ticket</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>Choose an admin to handle this ticket.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
               {teamMembers.map((m) => (
                 <button key={m.user_id} onClick={() => setAssignee(m.user_id)} style={{
@@ -948,14 +948,14 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
                 }}>
                   <AdminBadge adminId={m.user_id} xaId={m.xa_id} size={28} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{m.full_name}</div>
-                    <div style={{ fontSize: 11, color: "#6b7280" }}>{m.role}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{m.full_name}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>{m.role}</div>
                   </div>
                   {assignee === m.user_id && <CheckCircle size={14} style={{ color: "#a3e635" }} />}
                 </button>
               ))}
               {teamMembers.length === 0 && (
-                <div style={{ fontSize: 13, color: "#6b7280", textAlign: "center", padding: 24 }}>No team members found.</div>
+                <div style={{ fontSize: 14, color: "#6b7280", textAlign: "center", padding: 24 }}>No team members found.</div>
               )}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -969,8 +969,8 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
       {showResolve && (
         <div style={overlayStyle} onClick={() => setShowResolve(false)}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>✅ Resolve Ticket</div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>Optional resolution note sent to the user.</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>✅ Resolve Ticket</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>Optional resolution note sent to the user.</div>
             <textarea autoFocus value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} placeholder="(Optional) Resolution note..." rows={4} style={ta} />
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button onClick={() => setShowResolve(false)} style={btnCancel}>Cancel</button>
@@ -1218,7 +1218,7 @@ export default function SupportSection({ adminData }) {
                   width: 8, height: 8, borderRadius: "50%", background: "#22c55e",
                   display: "inline-block", animation: "pulse 1.2s infinite",
                 }} />
-                <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+                <span style={{ fontSize: 13, color: "#22c55e", fontWeight: 600 }}>
                   {typingCount} user{typingCount !== 1 ? "s" : ""} typing right now
                 </span>
                 <TypingDots color="#22c55e" size={4} />
@@ -1242,7 +1242,7 @@ export default function SupportSection({ adminData }) {
                   placeholder="Search tickets…"
                   style={{
                     flex: 1, background: "none", border: "none",
-                    color: "#fff", fontSize: 13, outline: "none",
+                    color: "#fff", fontSize: 14, outline: "none",
                   }}
                 />
                 {search && (
@@ -1274,7 +1274,7 @@ export default function SupportSection({ adminData }) {
                   width: "100%", padding: "8px 32px 8px 12px",
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: 10, color: "#9ca3af", fontSize: 12,
+                  borderRadius: 10, color: "#9ca3af", fontSize: 13,
                   outline: "none", cursor: "pointer",
                   appearance: "none", WebkitAppearance: "none",
                 }}
@@ -1304,7 +1304,7 @@ export default function SupportSection({ adminData }) {
                       border: `1px solid ${isActive ? `${t.color}60` : "rgba(255,255,255,0.06)"}`,
                       background: isActive ? `${t.color}14` : "transparent",
                       color: isActive ? t.color : "#4b5563",
-                      fontSize: 11, fontWeight: 600,
+                      fontSize: 12, fontWeight: 600,
                       cursor: "pointer", whiteSpace: "nowrap",
                       display: "flex", alignItems: "center", gap: 5,
                       opacity: isActive ? 1 : 0.7,
@@ -1332,9 +1332,9 @@ export default function SupportSection({ adminData }) {
               </div>
             ) : tickets.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 4 }}>No tickets</div>
-                <div style={{ fontSize: 12, color: "#1f2937" }}>
+                <div style={{ fontSize: 41, marginBottom: 10 }}>📭</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 4 }}>No tickets</div>
+                <div style={{ fontSize: 13, color: "#1f2937" }}>
                   {tab === "active" ? "No active tickets right now." : `No ${tab} tickets.`}
                 </div>
               </div>
@@ -1360,20 +1360,20 @@ export default function SupportSection({ adminData }) {
                 style={{
                   padding: "5px 14px", background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8,
-                  color: "#6b7280", fontSize: 12, cursor: "pointer",
+                  color: "#6b7280", fontSize: 13, cursor: "pointer",
                   opacity: page === 1 ? 0.35 : 1,
                 }}
               >
                 Prev
               </button>
-              <span style={{ fontSize: 12, color: "#374151" }}>{page} / {totalPages}</span>
+              <span style={{ fontSize: 13, color: "#374151" }}>{page} / {totalPages}</span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 style={{
                   padding: "5px 14px", background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8,
-                  color: "#6b7280", fontSize: 12, cursor: "pointer",
+                  color: "#6b7280", fontSize: 13, cursor: "pointer",
                   opacity: page === totalPages ? 0.35 : 1,
                 }}
               >

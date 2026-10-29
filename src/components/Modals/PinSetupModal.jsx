@@ -194,7 +194,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
         <Hdr title={hasPin ? "Change PIN" : "Set Transaction PIN"} sub="Choose your PIN length" onClose={onClose} />
         <div style={{ padding: "14px 16px 18px" }}>
           <div style={{ marginBottom: 10 }}>
-            <p style={{ fontSize: 11, color: "#484848", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>
+            <p style={{ fontSize: 12, color: "#484848", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>
               Security Level
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
@@ -211,8 +211,8 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                     transition: "all .15s",
                     boxShadow:  active ? "0 4px 14px rgba(132,204,22,.18)" : "none",
                   }}>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: active ? "#84cc16" : "#d4d4d4", lineHeight: 1 }}>{n}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: active ? "#84cc16" : "#505050", margin: "3px 0 6px" }}>{label}</div>
+                    <div style={{ fontSize: 25, fontWeight: 900, color: active ? "#84cc16" : "#d4d4d4", lineHeight: 1 }}>{n}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: active ? "#84cc16" : "#505050", margin: "3px 0 6px" }}>{label}</div>
                     <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
                       {[1, 2, 3, 4].map((i) => (
                         <div key={i} style={{
@@ -235,7 +235,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
             border: "1px solid rgba(59,130,246,.12)",
             borderRadius: 10,
             marginBottom: 14,
-            fontSize: 11.5,
+            fontSize: 12.5,
             color: "#5a7bb5",
             lineHeight: 1.6,
           }}>
@@ -290,7 +290,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                   display:         "flex",
                   alignItems:      "center",
                   justifyContent:  "center",
-                  fontSize:        target <= 6 ? 17 : 13,
+                  fontSize:        target <= 6 ? 18 : 14,
                   fontWeight:      800,
                   color:           "#fff",
                   transform:       filled ? "scale(1.05)" : "scale(1)",
@@ -336,7 +336,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
                   );
                   return (
                     <NK key={ki} digit onClick={() => push(k)}>
-                      <span style={{ fontSize: 19, fontWeight: 700, color: "#d4d4d4" }}>{k}</span>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: "#d4d4d4" }}>{k}</span>
                     </NK>
                   );
                 })}
@@ -356,7 +356,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
               background:  "rgba(239,68,68,.06)",
               border:      "1px solid rgba(239,68,68,.18)",
               color:       "#ef4444",
-              fontSize:    11.5,
+              fontSize:    12.5,
               fontWeight:  500,
             }}>
               <AlertCircle size={12} style={{ flexShrink: 0 }} /> {err}
@@ -376,7 +376,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
               background:     "rgba(34,197,94,.08)",
               border:         "1px solid rgba(34,197,94,.2)",
               color:          "#22c55e",
-              fontSize:       12,
+              fontSize:       13,
               fontWeight:     700,
             }}>
               <CheckCircle size={13} /> PIN {hasPin ? "updated" : "created"} successfully!
@@ -385,7 +385,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
 
           {/* Saving indicator */}
           {busy && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, color: "#84cc16", fontSize: 11, marginTop: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, color: "#84cc16", fontSize: 12, marginTop: 10 }}>
               <div style={{ width: 12, height: 12, border: "2px solid rgba(132,204,22,.2)", borderTopColor: "#84cc16", borderRadius: "50%", animation: "pspin .7s linear infinite" }} />
               Saving securely…
             </div>
@@ -394,7 +394,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
           <button onClick={() => { setStep("choose"); setPhase(hasPin ? "old" : "new"); setVals({ old: [], new: [], confirm: [] }); setErr(""); }} style={{
             width: "100%", marginTop: 10, padding: "8px",
             background: "transparent", border: "1px solid rgba(255,255,255,.05)",
-            borderRadius: 8, color: "#383838", fontSize: 10.5, cursor: "pointer", fontWeight: 600,
+            borderRadius: 8, color: "#383838", fontSize: 11.5, cursor: "pointer", fontWeight: 600,
           }}>
             ← Change PIN length
           </button>
@@ -491,8 +491,8 @@ const Hdr = ({ title, sub, onClose }) => (
         <Lock size={15} color="#84cc16" />
       </div>
       <div>
-        <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{title}</div>
-        <div style={{ fontSize: 10.5, color: "#454545", marginTop: 2 }}>{sub}</div>
+        <div style={{ fontSize: 14.5, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{title}</div>
+        <div style={{ fontSize: 11.5, color: "#454545", marginTop: 2 }}>{sub}</div>
       </div>
     </div>
     <button onClick={onClose} style={{
@@ -513,7 +513,7 @@ const PBtn = ({ onClick, children }) => (
     border:         "none",
     background:     "linear-gradient(135deg,#84cc16,#65a30d)",
     color:          "#000",
-    fontSize:       12.5,
+    fontSize:       13.5,
     fontWeight:     800,
     cursor:         "pointer",
     display:        "flex",

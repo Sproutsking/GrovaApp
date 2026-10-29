@@ -102,7 +102,7 @@ const CommentItem = ({
   return (
     <div className="comment-thread" style={{ marginLeft: `${level * 18}px` }}>
       {epErr && (
-        <div style={{ color: "#f87171", fontSize: 11, marginBottom: 4 }}>
+        <div style={{ color: "#f87171", fontSize: 12, marginBottom: 4 }}>
           ⚡ {epErr}
         </div>
       )}
@@ -127,14 +127,14 @@ const CommentItem = ({
             >
               <Heart size={13} fill={liked ? "#ef4444" : "none"} />
               {likeCount > 0 && <span>{likeCount}</span>}
-              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 10 }}>
+              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 11 }}>
                 {EP_COSTS.comment_like}EP
               </span>
             </button>
             <button className="comment-action" onClick={() => onReply(comment)}>
               <MessageCircle size={13} />
               <span>Reply</span>
-              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 10 }}>
+              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 11 }}>
                 {EP_COSTS.reply}EP
               </span>
             </button>
@@ -315,7 +315,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
                   border: "1px solid rgba(239,68,68,.22)",
                   borderRadius: 8,
                   color: "#f87171",
-                  fontSize: 12,
+                  fontSize: 13,
                   padding: "8px 12px",
                   marginBottom: 8,
                 }}
@@ -361,7 +361,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
             </div>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: "#52525b",
                 marginTop: 5,
                 paddingLeft: 2,
@@ -416,7 +416,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           gap: 10px;
         }
         .comment-modal-title h3 {
-          font-size: 17px;
+          font-size: calc((17px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0;
@@ -425,7 +425,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           padding: 2px 8px;
           background: rgba(132, 204, 22, 0.18);
           border-radius: 12px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
           font-weight: 600;
         }
@@ -452,7 +452,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           color: #737373;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -503,7 +503,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           justify-content: center;
           color: #000;
           font-weight: 700;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           flex-shrink: 0;
           overflow: hidden;
         }
@@ -523,16 +523,16 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           margin-bottom: 3px;
         }
         .comment-author {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #fff;
         }
         .comment-time {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #737373;
         }
         .comment-text {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #e5e5e5;
           margin: 0 0 7px;
           line-height: 1.45;
@@ -550,7 +550,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           background: none;
           border: none;
           color: #737373;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: color 0.2s;
@@ -575,7 +575,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           background: rgba(132, 204, 22, 0.08);
           border-radius: 8px;
           margin-bottom: 7px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
         }
         .reply-indicator button {
@@ -597,7 +597,7 @@ const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
           border: 1px solid rgba(132, 204, 22, 0.2);
           border-radius: 12px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           resize: none;
           font-family: inherit;
         }

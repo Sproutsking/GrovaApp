@@ -309,7 +309,7 @@ const StatPill = ({ Icon, value, color }) => (
       borderRadius: 8,
       background: "rgba(0,0,0,.62)",
       backdropFilter: "blur(10px)",
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: 800,
       color: "#fff",
     }}
@@ -439,10 +439,10 @@ const SDKNotice = ({ onClose }) => (
     }}
   >
     <style>{BASE_CSS}</style>
-    <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
+    <div style={{ fontSize: 49, marginBottom: 16 }}>📦</div>
     <h2
       style={{
-        fontSize: 20,
+        fontSize: 21,
         fontWeight: 900,
         color: "#fff",
         margin: "0 0 8px",
@@ -452,7 +452,7 @@ const SDKNotice = ({ onClose }) => (
     </h2>
     <p
       style={{
-        fontSize: 13,
+        fontSize: 14,
         color: "#525252",
         margin: "0 0 24px",
         lineHeight: 1.6,
@@ -469,7 +469,7 @@ const SDKNotice = ({ onClose }) => (
         borderRadius: 12,
         padding: "12px 20px",
         fontFamily: "monospace",
-        fontSize: 13,
+        fontSize: 14,
         color: "#84cc16",
         marginBottom: 24,
         maxWidth: 500,
@@ -487,7 +487,7 @@ const SDKNotice = ({ onClose }) => (
         background: "rgba(255,255,255,.06)",
         border: "1px solid rgba(255,255,255,.1)",
         color: "#fff",
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: 700,
         cursor: "pointer",
       }}
@@ -633,7 +633,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
         />
         <p
           style={{
-            fontSize: 14,
+            fontSize: 15,
             color: "#525252",
             fontWeight: 600,
             margin: 0,
@@ -657,7 +657,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
           >
             <p
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: "#84cc16",
                 margin: 0,
                 lineHeight: 1.6,
@@ -700,12 +700,12 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
         >
           <CameraOff size={26} color="#fbbf24" />
         </div>
-        <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: 0 }}>
+        <h2 style={{ fontSize: 19, fontWeight: 900, color: "#fff", margin: 0 }}>
           No Device Found
         </h2>
         <p
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: "#525252",
             margin: 0,
             lineHeight: 1.6,
@@ -729,7 +729,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
               cursor: "pointer",
               background: "linear-gradient(135deg,#a78bfa,#7c3aed)",
               color: "#fff",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 900,
               fontFamily: "inherit",
             }}
@@ -747,7 +747,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
             background: "transparent",
             border: "1px solid rgba(255,255,255,.08)",
             color: "#484848",
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 700,
             fontFamily: "inherit",
           }}
@@ -788,12 +788,12 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
         >
           <Shield size={26} color="#ef4444" />
         </div>
-        <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: 0 }}>
+        <h2 style={{ fontSize: 19, fontWeight: 900, color: "#fff", margin: 0 }}>
           Permission Required
         </h2>
         <p
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: "#525252",
             margin: 0,
             lineHeight: 1.6,
@@ -824,7 +824,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
         >
           <div
             style={{
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: 800,
               color: "#525252",
               textTransform: "uppercase",
@@ -846,7 +846,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
             {steps.map((s, i) => (
               <li
                 key={i}
-                style={{ fontSize: 12, color: "#a3a3a3", lineHeight: 1.5 }}
+                style={{ fontSize: 13, color: "#a3a3a3", lineHeight: 1.5 }}
               >
                 {s}
               </li>
@@ -878,7 +878,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
                   cursor: "pointer",
                   background: "linear-gradient(135deg,#a78bfa,#7c3aed)",
                   color: "#fff",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 900,
                   fontFamily: "inherit",
                   width: "100%",
@@ -901,7 +901,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
               cursor: "pointer",
               background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
               color: "#000",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 900,
               fontFamily: "inherit",
               width: "100%",
@@ -919,7 +919,7 @@ const PermissionGate = ({ mode, onGranted, onAudioOnly, onClose }) => {
               background: "transparent",
               border: "1px solid rgba(255,255,255,.08)",
               color: "#484848",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               fontFamily: "inherit",
               width: "100%",
@@ -1034,7 +1034,7 @@ const CameraPreview = ({ mode, preset, onStreamReady, onError }) => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 28,
+              fontSize: 29,
             }}
           >
             🎙
@@ -1042,7 +1042,7 @@ const CameraPreview = ({ mode, preset, onStreamReady, onError }) => {
           {ready && streamRef.current && (
             <AudioBars stream={streamRef.current} active color="#a78bfa" />
           )}
-          <span style={{ fontSize: 12, color: "#a78bfa", fontWeight: 700 }}>
+          <span style={{ fontSize: 13, color: "#a78bfa", fontWeight: 700 }}>
             Microphone Active
           </span>
         </div>
@@ -1136,7 +1136,7 @@ const StageInviteToast = ({ invite, onAccept, onDecline }) => (
         <div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 900,
               color: "#fff",
               lineHeight: 1.2,
@@ -1144,7 +1144,7 @@ const StageInviteToast = ({ invite, onAccept, onDecline }) => (
           >
             {invite.type === "video" ? "Share your camera!" : "Join the stage!"}
           </div>
-          <div style={{ fontSize: 11, color: "#525252", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "#525252", marginTop: 2 }}>
             The host invited you{" "}
             {invite.type === "video" ? "on video" : "to speak"}
           </div>
@@ -1161,7 +1161,7 @@ const StageInviteToast = ({ invite, onAccept, onDecline }) => (
             cursor: "pointer",
             background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
             color: "#000",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 900,
             fontFamily: "inherit",
           }}
@@ -1178,7 +1178,7 @@ const StageInviteToast = ({ invite, onAccept, onDecline }) => (
             background: "rgba(255,255,255,.05)",
             border: "1px solid rgba(255,255,255,.1)",
             color: "#737373",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 700,
             fontFamily: "inherit",
           }}
@@ -1340,7 +1340,7 @@ const StageCell = ({
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 900,
-              fontSize: 22,
+              fontSize: 23,
               color: "#000",
               boxShadow:
                 speaking && micActive
@@ -1416,7 +1416,7 @@ const StageCell = ({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: isHost ? "#fbbf24" : "#fff",
               overflow: "hidden",
@@ -1428,7 +1428,7 @@ const StageCell = ({
           </div>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 10,
               color: "rgba(255,255,255,.5)",
               fontWeight: 600,
               marginTop: 1,
@@ -1586,7 +1586,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
               border: "none",
               outline: "none",
               color: "#fff",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "inherit",
               caretColor: "#84cc16",
             }}
@@ -1618,7 +1618,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
               textAlign: "center",
               padding: "24px 0",
               color: "#2a2a2a",
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
             {query
@@ -1653,7 +1653,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 900,
-                  fontSize: 13,
+                  fontSize: 14,
                   color: "#000",
                 }}
               >
@@ -1662,7 +1662,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 700,
                     color: "#d4d4d4",
                     overflow: "hidden",
@@ -1675,7 +1675,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
                 {v.raised && (
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       color: "#fbbf24",
                       fontWeight: 700,
                       marginTop: 1,
@@ -1701,7 +1701,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
                     border: "none",
                     background: "rgba(132,204,22,.15)",
                     color: "#84cc16",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 800,
                     fontFamily: "inherit",
                   }}
@@ -1723,7 +1723,7 @@ const StageSearchPanel = ({ viewerList, handRaisers, onInvite, onClose }) => {
                     border: "none",
                     background: "rgba(96,165,250,.15)",
                     color: "#60a5fa",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 800,
                     fontFamily: "inherit",
                   }}
@@ -1896,7 +1896,7 @@ const StageGrid = ({
                         alignItems: "center",
                         justifyContent: "center",
                         fontWeight: 900,
-                        fontSize: 20,
+                        fontSize: 21,
                         color: "#000",
                         position: "relative",
                         zIndex: 1,
@@ -1949,7 +1949,7 @@ const StageGrid = ({
                   <div>
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 800,
                         color: "#fbbf24",
                       }}
@@ -1958,7 +1958,7 @@ const StageGrid = ({
                     </div>
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         color: "rgba(255,255,255,.5)",
                         marginTop: 1,
                       }}
@@ -1974,7 +1974,7 @@ const StageGrid = ({
                       padding: "2px 6px",
                       borderRadius: 5,
                       background: "rgba(239,68,68,.75)",
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: 900,
                       color: "#fff",
                     }}
@@ -2049,7 +2049,7 @@ const StageGrid = ({
             >
               <Plus size={16} color="#84cc16" />
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#525252" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#525252" }}>
               Add to stage
             </span>
           </div>
@@ -2429,17 +2429,17 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 32,
+                  fontSize: 33,
                   fontWeight: 900,
                   color: "#000",
                 }}
               >
                 {(profile.full_name || "?").charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
                 {session.title}
               </span>
-              <span style={{ fontSize: 12, color: "#525252" }}>
+              <span style={{ fontSize: 13, color: "#525252" }}>
                 {session.category}
               </span>
             </div>
@@ -2464,14 +2464,14 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 32,
+                fontSize: 33,
                 fontWeight: 900,
                 color: "#000",
               }}
             >
               {(profile.full_name || "?").charAt(0).toUpperCase()}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
               {session.title}
             </span>
           </div>
@@ -2486,7 +2486,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               borderRadius: 7,
               background: "rgba(0,0,0,.65)",
               backdropFilter: "blur(10px)",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 800,
               color: "#ef4444",
             }}
@@ -2513,7 +2513,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               background: "rgba(0,0,0,.72)",
               backdropFilter: "blur(8px)",
               borderRadius: 7,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
               color: "#fff",
               overflow: "hidden",
@@ -2589,7 +2589,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               position: "absolute",
               bottom: 16,
               left: `${h.x}%`,
-              fontSize: 20,
+              fontSize: 21,
               animation: "svHeartFly 1.1s ease-out forwards",
               pointerEvents: "none",
             }}
@@ -2648,7 +2648,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               display: "flex",
               alignItems: "center",
               gap: 5,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 800,
               color: "#84cc16",
               marginRight: 8,
@@ -2740,7 +2740,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               padding: "7px 4px",
               borderRadius: 8,
               border: "none",
-              fontSize: 9.5,
+              fontSize: 10.5,
               fontWeight: 800,
               cursor: "pointer",
               fontFamily: FONT,
@@ -2786,7 +2786,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     textAlign: "center",
                     padding: "32px 0",
                     color: "#242424",
-                    fontSize: 12,
+                    fontSize: 13,
                   }}
                 >
                   Be the first to say something 👋
@@ -2798,7 +2798,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#383838",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -2812,7 +2812,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#383838",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -2826,7 +2826,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#f472b6",
                         animation: "svUp .15s ease",
                       }}
@@ -2839,7 +2839,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#fbbf24",
                         animation: "svUp .15s ease",
                       }}
@@ -2852,7 +2852,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#525252",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -2865,7 +2865,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                   <div
                     key={m.id}
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       lineHeight: 1.45,
                       animation: "svUp .18s ease",
                     }}
@@ -2873,7 +2873,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                     {m.speakerBadge && (
                       <span
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 900,
                           background: "rgba(167,139,250,.15)",
                           color: "#a78bfa",
@@ -2916,7 +2916,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                   borderRadius: 9,
                   padding: "8px 11px",
                   color: "#fff",
-                  fontSize: 12,
+                  fontSize: 13,
                   outline: "none",
                   caretColor: "#84cc16",
                   fontFamily: FONT,
@@ -2957,10 +2957,10 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
             }}
           >
             <Users size={32} color="#2a2a2a" />
-            <span style={{ fontSize: 24, fontWeight: 900, color: "#84cc16" }}>
+            <span style={{ fontSize: 25, fontWeight: 900, color: "#84cc16" }}>
               {fmtN(viewerCount || session.peak_viewers)}
             </span>
-            <span style={{ fontSize: 11, color: "#525252", fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: "#525252", fontWeight: 600 }}>
               watching right now
             </span>
           </div>
@@ -3014,7 +3014,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
           >
             <ArrowLeft size={14} />
           </button>
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
             Join the Stage
           </span>
         </div>
@@ -3056,7 +3056,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
           }}
         />
         <p
-          style={{ fontSize: 14, color: "#525252", fontWeight: 600, margin: 0 }}
+          style={{ fontSize: 15, color: "#525252", fontWeight: 600, margin: 0 }}
         >
           Joining the stage…
         </p>
@@ -3083,11 +3083,11 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
         }}
       >
         <style>{BASE_CSS}</style>
-        <div style={{ fontSize: 52 }}>📺</div>
-        <h2 style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: 0 }}>
+        <div style={{ fontSize: 53 }}>📺</div>
+        <h2 style={{ fontSize: 21, fontWeight: 900, color: "#fff", margin: 0 }}>
           Stream has ended
         </h2>
-        <p style={{ fontSize: 13, color: "#525252", margin: 0 }}>
+        <p style={{ fontSize: 14, color: "#525252", margin: 0 }}>
           {profile.full_name || "The streamer"} wrapped up.
         </p>
         <button
@@ -3099,7 +3099,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
             cursor: "pointer",
             background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
             color: "#000",
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 900,
             fontFamily: FONT,
           }}
@@ -3137,7 +3137,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
             animation: "svSpin 1s linear infinite",
           }}
         />
-        <span style={{ color: "#525252", fontSize: 13, fontWeight: 600 }}>
+        <span style={{ color: "#525252", fontSize: 14, fontWeight: 600 }}>
           Joining stream…
         </span>
       </div>
@@ -3164,10 +3164,10 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
       >
         <style>{BASE_CSS}</style>
         <AlertCircle size={40} color="#ef4444" />
-        <h3 style={{ color: "#fff", fontSize: 16, fontWeight: 800, margin: 0 }}>
+        <h3 style={{ color: "#fff", fontSize: 17, fontWeight: 800, margin: 0 }}>
           Couldn't join stream
         </h3>
-        <p style={{ color: "#525252", fontSize: 13, margin: 0 }}>{error}</p>
+        <p style={{ color: "#525252", fontSize: 14, margin: 0 }}>{error}</p>
         <button
           onClick={onClose}
           style={{
@@ -3176,7 +3176,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
             background: "rgba(255,255,255,.06)",
             border: "1px solid rgba(255,255,255,.1)",
             color: "#fff",
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 700,
             cursor: "pointer",
             fontFamily: FONT,
@@ -3243,17 +3243,17 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                 alignItems: "center",
                 justifyContent: "center",
                 fontWeight: 900,
-                fontSize: 13,
+                fontSize: 14,
                 color: "#000",
               }}
             >
               {(profile.full_name || "?").charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
                 {profile.full_name || "Streamer"}
               </div>
-              <div style={{ fontSize: 10, color: "#525252" }}>
+              <div style={{ fontSize: 11, color: "#525252" }}>
                 @{profile.username} · {session.category}
               </div>
             </div>
@@ -3265,7 +3265,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               color: "#fff",
               background: "rgba(239,68,68,.14)",
@@ -3361,7 +3361,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: 32,
+                          fontSize: 33,
                           fontWeight: 900,
                           color: "#000",
                         }}
@@ -3369,11 +3369,11 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                         {(profile.full_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span
-                        style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}
+                        style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}
                       >
                         {session.title}
                       </span>
-                      <span style={{ fontSize: 12, color: "#525252" }}>
+                      <span style={{ fontSize: 13, color: "#525252" }}>
                         {session.category}
                       </span>
                     </div>
@@ -3398,7 +3398,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 32,
+                        fontSize: 33,
                         fontWeight: 900,
                         color: "#000",
                       }}
@@ -3406,7 +3406,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                       {(profile.full_name || "?").charAt(0).toUpperCase()}
                     </div>
                     <span
-                      style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}
+                      style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}
                     >
                       {session.title}
                     </span>
@@ -3422,7 +3422,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                       borderRadius: 7,
                       background: "rgba(0,0,0,.65)",
                       backdropFilter: "blur(10px)",
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 800,
                       color: "#ef4444",
                     }}
@@ -3454,7 +3454,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                       background: "rgba(0,0,0,.72)",
                       backdropFilter: "blur(8px)",
                       borderRadius: 7,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 700,
                       color: "#fff",
                       overflow: "hidden",
@@ -3534,7 +3534,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                       position: "absolute",
                       bottom: 16,
                       left: `${h.x}%`,
-                      fontSize: 20,
+                      fontSize: 21,
                       animation: "svHeartFly 1.1s ease-out forwards",
                       pointerEvents: "none",
                     }}
@@ -3585,7 +3585,7 @@ const ViewerRoom = ({ session, currentUser, onClose }) => {
                       display: "flex",
                       alignItems: "center",
                       gap: 5,
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: 800,
                       color: "#84cc16",
                       marginRight: 8,
@@ -3748,7 +3748,7 @@ const HostRoom = ({ mode, micOn, camOn, stream }) => (
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 30,
+            fontSize: 31,
             color: "#fff",
             boxShadow: "0 0 0 10px rgba(167,139,250,.1)",
           }}
@@ -3756,7 +3756,7 @@ const HostRoom = ({ mode, micOn, camOn, stream }) => (
           🎙
         </div>
         <AudioBars stream={stream} active={micOn} color="#a78bfa" />
-        <span style={{ color: "#a78bfa", fontSize: 13, fontWeight: 800 }}>
+        <span style={{ color: "#a78bfa", fontSize: 14, fontWeight: 800 }}>
           {micOn ? "● Broadcasting" : "Mic Muted"}
         </span>
       </div>
@@ -3771,7 +3771,7 @@ const HostRoom = ({ mode, micOn, camOn, stream }) => (
         }}
       >
         <VideoOff size={36} color="#383838" />
-        <span style={{ color: "#383838", fontSize: 13, fontWeight: 700 }}>
+        <span style={{ color: "#383838", fontSize: 14, fontWeight: 700 }}>
           Camera Off
         </span>
       </div>
@@ -3924,7 +3924,7 @@ const DesktopSidebar = ({
               gap: 4,
               padding: "3px 8px",
               borderRadius: 7,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               background: "rgba(255,255,255,.04)",
               color: "#fff",
@@ -3938,7 +3938,7 @@ const DesktopSidebar = ({
         <div
           style={{
             marginLeft: "auto",
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             color: "#444",
           }}
@@ -3982,7 +3982,7 @@ const DesktopSidebar = ({
               padding: "6px 4px",
               borderRadius: 7,
               border: "none",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 800,
               cursor: "pointer",
               fontFamily: FONT,
@@ -4027,7 +4027,7 @@ const DesktopSidebar = ({
                     textAlign: "center",
                     padding: "32px 0",
                     color: "#242424",
-                    fontSize: 12,
+                    fontSize: 13,
                   }}
                 >
                   {isHost
@@ -4041,7 +4041,7 @@ const DesktopSidebar = ({
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#383838",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -4055,7 +4055,7 @@ const DesktopSidebar = ({
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#383838",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -4069,7 +4069,7 @@ const DesktopSidebar = ({
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#f472b6",
                         animation: "svUp .15s ease",
                       }}
@@ -4082,7 +4082,7 @@ const DesktopSidebar = ({
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#fbbf24",
                         animation: "svUp .15s ease",
                       }}
@@ -4095,7 +4095,7 @@ const DesktopSidebar = ({
                     <div
                       key={m.id}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#525252",
                         fontStyle: "italic",
                         animation: "svUp .15s ease",
@@ -4108,7 +4108,7 @@ const DesktopSidebar = ({
                   <div
                     key={m.id}
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       lineHeight: 1.45,
                       animation: "svUp .18s ease",
                     }}
@@ -4116,7 +4116,7 @@ const DesktopSidebar = ({
                     {m.hostBadge && (
                       <span
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 900,
                           background: "rgba(132,204,22,.15)",
                           color: "#84cc16",
@@ -4131,7 +4131,7 @@ const DesktopSidebar = ({
                     {m.speakerBadge && (
                       <span
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 900,
                           background: "rgba(167,139,250,.15)",
                           color: "#a78bfa",
@@ -4180,7 +4180,7 @@ const DesktopSidebar = ({
                   borderRadius: 9,
                   padding: "8px 11px",
                   color: "#fff",
-                  fontSize: 12,
+                  fontSize: 13,
                   outline: "none",
                   caretColor: "#84cc16",
                   fontFamily: FONT,
@@ -4213,7 +4213,7 @@ const DesktopSidebar = ({
             <div style={{ marginBottom: 14 }}>
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 800,
                   color: "#383838",
                   textTransform: "uppercase",
@@ -4244,7 +4244,7 @@ const DesktopSidebar = ({
               <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 800,
                     color: "#fbbf24",
                     textTransform: "uppercase",
@@ -4278,7 +4278,7 @@ const DesktopSidebar = ({
                         alignItems: "center",
                         justifyContent: "center",
                         fontWeight: 900,
-                        fontSize: 13,
+                        fontSize: 14,
                         color: "#000",
                         flexShrink: 0,
                       }}
@@ -4288,7 +4288,7 @@ const DesktopSidebar = ({
                     <span
                       style={{
                         flex: 1,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: "#d4d4d4",
                         overflow: "hidden",
@@ -4311,7 +4311,7 @@ const DesktopSidebar = ({
                           border: "none",
                           background: "rgba(132,204,22,.15)",
                           color: "#84cc16",
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: 800,
                           fontFamily: FONT,
                         }}
@@ -4331,7 +4331,7 @@ const DesktopSidebar = ({
                           border: "none",
                           background: "rgba(96,165,250,.15)",
                           color: "#60a5fa",
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: 800,
                           fontFamily: FONT,
                         }}
@@ -4346,7 +4346,7 @@ const DesktopSidebar = ({
             )}
             <div
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
                 color: "#383838",
                 textTransform: "uppercase",
@@ -4362,7 +4362,7 @@ const DesktopSidebar = ({
                   textAlign: "center",
                   padding: "16px 0",
                   color: "#2a2a2a",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 No viewers yet
@@ -4392,7 +4392,7 @@ const DesktopSidebar = ({
                       alignItems: "center",
                       justifyContent: "center",
                       fontWeight: 900,
-                      fontSize: 11,
+                      fontSize: 12,
                       color: "#000",
                       flexShrink: 0,
                     }}
@@ -4402,7 +4402,7 @@ const DesktopSidebar = ({
                   <span
                     style={{
                       flex: 1,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 700,
                       color: "#d4d4d4",
                       overflow: "hidden",
@@ -4459,7 +4459,7 @@ const DesktopSidebar = ({
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
                 color: "#383838",
                 textTransform: "uppercase",
@@ -4475,7 +4475,7 @@ const DesktopSidebar = ({
                   textAlign: "center",
                   padding: "28px 0",
                   color: "#2a2a2a",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 No viewer data yet
@@ -4502,7 +4502,7 @@ const DesktopSidebar = ({
                       alignItems: "center",
                       justifyContent: "center",
                       fontWeight: 900,
-                      fontSize: 12,
+                      fontSize: 13,
                       color: "#000",
                       flexShrink: 0,
                     }}
@@ -4510,7 +4510,7 @@ const DesktopSidebar = ({
                     {(v.name || "?").replace("@", "").charAt(0).toUpperCase()}
                   </div>
                   <span
-                    style={{ fontSize: 12, color: "#c4c4c4", fontWeight: 600 }}
+                    style={{ fontSize: 13, color: "#c4c4c4", fontWeight: 600 }}
                   >
                     {v.name}
                   </span>
@@ -4565,7 +4565,7 @@ const DesktopSidebar = ({
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
                 color: "#383838",
                 textTransform: "uppercase",
@@ -4581,7 +4581,7 @@ const DesktopSidebar = ({
                   textAlign: "center",
                   padding: "28px 0",
                   color: "#2a2a2a",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
                 No other streams right now
@@ -4626,7 +4626,7 @@ const DesktopSidebar = ({
                       alignItems: "center",
                       justifyContent: "center",
                       fontWeight: 900,
-                      fontSize: 15,
+                      fontSize: 16,
                       color: "#000",
                     }}
                   >
@@ -4644,7 +4644,7 @@ const DesktopSidebar = ({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 800,
                         color: "#fff",
                         overflow: "hidden",
@@ -4655,7 +4655,7 @@ const DesktopSidebar = ({
                       {s.title}
                     </div>
                     <div
-                      style={{ fontSize: 10, color: "#525252", marginTop: 1 }}
+                      style={{ fontSize: 11, color: "#525252", marginTop: 1 }}
                     >
                       {s.profiles?.username
                         ? `@${s.profiles.username}`
@@ -5346,7 +5346,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             >
               <Radio size={13} color="#fff" />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+            <span style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>
               Stream
             </span>
           </div>
@@ -5377,7 +5377,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   borderRadius: 8,
                   border:
                     mode === k ? "1px solid rgba(132,204,22,.22)" : "none",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 800,
                   cursor: "pointer",
                   background:
@@ -5393,7 +5393,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           </div>
         )}
         {phase === "preview" && (
-          <span style={{ fontSize: 11, color: "#525252", fontWeight: 700 }}>
+          <span style={{ fontSize: 12, color: "#525252", fontWeight: 700 }}>
             Camera Preview
           </span>
         )}
@@ -5423,7 +5423,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   borderRadius: 8,
                   border:
                     mode === k ? "1px solid rgba(132,204,22,.22)" : "none",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 800,
                   cursor: "pointer",
                   background:
@@ -5445,7 +5445,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 800,
                 color: "#fff",
                 background: "rgba(239,68,68,.14)",
@@ -5465,7 +5465,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               />
               LIVE
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#666" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#666" }}>
               {fmtDur(duration)}
             </span>
             {handRaisers.length > 0 && (
@@ -5479,7 +5479,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   borderRadius: 8,
                   background: "rgba(251,191,36,.12)",
                   border: "1px solid rgba(251,191,36,.25)",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 900,
                   color: "#fbbf24",
                   cursor: "pointer",
@@ -5504,7 +5504,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 animation: "svSpin 1s linear infinite",
               }}
             />
-            <span style={{ fontSize: 11, color: "#525252", fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: "#525252", fontWeight: 600 }}>
               Connecting…
             </span>
           </div>
@@ -5610,7 +5610,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 border: "1px solid rgba(255,255,255,.12)",
                 borderRadius: 9,
                 color: "#c4c4c4",
-                fontSize: 11,
+                fontSize: 12,
                 padding: "6px 10px",
                 fontFamily: FONT,
                 cursor: "pointer",
@@ -5654,7 +5654,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   borderRadius: 20,
                   background: "rgba(132,204,22,.08)",
                   border: "1px solid rgba(132,204,22,.15)",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 700,
                   color: "#84cc16",
                 }}
@@ -5672,7 +5672,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               </div>
               <p
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "#484848",
                   margin: 0,
                   lineHeight: 1.5,
@@ -5698,7 +5698,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     ? "linear-gradient(135deg,#84cc16,#4d7c0f)"
                     : "rgba(255,255,255,.05)",
                   color: previewStream ? "#000" : "#383838",
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 900,
                   boxShadow: previewStream
                     ? "0 5px 20px rgba(132,204,22,.32)"
@@ -5736,7 +5736,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               <div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 800,
                     color: "#ef4444",
                     marginBottom: 3,
@@ -5745,7 +5745,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   Setup Required
                 </div>
                 <div
-                  style={{ fontSize: 11, color: "#737373", lineHeight: 1.5 }}
+                  style={{ fontSize: 12, color: "#737373", lineHeight: 1.5 }}
                 >
                   {connectError}
                 </div>
@@ -5777,7 +5777,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             </div>
             <h2
               style={{
-                fontSize: 22,
+                fontSize: 23,
                 fontWeight: 900,
                 color: "#fff",
                 margin: "0 0 6px",
@@ -5787,7 +5787,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             </h2>
             <p
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 color: "#525252",
                 margin: 0,
                 lineHeight: 1.5,
@@ -5801,7 +5801,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 color: "#3a3a3a",
                 textTransform: "uppercase",
@@ -5824,7 +5824,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 border: "1px solid rgba(255,255,255,.08)",
                 borderRadius: 11,
                 color: "#fff",
-                fontSize: 13,
+                fontSize: 14,
                 outline: "none",
                 caretColor: "#84cc16",
                 fontFamily: FONT,
@@ -5841,7 +5841,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 color: "#3a3a3a",
                 textTransform: "uppercase",
@@ -5866,7 +5866,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                         : "rgba(255,255,255,.03)",
                     border: `1px solid ${category === c ? "rgba(132,204,22,.28)" : "rgba(255,255,255,.07)"}`,
                     color: category === c ? "#84cc16" : "#444",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     cursor: "pointer",
                     fontFamily: FONT,
@@ -5880,7 +5880,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 color: "#3a3a3a",
                 textTransform: "uppercase",
@@ -5924,14 +5924,14 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   <div style={{ flex: 1 }}>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 800,
                         color: preset === p.id ? p.color : "#c4c4c4",
                       }}
                     >
                       {p.label} · {p.res}
                     </div>
-                    <div style={{ fontSize: 10, color: "#444", marginTop: 1 }}>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 1 }}>
                       {p.sub} bandwidth
                     </div>
                   </div>
@@ -5942,7 +5942,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       background: `${p.color}18`,
                       color: p.color,
                       border: `1px solid ${p.color}28`,
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: 800,
                     }}
                   >
@@ -5955,7 +5955,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 color: "#3a3a3a",
                 textTransform: "uppercase",
@@ -5980,7 +5980,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               <div>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 800,
                     color: "#c4c4c4",
                     display: "flex",
@@ -5997,7 +5997,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     ? "Private — Invite only"
                     : "Public — Anyone can watch"}
                 </div>
-                <div style={{ fontSize: 11, color: "#383838", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "#383838", marginTop: 2 }}>
                   {isPrivate
                     ? "Share link to invite viewers"
                     : "Discoverable on Xeevia"}
@@ -6038,7 +6038,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ marginBottom: 20 }}>
             <label
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 800,
                 color: "#3a3a3a",
                 textTransform: "uppercase",
@@ -6062,11 +6062,11 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             >
               <div>
                 <div
-                  style={{ fontSize: 13, fontWeight: 800, color: "#c4c4c4" }}
+                  style={{ fontSize: 14, fontWeight: 800, color: "#c4c4c4" }}
                 >
                   Save this stream
                 </div>
-                <div style={{ fontSize: 11, color: "#383838", marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "#383838", marginTop: 2 }}>
                   Stored to Cloudflare · available after stream ends
                 </div>
               </div>
@@ -6114,7 +6114,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 ? "linear-gradient(135deg,#84cc16,#4d7c0f)"
                 : "rgba(255,255,255,.05)",
               color: title.trim() ? "#000" : "#383838",
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 900,
               cursor: title.trim() ? "pointer" : "not-allowed",
               boxShadow: title.trim()
@@ -6155,7 +6155,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           <div style={{ textAlign: "center" }}>
             <p
               style={{
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: 800,
                 color: "#fff",
                 margin: "0 0 6px",
@@ -6163,7 +6163,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             >
               Starting your stream…
             </p>
-            <p style={{ fontSize: 13, color: "#525252", margin: 0 }}>
+            <p style={{ fontSize: 14, color: "#525252", margin: 0 }}>
               Creating room and generating token
             </p>
           </div>
@@ -6227,7 +6227,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           <span
                             style={{
                               color: "#383838",
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: 700,
                             }}
                           >
@@ -6258,7 +6258,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: 30,
+                          fontSize: 31,
                           color: "#fff",
                           boxShadow: "0 0 0 10px rgba(167,139,250,.1)",
                         }}
@@ -6273,7 +6273,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       <span
                         style={{
                           color: "#a78bfa",
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: 800,
                         }}
                       >
@@ -6314,7 +6314,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                         borderRadius: 7,
                         background: "rgba(0,0,0,.65)",
                         backdropFilter: "blur(10px)",
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: 800,
                         color: "#ef4444",
                       }}
@@ -6343,7 +6343,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       borderRadius: 7,
                       background: "rgba(132,204,22,.18)",
                       border: "1px solid rgba(132,204,22,.3)",
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 900,
                       color: "#84cc16",
                     }}
@@ -6366,7 +6366,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                         background: "rgba(0,0,0,.72)",
                         backdropFilter: "blur(8px)",
                         borderRadius: 7,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: "#fff",
                         overflow: "hidden",
@@ -6394,7 +6394,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           background: "rgba(132,204,22,.12)",
                           border: "1px solid rgba(132,204,22,.28)",
                           color: "#84cc16",
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: 800,
                           cursor: "pointer",
                           fontFamily: FONT,
@@ -6469,7 +6469,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       borderRadius: 7,
                       background: "rgba(132,204,22,.18)",
                       border: "1px solid rgba(132,204,22,.3)",
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 900,
                       color: "#84cc16",
                       pointerEvents: "none",
@@ -6616,7 +6616,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       padding: "8px 6px",
                       borderRadius: "8px 8px 0 0",
                       border: "none",
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 800,
                       cursor: "pointer",
                       fontFamily: FONT,
@@ -6668,7 +6668,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             textAlign: "center",
                             padding: "24px 0",
                             color: "#2a2a2a",
-                            fontSize: 12,
+                            fontSize: 13,
                           }}
                         >
                           Chat will appear here when viewers join 👀
@@ -6680,7 +6680,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             <div
                               key={m.id}
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "#525252",
                                 fontStyle: "italic",
                                 animation: "svUp .15s ease",
@@ -6694,7 +6694,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             <div
                               key={m.id}
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "#f472b6",
                                 animation: "svUp .15s ease",
                               }}
@@ -6707,7 +6707,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             <div
                               key={m.id}
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "#fbbf24",
                                 animation: "svUp .15s ease",
                               }}
@@ -6719,7 +6719,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           <div
                             key={m.id}
                             style={{
-                              fontSize: 12,
+                              fontSize: 13,
                               lineHeight: 1.45,
                               animation: "svUp .18s ease",
                             }}
@@ -6727,7 +6727,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             {m.hostBadge && (
                               <span
                                 style={{
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   fontWeight: 900,
                                   background: "rgba(132,204,22,.15)",
                                   color: "#84cc16",
@@ -6775,7 +6775,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           borderRadius: 9,
                           padding: "8px 11px",
                           color: "#fff",
-                          fontSize: 12,
+                          fontSize: 13,
                           outline: "none",
                           caretColor: "#84cc16",
                           fontFamily: FONT,
@@ -6809,7 +6809,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     <div style={{ marginBottom: 14 }}>
                       <div
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 800,
                           color: "#383838",
                           textTransform: "uppercase",
@@ -6842,7 +6842,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       <div style={{ marginBottom: 14 }}>
                         <div
                           style={{
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: 800,
                             color: "#fbbf24",
                             textTransform: "uppercase",
@@ -6877,7 +6877,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 fontWeight: 900,
-                                fontSize: 14,
+                                fontSize: 15,
                                 color: "#000",
                                 flexShrink: 0,
                               }}
@@ -6890,7 +6890,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             <span
                               style={{
                                 flex: 1,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 color: "#d4d4d4",
                                 overflow: "hidden",
@@ -6914,7 +6914,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                                   background: "rgba(132,204,22,.1)",
                                   border: "1px solid rgba(132,204,22,.25)",
                                   color: "#84cc16",
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: 800,
                                 }}
                               >
@@ -6934,7 +6934,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                                   background: "rgba(96,165,250,.1)",
                                   border: "1px solid rgba(96,165,250,.25)",
                                   color: "#60a5fa",
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: 800,
                                 }}
                               >
@@ -6949,7 +6949,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     <div>
                       <div
                         style={{
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: 800,
                           color: "#383838",
                           textTransform: "uppercase",
@@ -6965,7 +6965,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             textAlign: "center",
                             padding: "20px 0",
                             color: "#2a2a2a",
-                            fontSize: 12,
+                            fontSize: 13,
                           }}
                         >
                           No viewers yet
@@ -6996,7 +6996,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 fontWeight: 900,
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: "#000",
                                 flexShrink: 0,
                               }}
@@ -7009,7 +7009,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                             <span
                               style={{
                                 flex: 1,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 color: "#d4d4d4",
                                 overflow: "hidden",
@@ -7100,7 +7100,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                       >
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "#525252",
                             fontWeight: 700,
                           }}
@@ -7108,7 +7108,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                           {l}
                         </span>
                         <span
-                          style={{ fontSize: 16, fontWeight: 900, color: c }}
+                          style={{ fontSize: 17, fontWeight: 900, color: c }}
                         >
                           {v}
                         </span>
@@ -7133,7 +7133,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     <Users size={32} color="#2a2a2a" />
                     <span
                       style={{
-                        fontSize: 24,
+                        fontSize: 25,
                         fontWeight: 900,
                         color: "#84cc16",
                       }}
@@ -7142,14 +7142,14 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     </span>
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#525252",
                         fontWeight: 600,
                       }}
                     >
                       watching right now
                     </span>
-                    <span style={{ fontSize: 10, color: "#333" }}>
+                    <span style={{ fontSize: 11, color: "#333" }}>
                       Peak: {fmtN(peakVw)}
                     </span>
                   </div>
@@ -7212,10 +7212,10 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
             overflowY: "auto",
           }}
         >
-          <div style={{ fontSize: 54, marginBottom: 16 }}>🎙️</div>
+          <div style={{ fontSize: 55, marginBottom: 16 }}>🎙️</div>
           <h2
             style={{
-              fontSize: 22,
+              fontSize: 23,
               fontWeight: 900,
               color: "#fff",
               margin: "0 0 6px",
@@ -7225,7 +7225,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
           </h2>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 14,
               color: "#525252",
               margin: "0 0 28px",
               lineHeight: 1.5,
@@ -7243,7 +7243,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               <div key={l} style={{ textAlign: "center" }}>
                 <span
                   style={{
-                    fontSize: 24,
+                    fontSize: 25,
                     fontWeight: 900,
                     color: "#84cc16",
                     display: "block",
@@ -7253,7 +7253,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 </span>
                 <span
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     color: "#444",
                     fontWeight: 700,
                     textTransform: "uppercase",
@@ -7289,7 +7289,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
               border: "none",
               color: "#000",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 900,
               cursor: "pointer",
               boxShadow: "0 5px 18px rgba(132,204,22,.36)",
@@ -7307,7 +7307,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               background: "transparent",
               border: "1px solid rgba(255,255,255,.08)",
               color: "#525252",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: FONT,

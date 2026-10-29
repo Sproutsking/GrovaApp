@@ -92,14 +92,14 @@ const CSS = `
 }
 .dt-back:hover { border-color: rgba(163,230,53,.4); color: #a3e635; }
 .dt-header-info { flex: 1 }
-.dt-header-title { font-size: 16px; font-weight: 800; color: rgba(255,255,255,.94); letter-spacing: 0 }
-.dt-header-sub   { font-size: 10px; color: rgba(255,255,255,.3); font-family: 'JetBrains Mono', monospace; margin-top: 1px }
+.dt-header-title { font-size: calc((16px) + 1px); font-weight: 800; color: rgba(255,255,255,.94); letter-spacing: 0 }
+.dt-header-sub   { font-size: calc((10px) + 1px); color: rgba(255,255,255,.3); font-family: 'JetBrains Mono', monospace; margin-top: 1px }
 .dt-header-info{position:relative;min-width:0}
 .dt-xev-chip {
   padding: 6px 13px; border-radius: 8px;
   background: rgba(163,230,53,.08);
   border: 1px solid rgba(163,230,53,.2);
-  font-size: 11px; font-weight: 700;
+  font-size: calc((11px) + 1px); font-weight: 700;
   color: #a3e635;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -124,13 +124,13 @@ const CSS = `
 .dt-ticker-content {
   display: flex; align-items: center; gap: 16px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: rgba(255,255,255,.4);
+  font-size: calc((11px) + 1px); color: rgba(255,255,255,.4);
   flex: 1;
 }
 .dt-ticker-hl { color: rgba(255,255,255,.85); font-weight: 600 }
 .dt-ticker-sep { color: rgba(255,255,255,.15) }
 .dt-ticker-live-tag {
-  margin-left: auto; font-size: 9px; font-weight: 700;
+  margin-left: auto; font-size: calc((9px) + 1px); font-weight: 700;
   color: #a3e635; text-transform: uppercase; letter-spacing: .1em; flex-shrink: 0;
 }
 
@@ -158,7 +158,7 @@ const CSS = `
 }
 .dt-meth-icon { color: rgba(255,255,255,.3); display: flex; align-items: center }
 .dt-meth.on .dt-meth-icon { color: #a3e635 }
-.dt-meth-lbl { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .1em }
+.dt-meth-lbl { font-size: calc((10px) + 1px); font-weight: 700; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .1em }
 .dt-meth.on .dt-meth-lbl { color: #a3e635 }
 
 .dt-divider { height: 1px; background: rgba(255,255,255,.05); margin: 16px 0 }
@@ -175,7 +175,7 @@ const CSS = `
 }
 .dt-field { position: relative }
 .dt-field-label {
-  font-size: 9px; font-weight: 700; letter-spacing: .12em;
+  font-size: calc((9px) + 1px); font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: rgba(255,255,255,.3);
   font-family: 'JetBrains Mono', monospace;
   margin-bottom: 8px; display: block;
@@ -200,14 +200,14 @@ const CSS = `
 .dt-field-num {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
   font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(15px,3.5vw,22px);
+  font-size: calc((clamp(15px,3.5vw,22px)) + 1px);
   font-weight: 600; color: rgba(255,255,255,.9);
   letter-spacing: -.02em;
 }
 .dt-field-num::placeholder { color: rgba(255,255,255,.15) }
 .dt-field-tag {
   flex-shrink: 0; margin-left: 8px;
-  font-size: 9px; font-weight: 700;
+  font-size: calc((9px) + 1px); font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: .1em; text-transform: uppercase;
   padding: 4px 8px; border-radius: 5px;
@@ -239,7 +239,7 @@ const CSS = `
   padding: 8px 0; border-radius: 8px;
   border: 1.5px solid rgba(255,255,255,.07);
   background: rgba(255,255,255,.03);
-  font-size: 11px; font-weight: 700;
+  font-size: calc((11px) + 1px); font-weight: 700;
   color: rgba(255,255,255,.35);
   cursor: pointer; font-family: 'JetBrains Mono', monospace;
   transition: all .15s; text-align: center;
@@ -248,8 +248,8 @@ const CSS = `
 .dt-q.on    { background: rgba(163,230,53,.1); border-color: rgba(163,230,53,.4); color: #a3e635 }
 
 /* ── ALERT BOXES ── */
-.dt-ok  { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; margin:10px 0 0; background:rgba(52,211,153,.07); border:1px solid rgba(52,211,153,.2); font-size:12px; font-weight:600; color:#34d399; line-height:1.5 }
-.dt-err { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; margin:10px 0 0; background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.2); font-size:12px; font-weight:600; color:#f87171; line-height:1.5 }
+.dt-ok  { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; margin:10px 0 0; background:rgba(52,211,153,.07); border:1px solid rgba(52,211,153,.2); font-size:calc((12px) + 1px); font-weight:600; color:#34d399; line-height:1.5 }
+.dt-err { display:flex; align-items:flex-start; gap:8px; padding:10px 13px; border-radius:10px; margin:10px 0 0; background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.2); font-size:calc((12px) + 1px); font-weight:600; color:#f87171; line-height:1.5 }
 
 /* ── PAYMENT BUTTONS ── */
 .dt-pay-cards { display: flex; flex-direction: column; gap: 10px; padding: 16px 0 0 }
@@ -274,11 +274,11 @@ const CSS = `
   width: 42px; height: 42px; border-radius: 12px;
   flex-shrink: 0; display: flex; align-items: center; justify-content: center;
 }
-.dt-pay-name { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.9) }
-.dt-pay-sub  { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 2px; font-family: 'JetBrains Mono', monospace }
+.dt-pay-name { font-size: calc((13px) + 1px); font-weight: 700; color: rgba(255,255,255,.9) }
+.dt-pay-sub  { font-size: calc((10px) + 1px); color: rgba(255,255,255,.35); margin-top: 2px; font-family: 'JetBrains Mono', monospace }
 .dt-pay-badge {
   margin-left: auto; padding: 4px 10px; border-radius: 5px;
-  font-size: 9px; font-weight: 700; flex-shrink: 0;
+  font-size: calc((9px) + 1px); font-weight: 700; flex-shrink: 0;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: .08em; text-transform: uppercase;
 }
@@ -288,7 +288,7 @@ const CSS = `
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; padding: 15px;
   background: #a3e635; border: none; border-radius: 12px;
-  font-size: 13px; font-weight: 800;
+  font-size: calc((13px) + 1px); font-weight: 800;
   color: #070809; cursor: pointer;
   font-family: 'Syne', sans-serif;
   letter-spacing: -.2px;
@@ -302,7 +302,7 @@ const CSS = `
   display: flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%; padding: 11px;
   border: 1.5px solid rgba(255,255,255,.09); background: none;
-  border-radius: 12px; font-size: 12px; font-weight: 700;
+  border-radius: 12px; font-size: calc((12px) + 1px); font-weight: 700;
   color: rgba(255,255,255,.4); cursor: pointer;
   font-family: 'Syne', sans-serif;
   transition: all .15s; margin-top: 8px;
@@ -317,8 +317,8 @@ const CSS = `
   border: 1px solid rgba(163,230,53,.12);
   border-radius: 12px;
 }
-.dt-sec-title { font-size: 11px; font-weight: 700; color: rgba(163,230,53,.8); margin-bottom: 2px }
-.dt-sec-body  { font-size: 10px; color: rgba(255,255,255,.35); line-height: 1.6; font-family: 'JetBrains Mono', monospace }
+.dt-sec-title { font-size: calc((11px) + 1px); font-weight: 700; color: rgba(163,230,53,.8); margin-bottom: 2px }
+.dt-sec-body  { font-size: calc((10px) + 1px); color: rgba(255,255,255,.35); line-height: 1.6; font-family: 'JetBrains Mono', monospace }
 
 /* ── SUCCESS SCREEN ── */
 .dt-done {
@@ -334,12 +334,12 @@ const CSS = `
   margin-bottom: 20px;
   animation: dt-glow 2.5s ease infinite;
 }
-.dt-done h2  { font-size: 24px; font-weight: 800; color: rgba(255,255,255,.95); margin: 0 0 8px; letter-spacing: -.5px }
-.dt-done p   { font-size: 12px; color: rgba(255,255,255,.4); margin: 0; line-height: 1.7; font-family: 'JetBrains Mono', monospace }
-.dt-done-ref { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,.2); margin-top: 5px }
+.dt-done h2  { font-size: calc((24px) + 1px); font-weight: 800; color: rgba(255,255,255,.95); margin: 0 0 8px; letter-spacing: -.5px }
+.dt-done p   { font-size: calc((12px) + 1px); color: rgba(255,255,255,.4); margin: 0; line-height: 1.7; font-family: 'JetBrains Mono', monospace }
+.dt-done-ref { font-size: calc((9px) + 1px); font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,.2); margin-top: 5px }
 .dt-done-chip {
   padding: 10px 24px; border-radius: 8px;
-  font-size: 20px; font-weight: 700;
+  font-size: calc((20px) + 1px); font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
   border: 1px solid rgba(163,230,53,.3);
   color: #a3e635; background: rgba(163,230,53,.08);
@@ -355,8 +355,8 @@ const CSS = `
   width: 60px; height: 60px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
 }
-.dt-loading-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; color: rgba(255,255,255,.9) }
-.dt-loading-sub   { font-size: 11px; color: rgba(255,255,255,.3); font-family: 'JetBrains Mono', monospace; white-space: pre-line }
+.dt-loading-title { font-size: calc((14px) + 1px); font-weight: 700; letter-spacing: -.2px; color: rgba(255,255,255,.9) }
+.dt-loading-sub   { font-size: calc((11px) + 1px); color: rgba(255,255,255,.3); font-family: 'JetBrains Mono', monospace; white-space: pre-line }
 
 /* ── WALLET CARDS (Import) ── */
 .dt-wcard {
@@ -367,10 +367,10 @@ const CSS = `
   transition: all .2s;
 }
 .dt-wcard:hover { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.05) }
-.dt-wicon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 19px }
+.dt-wicon { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: calc((19px) + 1px) }
 .dt-wimport {
   padding: 7px 14px; border-radius: 8px;
-  font-size: 11px; font-weight: 700;
+  font-size: calc((11px) + 1px); font-weight: 700;
   color: #a3e635; background: rgba(163,230,53,.1);
   border: 1px solid rgba(163,230,53,.25);
   cursor: pointer; font-family: 'Syne', sans-serif;
@@ -378,7 +378,7 @@ const CSS = `
 }
 .dt-wimport:hover { background: rgba(163,230,53,.18) }
 .dt-wremove {
-  font-size: 9px; color: rgba(255,255,255,.2); cursor: pointer;
+  font-size: calc((9px) + 1px); color: rgba(255,255,255,.2); cursor: pointer;
   background: none; border: none;
   font-family: 'JetBrains Mono', monospace;
   display: block; margin-top: 4px; text-align: right;
@@ -406,9 +406,9 @@ const CSS = `
 }
 .dt-nbtn:hover { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.05) }
 .dt-nbtn.on { background: rgba(163,230,53,.07); border-color: rgba(163,230,53,.3) }
-.dt-nbtn-tk  { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5) }
+.dt-nbtn-tk  { font-size: calc((11px) + 1px); font-weight: 700; color: rgba(255,255,255,.5) }
 .dt-nbtn.on .dt-nbtn-tk { color: #a3e635 }
-.dt-nbtn-std { font-size: 8px; color: rgba(255,255,255,.25); font-family: 'JetBrains Mono', monospace }
+.dt-nbtn-std { font-size: calc((8px) + 1px); color: rgba(255,255,255,.25); font-family: 'JetBrains Mono', monospace }
 
 .dt-net-info {
   display: flex; gap: 0;
@@ -420,16 +420,16 @@ const CSS = `
   padding: 8px 6px; border-right: 1px solid rgba(255,255,255,.06);
 }
 .dt-np:last-child { border-right: none }
-.dt-npk { font-size: 8px; color: rgba(255,255,255,.25); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; font-family: 'Syne', sans-serif }
-.dt-npv { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8); font-family: 'JetBrains Mono', monospace }
+.dt-npk { font-size: calc((8px) + 1px); color: rgba(255,255,255,.25); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; font-family: 'Syne', sans-serif }
+.dt-npv { font-size: calc((11px) + 1px); font-weight: 700; color: rgba(255,255,255,.8); font-family: 'JetBrains Mono', monospace }
 
 .dt-addr-box {
   background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
   border-radius: 12px; padding: 14px; margin-bottom: 12px;
 }
-.dt-addr-label { font-size: 9px; color: rgba(255,255,255,.25); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace }
+.dt-addr-label { font-size: calc((9px) + 1px); color: rgba(255,255,255,.25); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace }
 .dt-addr-row   { display: flex; align-items: flex-start; gap: 10px }
-.dt-addr-text  { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: rgba(255,255,255,.6); word-break: break-all; line-height: 1.65; flex: 1 }
+.dt-addr-text  { font-family: 'JetBrains Mono', monospace; font-size: calc((10.5px) + 1px); color: rgba(255,255,255,.6); word-break: break-all; line-height: 1.65; flex: 1 }
 .dt-copy-btn {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
@@ -444,16 +444,16 @@ const CSS = `
   display: flex; gap: 8px; align-items: flex-start;
   padding: 8px 12px; margin-top: 10px;
   background: rgba(248,113,113,.05); border: 1px solid rgba(248,113,113,.15);
-  border-radius: 8px; font-size: 10.5px; color: rgba(248,113,113,.8); line-height: 1.55;
+  border-radius: 8px; font-size: calc((10.5px) + 1px); color: rgba(248,113,113,.8); line-height: 1.55;
   font-family: 'JetBrains Mono', monospace;
 }
 
 /* ── TEXT INPUTS ── */
-.dt-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-bottom: 7px; display: block; font-family: 'JetBrains Mono', monospace }
+.dt-label { font-size: calc((9px) + 1px); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-bottom: 7px; display: block; font-family: 'JetBrains Mono', monospace }
 .dt-input {
   width: 100%; padding: 11px 13px;
   background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.09);
-  border-radius: 10px; font-size: 12.5px; color: rgba(255,255,255,.85);
+  border-radius: 10px; font-size: calc((12.5px) + 1px); color: rgba(255,255,255,.85);
   font-family: 'JetBrains Mono', monospace;
   outline: none; box-sizing: border-box; transition: border-color .2s;
 }
@@ -705,8 +705,8 @@ function ImportMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack
         background:`${sel.color}0a`,border:`1px solid ${sel.color}2a`,borderRadius:12}}>
         <div className="dt-wicon" style={{background:`${sel.color}14`,border:`1px solid ${sel.color}25`}}>{sel.icon}</div>
         <div style={{flex:1}}>
-          <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.9)"}}>{sel.name}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontFamily:"'JetBrains Mono',monospace"}}>{sel.currency}</div>
+          <div style={{fontSize:14,fontWeight:700,color:"rgba(255,255,255,.9)"}}>{sel.name}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,.35)",fontFamily:"'JetBrains Mono',monospace"}}>{sel.currency}</div>
         </div>
         <button onClick={()=>setPhase("list")} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,.3)",display:"flex"}}>
           <X size={15}/>
@@ -725,23 +725,23 @@ function ImportMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack
 
   return (
     <div className="dt-section">
-      <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,.7)",marginBottom:4,textTransform:"uppercase",letterSpacing:".04em"}}>Connected Wallets</div>
-      <div style={{fontSize:10,color:"rgba(255,255,255,.3)",marginBottom:14,fontFamily:"'JetBrains Mono',monospace"}}>
+      <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.7)",marginBottom:4,textTransform:"uppercase",letterSpacing:".04em"}}>Connected Wallets</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,.3)",marginBottom:14,fontFamily:"'JetBrains Mono',monospace"}}>
         Select → enter amount → sign once → {currency} credited instantly
       </div>
       {!wallets.length && (
         <div style={{padding:"28px 0 18px",textAlign:"center",color:"rgba(255,255,255,.3)"}}>
           <WifiOff size={30} style={{opacity:.15,marginBottom:10,display:"block",margin:"0 auto 10px"}}/>
-          <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.4)",marginBottom:3}}>No wallets detected</div>
-          <div style={{fontSize:11,fontFamily:"'JetBrains Mono',monospace"}}>Scan your browser below</div>
+          <div style={{fontSize:14,fontWeight:700,color:"rgba(255,255,255,.4)",marginBottom:3}}>No wallets detected</div>
+          <div style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}>Scan your browser below</div>
         </div>
       )}
       {wallets.map(w => (
         <div key={w.id} className="dt-wcard">
           <div className="dt-wicon" style={{background:`${w.color}14`,border:`1px solid ${w.color}25`}}>{w.icon}</div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.88)"}}>{w.name}</div>
-            <div style={{fontSize:9,color:"#34d399",fontWeight:700,display:"flex",alignItems:"center",gap:4,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"rgba(255,255,255,.88)"}}>{w.name}</div>
+            <div style={{fontSize:10,color:"#34d399",fontWeight:700,display:"flex",alignItems:"center",gap:4,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>
               <span style={{width:5,height:5,borderRadius:"50%",background:"#34d399",flexShrink:0}}/>
               {w.currency}
             </div>
@@ -757,10 +757,10 @@ function ImportMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack
           <RefreshCw size={14}/>
         </div>
         <div style={{flex:1,textAlign:"left"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".04em"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".04em"}}>
             {wallets.length?"Scan for More":"Detect Wallets"}
           </div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:1,fontFamily:"'JetBrains Mono',monospace"}}>MetaMask · Phantom · TronLink · Coinbase</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,.25)",marginTop:1,fontFamily:"'JetBrains Mono',monospace"}}>MetaMask · Phantom · TronLink · Coinbase</div>
         </div>
         <ChevronRight size={13} color="rgba(255,255,255,.2)"/>
       </button>
@@ -841,17 +841,17 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
         <label className="dt-label" style={{marginTop:12}}>Your Wallet Address</label>
         <input className="dt-input" placeholder={net.net==="Tron"?"T…":"0x…"}
           value={senderWallet} onChange={e=>{setSenderWallet(e.target.value);setStatus(null);}}/>
-        <div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:4,fontFamily:"'JetBrains Mono',monospace"}}>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.25)",marginTop:4,fontFamily:"'JetBrains Mono',monospace"}}>
           The wallet you sent from (must match transaction sender)
         </div>
         <label className="dt-label" style={{marginTop:12}}>₦ Equivalent (for preview)</label>
         <div style={{position:"relative"}}>
-          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:13,fontWeight:700,color:"rgba(255,255,255,.3)",fontFamily:"'JetBrains Mono',monospace",pointerEvents:"none"}}>₦</span>
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,fontWeight:700,color:"rgba(255,255,255,.3)",fontFamily:"'JetBrains Mono',monospace",pointerEvents:"none"}}>₦</span>
           <input className="dt-input" style={{paddingLeft:24}} type="number" placeholder="0"
             value={naira} onChange={e=>setNaira(e.target.value)}/>
         </div>
         {naira && (
-          <div style={{fontSize:11,color:"rgba(255,255,255,.3)",fontFamily:"'JetBrains Mono',monospace",marginTop:7}}>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.3)",fontFamily:"'JetBrains Mono',monospace",marginTop:7}}>
             {currency==="XEV"
               ? `₦${parseFloat(naira).toLocaleString()} → +${nairaToXEV(parseFloat(naira))} $XEV`
               : `₦${parseFloat(naira).toLocaleString()} → +${nairaToEP(parseFloat(naira),rate)} EP`}
@@ -897,7 +897,7 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
 
       {/* Session warning */}
       {!resolvedUserId && (
-        <div style={{margin:"8px 0 12px",padding:"9px 13px",borderRadius:9,background:"rgba(248,113,113,.07)",border:"1px solid rgba(248,113,113,.2)",fontSize:11,color:"#f87171",fontFamily:"'JetBrains Mono',monospace"}}>
+        <div style={{margin:"8px 0 12px",padding:"9px 13px",borderRadius:9,background:"rgba(248,113,113,.07)",border:"1px solid rgba(248,113,113,.2)",fontSize:12,color:"#f87171",fontFamily:"'JetBrains Mono',monospace"}}>
           ⚠ Session not detected — please sign out and sign back in.
         </div>
       )}

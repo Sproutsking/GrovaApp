@@ -111,7 +111,7 @@ const CSS = `
     justify-content: space-between;
     margin-bottom: 28px;
     color: rgba(255,255,255,0.75);
-    font-size: 11px;
+    font-size: calc((11px) + 1px);
     letter-spacing: 1.7px;
     text-transform: uppercase;
     font-weight: 700;
@@ -169,14 +169,14 @@ const CSS = `
     text-transform: uppercase;
     letter-spacing: 0.16em;
     font-weight: 700;
-    font-size: clamp(18px, 2vw, 25px);
+    font-size: calc((clamp(18px, 2vw, 25px)) + 1px);
     color: rgba(255,255,255,0.96);
     font-family: 'DM Sans', sans-serif;
   }
 
   .xv-auth-subcopy {
     margin: 18px 0 22px;
-    font-size: 15px;
+    font-size: calc((15px) + 1px);
     line-height: 1.6;
     color: rgba(222,233,222,0.76);
     text-align: center;
@@ -195,7 +195,7 @@ const CSS = `
     margin: 22px 0 18px;
     text-align: center;
     color: rgba(255,255,255,0.45);
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
     text-transform: lowercase;
   }
 
@@ -224,7 +224,7 @@ const CSS = `
     justify-content: center;
     gap: 10px;
     padding: 14px 18px;
-    font-size: 15px;
+    font-size: calc((15px) + 1px);
     font-weight: 600;
     color: rgba(255,255,255,0.9);
     text-decoration: none;
@@ -253,7 +253,7 @@ const CSS = `
     background: rgba(168,230,61,0.12);
     border: 1px solid rgba(168,230,61,0.25);
     color: #d7ff8d;
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
@@ -300,13 +300,13 @@ const CSS = `
     color: #d6ff78;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
     margin-bottom: 14px;
   }
 
   .xv-auth-soon-card h3 {
     margin: 0 0 8px;
-    font-size: clamp(26px, 4vw, 32px);
+    font-size: calc((clamp(26px, 4vw, 32px)) + 1px);
     color: #f0f8eb;
     letter-spacing: -0.06em;
   }
@@ -314,7 +314,7 @@ const CSS = `
   .xv-auth-soon-card p {
     margin: 0;
     color: rgba(222,233,222,0.76);
-    font-size: 14px;
+    font-size: calc((14px) + 1px);
     line-height: 1.7;
   }
 
@@ -326,7 +326,7 @@ const CSS = `
     color: #eafbd6;
     border-radius: 10px;
     padding: 11px 14px;
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     font-weight: 600;
     cursor: pointer;
   }
@@ -334,7 +334,7 @@ const CSS = `
   .xv-auth-legal {
     margin-top: 22px;
     text-align: center;
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
     line-height: 1.8;
     color: rgba(190,203,190,0.8);
   }
@@ -412,7 +412,7 @@ const CSS = `
     width:30px;height:30px;border-radius:8px;
     background:rgba(168,230,61,.07);border:1px solid rgba(168,230,61,.12);
     display:flex;align-items:center;justify-content:center;
-    font-size:14px;flex-shrink:0;
+    font-size:calc((14px) + 1px);flex-shrink:0;
     transition:background .22s,border-color .22s;
   }
   .lp-value-row:hover .lp-icon-box {
@@ -495,7 +495,7 @@ const CSS = `
 
   .pb-icon  { display:flex;align-items:center;justify-content:center; }
   .pb-label {
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     font-weight: 500;
     text-align: center;
     transition: color .18s;
@@ -516,7 +516,7 @@ const CSS = `
     width:26px;height:26px;border-radius:50%;
     border:2px solid #020804;
     display:flex;align-items:center;justify-content:center;
-    font-size:9px;font-weight:800;color:#040a00;
+    font-size:calc((9px) + 1px);font-weight:800;color:#040a00;
     flex-shrink:0;overflow:hidden;
     transition:transform .2s;
   }
@@ -543,7 +543,7 @@ const CSS = `
 
     .xv-auth-topbar {
       margin-bottom: 18px;
-      font-size: 9px;
+      font-size: calc((9px) + 1px);
       letter-spacing: 1.1px;
     }
 
@@ -559,12 +559,12 @@ const CSS = `
 
     .xv-auth-heading {
       letter-spacing: 0.12em;
-      font-size: clamp(18px, 5vw, 24px);
+      font-size: calc((clamp(18px, 5vw, 24px)) + 1px);
     }
 
     .xv-auth-subcopy {
       margin: 12px 0 18px;
-      font-size: 13px;
+      font-size: calc((13px) + 1px);
     }
 
     .xv-auth-btn-stack {
@@ -573,16 +573,16 @@ const CSS = `
 
     .xv-auth-divider {
       margin: 18px 0 14px;
-      font-size: 11px;
+      font-size: calc((11px) + 1px);
     }
 
     .xv-auth-email {
-      font-size: 14px;
+      font-size: calc((14px) + 1px);
     }
 
     .xv-auth-legal {
       margin-top: 16px;
-      font-size: 11px;
+      font-size: calc((11px) + 1px);
     }
   }
 
@@ -613,7 +613,7 @@ const CSS = `
     .xv-btn-wl,
     .xv-btn-vip {
       padding:14px 16px !important;
-      font-size:14px !important;
+      font-size:calc((14px) + 1px) !important;
       border-radius:12px !important;
     }
   }
@@ -822,7 +822,7 @@ export function SuccessScreen({ provider }) {
         <div
           style={{
             fontFamily: "'DM Sans',sans-serif",
-            fontSize: "clamp(28px,5vw,36px)",
+            fontSize: "calc((clamp(28px,5vw,36px)) + 1px)",
             fontWeight: 700,
             color: "var(--text)",
             letterSpacing: "-0.5px",
@@ -832,7 +832,7 @@ export function SuccessScreen({ provider }) {
         >
           You're in.
         </div>
-        <div style={{ fontSize: 14, color: "var(--dim)", lineHeight: 1.8 }}>
+        <div style={{ fontSize: 15, color: "var(--dim)", lineHeight: 1.8 }}>
           Signed in via{" "}
           <span style={{ color: "var(--lime)", fontWeight: 600 }}>{name}</span>
           <br />
@@ -845,7 +845,7 @@ export function SuccessScreen({ provider }) {
           position: "absolute",
           bottom: 28,
           fontFamily: "'Bebas Neue',sans-serif",
-          fontSize: 11,
+          fontSize: 12,
           letterSpacing: "8px",
           color: "#111a11",
           animation: "XV_fadeIn 1s ease 2s both",
@@ -973,7 +973,7 @@ export function DeclinedScreen({ message, onRetry }) {
         <div
           style={{
             fontFamily: "'DM Sans',sans-serif",
-            fontSize: "clamp(24px,4vw,30px)",
+            fontSize: "calc((clamp(24px,4vw,30px)) + 1px)",
             fontWeight: 700,
             color: "var(--text)",
             letterSpacing: "-0.3px",
@@ -984,7 +984,7 @@ export function DeclinedScreen({ message, onRetry }) {
         </div>
         <p
           style={{
-            fontSize: 14,
+            fontSize: 15,
             color: "#4a2a2a",
             lineHeight: 1.8,
             marginBottom: 32,
@@ -1002,7 +1002,7 @@ export function DeclinedScreen({ message, onRetry }) {
             border: "none",
             background: "rgba(224,82,82,.12)",
             color: "#e05252",
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 600,
             cursor: "pointer",
             fontFamily: "'DM Sans',sans-serif",
@@ -1334,24 +1334,24 @@ function LeftPanel() {
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center"}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(28px,3vw,44px)",letterSpacing:"7px",color:"#e9ffbf",lineHeight:1,fontWeight:700}}>XEEVIA</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"calc((clamp(28px,3vw,44px)) + 1px)",letterSpacing:"7px",color:"#e9ffbf",lineHeight:1,fontWeight:700}}>XEEVIA</div>
             </div>
           </div>
-          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(22px,2.3vw,32px)",fontWeight:900,lineHeight:1.1,letterSpacing:"-1.4px",margin:"0 0 12px",color:"#ffffff",whiteSpace:"nowrap"}}>
+          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"calc((clamp(22px,2.3vw,32px)) + 1px)",fontWeight:900,lineHeight:1.1,letterSpacing:"-1.4px",margin:"0 0 12px",color:"#ffffff",whiteSpace:"nowrap"}}>
             Participation <span className="lp-shimmer">with weight.</span>
           </h1>
-          <p style={{fontSize:13,color:"#b8d8a0",lineHeight:1.85,maxWidth:330,margin:0,fontWeight:500}}>Your network is worth something. Your engagement means something. Your data stays yours.</p>
+          <p style={{fontSize:14,color:"#b8d8a0",lineHeight:1.85,maxWidth:330,margin:0,fontWeight:500}}>Your network is worth something. Your engagement means something. Your data stays yours.</p>
         </div>
 
         {/* ─── YOUR BENEFITS ─── */}
         <div style={{marginBottom:14,animation:"LP_rise .5s ease .16s both",animationFillMode:"forwards",opacity:0}}>
-          <div style={{fontSize:11.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ Your Benefits</div>
+          <div style={{fontSize:12.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ Your Benefits</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
             {FEATURES.map(({n,iconType,title,sub})=>(
               <div key={n} style={{background:"linear-gradient(135deg,rgba(168,230,61,.1),rgba(168,230,61,.03))",border:"1.5px solid rgba(168,230,61,.2)",borderRadius:13,padding:"14px 10px",cursor:"default",position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
                 <div style={{marginBottom:8}}>{getIcon(iconType)}</div>
-                <div style={{fontSize:11.5,fontWeight:800,color:"#ebffd5",marginBottom:3,lineHeight:1.2}}>{title}</div>
-                <div style={{fontSize:9.5,color:"#b5d998",fontWeight:600}}>{sub}</div>
+                <div style={{fontSize:12.5,fontWeight:800,color:"#ebffd5",marginBottom:3,lineHeight:1.2}}>{title}</div>
+                <div style={{fontSize:10.5,color:"#b5d998",fontWeight:600}}>{sub}</div>
               </div>
             ))}
           </div>
@@ -1359,7 +1359,7 @@ function LeftPanel() {
 
         {/* ─── HOW IT WORKS ─── */}
         <div style={{flex:1,minHeight:0,marginBottom:12,animation:"LP_rise .5s ease .22s both",animationFillMode:"forwards",opacity:0,display:"flex",flexDirection:"column"}}>
-          <div style={{fontSize:11.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ How It Works</div>
+          <div style={{fontSize:12.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ How It Works</div>
           <div style={{display:"flex",flexDirection:"column",gap:9,flex:1,minHeight:0}}>
             {VALUE_PROPS.map(({iconType,title,body})=>(
               <div
@@ -1380,8 +1380,8 @@ function LeftPanel() {
               >
                 <div style={{flexShrink:0,lineHeight:1,width:32,height:32,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(168,230,61,.12)",border:"1px solid rgba(168,230,61,.2)",color:"#d4fc72"}}>{getIcon(iconType)}</div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12.5,fontWeight:850,color:"#f5f5f5",marginBottom:4,lineHeight:1.25,letterSpacing:"-0.12px"}}>{title}</div>
-                  <div style={{fontSize:9.8,color:"#f0f0f0",lineHeight:1.6,fontWeight:600}}>{body}</div>
+                  <div style={{fontSize:13.5,fontWeight:850,color:"#f5f5f5",marginBottom:4,lineHeight:1.25,letterSpacing:"-0.12px"}}>{title}</div>
+                  <div style={{fontSize:10.8,color:"#f0f0f0",lineHeight:1.6,fontWeight:600}}>{body}</div>
                 </div>
               </div>
             ))}
@@ -1402,24 +1402,24 @@ function LeftPanel() {
                       {url ? (
                         <img src={url} alt="" style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover",display:"block"}} onError={e=>{e.target.style.display="none";e.target.parentNode.style.background=ACCENT_COLORS[i%4];}}/>
                       ) : (
-                        <span style={{color:"#040a00",fontSize:8,fontWeight:800}}>{init}</span>
+                        <span style={{color:"#040a00",fontSize:9,fontWeight:800}}>{init}</span>
                       )}
                     </div>
                   );
                 })}
               </div>
               <div>
-                <div style={{fontSize:12.5,fontWeight:900,color:"#dfffb0",fontFamily:"'Syne',sans-serif"}}>{memberCount != null ? fmtCount(memberCount) : "—"}</div>
-                <div style={{fontSize:9.5,color:"#a3ba7d",fontWeight:700}}>joined</div>
+                <div style={{fontSize:13.5,fontWeight:900,color:"#dfffb0",fontFamily:"'Syne',sans-serif"}}>{memberCount != null ? fmtCount(memberCount) : "—"}</div>
+                <div style={{fontSize:10.5,color:"#a3ba7d",fontWeight:700}}>joined</div>
               </div>
             </div>
-            <div style={{fontSize:9.5,color:"#a3ba7d",fontWeight:800,textTransform:"uppercase",letterSpacing:"1px"}}>🌍 Global</div>
+            <div style={{fontSize:10.5,color:"#a3ba7d",fontWeight:800,textTransform:"uppercase",letterSpacing:"1px"}}>🌍 Global</div>
           </div>
           
           {/* Trust badges */}
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {[["⛓","Web3"],["🏦","Paystack"],["🔐","Encrypted"]].map(([ic,lb])=>(
-              <div key={lb} style={{display:"flex",alignItems:"center",gap:3,fontSize:8.5,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",color:"#b3d08d",background:"rgba(168,230,61,.06)",border:"1px solid rgba(168,230,61,.12)",borderRadius:10,padding:"4px 8px",whiteSpace:"nowrap"}}>
+              <div key={lb} style={{display:"flex",alignItems:"center",gap:3,fontSize:9.5,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",color:"#b3d08d",background:"rgba(168,230,61,.06)",border:"1px solid rgba(168,230,61,.12)",borderRadius:10,padding:"4px 8px",whiteSpace:"nowrap"}}>
                 <span>{ic}</span><span>{lb}</span>
               </div>
             ))}
@@ -1726,7 +1726,7 @@ function LoginView() {
         <div
           style={{
             fontFamily: "'DM Sans',sans-serif",
-            fontSize: "clamp(22px,2.6vw,30px)",
+            fontSize: "calc((clamp(22px,2.6vw,30px)) + 1px)",
             letterSpacing: "0.18em",
             textTransform: "uppercase",
             lineHeight: 1.15,
@@ -1740,7 +1740,7 @@ function LoginView() {
         </div>
         <div
           style={{
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 500,
             color: "rgba(222,233,222,0.72)",
             marginTop: 12,
@@ -1786,7 +1786,7 @@ function LoginView() {
             border: "1px solid rgba(224,82,82,.2)",
             background: "rgba(224,82,82,.05)",
             color: "#a06060",
-            fontSize: 12.5,
+            fontSize: 13.5,
             display: "flex",
             gap: 8,
             animation: "XV_riseIn .3s ease",

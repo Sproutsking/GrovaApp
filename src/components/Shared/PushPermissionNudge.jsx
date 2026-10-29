@@ -117,7 +117,7 @@ const PushPermissionNudge = memo(({ userId }) => {
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            fontSize: "18px",
+            fontSize: "calc((18px) + 1px)",
           }}
         >
           🔔
@@ -126,7 +126,7 @@ const PushPermissionNudge = memo(({ userId }) => {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: "13px",
+              fontSize: "calc((13px) + 1px)",
               fontWeight: "700",
               color: "#fff",
               marginBottom: "2px",
@@ -134,7 +134,7 @@ const PushPermissionNudge = memo(({ userId }) => {
           >
             Stay in the loop
           </div>
-          <div style={{ fontSize: "11px", color: "#555", lineHeight: 1.4 }}>
+          <div style={{ fontSize: "calc((11px) + 1px)", color: "#555", lineHeight: 1.4 }}>
             Enable notifications for messages, calls and activity
           </div>
         </div>
@@ -149,7 +149,7 @@ const PushPermissionNudge = memo(({ userId }) => {
             background:
               "linear-gradient(135deg, rgba(132, 204, 22, 0.9), rgba(101, 163, 13, 0.9))",
             color: "#061000",
-            fontSize: "12px",
+            fontSize: "calc((12px) + 1px)",
             fontWeight: "800",
             cursor: requesting ? "not-allowed" : "pointer",
             flexShrink: 0,
@@ -170,7 +170,7 @@ const PushPermissionNudge = memo(({ userId }) => {
             background: "rgba(255, 255, 255, 0.05)",
             border: "1px solid rgba(255, 255, 255, 0.08)",
             color: "#444",
-            fontSize: "14px",
+            fontSize: "calc((14px) + 1px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -184,7 +184,7 @@ const PushPermissionNudge = memo(({ userId }) => {
         </button>
         <button
           onClick={handleNever}
-          style={{ background: "transparent", border: "none", color: "#687564", fontSize: "10px", fontWeight: "700", cursor: "pointer", padding: "4px 0", flexShrink: 0, fontFamily: "inherit" }}
+          style={{ background: "transparent", border: "none", color: "#687564", fontSize: "calc((10px) + 1px)", fontWeight: "700", cursor: "pointer", padding: "4px 0", flexShrink: 0, fontFamily: "inherit" }}
         >
           Never
         </button>

@@ -99,7 +99,7 @@ const CentralHeart = ({ x, y, isNews, alreadyLiked, onDone }) => {
         style={{
           left: x,
           top: y,
-          fontSize: isNews ? 52 : 64,
+          fontSize: isNews ? 53 : 65,
           filter: isNews ? "none" : "drop-shadow(0 0 12px rgba(239,68,68,0.8))",
         }}
       >

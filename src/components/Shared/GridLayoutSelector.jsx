@@ -43,7 +43,7 @@ const GridLayoutSelector = ({ selected = 'auto', onChange }) => {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #e5e5e5;
           margin-bottom: 12px;
@@ -89,12 +89,12 @@ const GridLayoutSelector = ({ selected = 'auto', onChange }) => {
         }
 
         .grid-option-label {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
         }
 
         .grid-option-desc {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           opacity: 0.7;
         }
 

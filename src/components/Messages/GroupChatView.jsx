@@ -106,7 +106,7 @@ const Av = memo(({ user, size=32 }) => {
     if(url) mediaUrlService.preloadMediaUrl(url, { type: 'image', priority: 'high' });
   },[url]);
   return (
-    <div style={{width:size,height:size,borderRadius:"50%",background:"linear-gradient(135deg,#0d1a00,#1a3300)",border:"1.5px solid rgba(132,204,22,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.38,fontWeight:700,color:"#84cc16",overflow:"hidden",flexShrink:0}}>
+    <div style={{width:size,height:size,borderRadius:"50%",background:"linear-gradient(135deg,#0d1a00,#1a3300)",border:"1.5px solid rgba(132,204,22,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:(size*.38) + 1,fontWeight:700,color:"#84cc16",overflow:"hidden",flexShrink:0}}>
       {url ? <img src={url} alt={ini} loading="eager" fetchPriority="high" decoding="async" onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : ini}
     </div>
   );
@@ -162,7 +162,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
         {ld&&<div style={{gridColumn:"1/-1",display:"flex",justifyContent:"center",padding:20}}><div className="gcv-spin"/></div>}
         {!ld&&gifs.map(g=><button key={g.id} onClick={()=>onSelect(g.url)} className="gcv-gp-item"><img src={g.preview||g.url} alt="" loading="lazy" className="gcv-gp-img" onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1);"}/></button>)}
       </div>
-      <div style={{padding:"3px 10px 6px",fontSize:9,color:"#333",textAlign:"right"}}>Tenor · Giphy fallback</div>
+      <div style={{padding:"3px 10px 6px",fontSize:10,color:"#333",textAlign:"right"}}>Tenor · Giphy fallback</div>
     </div>
   );
 });
@@ -221,12 +221,12 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
             {/* Group avatar */}
             <div className="gcv-modal-av-wrap" onClick={()=>isAdmin&&fileRef.current?.click()} style={{cursor:isAdmin?"pointer":"default"}}>
               <div className="gcv-modal-av">
-                {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:44}}>{icon}</span>}
+                {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:45}}>{icon}</span>}
               </div>
               {isAdmin&&<div className="gcv-modal-av-cam"><Ic.Camera/></div>}
               {isAdmin&&<input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImg(e.target.files?.[0])}/>}
             </div>
-            {isAdmin&&<p style={{fontSize:11,color:"#555",textAlign:"center",marginBottom:16}}>Tap to change photo</p>}
+            {isAdmin&&<p style={{fontSize:12,color:"#555",textAlign:"center",marginBottom:16}}>Tap to change photo</p>}
 
             {/* Group name */}
             {isAdmin
@@ -234,23 +234,23 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
                   <p className="gcv-modal-label">Group Name</p>
                   <input value={name} onChange={e=>setName(e.target.value)} maxLength={60} className="gcv-modal-inp"/>
                 </>
-              : <div style={{fontSize:18,fontWeight:800,color:"#fff",textAlign:"center",marginBottom:16}}>{group?.name}</div>
+              : <div style={{fontSize:19,fontWeight:800,color:"#fff",textAlign:"center",marginBottom:16}}>{group?.name}</div>
             }
 
             {/* Settings rows */}
             <div className="gcv-settings-rows">
               {isAdmin&&(
                 <button className="gcv-settings-row" onClick={()=>setPage("icon")}>
-                  <span className="gcv-sr-left"><span style={{fontSize:18}}>🎨</span><span>Change Icon</span></span>
+                  <span className="gcv-sr-left"><span style={{fontSize:19}}>🎨</span><span>Change Icon</span></span>
                   <span className="gcv-sr-chev">›</span>
                 </button>
               )}
               <button className="gcv-settings-row" onClick={()=>setPage("bg")}>
-                <span className="gcv-sr-left"><span style={{fontSize:18}}>🖼️</span><span>Chat Background</span></span>
+                <span className="gcv-sr-left"><span style={{fontSize:19}}>🖼️</span><span>Chat Background</span></span>
                 <span className="gcv-sr-chev">›</span>
               </button>
               <button className="gcv-settings-row" onClick={()=>setPage("members")}>
-                <span className="gcv-sr-left"><span style={{fontSize:18}}>👥</span><span>Members ({members.length})</span></span>
+                <span className="gcv-sr-left"><span style={{fontSize:19}}>👥</span><span>Members ({members.length})</span></span>
                 <span className="gcv-sr-chev">›</span>
               </button>
             </div>
@@ -339,8 +339,8 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
           <div className="gcv-modal-hd"><button className="gcv-modal-cancel" onClick={()=>setPage("members")}>Back</button><span className="gcv-modal-title">Remove User</span><div style={{width:52}}/></div>
           <div className="gcv-modal-body" style={{textAlign:"center"}}>
             <Av user={memberToRemove} size={58}/>
-            <div style={{fontSize:16,fontWeight:800,color:"#fff",margin:"14px 0 6px"}}>{memberToRemove.full_name||memberToRemove.username||"User"}</div>
-            <div style={{fontSize:12,color:"#777",marginBottom:20}}>Choose what should happen to this user&apos;s messages.</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#fff",margin:"14px 0 6px"}}>{memberToRemove.full_name||memberToRemove.username||"User"}</div>
+            <div style={{fontSize:13,color:"#777",marginBottom:20}}>Choose what should happen to this user&apos;s messages.</div>
             <button className="gcv-confirm-leave-btn" onClick={async()=>{try{await onRemoveMember(memberToRemove.id,false);setPage("members");}catch(e){console.warn("[GroupChat] remove member:",e);}}}>Remove user only</button>
             <button className="gcv-confirm-delete-btn" style={{marginTop:10}} onClick={async()=>{try{await onRemoveMember(memberToRemove.id,true);setPage("members");}catch(e){console.warn("[GroupChat] remove member messages:",e);}}}>Remove user and all messages</button>
           </div>
@@ -354,9 +354,9 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
             <div style={{width:52}}/>
           </div>
           <div className="gcv-modal-body" style={{alignItems:"center",textAlign:"center",paddingTop:32}}>
-            <div style={{fontSize:52,marginBottom:16}}>🗑️</div>
-            <div style={{fontSize:16,fontWeight:700,color:"#fff",marginBottom:8}}>Delete "{group?.name}"?</div>
-            <div style={{fontSize:13,color:"#666",marginBottom:32,lineHeight:1.5}}>
+            <div style={{fontSize:53,marginBottom:16}}>🗑️</div>
+            <div style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:8}}>Delete "{group?.name}"?</div>
+            <div style={{fontSize:14,color:"#666",marginBottom:32,lineHeight:1.5}}>
               This will permanently delete the group and all messages for every member. This cannot be undone.
             </div>
             <button className="gcv-confirm-delete-btn" onClick={onDelete}>
@@ -373,9 +373,9 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
             <div style={{width:52}}/>
           </div>
           <div className="gcv-modal-body" style={{alignItems:"center",textAlign:"center",paddingTop:32}}>
-            <div style={{fontSize:52,marginBottom:16}}>🚪</div>
-            <div style={{fontSize:16,fontWeight:700,color:"#fff",marginBottom:8}}>Leave "{group?.name}"?</div>
-            <div style={{fontSize:13,color:"#666",marginBottom:32,lineHeight:1.5}}>
+            <div style={{fontSize:53,marginBottom:16}}>🚪</div>
+            <div style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:8}}>Leave "{group?.name}"?</div>
+            <div style={{fontSize:14,color:"#666",marginBottom:32,lineHeight:1.5}}>
               You will no longer receive messages from this group.
             </div>
             <button className="gcv-confirm-leave-btn" onClick={onLeave}>
@@ -729,7 +729,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
 
   const iconDisplay=group?.icon_url
     ?<img src={group.icon_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-    :<span style={{fontSize:20}}>{group?.icon||"👥"}</span>;
+    :<span style={{fontSize:21}}>{group?.icon||"👥"}</span>;
 
   // Build date-grouped list
   const msgWithDates=[];let lastDate=null;
@@ -906,7 +906,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
-.gcv-member-remove{margin-left:auto;padding:6px 9px;border:1px solid rgba(239,68,68,.32);border-radius:7px;background:rgba(239,68,68,.08);color:#f87171;font-size:10px;font-weight:700;cursor:pointer;}
+.gcv-member-remove{margin-left:auto;padding:6px 9px;border:1px solid rgba(239,68,68,.32);border-radius:7px;background:rgba(239,68,68,.08);color:#f87171;font-size:calc((10px) + 1px);font-weight:700;cursor:pointer;}
 .gcv-member-remove:hover{background:rgba(239,68,68,.16);}
 @keyframes geUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes gcvSpin{to{transform:rotate(360deg)}}
@@ -935,10 +935,10 @@ const CSS = `
 .gcv-back:hover{background:rgba(132,204,22,.1);}
 .gcv-head-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .gcv-head-av{width:38px;height:38px;flex-shrink:0;}
-.gcv-head-av-in{width:38px;height:38px;border-radius:50%;background:rgba(132,204,22,.1);outline:1.5px solid rgba(132,204,22,.25);outline-offset:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.gcv-head-av-in{width:38px;height:38px;border-radius:50%;background:rgba(132,204,22,.1);outline:1.5px solid rgba(132,204,22,.25);outline-offset:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:calc((20px) + 1px);}
 .gcv-head-txt{flex:1;min-width:0;}
-.gcv-head-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.gcv-head-sub{font-size:11px;color:#555;transition:color .2s;}
+.gcv-head-name{font-size:calc((14px) + 1px);font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gcv-head-sub{font-size:calc((11px) + 1px);color:#555;transition:color .2s;}
 .gcv-head-sub.gcv-typing{color:#84cc16;font-style:italic;}
 .gcv-head-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .gcv-hbtn{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#666;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
@@ -959,14 +959,14 @@ const CSS = `
 .gcv-spin{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:gcvSpin .7s linear infinite;}
 
 .gcv-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;min-height:280px;}
-.gcv-empty-icon{font-size:52px;margin-bottom:14px;opacity:.6;}
-.gcv-empty-title{font-size:15px;font-weight:700;color:#555;margin-bottom:4px;}
-.gcv-empty-sub{font-size:12px;color:#3a3a3a;}
+.gcv-empty-icon{font-size:calc((52px) + 1px);margin-bottom:14px;opacity:.6;}
+.gcv-empty-title{font-size:calc((15px) + 1px);font-weight:700;color:#555;margin-bottom:4px;}
+.gcv-empty-sub{font-size:calc((12px) + 1px);color:#3a3a3a;}
 
 /* Date divider */
 .gcv-dated{display:flex;align-items:center;gap:10px;margin:14px 0 8px;}
 .gcv-dline{flex:1;height:1px;background:rgba(255,255,255,.06);}
-.gcv-dlbl{font-size:10px;font-weight:700;color:#3a3a3a;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
+.gcv-dlbl{font-size:calc((10px) + 1px);font-weight:700;color:#3a3a3a;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
 
 /* Jump */
 .gcv-jump{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);animation:gcvFadeIn .2s ease-out;}
@@ -977,11 +977,11 @@ const CSS = `
 .gcv-me{flex-direction:row-reverse;}
 .gcv-them{flex-direction:row;}
 .gcv-avcol{width:32px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:center;}
-.gcv-typing-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0d1a00,#1a3300);border:1.5px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#84cc16;}
+.gcv-typing-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0d1a00,#1a3300);border:1.5px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center;font-size:calc((12px) + 1px);font-weight:700;color:#84cc16;}
 .gcv-bwrap{max-width:72%;display:flex;flex-direction:column;position:relative;}
 .gcv-bwrap-me{align-items:flex-end;}
 .gcv-bwrap-them{align-items:flex-start;}
-.gcv-sname{font-size:11px;font-weight:700;color:#84cc16;margin-bottom:3px;padding:0 2px;}
+.gcv-sname{font-size:calc((11px) + 1px);font-weight:700;color:#84cc16;margin-bottom:3px;padding:0 2px;}
 
 /* Reply quote */
 .gcv-rq{display:flex;align-items:stretch;margin-bottom:5px;border-radius:8px;overflow:hidden;cursor:pointer;max-width:100%;}
@@ -989,9 +989,9 @@ const CSS = `
 .gcv-rq-bar{width:3px;flex-shrink:0;background:#84cc16;}
 .gcv-rq-me .gcv-rq-bar{background:rgba(255,255,255,.3);}
 .gcv-rq-body{padding:5px 10px;flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;background:rgba(0,0,0,.25);}
-.gcv-rq-who{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#84cc16;margin-bottom:2px;}
+.gcv-rq-who{display:flex;align-items:center;gap:4px;font-size:calc((10px) + 1px);font-weight:700;color:#84cc16;margin-bottom:2px;}
 .gcv-rq-me .gcv-rq-who{color:rgba(255,255,255,.5);}
-.gcv-rq-pre{display:block;min-width:0;max-width:100%;font-size:11px;color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gcv-rq-pre{display:block;min-width:0;max-width:100%;font-size:calc((11px) + 1px);color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* Bubbles */
 .gcv-bubble{padding:0 1px 4px;word-break:break-word;position:relative;box-shadow:0 4px 16px rgba(0,0,0,.12);margin:0;border-radius:14px!important;}
@@ -1007,7 +1007,7 @@ const CSS = `
 .gcv-tailme::after{content:"";position:absolute;top:1px;right:-8px;width:0;height:0;border-style:solid;border-width:11px 9px 0 0;border-color:rgba(156,255,0,.26) transparent transparent transparent;z-index:-1;}
 .gcv-bgif{padding:0!important;background:transparent!important;border:none!important;}
 .gcv-gif{max-width:220px;max-height:170px;border-radius:10px;display:block;object-fit:cover;}
-.gcv-txt{font-size:14px;line-height:1.5;color:#f0f0f0;}
+.gcv-txt{font-size:calc((14px) + 1px);line-height:1.5;color:#f0f0f0;}
 .gcv-bme .gcv-txt{color:#e8ffe8;text-align:right;}
 
 .gcv-opt{opacity:.65;}.gcv-fail{opacity:.45;}
@@ -1016,16 +1016,16 @@ const CSS = `
 .gcv-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;padding:0 2px;}
 .gcv-bwrap-me .gcv-meta{justify-content:space-between;width:100%;}
 .gcv-meta-me{justify-content:flex-start;}
-.gcv-time{font-size:10px;color:#444;}
-.gcv-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;min-width:15px;text-align:left;}
+.gcv-time{font-size:calc((10px) + 1px);color:#444;}
+.gcv-status{font-size:calc((12px) + 1px);font-weight:800;line-height:1;letter-spacing:-2px;min-width:15px;text-align:left;}
 .gcv-status-sent{color:#9ca3af;}.gcv-status-delivered{color:#d1d5db;}.gcv-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}.gcv-status-failed{color:#ef4444;letter-spacing:0;}
 
 /* Reactions */
 .gcv-reacs{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
 .gcv-reacs-me{justify-content:flex-end;}
-.gcv-reac{display:flex;align-items:center;gap:2px;padding:2px 7px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);font-size:13px;cursor:pointer;transition:background .15s;}
+.gcv-reac{display:flex;align-items:center;gap:2px;padding:2px 7px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);font-size:calc((13px) + 1px);cursor:pointer;transition:background .15s;}
 .gcv-reac:hover{background:rgba(255,255,255,.12);}
-.gcv-reac-c{font-size:10px;font-weight:700;color:#888;}
+.gcv-reac-c{font-size:calc((10px) + 1px);font-weight:700;color:#888;}
 
 /* Hover reply btn */
 .gcv-hr{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:rgba(14,14,14,.95);border:1px solid rgba(132,204,22,.3);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;z-index:5;animation:gcvRBIn .15s ease-out forwards;box-shadow:0 2px 8px rgba(0,0,0,.4);}
@@ -1036,9 +1036,9 @@ const CSS = `
 /* React panel */
 .gcv-rxp{position:absolute;top:-50px;display:flex;gap:3px;align-items:center;background:rgba(14,14,14,.98);border:1px solid rgba(255,255,255,.1);border-radius:28px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.7);z-index:10;animation:gcvRxIn .15s ease-out;white-space:nowrap;}
 .gcv-rxp-l{right:0;}.gcv-rxp-r{left:0;}
-.gcv-rxbtn{background:none;border:none;font-size:22px;cursor:pointer;border-radius:8px;padding:2px 3px;transition:transform .1s;}
+.gcv-rxbtn{background:none;border:none;font-size:calc((22px) + 1px);cursor:pointer;border-radius:8px;padding:2px 3px;transition:transform .1s;}
 .gcv-rxbtn:hover{transform:scale(1.3);}
-.gcv-rxreply{background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);border-radius:12px;padding:5px 10px;color:#84cc16;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;}
+.gcv-rxreply{background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);border-radius:12px;padding:5px 10px;color:#84cc16;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:calc((11px) + 1px);font-weight:700;}
 
 /* Typing */
 .gcv-typing-bubble{padding:10px 14px!important;}
@@ -1049,19 +1049,19 @@ const CSS = `
 
 /* Members side panel */
 .gcv-mpanel{width:176px;background:rgba(8,8,8,.97);border-left:1px solid rgba(255,255,255,.06);overflow-y:auto;flex-shrink:0;}
-.gcv-mpanel-hdr{padding:12px 12px 8px;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;}
+.gcv-mpanel-hdr{padding:12px 12px 8px;border-bottom:1px solid rgba(255,255,255,.05);font-size:calc((10px) + 1px);font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;}
 .gcv-mrow{display:flex;align-items:center;gap:8px;padding:9px 12px;}
 .gcv-minfo{flex:1;min-width:0;}
-.gcv-mname{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.gcv-madmin{font-size:9px;font-weight:700;color:#84cc16;letter-spacing:.4px;}
-.gcv-myou{font-size:10px;color:#555;font-style:italic;flex-shrink:0;}
+.gcv-mname{font-size:calc((12px) + 1px);font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gcv-madmin{font-size:calc((9px) + 1px);font-weight:700;color:#84cc16;letter-spacing:.4px;}
+.gcv-myou{font-size:calc((10px) + 1px);color:#555;font-style:italic;flex-shrink:0;}
 
 /* Reply bar */
 .gcv-rbar{display:flex;align-items:center;gap:9px;padding:9px 14px;background:rgba(8,8,8,.98);border-top:1px solid rgba(132,204,22,.15);animation:gcvRBSlide .2s ease-out;flex-shrink:0;}
 .gcv-rbar-acc{width:3px;height:36px;border-radius:2px;background:#84cc16;flex-shrink:0;}
 .gcv-rbar-body{flex:1;min-width:0;}
-.gcv-rbar-who{font-size:10px;font-weight:700;color:#84cc16;margin-bottom:2px;}
-.gcv-rbar-pre{font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gcv-rbar-who{font-size:calc((10px) + 1px);font-weight:700;color:#84cc16;margin-bottom:2px;}
+.gcv-rbar-pre{font-size:calc((12px) + 1px);color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .gcv-rbar-x{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#666;flex-shrink:0;}
 
 /* Input */
@@ -1073,7 +1073,7 @@ const CSS = `
 .gcv-ibtn-on{background:rgba(132,204,22,.12)!important;border-color:rgba(132,204,22,.3)!important;color:#84cc16!important;}
 .gcv-ibtn-gif:hover{background:rgba(96,165,250,.08)!important;color:#60a5fa!important;}
 .gcv-ibtn-gif-on{background:rgba(96,165,250,.12)!important;border-color:rgba(96,165,250,.3)!important;color:#60a5fa!important;}
-.gcv-ta{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:22px;color:#fff;font-size:14px;padding:10px 16px;outline:none;caret-color:#84cc16;font-family:inherit;resize:none;overflow:hidden;line-height:1.4;min-height:40px;max-height:120px;transition:border-color .2s;box-sizing:border-box;}
+.gcv-ta{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:22px;color:#fff;font-size:calc((14px) + 1px);padding:10px 16px;outline:none;caret-color:#84cc16;font-family:inherit;resize:none;overflow:hidden;line-height:1.4;min-height:40px;max-height:120px;transition:border-color .2s;box-sizing:border-box;}
 .gcv-ta:focus{border-color:rgba(132,204,22,.35);}
 .gcv-ta::placeholder{color:#333;}
 .gcv-send{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.07);color:#333;display:flex;align-items:center;justify-content:center;cursor:not-allowed;flex-shrink:0;transition:all .15s;}
@@ -1083,18 +1083,18 @@ const CSS = `
 /* Emoji picker */
 .gcv-ep{position:absolute;bottom:calc(100% + 8px);left:14px;width:320px;background:#111;border:1px solid rgba(132,204,22,.25);border-radius:14px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.8);z-index:200;}
 .gcv-ep-sr{display:flex;align-items:center;gap:7px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.06);}
-.gcv-ep-inp{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:12px;padding:5px 9px;outline:none;}
+.gcv-ep-inp{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#fff;font-size:calc((12px) + 1px);padding:5px 9px;outline:none;}
 .gcv-ep-cats{display:flex;gap:2px;padding:6px 9px;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;}
-.gcv-ep-cb{flex-shrink:0;width:32px;height:30px;border-radius:7px;background:transparent;border:1px solid transparent;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.gcv-ep-cb{flex-shrink:0;width:32px;height:30px;border-radius:7px;background:transparent;border:1px solid transparent;font-size:calc((17px) + 1px);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .gcv-ep-cb-on{background:rgba(132,204,22,.15)!important;border-color:rgba(132,204,22,.4)!important;}
 .gcv-ep-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px;max-height:240px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(132,204,22,.3) transparent;}
-.gcv-ep-em{aspect-ratio:1;background:transparent;border:none;border-radius:6px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s,transform .1s;}
+.gcv-ep-em{aspect-ratio:1;background:transparent;border:none;border-radius:6px;font-size:calc((21px) + 1px);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s,transform .1s;}
 
 /* GIF picker */
 .gcv-gp{position:absolute;bottom:calc(100% + 8px);left:14px;width:340px;background:#111;border:1px solid rgba(132,204,22,.25);border-radius:14px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.8);z-index:200;}
 .gcv-gp-top{padding:9px 11px 7px;border-bottom:1px solid rgba(255,255,255,.06);}
 .gcv-gp-quick{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin-top:7px;}
-.gcv-gp-chip{flex-shrink:0;padding:3px 9px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#777;font-size:11px;font-weight:600;cursor:pointer;}
+.gcv-gp-chip{flex-shrink:0;padding:3px 9px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:#777;font-size:calc((11px) + 1px);font-weight:600;cursor:pointer;}
 .gcv-gp-chip-on{background:rgba(132,204,22,.15)!important;border-color:rgba(132,204,22,.35)!important;color:#84cc16!important;}
 .gcv-gp-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px;max-height:240px;overflow-y:auto;scrollbar-width:thin;}
 .gcv-gp-item{border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px;overflow:hidden;aspect-ratio:4/3;}
@@ -1105,36 +1105,36 @@ const CSS = `
 .gcv-modal{width:100%;max-height:90vh;background:#090909;border:1px solid rgba(132,204,22,.15);border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;animation:geUp .32s cubic-bezier(.34,1.4,.64,1);}
 .gcv-modal-pill{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin:12px auto 0;flex-shrink:0;}
 .gcv-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 11px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
-.gcv-modal-title{font-size:15px;font-weight:800;color:#fff;}
-.gcv-modal-cancel{background:none;border:none;color:#84cc16;font-size:13px;font-weight:700;cursor:pointer;}
-.gcv-modal-action{padding:7px 16px;border-radius:20px;background:rgba(132,204,22,.2);border:1px solid rgba(132,204,22,.4);color:#84cc16;font-size:13px;font-weight:700;cursor:pointer;}
+.gcv-modal-title{font-size:calc((15px) + 1px);font-weight:800;color:#fff;}
+.gcv-modal-cancel{background:none;border:none;color:#84cc16;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;}
+.gcv-modal-action{padding:7px 16px;border-radius:20px;background:rgba(132,204,22,.2);border:1px solid rgba(132,204,22,.4);color:#84cc16;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;}
 .gcv-modal-action:disabled{opacity:.35;cursor:not-allowed;}
 .gcv-modal-body{flex:1;overflow-y:auto;padding:16px 18px 32px;display:flex;flex-direction:column;}
 .gcv-modal-av-wrap{position:relative;width:88px;height:88px;margin:0 auto 8px;cursor:pointer;}
 .gcv-modal-av{width:88px;height:88px;border-radius:50%;background:rgba(132,204,22,.1);border:2px dashed rgba(132,204,22,.4);display:flex;align-items:center;justify-content:center;overflow:hidden;}
 .gcv-modal-av-cam{position:absolute;bottom:0;right:0;width:28px;height:28px;border-radius:50%;background:#84cc16;border:2px solid #090909;display:flex;align-items:center;justify-content:center;color:#000;}
-.gcv-modal-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin:0 0 7px;}
-.gcv-modal-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;font-size:15px;padding:11px 13px;outline:none;box-sizing:border-box;font-weight:600;caret-color:#84cc16;margin-bottom:16px;}
+.gcv-modal-label{font-size:calc((10px) + 1px);font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin:0 0 7px;}
+.gcv-modal-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;font-size:calc((15px) + 1px);padding:11px 13px;outline:none;box-sizing:border-box;font-weight:600;caret-color:#84cc16;margin-bottom:16px;}
 
 /* Settings rows */
 .gcv-settings-rows{display:flex;flex-direction:column;gap:1px;margin-bottom:24px;}
 .gcv-settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;cursor:pointer;transition:background .15s;margin-bottom:6px;}
 .gcv-settings-row:hover{background:rgba(255,255,255,.06);}
-.gcv-sr-left{display:flex;align-items:center;gap:10px;font-size:14px;color:#ccc;font-weight:500;}
-.gcv-sr-chev{font-size:18px;color:#444;}
+.gcv-sr-left{display:flex;align-items:center;gap:10px;font-size:calc((14px) + 1px);color:#ccc;font-weight:500;}
+.gcv-sr-chev{font-size:calc((18px) + 1px);color:#444;}
 
 /* Danger zone */
 .gcv-danger-zone{margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);}
-.gcv-danger-btn{width:100%;padding:13px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;}
+.gcv-danger-btn{width:100%;padding:13px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:calc((14px) + 1px);font-weight:700;cursor:pointer;transition:all .15s;}
 .gcv-btn-delete{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;}
 .gcv-btn-delete:hover{background:rgba(239,68,68,.18);}
 .gcv-btn-leave{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);color:#f97316;}
 .gcv-btn-leave:hover{background:rgba(249,115,22,.18);}
 
 /* Confirm actions */
-.gcv-confirm-delete-btn{width:100%;max-width:280px;padding:14px;border-radius:14px;background:rgba(239,68,68,.15);border:1.5px solid rgba(239,68,68,.4);color:#ef4444;font-size:15px;font-weight:800;cursor:pointer;transition:all .15s;}
+.gcv-confirm-delete-btn{width:100%;max-width:280px;padding:14px;border-radius:14px;background:rgba(239,68,68,.15);border:1.5px solid rgba(239,68,68,.4);color:#ef4444;font-size:calc((15px) + 1px);font-weight:800;cursor:pointer;transition:all .15s;}
 .gcv-confirm-delete-btn:hover{background:rgba(239,68,68,.25);}
-.gcv-confirm-leave-btn{width:100%;max-width:280px;padding:14px;border-radius:14px;background:rgba(249,115,22,.15);border:1.5px solid rgba(249,115,22,.4);color:#f97316;font-size:15px;font-weight:800;cursor:pointer;transition:all .15s;}
+.gcv-confirm-leave-btn{width:100%;max-width:280px;padding:14px;border-radius:14px;background:rgba(249,115,22,.15);border:1.5px solid rgba(249,115,22,.4);color:#f97316;font-size:calc((15px) + 1px);font-weight:800;cursor:pointer;transition:all .15s;}
 .gcv-confirm-leave-btn:hover{background:rgba(249,115,22,.25);}
 
 /* Bg picker */
@@ -1144,19 +1144,19 @@ const CSS = `
 .gcv-bg-on{background:rgba(132,204,22,.1)!important;border-color:rgba(132,204,22,.35)!important;}
 .gcv-bg-prev{width:40px;height:32px;border-radius:6px;flex-shrink:0;}
 .gcv-bg-grid-pat{background:repeating-linear-gradient(90deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),repeating-linear-gradient(0deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),#000;}
-.gcv-bg-name{font-size:13px;color:#ccc;font-weight:500;}
+.gcv-bg-name{font-size:calc((13px) + 1px);color:#ccc;font-weight:500;}
 
 /* Icon picker */
 .gcv-icon-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
-.gcv-icon-btn{font-size:26px;padding:10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);cursor:pointer;transition:all .12s;}
+.gcv-icon-btn{font-size:calc((26px) + 1px);padding:10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);cursor:pointer;transition:all .12s;}
 .gcv-icon-on{background:rgba(132,204,22,.12)!important;border-color:rgba(132,204,22,.4)!important;}
 
 /* Members full list */
 .gcv-member-row-full{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.04);}
 .gcv-mrf-info{flex:1;min-width:0;}
-.gcv-mrf-name{font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.gcv-mrf-admin{font-size:9px;font-weight:700;color:#84cc16;letter-spacing:.4px;margin-top:1px;}
-.gcv-mrf-you{font-size:10px;color:#555;font-style:italic;flex-shrink:0;}
+.gcv-mrf-name{font-size:calc((13px) + 1px);font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gcv-mrf-admin{font-size:calc((9px) + 1px);font-weight:700;color:#84cc16;letter-spacing:.4px;margin-top:1px;}
+.gcv-mrf-you{font-size:calc((10px) + 1px);color:#555;font-style:italic;flex-shrink:0;}
 `;
 
 export default GroupChatView;

@@ -258,7 +258,7 @@ const MessageList = ({
                 data-new-message-divider
                 role="separator"
                 aria-label={`New messages, ${formatTime(msg.created_at)}`}
-                style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 6px", color: "#fb7185", fontSize: 11, fontWeight: 800, letterSpacing: ".04em" }}
+                style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 6px", color: "#fb7185", fontSize: 12, fontWeight: 800, letterSpacing: ".04em" }}
               >
                 <span style={{ height: 1, flex: 1, background: "rgba(251,113,133,.62)" }} />
                 <span>NEW MESSAGES · {formatTime(msg.created_at)}</span>
@@ -381,7 +381,7 @@ const MessageList = ({
       <div ref={messagesEndRef} />
       {viewingImage && ReactDOM.createPortal(
         <div role="dialog" aria-modal="true" aria-label="Full-size message image" onClick={() => setViewingImage(null)} style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,.92)" }}>
-          <button type="button" onClick={() => setViewingImage(null)} aria-label="Close image viewer" style={{ position: "fixed", top: 16, right: 16, width: 40, height: 40, border: "1px solid rgba(255,255,255,.25)", borderRadius: "50%", background: "rgba(20,20,20,.8)", color: "white", fontSize: 24, lineHeight: 1, cursor: "pointer" }}>×</button>
+          <button type="button" onClick={() => setViewingImage(null)} aria-label="Close image viewer" style={{ position: "fixed", top: 16, right: 16, width: 40, height: 40, border: "1px solid rgba(255,255,255,.25)", borderRadius: "50%", background: "rgba(20,20,20,.8)", color: "white", fontSize: 25, lineHeight: 1, cursor: "pointer" }}>×</button>
           <img src={viewingImage} alt="Full-size message" onClick={(event) => event.stopPropagation()} style={{ display: "block", maxWidth: "min(94vw, 1400px)", maxHeight: "92vh", objectFit: "contain", borderRadius: 4 }} />
         </div>,
         document.body,
@@ -399,7 +399,7 @@ const MessageList = ({
           flex-direction: column;
           gap: 0;
         }
-.dm-message-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;margin-left:0;display:inline-flex;align-items:flex-end;justify-content:center;min-width:15px;line-height:1.1;align-self:flex-end;transform:translateY(-1px);}
+.dm-message-status{font-size:calc((12px) + 1px);font-weight:800;line-height:1;letter-spacing:-2px;margin-left:0;display:inline-flex;align-items:flex-end;justify-content:center;min-width:15px;line-height:1.1;align-self:flex-end;transform:translateY(-1px);}
 .dm-message-status-sent{color:#9ca3af;}
 .dm-message-status-delivered{color:#d1d5db;}
 .dm-message-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}
@@ -484,15 +484,15 @@ const MessageList = ({
         .msg-item.me .msg-bubble,
         .msg-item.them .msg-bubble { margin: 0; }
 
-        .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
+        .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:calc((17px) + 1px);pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
-        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-bottom:4px;padding:6px 8px;border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-left:3px solid var(--reply-color,#9cff00);background:linear-gradient(135deg,color-mix(in srgb,var(--reply-color,#9cff00) 13%, transparent),rgba(255,255,255,.035));border-radius:8px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-bottom:4px;padding:6px 8px;border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-left:3px solid var(--reply-color,#9cff00);background:linear-gradient(135deg,color-mix(in srgb,var(--reply-color,#9cff00) 13%, transparent),rgba(255,255,255,.035));border-radius:8px;color:var(--text-secondary);font-size:calc((11px) + 1px);line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
         .msg-reply-quote.reply-tier-silver{border-left-color:#cbd5e1;background:linear-gradient(135deg,rgba(148,163,184,.13),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
         .msg-reply-quote.reply-tier-gold{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(251,191,36,.18)}
         .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
         .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:3px solid var(--announcement-color, var(--accent));border-radius:9px;padding:7px 8px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-        .msg-reply-quote span{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .msg-reply-quote strong{display:block;min-width:0;max-width:100%;color:var(--text);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote span{font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote strong{display:block;min-width:0;max-width:100%;color:var(--text);font-size:calc((12px) + 1px);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -567,7 +567,7 @@ const MessageList = ({
           border-radius: 50%;
           background: #84cc16;
           color: #071007;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 900;
           line-height: 1;
           vertical-align: middle;
@@ -588,7 +588,7 @@ const MessageList = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           color: var(--accent);
         }
@@ -618,14 +618,14 @@ const MessageList = ({
           border: 1px solid rgba(156,255,0,.28);
           box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
         }
-        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.55; white-space: normal; }
+        .msg-item.announcement .msg-content { font-size: calc((15px) + 1px); line-height: 1.55; white-space: normal; }
         .msg-content-blank-line { display: block; height: .85em; }
         .msg-inline-code { padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.08); color: #d9ffaf; font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; }
         .msg-item.announcement .msg-meta { margin-top: 5px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 16px; border-bottom-right-radius: 0; }
         .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 16px; }
-        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
+        .announcement-title{font-size:calc((18px) + 1px);line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
@@ -738,7 +738,7 @@ const MessageList = ({
           padding: 0;
           cursor: pointer;
           text-align: left;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: var(--accent);
           margin-bottom: 2px;
@@ -753,7 +753,7 @@ const MessageList = ({
         }
 
         .msg-content {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: var(--text);
           line-height: 1.5;
           word-break: break-word;
@@ -782,12 +782,12 @@ const MessageList = ({
         .announcement-reply-button:hover{background:rgba(156,255,0,.17);border-color:rgba(156,255,0,.55);color:#9cff00;transform:translateY(1px)}
 
         .msg-time {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           color: var(--text-muted);
         }
 
         .msg-edited {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           color: var(--text-secondary);
           font-style: italic;
         }
@@ -804,7 +804,7 @@ const MessageList = ({
           background: var(--surface);
           border: 1px solid var(--surface-border);
           border-radius: 8px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           cursor: pointer;
           transition: all 0.2s;
           color: var(--text-secondary);
@@ -839,7 +839,7 @@ const MessageList = ({
           }
 
           .msg-avatar-fallback {
-            font-size: 14px;
+            font-size: calc((14px) + 1px);
           }
 
           .msg-bubble {
@@ -850,11 +850,11 @@ const MessageList = ({
           }
 
           .msg-user-name {
-            font-size: 11px;
+            font-size: calc((11px) + 1px);
           }
 
           .msg-content {
-            font-size: 13px;
+            font-size: calc((13px) + 1px);
           }
 
           .msg-list-wrapper {

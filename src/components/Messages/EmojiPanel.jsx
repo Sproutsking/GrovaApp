@@ -792,7 +792,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
           border-radius: 6px;
           padding: 6px 10px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           outline: none;
         }
         .ep-search-input:focus {
@@ -847,7 +847,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
           background: transparent;
           border: none;
           border-radius: 5px;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -863,14 +863,14 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
           grid-column: 1 / -1;
           text-align: center;
           color: #444;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           padding: 24px 0;
         }
 
         @media (max-width: 420px) {
           .emoji-panel-msg { width: 300px; height: 360px; }
           .ep-grid { grid-template-columns: repeat(7, 1fr); }
-          .ep-item { font-size: 18px; }
+          .ep-item { font-size: calc((18px) + 1px); }
         }
       `}</style>
     </div>

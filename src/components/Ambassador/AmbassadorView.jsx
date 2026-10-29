@@ -153,7 +153,7 @@ function CopyBtn({ text, label = "Copy", small = false }) {
         border: `1px solid ${copied ? T.accent + "66" : T.border3}`,
         background: copied ? T.accent + "18" : "rgba(255,255,255,0.04)",
         color: copied ? T.accent : T.text2,
-        fontSize: small ? 11 : 12,
+        fontSize: small ? 12 : 13,
         fontWeight: 700,
         cursor: "pointer",
         fontFamily: "inherit",
@@ -229,14 +229,14 @@ function GlassCard({ children, style = {}, accent, onClick, noPad }) {
 function StatCard({ icon, label, value, sub, color, prefix = "", decimals = 0, isMobile }) {
   return (
     <GlassCard accent={color} style={{ flex: "1 1 0", minWidth: 0 }}>
-      <div style={{ fontSize: isMobile ? 24 : 26, marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: 8, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.4px", marginBottom: 4 }}>
+      <div style={{ fontSize: isMobile ? 25 : 27, marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.4px", marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: T.text, letterSpacing: -0.5, lineHeight: 1 }}>
+      <div style={{ fontSize: isMobile ? 21 : 25, fontWeight: 900, color: T.text, letterSpacing: -0.5, lineHeight: 1 }}>
         <CountUp target={value} prefix={prefix} decimals={decimals} />
       </div>
-      {sub && <div style={{ fontSize: 10, color: T.muted, marginTop: 5, lineHeight: 1.4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: T.muted, marginTop: 5, lineHeight: 1.4 }}>{sub}</div>}
       <div style={{ marginTop: 12 }}>
         <div style={{ height: 2, background: `linear-gradient(90deg, ${color}88, ${color}22)`, borderRadius: 2 }} />
       </div>
@@ -266,7 +266,7 @@ function MiniChart({ data, color, isMobile }) {
                 boxShadow: d.amount > 0 ? `0 -2px 8px ${color}44` : "none",
               }}
             />
-            <span style={{ fontSize: 7, color: T.muted, whiteSpace: "nowrap" }}>{d.label}</span>
+            <span style={{ fontSize: 8, color: T.muted, whiteSpace: "nowrap" }}>{d.label}</span>
           </div>
         );
       })}
@@ -289,7 +289,7 @@ function LoadingScreen() {
         borderTopColor: T.accent,
         animation: "ambSpin .7s linear infinite",
       }} />
-      <div style={{ fontSize: 13, color: T.muted, letterSpacing: "0.5px" }}>Loading your profile…</div>
+      <div style={{ fontSize: 14, color: T.muted, letterSpacing: "0.5px" }}>Loading your profile…</div>
       <style>{`@keyframes ambSpin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -301,15 +301,15 @@ function LoadingScreen() {
 function ErrorScreen({ error, reload }) {
   return (
     <div style={{ maxWidth: 400, margin: "48px auto", padding: "0 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
-      <div style={{ fontSize: 15, color: T.danger, marginBottom: 8, fontWeight: 600 }}>Something went wrong</div>
-      <div style={{ fontSize: 13, color: T.muted, marginBottom: 24, lineHeight: 1.6 }}>{error}</div>
+      <div style={{ fontSize: 41, marginBottom: 14 }}>⚠️</div>
+      <div style={{ fontSize: 16, color: T.danger, marginBottom: 8, fontWeight: 600 }}>Something went wrong</div>
+      <div style={{ fontSize: 14, color: T.muted, marginBottom: 24, lineHeight: 1.6 }}>{error}</div>
       <button
         onClick={reload}
         style={{
           padding: "12px 28px", borderRadius: 14, border: `1px solid ${T.border3}`,
           background: "rgba(255,255,255,0.04)", color: T.text2,
-          cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600,
           transition: "all .2s",
         }}
       >Try Again</button>
@@ -353,7 +353,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
             background: `linear-gradient(135deg, ${T.accent}22, ${T.accent}08)`,
             border: `1.5px solid ${T.accent}44`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 36,
+            fontSize: 37,
             boxShadow: `0 0 40px ${T.accent}20`,
           }}>🌐</div>
           <div style={{
@@ -368,7 +368,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
           display: "inline-flex", alignItems: "center", gap: 8,
           padding: "6px 18px", borderRadius: 30,
           background: `${T.accent}0f`, border: `1px solid ${T.accent}33`,
-          fontSize: 10, fontWeight: 800, color: T.accent,
+          fontSize: 11, fontWeight: 800, color: T.accent,
           letterSpacing: "2.5px", textTransform: "uppercase", marginBottom: 20,
         }}>
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, display: "inline-block", boxShadow: `0 0 6px ${T.accent}` }} />
@@ -376,7 +376,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
         </div>
 
         <h1 style={{
-          fontSize: isMobile ? 30 : 42,
+          fontSize: isMobile ? 31 : 43,
           fontWeight: 900, color: T.text,
           margin: "0 0 14px", letterSpacing: -1.5, lineHeight: 1.08,
         }}>
@@ -388,14 +388,14 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
             Earn real money.
           </span>
         </h1>
-        <p style={{ fontSize: isMobile ? 14 : 15, color: T.muted, margin: "0 auto", lineHeight: 1.75, maxWidth: 460 }}>
+        <p style={{ fontSize: isMobile ? 15 : 16, color: T.muted, margin: "0 auto", lineHeight: 1.75, maxWidth: 460 }}>
           Every user who joins through your referral link earns you a commission. Level up to unlock higher rates — up to 20%.
         </p>
       </div>
 
       {/* Level cards — tap to expand */}
       <div style={{ marginBottom: 28, animation: "ambFadeUp .5s .1s ease both" }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 14, textAlign: "center" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 14, textAlign: "center" }}>
           Commission Tiers
         </div>
         <div style={{
@@ -422,15 +422,15 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
                   ...(isMobile && lvl.level === 5 ? { gridColumn: "1 / -1" } : {}),
                 }}
               >
-                <div style={{ fontSize: isMobile ? 26 : 22, marginBottom: 6 }}>{lvl.icon}</div>
-                <div style={{ fontSize: 9, fontWeight: 800, color: lvl.color, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 2 }}>
+                <div style={{ fontSize: isMobile ? 27 : 23, marginBottom: 6 }}>{lvl.icon}</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: lvl.color, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 2 }}>
                   {lvl.name}
                 </div>
-                <div style={{ fontSize: isMobile ? 24 : 22, fontWeight: 900, color: T.text, lineHeight: 1 }}>{lvl.commissionPct}%</div>
-                <div style={{ fontSize: 8, color: T.muted, marginTop: 2 }}>commission</div>
+                <div style={{ fontSize: isMobile ? 25 : 23, fontWeight: 900, color: T.text, lineHeight: 1 }}>{lvl.commissionPct}%</div>
+                <div style={{ fontSize: 9, color: T.muted, marginTop: 2 }}>commission</div>
                 {isActive && (
                   <div style={{
-                    marginTop: 8, fontSize: 9, color: lvl.color,
+                    marginTop: 8, fontSize: 10, color: lvl.color,
                     fontWeight: 700, lineHeight: 1.5,
                     padding: "4px 8px", background: `${lvl.color}0f`,
                     borderRadius: 8, border: `1px solid ${lvl.color}22`,
@@ -446,7 +446,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
 
       {/* How it works */}
       <GlassCard style={{ marginBottom: 16, animation: "ambFadeUp .5s .2s ease both" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, marginBottom: 18, textTransform: "uppercase", letterSpacing: "1.2px" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: T.text2, marginBottom: 18, textTransform: "uppercase", letterSpacing: "1.2px" }}>
           How it works
         </div>
         {[
@@ -465,11 +465,11 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
               width: 40, height: 40, borderRadius: 13, flexShrink: 0,
               background: `${T.accent}0f`, border: `1px solid ${T.accent}22`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18,
+              fontSize: 19,
             }}>{item.icon}</div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{item.title}</div>
-              <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>{item.desc}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 3 }}>{item.title}</div>
+              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>{item.desc}</div>
             </div>
           </div>
         ))}
@@ -477,7 +477,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
 
       {/* Example earnings */}
       <GlassCard accent={T.accent} style={{ marginBottom: 16, animation: "ambFadeUp .5s .25s ease both" }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: T.accent, marginBottom: 14, textTransform: "uppercase", letterSpacing: "1.2px" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: T.accent, marginBottom: 14, textTransform: "uppercase", letterSpacing: "1.2px" }}>
           💡 Example earnings at $1 per referral
         </div>
         <div style={{ display: "flex", gap: isMobile ? 6 : 8 }}>
@@ -492,9 +492,9 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
                 border: `1px solid ${lvl.color}1a`,
                 borderRadius: 12,
               }}>
-                <div style={{ fontSize: 8, color: T.muted, marginBottom: 4 }}>~{mid < 1000 ? mid : (mid / 1000) + "k"}/mo</div>
-                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 900, color: lvl.color, letterSpacing: -0.5 }}>{fmt$(earn)}</div>
-                <div style={{ fontSize: 8, color: lvl.color + "88", marginTop: 2 }}>{lvl.commissionPct}%</div>
+                <div style={{ fontSize: 9, color: T.muted, marginBottom: 4 }}>~{mid < 1000 ? mid : (mid / 1000) + "k"}/mo</div>
+                <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: lvl.color, letterSpacing: -0.5 }}>{fmt$(earn)}</div>
+                <div style={{ fontSize: 9, color: lvl.color + "88", marginTop: 2 }}>{lvl.commissionPct}%</div>
               </div>
             );
           })}
@@ -519,9 +519,9 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
             boxShadow: agreed ? `0 0 12px ${T.accent}44` : "none",
           }}
         >
-          {agreed && <span style={{ fontSize: 12, color: "#000", fontWeight: 900 }}>✓</span>}
+          {agreed && <span style={{ fontSize: 13, color: "#000", fontWeight: 900 }}>✓</span>}
         </div>
-        <span style={{ fontSize: 12, color: T.muted, lineHeight: 1.65 }}>
+        <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.65 }}>
           I agree to the Ambassador Terms. Commissions are paid on request with a minimum of $10. Xeevia may adjust rates with 30 days notice.
         </span>
       </label>
@@ -530,7 +530,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
         <div style={{
           padding: "12px 16px", borderRadius: 14, marginBottom: 16,
           background: "rgba(248,113,113,.06)", border: "1px solid rgba(248,113,113,.2)",
-          fontSize: 12, color: T.danger, lineHeight: 1.5,
+          fontSize: 13, color: T.danger, lineHeight: 1.5,
         }}>
           {error}
         </div>
@@ -546,7 +546,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
             ? T.bg3
             : `linear-gradient(135deg, ${T.accent} 0%, #65a30d 100%)`,
           color: (!agreed || joining) ? T.muted : "#051000",
-          fontWeight: 900, fontSize: isMobile ? 15 : 16,
+          fontWeight: 900, fontSize: isMobile ? 16 : 17,
           cursor: (!agreed || joining) ? "not-allowed" : "pointer",
           fontFamily: "inherit", transition: "all .25s",
           boxShadow: (!agreed || joining) ? "none" : `0 10px 40px ${T.accent}40`,
@@ -557,7 +557,7 @@ function JoinScreen({ userProfile, onJoined, isMobile }) {
         {joining ? "Setting up your account…" : "Join the Ambassador Program →"}
       </button>
 
-      <p style={{ textAlign: "center", fontSize: 11, color: T.muted, marginTop: 14 }}>
+      <p style={{ textAlign: "center", fontSize: 12, color: T.muted, marginTop: 14 }}>
         Free to join · No targets required · Withdraw anytime
       </p>
     </div>
@@ -606,15 +606,15 @@ function Dashboard({ profile, onReload, isMobile }) {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <LevelBadge level={profile.current_level} size={isMobile ? "sm" : "md"} />
-              <span style={{ color: T.muted, fontSize: 12 }}>·</span>
-              <span style={{ fontSize: 12, color: T.muted }}>
+              <span style={{ color: T.muted, fontSize: 13 }}>·</span>
+              <span style={{ fontSize: 13, color: T.muted }}>
                 Code:{" "}
                 <span style={{ color: T.accent, fontWeight: 800, fontFamily: "monospace", letterSpacing: "0.5px" }}>
                   {profile.invite_code}
                 </span>
               </span>
-              <span style={{ color: T.muted, fontSize: 12 }}>·</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: lvl.color }}>{lvl.commissionPct}% per ref</span>
+              <span style={{ color: T.muted, fontSize: 13 }}>·</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: lvl.color }}>{lvl.commissionPct}% per ref</span>
             </div>
           </div>
 
@@ -628,7 +628,7 @@ function Dashboard({ profile, onReload, isMobile }) {
                 ? `linear-gradient(135deg, ${T.success}, #059669)`
                 : "rgba(255,255,255,0.05)",
               color: profile.pendingPayout >= 10 ? "#001a0e" : T.muted,
-              fontWeight: 800, fontSize: 13, cursor: "pointer",
+              fontWeight: 800, fontSize: 14, cursor: "pointer",
               fontFamily: "inherit", whiteSpace: "nowrap",
               alignSelf: isMobile ? "stretch" : "auto",
               justifyContent: "center",
@@ -641,7 +641,7 @@ function Dashboard({ profile, onReload, isMobile }) {
               <span style={{
                 padding: "2px 10px", borderRadius: 10,
                 background: "rgba(0,0,0,0.2)",
-                fontSize: 12, fontWeight: 900,
+                fontSize: 13, fontWeight: 900,
               }}>
                 {fmt$(profile.pendingPayout)}
               </span>
@@ -664,11 +664,11 @@ function Dashboard({ profile, onReload, isMobile }) {
                 borderBottom: tab === t.id ? `2px solid ${T.accent}` : "2px solid transparent",
                 background: tab === t.id ? `${T.accent}0a` : "transparent",
                 color: tab === t.id ? T.accent : T.muted,
-                fontWeight: tab === t.id ? 800 : 500, fontSize: 13,
+                fontWeight: tab === t.id ? 800 : 500, fontSize: 14,
                 cursor: "pointer", fontFamily: "inherit",
                 transition: "color .15s, background .15s",
               }}>
-                <span style={{ fontSize: 15 }}>{t.icon}</span>
+                <span style={{ fontSize: 16 }}>{t.icon}</span>
                 {t.label}
               </button>
             ))}
@@ -705,15 +705,15 @@ function Dashboard({ profile, onReload, isMobile }) {
             <GlassCard>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 3 }}>Earnings · Last 8 Weeks</div>
-                  <div style={{ fontSize: 12, color: T.muted }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 3 }}>Earnings · Last 8 Weeks</div>
+                  <div style={{ fontSize: 13, color: T.muted }}>
                     This month:{" "}
                     <span style={{ color: T.success, fontWeight: 700 }}>{fmt$(profile.thisMonthEarned)}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: lvl.color }}>{fmt$(profile.totalEarned)}</div>
-                  <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>lifetime</div>
+                  <div style={{ fontSize: 21, fontWeight: 900, color: lvl.color }}>{fmt$(profile.totalEarned)}</div>
+                  <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>lifetime</div>
                 </div>
               </div>
               <MiniChart data={chartData} color={lvl.color} isMobile={isMobile} />
@@ -744,14 +744,14 @@ function Dashboard({ profile, onReload, isMobile }) {
             </div>
 
             <GlassCard>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 18 }}>Earnings History</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 18 }}>Earnings History</div>
               <MiniChart data={chartData} color={lvl.color} isMobile={isMobile} />
             </GlassCard>
 
             {/* Commission rate table */}
             <GlassCard noPad>
               <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Commission Rate Schedule</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Commission Rate Schedule</div>
               </div>
               {AMBASSADOR_LEVELS.map((l, i) => (
                 <div key={l.level} style={{
@@ -761,26 +761,26 @@ function Dashboard({ profile, onReload, isMobile }) {
                   background: l.level === profile.current_level ? `${l.color}07` : "transparent",
                   transition: "background .2s",
                 }}>
-                  <span style={{ fontSize: 20 }}>{l.icon}</span>
+                  <span style={{ fontSize: 21 }}>{l.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: l.level === profile.current_level ? l.color : T.text2 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: l.level === profile.current_level ? l.color : T.text2 }}>
                       {l.name}
                       {l.level === profile.current_level && (
                         <span style={{
-                          marginLeft: 8, fontSize: 8, fontWeight: 900, color: l.color,
+                          marginLeft: 8, fontSize: 9, fontWeight: 900, color: l.color,
                           background: `${l.color}18`, padding: "2px 8px", borderRadius: 6,
                           border: `1px solid ${l.color}33`,
                         }}>← YOU</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
                       {l.minMonthly}–{l.maxMonthly === Infinity ? "∞" : l.maxMonthly} referrals/month
                     </div>
                   </div>
                   <div style={{
                     padding: "6px 14px", borderRadius: 12,
                     background: l.badgeBg, border: `1px solid ${l.badgeBorder}`,
-                    fontSize: 16, fontWeight: 900, color: l.color,
+                    fontSize: 17, fontWeight: 900, color: l.color,
                   }}>
                     {l.commissionPct}%
                   </div>
@@ -819,8 +819,8 @@ function Dashboard({ profile, onReload, isMobile }) {
                 transition: "color .15s",
               }}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{t.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: tab === t.id ? 800 : 500 }}>{t.label}</span>
+              <span style={{ fontSize: 21, lineHeight: 1 }}>{t.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: tab === t.id ? 800 : 500 }}>{t.label}</span>
               {tab === t.id && (
                 <div style={{
                   position: "absolute", bottom: "env(safe-area-inset-bottom, 0px)",
@@ -859,7 +859,7 @@ function Dashboard({ profile, onReload, isMobile }) {
           padding: "15px 22px", borderRadius: 16,
           background: `${T.success}14`,
           border: `1px solid ${T.success}44`,
-          fontSize: 13, fontWeight: 700, color: T.success,
+          fontSize: 14, fontWeight: 700, color: T.success,
           boxShadow: "0 12px 40px rgba(0,0,0,.6)",
           animation: "ambToast 4s ease forwards",
           backdropFilter: "blur(16px)",
@@ -894,17 +894,17 @@ function LevelCard({ profile, isMobile }) {
             background: `${lvl.color}18`,
             border: `2px solid ${lvl.color}33`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: isMobile ? 28 : 36,
+            fontSize: isMobile ? 29 : 37,
             boxShadow: `0 0 24px ${lvl.color}22`,
           }}>{lvl.icon}</div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.4px", marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.4px", marginBottom: 4 }}>
               Your Level
             </div>
-            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 900, color: lvl.color, letterSpacing: -0.5, lineHeight: 1 }}>
+            <div style={{ fontSize: isMobile ? 23 : 27, fontWeight: 900, color: lvl.color, letterSpacing: -0.5, lineHeight: 1 }}>
               {lvl.name}
             </div>
-            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Level {profile.current_level} of 5</div>
+            <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>Level {profile.current_level} of 5</div>
           </div>
         </div>
 
@@ -915,10 +915,10 @@ function LevelCard({ profile, isMobile }) {
           alignSelf: isMobile ? "flex-start" : "auto",
           boxShadow: `0 0 24px ${lvl.color}14`,
         }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: lvl.color, letterSpacing: -1.5, lineHeight: 1 }}>
+          <div style={{ fontSize: 33, fontWeight: 900, color: lvl.color, letterSpacing: -1.5, lineHeight: 1 }}>
             {lvl.commissionPct}%
           </div>
-          <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>commission rate</div>
+          <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>commission rate</div>
         </div>
       </div>
 
@@ -926,16 +926,16 @@ function LevelCard({ profile, isMobile }) {
       {!isMax && (
         <div style={{ marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: T.muted }}>
+            <span style={{ fontSize: 12, color: T.muted }}>
               Progress to{" "}
               <span style={{ color: nextLvl.color, fontWeight: 700 }}>{nextLvl.icon} {nextLvl.name}</span>
             </span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: lvl.color }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: lvl.color }}>
               {fmtNum(thisMonth)} / {fmtNum(target)}
             </span>
           </div>
           <Bar value={thisMonth} max={target} color={lvl.color} h={8} />
-          <div style={{ fontSize: 11, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>
             {remaining > 0 ? (
               <>
                 <span style={{ color: T.text2, fontWeight: 600 }}>{fmtNum(remaining)}</span>
@@ -953,7 +953,7 @@ function LevelCard({ profile, isMobile }) {
         <div style={{
           padding: "12px 16px", borderRadius: 12,
           background: `${lvl.color}0a`, border: `1px solid ${lvl.color}22`,
-          fontSize: 13, color: lvl.color, fontWeight: 700, marginBottom: 18,
+          fontSize: 14, color: lvl.color, fontWeight: 700, marginBottom: 18,
         }}>
           👑 Maximum level — you're earning the full 20% commission on every referral
         </div>
@@ -972,13 +972,13 @@ function LevelCard({ profile, isMobile }) {
               transition: "background .3s",
             }} />
             <div style={{ textAlign: "center", marginTop: 6 }}>
-              <span style={{ fontSize: 10 }}>{l.icon}</span>
+              <span style={{ fontSize: 11 }}>{l.icon}</span>
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: 14, fontSize: 10, color: T.muted, lineHeight: 1.65 }}>
+      <div style={{ marginTop: 14, fontSize: 11, color: T.muted, lineHeight: 1.65 }}>
         📅 Levels reset on the 1st of each month based on your previous month's referrals.
         {profile.prev_month_referrals > 0 && (
           <> Last month: <strong style={{ color: lvl.color }}>{fmtNum(profile.prev_month_referrals)} referrals</strong>.</>
@@ -994,7 +994,7 @@ function ReferralsPanel({ ambassadorId, isMobile, limit = 20 }) {
 
   if (loading && !referrals.length) return (
     <GlassCard>
-      <div style={{ textAlign: "center", padding: "24px 0", color: T.muted, fontSize: 13 }}>
+      <div style={{ textAlign: "center", padding: "24px 0", color: T.muted, fontSize: 14 }}>
         <div style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${T.border2}`, borderTopColor: T.accent, animation: "ambSpin .7s linear infinite", margin: "0 auto 10px" }} />
         Loading referrals…
       </div>
@@ -1004,9 +1004,9 @@ function ReferralsPanel({ ambassadorId, isMobile, limit = 20 }) {
   if (!referrals.length) return (
     <GlassCard>
       <div style={{ textAlign: "center", padding: "32px 0" }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>👥</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.muted, marginBottom: 6 }}>No referrals yet</div>
-        <div style={{ fontSize: 12, color: T.muted }}>Share your link to start earning</div>
+        <div style={{ fontSize: 41, marginBottom: 10 }}>👥</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: T.muted, marginBottom: 6 }}>No referrals yet</div>
+        <div style={{ fontSize: 13, color: T.muted }}>Share your link to start earning</div>
       </div>
     </GlassCard>
   );
@@ -1017,9 +1017,9 @@ function ReferralsPanel({ ambassadorId, isMobile, limit = 20 }) {
         padding: "16px 20px", borderBottom: `1px solid ${T.border}`,
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Referrals</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Referrals</div>
         <span style={{
-          fontSize: 11, color: T.muted, fontWeight: 600,
+          fontSize: 12, color: T.muted, fontWeight: 600,
           background: "rgba(255,255,255,0.04)", padding: "3px 10px", borderRadius: 8,
           border: `1px solid ${T.border}`,
         }}>{fmtNum(total)} total</span>
@@ -1045,27 +1045,27 @@ function ReferralsPanel({ ambassadorId, isMobile, limit = 20 }) {
               width: 38, height: 38, borderRadius: 12, flexShrink: 0,
               background: `${T.accent}1a`, border: `1px solid ${T.accent}30`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, fontWeight: 800, color: T.accent,
+              fontSize: 13, fontWeight: 800, color: T.accent,
             }}>{initials}</div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontSize: 13, fontWeight: 600, color: T.text2,
+                fontSize: 14, fontWeight: 600, color: T.text2,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>{name}</div>
-              <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>{timeAgo(ref.created_at)}</div>
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 1 }}>{timeAgo(ref.created_at)}</div>
             </div>
 
             <div style={{ textAlign: "right", flexShrink: 0, marginRight: 8 }}>
-              <div style={{ fontSize: 14, fontWeight: 900, color: T.success }}>+{fmt$(ref.commission_amount)}</div>
-              <div style={{ fontSize: 9, color: T.muted }}>{ref.commission_pct}% of {fmt$(ref.revenue_amount)}</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: T.success }}>+{fmt$(ref.commission_amount)}</div>
+              <div style={{ fontSize: 10, color: T.muted }}>{ref.commission_pct}% of {fmt$(ref.revenue_amount)}</div>
             </div>
 
             <div style={{
               padding: "3px 9px", borderRadius: 7, flexShrink: 0,
               background: isConfirmed ? `${T.success}12` : `${T.danger}12`,
               border: `1px solid ${isConfirmed ? T.success + "28" : T.danger + "28"}`,
-              fontSize: 9, fontWeight: 800,
+              fontSize: 10, fontWeight: 800,
               color: isConfirmed ? T.success : T.danger,
             }}>{ref.status}</div>
           </div>
@@ -1077,13 +1077,13 @@ function ReferralsPanel({ ambassadorId, isMobile, limit = 20 }) {
           <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{
             padding: "7px 18px", borderRadius: 10, border: `1px solid ${T.border}`,
             background: "transparent", color: page === 0 ? T.muted : T.text2,
-            fontSize: 11, fontWeight: 700, cursor: page === 0 ? "not-allowed" : "pointer", fontFamily: "inherit",
+            fontSize: 12, fontWeight: 700, cursor: page === 0 ? "not-allowed" : "pointer", fontFamily: "inherit",
           }}>← Prev</button>
-          <span style={{ fontSize: 11, color: T.muted }}>Page {page + 1}</span>
+          <span style={{ fontSize: 12, color: T.muted }}>Page {page + 1}</span>
           <button disabled={(page + 1) * limit >= total} onClick={() => setPage(p => p + 1)} style={{
             padding: "7px 18px", borderRadius: 10, border: `1px solid ${T.border}`,
             background: "transparent", color: (page + 1) * limit >= total ? T.muted : T.text2,
-            fontSize: 11, fontWeight: 700, cursor: (page + 1) * limit >= total ? "not-allowed" : "pointer", fontFamily: "inherit",
+            fontSize: 12, fontWeight: 700, cursor: (page + 1) * limit >= total ? "not-allowed" : "pointer", fontFamily: "inherit",
           }}>Next →</button>
         </div>
       )}
@@ -1113,7 +1113,7 @@ function SharePanel({ code, profile, isMobile }) {
     <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 18 }}>
       {/* Link card */}
       <GlassCard>
-        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 18 }}>🔗 Your Ambassador Link</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 18 }}>🔗 Your Ambassador Link</div>
 
         {/* Full link */}
         <div style={{
@@ -1123,7 +1123,7 @@ function SharePanel({ code, profile, isMobile }) {
           flexWrap: isMobile ? "wrap" : "nowrap",
         }}>
           <span style={{
-            flex: 1, fontSize: 12, color: T.muted,
+            flex: 1, fontSize: 13, color: T.muted,
             overflow: "hidden", textOverflow: "ellipsis",
             whiteSpace: isMobile ? "normal" : "nowrap",
             wordBreak: isMobile ? "break-all" : "normal",
@@ -1138,14 +1138,14 @@ function SharePanel({ code, profile, isMobile }) {
           background: `${T.accent}08`, border: `1px solid ${T.accent}22`,
           borderRadius: 14, padding: "12px 16px", marginBottom: 20,
         }}>
-          <span style={{ fontSize: 11, color: T.muted, flexShrink: 0 }}>Referral code</span>
-          <span style={{ flex: 1, fontSize: 18, fontWeight: 900, color: T.accent, fontFamily: "monospace", letterSpacing: "1px" }}>{code}</span>
+          <span style={{ fontSize: 12, color: T.muted, flexShrink: 0 }}>Referral code</span>
+          <span style={{ flex: 1, fontSize: 19, fontWeight: 900, color: T.accent, fontFamily: "monospace", letterSpacing: "1px" }}>{code}</span>
           <CopyBtn text={code} label="Copy" small />
         </div>
 
         {/* Custom message */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 10 }}>
             Your message
           </div>
           <textarea
@@ -1156,7 +1156,7 @@ function SharePanel({ code, profile, isMobile }) {
               width: "100%", background: "rgba(255,255,255,0.03)",
               border: `1px solid ${T.border2}`,
               borderRadius: 14, padding: "12px 16px", color: T.text2,
-              fontSize: 13, lineHeight: 1.65, fontFamily: "inherit",
+              fontSize: 14, lineHeight: 1.65, fontFamily: "inherit",
               outline: "none", resize: "none", transition: "border-color .15s",
               boxSizing: "border-box",
             }}
@@ -1181,10 +1181,10 @@ function SharePanel({ code, profile, isMobile }) {
                 background: activeShare === s.label ? `${s.color}0a` : "rgba(255,255,255,0.03)",
                 textDecoration: "none", transition: "all .2s",
                 color: activeShare === s.label ? s.color : T.text2,
-                fontSize: 13, fontWeight: 600,
+                fontSize: 14, fontWeight: 600,
               }}
             >
-              <span style={{ fontSize: 20 }}>{s.icon}</span>
+              <span style={{ fontSize: 21 }}>{s.icon}</span>
               {s.label}
             </a>
           ))}
@@ -1193,7 +1193,7 @@ function SharePanel({ code, profile, isMobile }) {
 
       {/* Commission reminder */}
       <GlassCard accent={T.accent}>
-        <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.75 }}>
+        <div style={{ fontSize: 14, color: T.muted, lineHeight: 1.75 }}>
           💰 You earn{" "}
           <strong style={{ color: T.accent }}>{lvl.commissionPct}%</strong>
           {" "}commission right now. Reach Level 5 to earn up to{" "}
@@ -1229,7 +1229,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
     background: "rgba(255,255,255,0.04)",
     border: `1px solid ${T.border2}`,
     borderRadius: 12, padding: "12px 16px", color: T.text,
-    fontSize: 13, fontFamily: "inherit", outline: "none",
+    fontSize: 14, fontFamily: "inherit", outline: "none",
     transition: "border-color .15s", boxSizing: "border-box",
   };
 
@@ -1275,10 +1275,10 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4 }}>Request Payout</div>
-              <div style={{ fontSize: 12, color: T.muted }}>
+              <div style={{ fontSize: 19, fontWeight: 900, color: T.text, marginBottom: 4 }}>Request Payout</div>
+              <div style={{ fontSize: 13, color: T.muted }}>
                 Available:{" "}
-                <strong style={{ color: T.success, fontSize: 15 }}>{fmt$(pending)}</strong>
+                <strong style={{ color: T.success, fontSize: 16 }}>{fmt$(pending)}</strong>
               </div>
             </div>
             <button
@@ -1286,7 +1286,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
               style={{
                 background: "rgba(255,255,255,0.06)", border: `1px solid ${T.border2}`,
                 borderRadius: 10, color: T.muted, cursor: "pointer",
-                padding: "7px 13px", fontFamily: "inherit", fontSize: 14,
+                padding: "7px 13px", fontFamily: "inherit", fontSize: 15,
                 transition: "all .15s",
               }}
             >✕</button>
@@ -1297,7 +1297,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
               padding: "16px 18px", borderRadius: 16,
               background: "rgba(251,191,36,.05)",
               border: "1px solid rgba(251,191,36,.2)",
-              fontSize: 13, color: T.warn, lineHeight: 1.65, marginBottom: 24,
+              fontSize: 14, color: T.warn, lineHeight: 1.65, marginBottom: 24,
             }}>
               Minimum payout is <strong>$10.00</strong>. You have <strong>{fmt$(pending)}</strong> pending.
               Keep sharing your link to reach the threshold!
@@ -1314,7 +1314,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
                     onClick={() => setMethod(m.id)}
                     style={{
                       flex: 1, padding: "11px 6px", borderRadius: 12, cursor: "pointer",
-                      fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+                      fontFamily: "inherit", fontSize: 12, fontWeight: 700,
                       border: `1px solid ${method === m.id ? T.accent + "55" : T.border}`,
                       background: method === m.id ? `${T.accent}0f` : "rgba(255,255,255,0.03)",
                       color: method === m.id ? T.accent : T.muted,
@@ -1332,7 +1332,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
                     { label: "Account Name", val: acctName, set: setAcctName, ph: "John Doe" },
                   ].map(f => (
                     <div key={f.label} style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>{f.label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>{f.label}</div>
                       <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph} style={fieldStyle}
                         onFocus={e => (e.target.style.borderColor = T.accent + "55")} onBlur={e => (e.target.style.borderColor = T.border2)} />
                     </div>
@@ -1341,21 +1341,21 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
               )}
               {method === "crypto" && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>Wallet Address</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>Wallet Address</div>
                   <input value={bank} onChange={e => setBank(e.target.value)} placeholder="0x..." style={fieldStyle}
                     onFocus={e => (e.target.style.borderColor = T.accent + "55")} onBlur={e => (e.target.style.borderColor = T.border2)} />
                 </div>
               )}
               {method === "paypal" && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>PayPal Email</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>PayPal Email</div>
                   <input value={bank} onChange={e => setBank(e.target.value)} placeholder="you@email.com" style={fieldStyle}
                     onFocus={e => (e.target.style.borderColor = T.accent + "55")} onBlur={e => (e.target.style.borderColor = T.border2)} />
                 </div>
               )}
 
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>Note (optional)</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: T.muted, textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>Note (optional)</div>
                 <input value={note} onChange={e => setNote(e.target.value)} placeholder="Any additional info…" style={fieldStyle}
                   onFocus={e => (e.target.style.borderColor = T.accent + "55")} onBlur={e => (e.target.style.borderColor = T.border2)} />
               </div>
@@ -1366,15 +1366,15 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
                 background: `${T.success}08`, border: `1px solid ${T.success}22`,
                 display: "flex", justifyContent: "space-between", alignItems: "center",
               }}>
-                <span style={{ fontSize: 13, color: T.muted }}>Payout amount</span>
-                <span style={{ fontSize: 24, fontWeight: 900, color: T.success, letterSpacing: -1 }}>{fmt$(pending)}</span>
+                <span style={{ fontSize: 14, color: T.muted }}>Payout amount</span>
+                <span style={{ fontSize: 25, fontWeight: 900, color: T.success, letterSpacing: -1 }}>{fmt$(pending)}</span>
               </div>
 
               {error && (
                 <div style={{
                   padding: "10px 14px", borderRadius: 12,
                   background: "rgba(248,113,113,.06)", border: "1px solid rgba(248,113,113,.18)",
-                  fontSize: 12, color: T.danger, marginBottom: 14,
+                  fontSize: 13, color: T.danger, marginBottom: 14,
                 }}>
                   {error}
                 </div>
@@ -1387,7 +1387,7 @@ function PayoutModal({ ambassador, isMobile, onClose, onSuccess }) {
                   width: "100%", padding: "15px", borderRadius: 16, border: "none",
                   background: requesting ? T.bg3 : `linear-gradient(135deg, ${T.success}, #059669)`,
                   color: requesting ? T.muted : "#001a0d",
-                  fontWeight: 900, fontSize: 15, cursor: requesting ? "not-allowed" : "pointer",
+                  fontWeight: 900, fontSize: 16, cursor: requesting ? "not-allowed" : "pointer",
                   fontFamily: "inherit", transition: "all .2s",
                   boxShadow: requesting ? "none" : `0 8px 28px ${T.success}30`,
                 }}

@@ -120,24 +120,24 @@ const STYLES = `
   .xv-feat-card { background:#0d0f0d; border:1px solid #1e221e; border-radius:12px; padding:12px 13px; transition:border-color .2s; }
   .xv-feat-card:hover { border-color:#2e382e; }
   .xv-avatar-stack { display:flex; align-items:center; }
-  .xv-avatar { width:32px; height:32px; border-radius:50%; border:2px solid #020302; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#040a00; flex-shrink:0; transition:transform .2s; overflow:hidden; object-fit:cover; }
+  .xv-avatar { width:32px; height:32px; border-radius:50%; border:2px solid #020302; display:flex; align-items:center; justify-content:center; font-size:calc((11px) + 1px); font-weight:800; color:#040a00; flex-shrink:0; transition:transform .2s; overflow:hidden; object-fit:cover; }
   .xv-avatar:hover { transform:translateY(-3px); z-index:10!important; }
   .xv-shimmer { background:linear-gradient(90deg,#a3e635 0%,#d4fc72 30%,#65a30d 50%,#d4fc72 70%,#a3e635 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:xvShimmer 4s linear infinite; }
-  .xv-tech-badge { display:inline-flex; align-items:center; gap:5px; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5a4a; background:#0e110e; border:1px solid #1e221e; border-radius:20px; padding:4px 10px; }
+  .xv-tech-badge { display:inline-flex; align-items:center; gap:5px; font-size:calc((9px) + 1px); font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5a4a; background:#0e110e; border:1px solid #1e221e; border-radius:20px; padding:4px 10px; }
   .xv-paywall-side { width:50%; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#080808; }
   .xv-paywall-scroll { width:100%; max-width:510px; padding:36px 44px; overflow-y:auto; max-height:100vh; animation:xvSlide .45s ease; }
-  .xv-btn-lime { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#a3e635 0%,#84cc16 55%,#65a30d 100%); color:#061000; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(163,230,53,.35),inset 0 1px 0 rgba(255,255,255,.12); transition:transform .15s,box-shadow .15s,filter .15s; position:relative; overflow:hidden; }
+  .xv-btn-lime { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#a3e635 0%,#84cc16 55%,#65a30d 100%); color:#061000; font-weight:800; font-size:calc((15px) + 1px); cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(163,230,53,.35),inset 0 1px 0 rgba(255,255,255,.12); transition:transform .15s,box-shadow .15s,filter .15s; position:relative; overflow:hidden; }
   .xv-btn-lime:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(163,230,53,.5); }
   .xv-btn-lime:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
-  .xv-btn-wl { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#38bdf8 0%,#0284c7 100%); color:#001a26; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(56,189,248,.35); transition:transform .15s,box-shadow .15s; }
+  .xv-btn-wl { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#38bdf8 0%,#0284c7 100%); color:#001a26; font-weight:800; font-size:calc((15px) + 1px); cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(56,189,248,.35); transition:transform .15s,box-shadow .15s; }
   .xv-btn-wl:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(56,189,248,.5); }
   .xv-btn-wl:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
-  .xv-btn-vip { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%); color:#1a0a00; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(245,158,11,.35); transition:transform .15s,box-shadow .15s; }
+  .xv-btn-vip { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%); color:#1a0a00; font-weight:800; font-size:calc((15px) + 1px); cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(245,158,11,.35); transition:transform .15s,box-shadow .15s; }
   .xv-btn-vip:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(245,158,11,.5); }
   .xv-btn-vip:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
   .xv-signout-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px; padding:10px 14px; background:#0e0e0e; border:1px solid #1a1a1a; border-radius:12px; }
-  .xv-signout-user { font-size:12px; color:#888; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-  .xv-signout-btn { flex-shrink:0; background:transparent; border:1px solid #2a2a2a; border-radius:8px; color:#666; font-size:11px; font-weight:700; padding:5px 12px; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; letter-spacing:.3px; }
+  .xv-signout-user { font-size:calc((12px) + 1px); color:#888; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .xv-signout-btn { flex-shrink:0; background:transparent; border:1px solid #2a2a2a; border-radius:8px; color:#666; font-size:calc((11px) + 1px); font-weight:700; padding:5px 12px; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; letter-spacing:.3px; }
   .xv-signout-btn:hover { border-color:#ef4444; color:#f87171; background:rgba(239,68,68,.06); }
   .xv-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(8px); animation:xvFadeIn .2s; }
   .xv-modal-wl { background:#0a1418; border:1px solid rgba(56,189,248,.3); border-radius:20px; padding:36px 32px; max-width:420px; width:100%; text-align:center; animation:xvModalIn .3s cubic-bezier(.23,1,.32,1); }
@@ -184,7 +184,7 @@ function SignOutBar({ profile, onSignOut }) {
       <div style={{ minWidth: 0 }}>
         <div
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             letterSpacing: "1.5px",
             textTransform: "uppercase",
@@ -213,7 +213,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
       <div className="xv-modal-wl">
         <div
           style={{
-            fontSize: 52,
+            fontSize: 53,
             marginBottom: 16,
             animation: "xvBounce 1s ease-in-out 2",
           }}
@@ -222,7 +222,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
         </div>
         <div
           style={{
-            fontSize: 20,
+            fontSize: 21,
             fontWeight: 900,
             color: "#38bdf8",
             marginBottom: 8,
@@ -233,7 +233,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
         </div>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: "#4a8a9a",
             lineHeight: 1.7,
             marginBottom: 20,
@@ -254,7 +254,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
           >
             <div
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 800,
                 letterSpacing: "1.5px",
                 textTransform: "uppercase",
@@ -264,7 +264,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
             >
               Your position
             </div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#fff" }}>
+            <div style={{ fontSize: 29, fontWeight: 900, color: "#fff" }}>
               #{waitlistPosition}
             </div>
           </div>
@@ -276,7 +276,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
             borderRadius: 10,
             padding: "10px 14px",
             marginBottom: 20,
-            fontSize: 11,
+            fontSize: 12,
             color: "#3a6a7a",
             lineHeight: 1.6,
           }}
@@ -294,7 +294,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
             background: "linear-gradient(135deg,#38bdf8,#0284c7)",
             color: "#001a26",
             fontWeight: 800,
-            fontSize: 14,
+            fontSize: 15,
             cursor: "pointer",
             fontFamily: "inherit",
           }}
@@ -313,10 +313,10 @@ function WaitlistAlreadyModal({ onClose }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="xv-modal-wl">
-        <div style={{ fontSize: 42, marginBottom: 12 }}>✓</div>
+        <div style={{ fontSize: 43, marginBottom: 12 }}>✓</div>
         <div
           style={{
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: 900,
             color: "#38bdf8",
             marginBottom: 8,
@@ -326,7 +326,7 @@ function WaitlistAlreadyModal({ onClose }) {
         </div>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: "#4a8a9a",
             lineHeight: 1.7,
             marginBottom: 20,
@@ -345,7 +345,7 @@ function WaitlistAlreadyModal({ onClose }) {
             background: "transparent",
             color: "#38bdf8",
             fontWeight: 800,
-            fontSize: 14,
+            fontSize: 15,
             cursor: "pointer",
             fontFamily: "inherit",
           }}
@@ -501,7 +501,7 @@ function BrandPanel({ memberCount, epGrant }) {
           >
             <span
               style={{
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: 900,
                 color: "#040a00",
                 fontFamily: "'Syne', sans-serif",
@@ -513,7 +513,7 @@ function BrandPanel({ memberCount, epGrant }) {
           <span
             style={{
               fontFamily: "'Syne', sans-serif",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 900,
               letterSpacing: "5px",
               color: "#5a8a25",
@@ -526,7 +526,7 @@ function BrandPanel({ memberCount, epGrant }) {
         <h1
           style={{
             fontFamily: "'Syne', sans-serif",
-            fontSize: "clamp(34px, 3.4vw, 52px)",
+            fontSize: "calc((clamp(34px, 3.4vw, 52px)) + 1px)",
             fontWeight: 900,
             lineHeight: 1.06,
             letterSpacing: "-2px",
@@ -540,7 +540,7 @@ function BrandPanel({ memberCount, epGrant }) {
         </h1>
         <p
           style={{
-            fontSize: 13.5,
+            fontSize: 14.5,
             color: "#8a9a8a",
             lineHeight: 1.85,
             maxWidth: 370,
@@ -554,10 +554,10 @@ function BrandPanel({ memberCount, epGrant }) {
         <div className="xv-feat-grid" style={{ marginBottom: 32 }}>
           {FEATURES.map(({ n, icon, title, sub }) => (
             <div key={n} className="xv-feat-card">
-              <div style={{ fontSize: 18, marginBottom: 7 }}>{icon}</div>
+              <div style={{ fontSize: 19, marginBottom: 7 }}>{icon}</div>
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: "#666",
                   fontWeight: 800,
                   letterSpacing: "1.2px",
@@ -568,7 +568,7 @@ function BrandPanel({ memberCount, epGrant }) {
               </div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: "#90c040",
                   fontWeight: 700,
                   lineHeight: 1.35,
@@ -577,7 +577,7 @@ function BrandPanel({ memberCount, epGrant }) {
               >
                 {title}
               </div>
-              <div style={{ fontSize: 10, color: "#7a8a7a", lineHeight: 1.4 }}>
+              <div style={{ fontSize: 11, color: "#7a8a7a", lineHeight: 1.4 }}>
                 {sub}
               </div>
             </div>
@@ -587,7 +587,7 @@ function BrandPanel({ memberCount, epGrant }) {
           <p
             style={{
               color: "#6a7a6a",
-              fontSize: 12,
+              fontSize: 13,
               lineHeight: 1.85,
               fontStyle: "italic",
               margin: 0,
@@ -653,7 +653,7 @@ function BrandPanel({ memberCount, epGrant }) {
                     <span
                       style={{
                         color: "#040a00",
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 800,
                       }}
                     >
@@ -667,7 +667,7 @@ function BrandPanel({ memberCount, epGrant }) {
           <div>
             <div
               style={{
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 900,
                 color: "#90c040",
                 letterSpacing: "-0.5px",
@@ -676,7 +676,7 @@ function BrandPanel({ memberCount, epGrant }) {
             >
               {memberCount > 0 ? memberCount.toLocaleString() : "—"}
             </div>
-            <div style={{ fontSize: 10, color: "#6a7a6a", fontWeight: 600 }}>
+            <div style={{ fontSize: 11, color: "#6a7a6a", fontWeight: 600 }}>
               members joined
             </div>
           </div>
@@ -980,7 +980,7 @@ function PriceHero({
       {p !== 0 && p !== "FREE" && (
         <span
           style={{
-            fontSize: 20,
+            fontSize: 21,
             color: "#555",
             fontWeight: 600,
             lineHeight: 1,
@@ -991,7 +991,7 @@ function PriceHero({
       )}
       <span
         style={{
-          fontSize: 50,
+          fontSize: 51,
           fontWeight: 900,
           lineHeight: 1,
           color: p === 0 || p === "FREE" ? "#a3e635" : "#fff",
@@ -1030,7 +1030,7 @@ function PriceHero({
       <div style={{ flex: 1 }}>
         <span
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 900,
             color: "#e4e4e4",
             letterSpacing: "-0.3px",
@@ -1040,7 +1040,7 @@ function PriceHero({
         </span>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "#555",
             marginLeft: 6,
             fontWeight: 600,
@@ -1051,7 +1051,7 @@ function PriceHero({
       </div>
       <span
         style={{
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 700,
           color: "#a3e63599",
           letterSpacing: "1px",
@@ -1076,7 +1076,7 @@ function PriceHero({
     >
       <div
         style={{
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: 900,
           color: ac,
           letterSpacing: "-0.5px",
@@ -1087,7 +1087,7 @@ function PriceHero({
       </div>
       <div
         style={{
-          fontSize: 8,
+          fontSize: 9,
           fontWeight: 700,
           color: "#444",
           letterSpacing: "0.8px",
@@ -1118,11 +1118,11 @@ function PriceHero({
             marginBottom: 6,
           }}
         >
-          <span style={{ fontSize: 10, color: "#666", fontWeight: 600 }}>
+          <span style={{ fontSize: 11, color: "#666", fontWeight: 600 }}>
             {isVIP ? "VIP slots" : "Whitelist slots"}
           </span>
           <span
-            style={{ fontSize: 10, color: ac, fontWeight: 800 }}
+            style={{ fontSize: 11, color: ac, fontWeight: 800 }}
           >{`${wlFilled.toLocaleString()} / ${wlMax.toLocaleString()}`}</span>
         </div>
         <div style={{ height: 3, background: "#1a1a1a", borderRadius: 3 }}>
@@ -1144,8 +1144,8 @@ function PriceHero({
             marginTop: 4,
           }}
         >
-          <span style={{ fontSize: 9, color: "#444" }}>{wlPct}% claimed</span>
-          <span style={{ fontSize: 9, color: isFull ? "#f87171" : "#444" }}>
+          <span style={{ fontSize: 10, color: "#444" }}>{wlPct}% claimed</span>
+          <span style={{ fontSize: 10, color: isFull ? "#f87171" : "#444" }}>
             {isFull ? "FULL" : `${wlSpotsLeft} spots left`}
           </span>
         </div>
@@ -1189,12 +1189,12 @@ function PriceHero({
             gap: 10,
           }}
         >
-          <span style={{ fontSize: 20 }}>🎉</span>
+          <span style={{ fontSize: 21 }}>🎉</span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#a3e635" }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#a3e635" }}>
               You've been approved!
             </div>
-            <div style={{ fontSize: 10, color: "#5a8a35", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "#5a8a35", marginTop: 2 }}>
               Your waitlist spot has been whitelisted — activate free access
               below.
             </div>
@@ -1222,7 +1222,7 @@ function PriceHero({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              fontSize: 8.5,
+              fontSize: 9.5,
               fontWeight: 800,
               letterSpacing: "2px",
               textTransform: "uppercase",
@@ -1235,7 +1235,7 @@ function PriceHero({
           >
             {s.badge}
           </span>
-          <span style={{ fontSize: 9, color: "#333", fontWeight: 700 }}>
+          <span style={{ fontSize: 10, color: "#333", fontWeight: 700 }}>
             {si + 1} / {SLIDES.length}
           </span>
         </div>
@@ -1254,7 +1254,7 @@ function PriceHero({
                 <PriceBig price={s.price} accent={s.accent} />
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#5a5a5a",
                     fontWeight: 600,
                     marginTop: 3,
@@ -1268,7 +1268,7 @@ function PriceHero({
             <LiveCount />
             {heroMessage && (
               <div style={{ marginTop: 6, padding: "4px 6px" }}>
-                <span style={{ fontSize: 10, color: "#666", lineHeight: 1.6 }}>
+                <span style={{ fontSize: 11, color: "#666", lineHeight: 1.6 }}>
                   {heroMessage}
                 </span>
               </div>
@@ -1291,14 +1291,14 @@ function PriceHero({
                   gap: 8,
                 }}
               >
-                <span style={{ fontSize: 12 }}>🔒</span>
+                <span style={{ fontSize: 13 }}>🔒</span>
                 <div>
                   <div
-                    style={{ fontSize: 11, fontWeight: 800, color: "#f87171" }}
+                    style={{ fontSize: 12, fontWeight: 800, color: "#f87171" }}
                   >
                     {isVIP ? "VIP" : "Whitelist"} slots exhausted
                   </div>
-                  <div style={{ fontSize: 9, color: "#7a3a3a", marginTop: 1 }}>
+                  <div style={{ fontSize: 10, color: "#7a3a3a", marginTop: 1 }}>
                     All {wlMax} spots have been claimed
                   </div>
                 </div>
@@ -1326,7 +1326,7 @@ function PriceHero({
                   />
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       color: "#5a5a5a",
                       fontWeight: 600,
                       marginTop: 3,
@@ -1377,15 +1377,15 @@ function PriceHero({
                   gap: 7,
                 }}
               >
-                <span style={{ fontSize: 11 }}>🔒</span>
+                <span style={{ fontSize: 12 }}>🔒</span>
                 <div>
                   <div
-                    style={{ fontSize: 10, fontWeight: 800, color: "#f87171" }}
+                    style={{ fontSize: 11, fontWeight: 800, color: "#f87171" }}
                   >
                     All slots exhausted
                   </div>
                   <div
-                    style={{ fontSize: 8.5, color: "#7a3a3a", marginTop: 1 }}
+                    style={{ fontSize: 9.5, color: "#7a3a3a", marginTop: 1 }}
                   >
                     Join the waitlist — no payment needed now
                   </div>
@@ -1393,7 +1393,7 @@ function PriceHero({
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: "#c0e0f0",
                   lineHeight: 1.55,
@@ -1402,7 +1402,7 @@ function PriceHero({
               >
                 Get whitelisted when a spot opens
               </div>
-              <div style={{ fontSize: 10, color: "#4a6a7a", fontWeight: 600 }}>
+              <div style={{ fontSize: 11, color: "#4a6a7a", fontWeight: 600 }}>
                 We'll notify you instantly · your spot is reserved
               </div>
             </div>
@@ -1431,7 +1431,7 @@ function PriceHero({
               <div style={{ flex: 1 }}>
                 <span
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 900,
                     color: "#e4e4e4",
                     letterSpacing: "-0.3px",
@@ -1443,7 +1443,7 @@ function PriceHero({
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "#3a5a6a",
                     marginLeft: 6,
                     fontWeight: 600,
@@ -1455,7 +1455,7 @@ function PriceHero({
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 900,
                     color: "#38bdf8",
                     lineHeight: 1,
@@ -1465,7 +1465,7 @@ function PriceHero({
                 </div>
                 <div
                   style={{
-                    fontSize: 8,
+                    fontSize: 9,
                     color: "#2a4a5a",
                     fontWeight: 700,
                     textTransform: "uppercase",
@@ -1489,9 +1489,9 @@ function PriceHero({
                   gap: 8,
                 }}
               >
-                <span style={{ fontSize: 16 }}>✓</span>
+                <span style={{ fontSize: 17 }}>✓</span>
                 <span
-                  style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}
+                  style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}
                 >
                   You're on the waitlist!
                 </span>
@@ -2094,7 +2094,7 @@ export default function PaywallGate({ children }) {
                   borderRadius: 12,
                   padding: "12px 14px",
                   marginTop: 12,
-                  fontSize: 12,
+                  fontSize: 13,
                   color: "#f59e0b",
                   lineHeight: 1.6,
                 }}
@@ -2105,7 +2105,7 @@ export default function PaywallGate({ children }) {
                   style={{
                     display: "block",
                     marginTop: 8,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "#666",
                     background: "none",
                     border: "none",

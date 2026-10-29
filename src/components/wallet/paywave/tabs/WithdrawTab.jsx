@@ -53,8 +53,8 @@ function WithdrawMethodSelector({ onSelect, pwBalance, loading }) {
       <Header title="Withdraw Money" onBack={() => {}} />
       
       <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-        <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 2 }}>Available Balance</div>
-        <div style={{ fontFamily: "var(--fd)", fontSize: 24, fontWeight: 800 }}>₦{fmtNGN(pwBalance)}</div>
+        <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 2 }}>Available Balance</div>
+        <div style={{ fontFamily: "var(--fd)", fontSize: 25, fontWeight: 800 }}>₦{fmtNGN(pwBalance)}</div>
       </div>
 
       {methods.map(m => (
@@ -91,11 +91,11 @@ function WithdrawMethodSelector({ onSelect, pwBalance, loading }) {
             <m.icon size={20} />
           </div>
           <div style={{ flex: 1, textAlign: "left" }}>
-            <div style={{ color: "var(--t1)", fontFamily: "var(--fd)", fontSize: 13, fontWeight: 700 }}>{m.label}</div>
-            <div style={{ color: "var(--t2)", fontSize: 11.5, marginTop: 1 }}>{m.sublabel}</div>
+            <div style={{ color: "var(--t1)", fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700 }}>{m.label}</div>
+            <div style={{ color: "var(--t2)", fontSize: 12.5, marginTop: 1 }}>{m.sublabel}</div>
           </div>
           {pwBalance < m.minAmount && (
-            <div style={{ fontSize: 10, color: "var(--t3)", textAlign: "right" }}>Min ₦{fmtNGN(m.minAmount)}</div>
+            <div style={{ fontSize: 11, color: "var(--t3)", textAlign: "right" }}>Min ₦{fmtNGN(m.minAmount)}</div>
           )}
           <ChevronRight size={14} color="var(--t2)" />
         </button>
@@ -192,13 +192,13 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
           alignItems: "flex-start",
         }}>
           <AlertCircle size={14} color="#3B82F6" style={{ marginTop: 2, flexShrink: 0 }} />
-          <div style={{ fontSize: 11, color: "var(--t2)", lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: "var(--t2)", lineHeight: 1.4 }}>
             Withdrawals are processed via NIBSS. Funds typically arrive in 1-2 hours. Minimum ₦500.
           </div>
         </div>
 
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>Amount to Withdraw</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>Amount to Withdraw</div>
           <input
             type="number"
             value={amount}
@@ -210,7 +210,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
               border: "none",
               color: "var(--lime)",
               fontFamily: "var(--fd)",
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 800,
               textAlign: "center",
               outline: "none",
@@ -218,11 +218,11 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
             min="500"
             max={pwBalance}
           />
-          <div style={{ color: "var(--t2)", fontSize: 10, marginTop: 8 }}>Max ₦{fmtNGN(pwBalance)}</div>
+          <div style={{ color: "var(--t2)", fontSize: 11, marginTop: 8 }}>Max ₦{fmtNGN(pwBalance)}</div>
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>Bank Name</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>Bank Name</label>
           <select
             value={bankName}
             onChange={e => setBankName(e.target.value)}
@@ -233,7 +233,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}
@@ -253,7 +253,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>Account Number</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>Account Number</label>
           <input
             type="text"
             value={accountNumber}
@@ -267,7 +267,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}
@@ -284,7 +284,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
             border: "1px dashed rgba(163, 230, 53, 0.25)",
             borderRadius: "var(--r2)",
             color: accountName ? "var(--lime)" : "var(--t2)",
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: "var(--fd)",
             fontWeight: 600,
             cursor: verifying ? "not-allowed" : "pointer",
@@ -377,13 +377,13 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
           alignItems: "flex-start",
         }}>
           <AlertCircle size={14} color="#10B981" style={{ marginTop: 2, flexShrink: 0 }} />
-          <div style={{ fontSize: 11, color: "var(--t2)", lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: "var(--t2)", lineHeight: 1.4 }}>
             Instant transfer to your OPay wallet. Funds arrive immediately. Minimum ₦100.
           </div>
         </div>
 
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 4 }}>Amount to Withdraw</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 4 }}>Amount to Withdraw</div>
           <input
             type="number"
             value={amount}
@@ -395,7 +395,7 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
               border: "none",
               color: "var(--lime)",
               fontFamily: "var(--fd)",
-              fontSize: 28,
+              fontSize: 29,
               fontWeight: 800,
               textAlign: "center",
               outline: "none",
@@ -403,11 +403,11 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
             min="100"
             max={pwBalance}
           />
-          <div style={{ color: "var(--t2)", fontSize: 10, marginTop: 8 }}>Max ₦{fmtNGN(pwBalance)}</div>
+          <div style={{ color: "var(--t2)", fontSize: 11, marginTop: 8 }}>Max ₦{fmtNGN(pwBalance)}</div>
         </div>
 
         <div>
-          <label style={{ color: "var(--t2)", fontSize: 11, display: "block", marginBottom: 4 }}>OPay Phone Number</label>
+          <label style={{ color: "var(--t2)", fontSize: 12, display: "block", marginBottom: 4 }}>OPay Phone Number</label>
           <input
             type="tel"
             value={phone}
@@ -420,7 +420,7 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
               border: "1px solid var(--b1)",
               borderRadius: "var(--r2)",
               color: "var(--t1)",
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: "var(--fb)",
               boxSizing: "border-box",
             }}

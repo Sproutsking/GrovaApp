@@ -295,7 +295,7 @@ const MediaPopup = ({
         }
 
         .media-popup-btn-label {
-          font-size: 8px;
+          font-size: calc((8px) + 1px);
           font-weight: 700;
           letter-spacing: 0.3px;
           text-transform: uppercase;

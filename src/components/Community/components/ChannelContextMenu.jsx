@@ -159,7 +159,7 @@ const ChannelContextMenu = ({
           display:flex; align-items:center; gap:9px;
           padding:8px 10px; background:transparent; border:none;
           border-radius:7px; color:rgba(255,255,255,.85);
-          font-size:13px; font-weight:600; cursor:pointer;
+          font-size:calc((13px) + 1px); font-weight:600; cursor:pointer;
           transition:all .13s; width:100%; text-align:left;
         }
         .ctx-item:hover { background:rgba(156,255,0,.08); color:#9cff00; transform:translateX(2px); }
@@ -182,11 +182,11 @@ const ChannelContextMenu = ({
           color:#fb923c; margin:0 auto;
         }
         .confirm-text { text-align:center; }
-        .confirm-text h4 { font-size:13px; font-weight:800; color:#fff; margin:0 0 3px; }
-        .confirm-text p  { font-size:11px; color:rgba(255,255,255,.5); margin:0; }
+        .confirm-text h4 { font-size:calc((13px) + 1px); font-weight:800; color:#fff; margin:0 0 3px; }
+        .confirm-text p  { font-size:calc((11px) + 1px); color:rgba(255,255,255,.5); margin:0; }
         .confirm-btns { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
         .cfm-btn {
-          padding:7px 10px; border-radius:7px; font-size:12px; font-weight:700;
+          padding:7px 10px; border-radius:7px; font-size:calc((12px) + 1px); font-weight:700;
           cursor:pointer; transition:all .15s; border:1px solid;
         }
         .cfm-btn.cancel {

@@ -470,19 +470,19 @@ export default function SocialUpdatesDashboard({
           color: #9ae6b4;
           text-transform: uppercase;
           letter-spacing: 0.12em;
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 800;
         }
         .social-dashboard-header h2 {
           margin: 6px 0 2px;
           color: #f2f2f2;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 800;
         }
         .social-dashboard-header p {
           margin: 0;
           color: rgba(255,255,255,0.62);
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           line-height: 1.5;
         }
         .social-dashboard-refresh {
@@ -512,7 +512,7 @@ export default function SocialUpdatesDashboard({
           background: rgba(134,239,172,0.06);
           border: 1px solid rgba(134,239,172,0.14);
           color: #d8fbe5;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
         }
         .social-dashboard-summary-row .social-dashboard-refresh {
           margin-left: auto;
@@ -533,11 +533,11 @@ export default function SocialUpdatesDashboard({
         }
         .social-dashboard-link-controls strong {
           color: #f2f2f2;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
         .social-dashboard-link-controls small {
           color: rgba(255,255,255,0.65);
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           line-height: 1.45;
         }
         .social-dashboard-link-actions {
@@ -554,7 +554,7 @@ export default function SocialUpdatesDashboard({
           border-radius: 8px;
           background: rgba(10,12,14,0.8);
           color: #f5f5f5;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
         }
         .social-dashboard-link-actions button {
           display: inline-flex;
@@ -586,12 +586,12 @@ export default function SocialUpdatesDashboard({
           gap: 5px;
         }
         .social-dashboard-form-head strong {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #f2f2f2;
         }
         .social-dashboard-form-head small {
           color: rgba(255,255,255,0.65);
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           line-height: 1.5;
         }
         .social-dashboard-form-row {
@@ -609,7 +609,7 @@ export default function SocialUpdatesDashboard({
           border: 1px solid rgba(255,255,255,0.09);
           background: rgba(10,12,14,0.8);
           color: #f5f5f5;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           outline: none;
         }
         .social-dashboard-form-row button,
@@ -625,7 +625,7 @@ export default function SocialUpdatesDashboard({
           color: #b9f7cc;
           cursor: pointer;
           font-weight: 700;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           padding: 0 12px;
           min-height: 40px;
           white-space: nowrap;
@@ -676,19 +676,19 @@ export default function SocialUpdatesDashboard({
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.08);
           color: #f3f4f6;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 800;
           flex-shrink: 0;
         }
         .social-platform-name-wrap strong {
           display: block;
           color: #f5f5f5;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .social-platform-name-wrap small {
           display: block;
           color: rgba(255,255,255,0.6);
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           margin-top: 2px;
           white-space: nowrap;
           overflow: hidden;
@@ -698,7 +698,7 @@ export default function SocialUpdatesDashboard({
         .social-platform-tag {
           padding: 4px 7px;
           border-radius: 999px;
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 800;
           letter-spacing: 0.08em;
           text-transform: uppercase;
@@ -734,7 +734,7 @@ export default function SocialUpdatesDashboard({
           border: 1px solid rgba(255,255,255,0.06);
           border-radius: 6px;
           color: rgba(255,255,255,0.7);
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
         }
         .social-platform-toggle {
           position: relative;
@@ -814,7 +814,7 @@ export default function SocialUpdatesDashboard({
         }
         .route-menu-label {
           color: rgba(255,255,255,0.52);
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: .06em;
@@ -822,7 +822,7 @@ export default function SocialUpdatesDashboard({
         .route-menu-trigger strong {
           overflow: hidden;
           color: #f5f5f5;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           text-overflow: ellipsis;
           white-space: nowrap;
         }
@@ -853,7 +853,7 @@ export default function SocialUpdatesDashboard({
         .route-menu-heading {
           padding: 4px 6px 6px;
           color: rgba(255,255,255,0.52);
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           font-weight: 800;
           letter-spacing: .08em;
           text-transform: uppercase;
@@ -887,7 +887,7 @@ export default function SocialUpdatesDashboard({
           border-radius: 7px;
           background: rgba(154,230,180,0.12);
           color: #9ae6b4;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 800;
         }
         .route-menu-option-copy {
@@ -899,18 +899,18 @@ export default function SocialUpdatesDashboard({
         }
         .route-menu-option-copy strong {
           overflow: hidden;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           text-overflow: ellipsis;
           white-space: nowrap;
         }
         .route-menu-option-copy small {
           color: rgba(255,255,255,0.48);
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
         }
         .route-menu-empty {
           padding: 9px 7px;
           color: rgba(255,255,255,0.58);
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           line-height: 1.4;
         }
         .route-menu-create {
@@ -919,7 +919,7 @@ export default function SocialUpdatesDashboard({
           border-color: rgba(154,230,180,0.26);
           background: rgba(154,230,180,0.08);
           color: #b9f7cc;
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           font-weight: 800;
         }
         .route-menu-create:hover {
@@ -933,7 +933,7 @@ export default function SocialUpdatesDashboard({
           border: 1px solid rgba(255,255,255,0.09);
           background: rgba(10,12,14,0.8);
           color: #f5f5f5;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
         }
         .select-wrap svg {
           position: absolute;
@@ -963,13 +963,13 @@ export default function SocialUpdatesDashboard({
         }
         .social-dashboard-empty strong {
           color: #f5f5f5;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .social-dashboard-notice,
         .social-dashboard-error {
           padding: 10px 12px;
           border-radius: 10px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           line-height: 1.5;
         }
         .social-dashboard-notice {

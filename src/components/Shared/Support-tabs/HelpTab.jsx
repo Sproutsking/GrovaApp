@@ -958,8 +958,8 @@ function renderMarkdown(text) {
     const rows = tableBuffer.slice(2).map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
     elements.push(
       <div key={`tbl-${i}`} style={{ overflowX: "auto", margin: "16px 0" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead><tr>{headers.map((h, hi) => <th key={hi} style={{ padding: "9px 13px", background: "rgba(132,204,22,0.07)", borderBottom: "2px solid rgba(132,204,22,0.22)", textAlign: "left", color: "#a3e635", fontWeight: 700, fontSize: 11 }}>{h}</th>)}</tr></thead>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead><tr>{headers.map((h, hi) => <th key={hi} style={{ padding: "9px 13px", background: "rgba(132,204,22,0.07)", borderBottom: "2px solid rgba(132,204,22,0.22)", textAlign: "left", color: "#a3e635", fontWeight: 700, fontSize: 12 }}>{h}</th>)}</tr></thead>
           <tbody>{rows.map((r, ri) => (<tr key={ri}>{r.map((c, ci) => <td key={ci} style={{ padding: "9px 13px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#9ca3af" }}>{c}</td>)}</tr>))}</tbody>
         </table>
       </div>
@@ -973,8 +973,8 @@ function renderMarkdown(text) {
     if (!line) { flushList(); if (tableBuffer.length) { flushTable(); } continue; }
     if (line.startsWith("|")) { tableBuffer.push(line); continue; }
     if (tableBuffer.length) { flushTable(); }
-    if (/^#{2} /.test(line)) { flushList(); elements.push(<h2 key={i} style={{ fontSize: 17, fontWeight: 800, color: "#fff", margin: "18px 0 8px" }}>{line.replace(/^## /, "")}</h2>); continue; }
-    if (/^#{3} /.test(line)) { flushList(); elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#e5e7eb", margin: "12px 0 6px" }}>{line.replace(/^### /, "")}</h3>); continue; }
+    if (/^#{2} /.test(line)) { flushList(); elements.push(<h2 key={i} style={{ fontSize: 18, fontWeight: 800, color: "#fff", margin: "18px 0 8px" }}>{line.replace(/^## /, "")}</h2>); continue; }
+    if (/^#{3} /.test(line)) { flushList(); elements.push(<h3 key={i} style={{ fontSize: 15, fontWeight: 700, color: "#e5e7eb", margin: "12px 0 6px" }}>{line.replace(/^### /, "")}</h3>); continue; }
     if (line.startsWith("- ")) { if (!listBuffer) listBuffer = { ordered: false, items: [] }; listBuffer.items.push(line.replace(/^- /, "")); continue; }
     if (/^\d+\. /.test(line)) { if (!listBuffer) listBuffer = { ordered: true, items: [] }; listBuffer.items.push(line.replace(/^\d+\. /, "")); continue; }
     if (line.startsWith("> ")) { flushList(); elements.push(<blockquote key={i} style={{ borderLeft: "3px solid #a3e635", paddingLeft: 14, margin: "12px 0", color: "#9ca3af", fontStyle: "italic" }}>{line.replace(/^> /, "")}</blockquote>); continue; }
@@ -983,7 +983,7 @@ function renderMarkdown(text) {
     flushList();
     const html = line
       .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb">$1</strong>')
-      .replace(/`(.*?)`/g, '<code style="background:rgba(132,204,22,0.08);color:#a3e635;padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace">$1</code>');
+      .replace(/`(.*?)`/g, '<code style="background:rgba(132,204,22,0.08);color:#a3e635;padding:2px 7px;border-radius:5px;font-size:calc((12px) + 1px);font-family:monospace">$1</code>');
     elements.push(<p key={i} style={{ color: "#9ca3af", lineHeight: 1.9, margin: "8px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
   }
   if (listBuffer) flushList();
@@ -996,27 +996,27 @@ function ArticleView({ article, topic, onBack, onContact }) {
   return (
     <div>
       <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: `${topic.color}05` }}>
-        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#525252", fontSize: 12, padding: 0, marginBottom: 10, transition: "color .18s" }}
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#525252", fontSize: 13, padding: 0, marginBottom: 10, transition: "color .18s" }}
           onMouseEnter={(e) => e.currentTarget.style.color = topic.color}
           onMouseLeave={(e) => e.currentTarget.style.color = "#525252"}>
           <ArrowLeft size={13} /> Back to {topic.title}
         </button>
         <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontSize: 15 }}>{topic.icon}</span>
-          <span style={{ fontSize: 11, color: topic.color, fontWeight: 700 }}>{topic.title}</span>
+          <span style={{ fontSize: 16 }}>{topic.icon}</span>
+          <span style={{ fontSize: 12, color: topic.color, fontWeight: 700 }}>{topic.title}</span>
         </div>
-        <h1 style={{ fontSize: 17, fontWeight: 800, color: "#fff", lineHeight: 1.38, margin: 0, letterSpacing: "-.2px" }}>{article.title}</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.38, margin: 0, letterSpacing: "-.2px" }}>{article.title}</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
           <Clock size={12} style={{ color: "#484848" }} />
-          <span style={{ fontSize: 11, color: "#484848" }}>{article.readTime} read</span>
+          <span style={{ fontSize: 12, color: "#484848" }}>{article.readTime} read</span>
         </div>
       </div>
       <div style={{ padding: "16px 18px 14px" }}>{renderMarkdown(article.content)}</div>
       <div style={{ margin: "4px 18px 24px", padding: "16px", background: "rgba(132,204,22,0.04)", border: "1px solid rgba(132,204,22,0.14)", borderRadius: 16 }}>
-        <div style={{ fontSize: 24, marginBottom: 10 }}>🙋</div>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 5 }}>Still need help?</div>
-        <div style={{ fontSize: 12, color: "#484848", marginBottom: 16 }}>Our support team is ready to assist you directly.</div>
-        <button onClick={onContact} style={{ padding: "10px 22px", background: "linear-gradient(135deg, #84cc16, #65a30d)", border: "none", borderRadius: 11, color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: "0 3px 14px rgba(132,204,22,.25)" }}>
+        <div style={{ fontSize: 25, marginBottom: 10 }}>🙋</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 5 }}>Still need help?</div>
+        <div style={{ fontSize: 13, color: "#484848", marginBottom: 16 }}>Our support team is ready to assist you directly.</div>
+        <button onClick={onContact} style={{ padding: "10px 22px", background: "linear-gradient(135deg, #84cc16, #65a30d)", border: "none", borderRadius: 11, color: "#000", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 3px 14px rgba(132,204,22,.25)" }}>
           Open a Support Ticket →
         </button>
       </div>
@@ -1030,16 +1030,16 @@ function TopicView({ topic, onSelectArticle, onBack }) {
     <div>
       <div style={{ padding: "16px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: `linear-gradient(135deg, ${topic.color}07, transparent)`, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${topic.color}50, transparent)` }} />
-        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#525252", fontSize: 12, padding: 0, marginBottom: 14 }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#525252", fontSize: 13, padding: 0, marginBottom: 14 }}>
           <ArrowLeft size={13} /> All Topics
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 15, flexShrink: 0, background: `${topic.color}14`, border: `1px solid ${topic.color}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: `0 4px 16px ${topic.color}18` }}>
+          <div style={{ width: 52, height: 52, borderRadius: 15, flexShrink: 0, background: `${topic.color}14`, border: `1px solid ${topic.color}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 27, boxShadow: `0 4px 16px ${topic.color}18` }}>
             {topic.icon}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{topic.title}</div>
-            <div style={{ fontSize: 12, color: "#484848", display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{topic.title}</div>
+            <div style={{ fontSize: 13, color: "#484848", display: "flex", alignItems: "center", gap: 4 }}>
               <Book size={10} style={{ color: topic.color }} />
               {topic.articles.length} articles in this section
             </div>
@@ -1055,10 +1055,10 @@ function TopicView({ topic, onSelectArticle, onBack }) {
               <Book size={15} style={{ color: topic.color }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", marginBottom: 4, lineHeight: 1.4 }}>{article.title}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", marginBottom: 4, lineHeight: 1.4 }}>{article.title}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Clock size={11} style={{ color: "#484848" }} />
-                <span style={{ fontSize: 11, color: "#484848" }}>{article.readTime} read</span>
+                <span style={{ fontSize: 12, color: "#484848" }}>{article.readTime} read</span>
               </div>
             </div>
             <ChevronRight size={15} style={{ color: "#363636", flexShrink: 0 }} />
@@ -1114,10 +1114,10 @@ export default function HelpTab({ onNavigateToContact, onViewChange }) {
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(132,204,22,.4), transparent)" }} />
         <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(132,204,22,.04)" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
-          <div style={{ width: 54, height: 54, borderRadius: 17, flexShrink: 0, background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 4px 18px rgba(132,204,22,.14)" }}>🌿</div>
+          <div style={{ width: 54, height: 54, borderRadius: 17, flexShrink: 0, background: "rgba(132,204,22,0.1)", border: "1px solid rgba(132,204,22,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 27, boxShadow: "0 4px 18px rgba(132,204,22,.14)" }}>🌿</div>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: "-.3px" }}>How can we help?</div>
-            <div style={{ fontSize: 12, color: "#484848", display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ fontSize: 23, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: "-.3px" }}>How can we help?</div>
+            <div style={{ fontSize: 13, color: "#484848", display: "flex", alignItems: "center", gap: 5 }}>
               <Sparkles size={10} color="#84cc16" /> Find answers in our knowledge base
             </div>
           </div>
@@ -1127,9 +1127,9 @@ export default function HelpTab({ onNavigateToContact, onViewChange }) {
           onBlurCapture={(e)  => e.currentTarget.style.borderColor = "rgba(255,255,255,.09)"}>
           <Search size={15} style={{ color: "#525252", flexShrink: 0 }} />
           <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search help articles..."
-            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 13, outline: "none" }} />
+            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 14, outline: "none" }} />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#525252", padding: 0, fontSize: 18, lineHeight: 1 }}>×</button>
+            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#525252", padding: 0, fontSize: 19, lineHeight: 1 }}>×</button>
           )}
         </div>
       </div>
@@ -1138,10 +1138,10 @@ export default function HelpTab({ onNavigateToContact, onViewChange }) {
       {searchQuery && (
         <div style={{ padding: "12px 16px" }}>
           {searchResults.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "36px 0", color: "#484848", fontSize: 13 }}>No articles found for "{searchQuery}"</div>
+            <div style={{ textAlign: "center", padding: "36px 0", color: "#484848", fontSize: 14 }}>No articles found for "{searchQuery}"</div>
           ) : (
             <>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#484848", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#484848", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
                 {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -1150,10 +1150,10 @@ export default function HelpTab({ onNavigateToContact, onViewChange }) {
                     style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 13, cursor: "pointer", textAlign: "left", width: "100%", transition: "all .18s" }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(132,204,22,0.3)"; e.currentTarget.style.background = "rgba(132,204,22,0.04)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>{result.topic.icon}</span>
+                    <span style={{ fontSize: 21, flexShrink: 0 }}>{result.topic.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", marginBottom: 2 }}>{result.title}</div>
-                      <div style={{ fontSize: 11, color: "#484848" }}>{result.topic.title} · {result.readTime} read</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", marginBottom: 2 }}>{result.title}</div>
+                      <div style={{ fontSize: 12, color: "#484848" }}>{result.topic.title} · {result.readTime} read</div>
                     </div>
                     <ChevronRight size={14} style={{ color: "#363636", flexShrink: 0 }} />
                   </button>
@@ -1167,22 +1167,22 @@ export default function HelpTab({ onNavigateToContact, onViewChange }) {
       {/* Topic grid */}
       {!searchQuery && (
         <div style={{ padding: "12px 16px 20px" }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#484848", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Browse Topics</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#484848", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Browse Topics</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filteredTopics.map((topic) => (
               <button key={topic.id} onClick={() => { setActiveTopic(topic); setViewTracked("topic"); }}
                 style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 15, cursor: "pointer", textAlign: "left", transition: "all .22s", width: "100%" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = `${topic.color}08`; e.currentTarget.style.borderColor = `${topic.color}35`; e.currentTarget.style.transform = "translateX(4px)"; e.currentTarget.style.boxShadow = `0 4px 18px ${topic.color}12`; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.transform = "translateX(0)"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: `${topic.color}14`, border: `1px solid ${topic.color}26`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 23 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: `${topic.color}14`, border: `1px solid ${topic.color}26`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>
                   {topic.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", marginBottom: 4 }}>{topic.title}</div>
-                  <div style={{ fontSize: 12, color: "#484848" }}>{topic.description}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#e5e5e5", marginBottom: 4 }}>{topic.title}</div>
+                  <div style={{ fontSize: 13, color: "#484848" }}>{topic.description}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: topic.color, background: `${topic.color}14`, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${topic.color}20` }}>
+                  <span style={{ fontSize: 12, color: topic.color, background: `${topic.color}14`, padding: "3px 10px", borderRadius: 20, fontWeight: 700, border: `1px solid ${topic.color}20` }}>
                     {topic.articles.length}
                   </span>
                   <ChevronRight size={15} style={{ color: "#363636" }} />

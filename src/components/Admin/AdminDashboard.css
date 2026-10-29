@@ -54,7 +54,7 @@
   border-radius: 8px;
   color: var(--text-inverse);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   outline: none;
   transition: border-color 0.2s;
 }

@@ -317,9 +317,9 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         }
         .cp-title {
           display:flex; align-items:center; gap:8px;
-          font-size:15px; font-weight:800; color:#fff;
+          font-size:calc((15px) + 1px); font-weight:800; color:#fff;
         }
-        .cp-sub { font-size:12px; color:#666; font-weight:600; }
+        .cp-sub { font-size:calc((12px) + 1px); color:#666; font-weight:600; }
         .cp-close {
           width:30px; height:30px; border-radius:7px;
           background:rgba(255,255,255,.05); border:none;
@@ -344,12 +344,12 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         .role-pill {
           display:flex; align-items:center; gap:7px;
           padding:8px 10px; border-radius:8px; width:100%; text-align:left;
-          background:transparent; border:none; color:#888; font-size:12px; font-weight:700;
+          background:transparent; border:none; color:#888; font-size:calc((12px) + 1px); font-weight:700;
           cursor:pointer; transition:all .15s; position:relative;
         }
         .role-pill:hover  { background:rgba(255,255,255,.05); color:#fff; }
         .role-pill.active { background:rgba(156,255,0,.1); color:#9cff00; }
-        .role-merged-count{margin-left:auto;min-width:15px;padding:1px 4px;border-radius:5px;background:rgba(255,255,255,.08);color:#777;font-size:9px;text-align:center}
+        .role-merged-count{margin-left:auto;min-width:15px;padding:1px 4px;border-radius:5px;background:rgba(255,255,255,.08);color:#777;font-size:calc((9px) + 1px);text-align:center}
         .role-dot {
           width:8px; height:8px; border-radius:50%; flex-shrink:0;
         }
@@ -373,17 +373,17 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         .role-dot-lg {
           width:12px; height:12px; border-radius:50%; flex-shrink:0;
         }
-        .perm-role-name { font-size:14px; font-weight:800; color:#fff; flex:1; }
+        .perm-role-name { font-size:calc((14px) + 1px); font-weight:800; color:#fff; flex:1; }
         .reset-btn {
-          padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;
+          padding:4px 10px; border-radius:6px; font-size:calc((11px) + 1px); font-weight:700;
           background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
           color:#666; cursor:pointer; transition:all .15s;
         }
         .reset-btn:hover { border-color:rgba(255,107,107,.3); color:#ff6b6b; }
 
         .perm-list { display:flex; flex-direction:column; gap:6px; }
-        .perm-loading { color:#555; font-size:13px; padding:20px 0; text-align:center; }
-        .perm-error { margin:8px 0 0; color:#ff8b8b; font-size:11px; line-height:1.45; }
+        .perm-loading { color:#555; font-size:calc((13px) + 1px); padding:20px 0; text-align:center; }
+        .perm-error { margin:8px 0 0; color:#ff8b8b; font-size:calc((11px) + 1px); line-height:1.45; }
 
         .perm-row {
           display:flex; align-items:center; justify-content:space-between;
@@ -399,15 +399,15 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
           display:flex; align-items:center; justify-content:center;
           color:#888; flex-shrink:0;
         }
-        .perm-label { font-size:13px; font-weight:700; color:#ddd; }
-        .perm-desc  { font-size:11px; color:#555; margin-top:1px; }
+        .perm-label { font-size:calc((13px) + 1px); font-weight:700; color:#ddd; }
+        .perm-desc  { font-size:calc((11px) + 1px); color:#555; margin-top:1px; }
 
         /* State toggle button */
         .state-toggle {
           display:flex; align-items:center; gap:5px;
           padding:5px 10px; border-radius:7px;
           background:rgba(18,18,18,.95); border:1.5px solid;
-          font-size:11px; font-weight:700; cursor:pointer;
+          font-size:calc((11px) + 1px); font-weight:700; cursor:pointer;
           transition:all .18s; white-space:nowrap; flex-shrink:0;
         }
         .state-toggle:hover { filter:brightness(1.15); }
@@ -426,7 +426,7 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         }
         .leg-item {
           display:flex; align-items:center; gap:5px;
-          font-size:10px; color:#555; font-weight:600;
+          font-size:calc((10px) + 1px); color:#555; font-weight:600;
         }
 
         /* Footer */
@@ -438,13 +438,13 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         .cancel-btn {
           flex:1; padding:11px; border-radius:10px;
           background:rgba(18,18,18,.95); border:1.5px solid rgba(42,42,42,.9);
-          color:#888; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s;
+          color:#888; font-size:calc((13px) + 1px); font-weight:700; cursor:pointer; transition:all .2s;
         }
         .cancel-btn:hover { border-color:rgba(255,107,107,.35); color:#ff6b6b; }
         .save-btn {
           flex:2; padding:11px; border-radius:10px;
           background:linear-gradient(135deg,#9cff00,#667eea);
-          border:none; color:#000; font-size:13px; font-weight:800; cursor:pointer;
+          border:none; color:#000; font-size:calc((13px) + 1px); font-weight:800; cursor:pointer;
           transition:all .25s; box-shadow:0 4px 14px rgba(156,255,0,.25);
         }
         .save-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 20px rgba(156,255,0,.4); }
@@ -461,48 +461,48 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         .cp-close{color:var(--cp-muted)}.cp-close:hover{color:#ff8585}
         .cp-body{display:grid;grid-template-columns:minmax(180px,220px) minmax(0,1fr);}
         .cp-role-sidebar{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;padding:14px 10px;border-right:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.018)}
-        .cp-role-summary{display:flex;align-items:center;justify-content:space-between;padding:0 5px;color:var(--cp-text);font-size:12px}
-        .cp-role-summary span{padding:2px 7px;border:1px solid rgba(255,255,255,.12);border-radius:999px;color:var(--cp-muted);font-size:10px}
+        .cp-role-summary{display:flex;align-items:center;justify-content:space-between;padding:0 5px;color:var(--cp-text);font-size:calc((12px) + 1px)}
+        .cp-role-summary span{padding:2px 7px;border:1px solid rgba(255,255,255,.12);border-radius:999px;color:var(--cp-muted);font-size:calc((10px) + 1px)}
         .cp-search{display:flex;align-items:center;gap:7px;min-width:0;padding:8px 9px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(0,0,0,.22);color:var(--cp-muted)}
-        .cp-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--cp-text);font:inherit;font-size:11px}
+        .cp-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--cp-text);font:inherit;font-size:calc((11px) + 1px)}
         .cp-search input::placeholder{color:var(--cp-subtle)}
         .role-list{width:auto;min-height:0;flex:1;padding:0;border:0;gap:4px}
         .role-list::-webkit-scrollbar-thumb,.perm-panel::-webkit-scrollbar-thumb{background:rgba(156,255,0,.3)}
-        .role-pill{min-height:38px;padding:7px 8px;color:var(--cp-muted);font-size:11px}
+        .role-pill{min-height:38px;padding:7px 8px;color:var(--cp-muted);font-size:calc((11px) + 1px)}
         .role-pill:hover{background:rgba(255,255,255,.07);color:var(--cp-text)}
         .role-pill.active{background:rgba(156,255,0,.12);color:#c8ff78;box-shadow:inset 2px 0 #9cff00}
-        .role-dot{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;color:#111;font-size:12px}
+        .role-dot{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;color:#111;font-size:calc((12px) + 1px)}
         .cp-role-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .override-badge{position:static;display:grid;place-items:center;width:auto;height:auto;min-width:18px;padding:2px 5px;border-radius:999px;background:rgba(156,255,0,.14);color:#c8ff78;font-size:9px}
+        .override-badge{position:static;display:grid;place-items:center;width:auto;height:auto;min-width:18px;padding:2px 5px;border-radius:999px;background:rgba(156,255,0,.14);color:#c8ff78;font-size:calc((9px) + 1px)}
         .perm-panel{gap:12px;padding:16px;overscroll-behavior:contain}
         .perm-role-head{margin:0;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1)}
-        .role-dot-lg{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;color:#111;font-size:16px}
+        .role-dot-lg{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;color:#111;font-size:calc((16px) + 1px)}
         .cp-selected-role{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
-        .cp-selected-role strong{overflow:hidden;color:var(--cp-text);font-size:13px;text-overflow:ellipsis;white-space:nowrap}
-        .cp-selected-role span{color:var(--cp-muted);font-size:10px}
+        .cp-selected-role strong{overflow:hidden;color:var(--cp-text);font-size:calc((13px) + 1px);text-overflow:ellipsis;white-space:nowrap}
+        .cp-selected-role span{color:var(--cp-muted);font-size:calc((10px) + 1px)}
         .reset-btn{display:flex;align-items:center;gap:5px;color:var(--cp-muted)}
         .reset-btn:disabled{opacity:.4;cursor:not-allowed}
         .cp-permission-search{flex:0 0 auto}
         .perm-list{gap:16px}
         .cp-permission-group{display:grid;gap:8px}
         .cp-permission-group>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
-        .cp-permission-group>header strong{color:var(--cp-text);font-size:12px}
-        .cp-permission-group>header span{color:var(--cp-muted);font-size:10px}
+        .cp-permission-group>header strong{color:var(--cp-text);font-size:calc((12px) + 1px)}
+        .cp-permission-group>header span{color:var(--cp-muted);font-size:calc((10px) + 1px)}
         .cp-permission-grid{display:grid;gap:7px}
         .perm-row{flex-wrap:wrap;padding:10px;background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.1)}
         .perm-row:hover{border-color:rgba(156,255,0,.3)}
         .perm-info{align-items:flex-start}
         .perm-icon-wrap{width:32px;height:32px;background:rgba(255,255,255,.07);color:#b8c0ba}
         .cp-permission-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
-        .perm-label{color:var(--cp-text);font-size:11px}
-        .perm-desc{color:var(--cp-muted);font-size:10px;line-height:1.4}
+        .perm-label{color:var(--cp-text);font-size:calc((11px) + 1px)}
+        .perm-desc{color:var(--cp-muted);font-size:calc((10px) + 1px);line-height:1.4}
         .cp-state-options{display:flex;gap:3px;flex-shrink:0;padding:3px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(0,0,0,.2)}
         .cp-state-option{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:58px;padding:6px 7px;border:1px solid transparent;border-radius:6px;background:transparent;color:#a4ada6;font:700 9px inherit;cursor:pointer}
         .cp-state-option:hover{background:rgba(255,255,255,.07);color:var(--cp-text)}
         .cp-state-option.allow.selected{border-color:rgba(156,255,0,.24);background:rgba(156,255,0,.12);color:#c8ff78}
         .cp-state-option.deny.selected{border-color:rgba(255,107,107,.28);background:rgba(255,107,107,.12);color:#ff9696}
         .cp-state-option.inherit.selected{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.1);color:var(--cp-text)}
-        .cp-empty,.cp-no-role{margin:0;padding:14px;color:var(--cp-muted);font-size:11px;line-height:1.5}
+        .cp-empty,.cp-no-role{margin:0;padding:14px;color:var(--cp-muted);font-size:calc((11px) + 1px);line-height:1.5}
         .cp-no-role{display:grid;place-items:center;text-align:center}
         @media(min-width:768px){.cp-modal{width:min(900px,calc(100vw - 36px));max-width:900px}.cp-body{grid-template-columns:minmax(210px,250px) minmax(0,1fr)}}
         .perm-loading{color:var(--cp-muted)}

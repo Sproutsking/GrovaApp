@@ -18,10 +18,10 @@ const fmtNGN = (n) =>
 
 // ── Network SVG Logos ─────────────────────────────────────────
 const NETWORK_LOGOS = {
-  MTN: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#FFCB05" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#000" fontSize="18" fontWeight="900" fontFamily="Arial Black,sans-serif">MTN</text></svg>),
-  GLO: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#43B02A" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="900" fontFamily="Arial Black,sans-serif">GLO</text></svg>),
-  Airtel: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#ED1C24" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="900" fontFamily="Arial Black,sans-serif">AIRTEL</text></svg>),
-  "9mobile": (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#006633" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="900" fontFamily="Arial Black,sans-serif">9mobile</text></svg>),
+  MTN: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#FFCB05" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#000" fontSize="19" fontWeight="900" fontFamily="Arial Black,sans-serif">MTN</text></svg>),
+  GLO: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#43B02A" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="19" fontWeight="900" fontFamily="Arial Black,sans-serif">GLO</text></svg>),
+  Airtel: (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#ED1C24" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="17" fontWeight="900" fontFamily="Arial Black,sans-serif">AIRTEL</text></svg>),
+  "9mobile": (<svg viewBox="0 0 120 40" style={{ width: "100%", height: "100%" }}><rect width="120" height="40" fill="#006633" rx="6"/><text x="60" y="28" textAnchor="middle" fill="#fff" fontSize="17" fontWeight="900" fontFamily="Arial Black,sans-serif">9mobile</text></svg>),
 };
 
 const NETWORKS = [
@@ -61,10 +61,10 @@ function NetworkDropdown({ value, onChange }) {
             <div style={{ width: 48, height: 20, flexShrink: 0, borderRadius: 4, overflow: "hidden" }}>
               {NETWORK_LOGOS[sel.logo]}
             </div>
-            <span style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13 }}>{sel.name}</span>
+            <span style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14 }}>{sel.name}</span>
           </>
         ) : (
-          <span style={{ color: "var(--t4)", fontSize: 12.5, fontFamily: "var(--fb)" }}>Select Network</span>
+          <span style={{ color: "var(--t4)", fontSize: 13.5, fontFamily: "var(--fb)" }}>Select Network</span>
         )}
         <ChevronDown size={12} style={{
           marginLeft: "auto", color: "var(--t2)",
@@ -89,7 +89,7 @@ function NetworkDropdown({ value, onChange }) {
               <div style={{ width: 55, height: 22, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
                 {NETWORK_LOGOS[n.logo]}
               </div>
-              <span style={{ fontFamily: "var(--fd)", fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{n.name}</span>
+              <span style={{ fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700, color: "var(--t1)" }}>{n.name}</span>
               {n.id === value && <CheckCircle2 size={12} color="var(--lime)" style={{ marginLeft: "auto" }} />}
             </button>
           ))}
@@ -164,8 +164,8 @@ function AirtimeView({ onBack, onSuccess }) {
           background: "rgba(163,230,53,0.055)", border: "1px solid rgba(163,230,53,0.13)",
           display: "flex", alignItems: "center", gap: 8,
         }}>
-          <span style={{ fontSize: 14 }}>💰</span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
+          <span style={{ fontSize: 15 }}>💰</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
             Cashback coming soon
           </span>
         </div>
@@ -183,7 +183,7 @@ function AirtimeView({ onBack, onSuccess }) {
           </div>
           <button style={{
             marginTop: 4, background: "none", border: "none",
-            cursor: "pointer", color: "var(--lime)", fontSize: "10.5px",
+            cursor: "pointer", color: "var(--lime)", fontSize: "calc((10.5px) + 1px)",
             fontFamily: "var(--fb)", padding: 0,
           }} onClick={() => setPhone(profile?.phone || "")}>Use my number</button>
         </div>
@@ -191,7 +191,7 @@ function AirtimeView({ onBack, onSuccess }) {
           <label className="xf-lbl">Amount (₦)</label>
           <div className="xf-wrap" style={{ padding: "9px 11px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "var(--t2)", fontSize: 18 }}>₦</span>
+              <span style={{ color: "var(--t2)", fontSize: 19 }}>₦</span>
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0" className="xf-in-lg" />
             </div>
@@ -201,7 +201,7 @@ function AirtimeView({ onBack, onSuccess }) {
           {QUICK.map(a => (
             <button key={a} className={`amt-btn ${amount === String(a) ? "sel" : ""}`}
               onClick={() => setAmount(String(a))}
-              style={{ flex: 1, minWidth: 0, fontSize: 11 }}>
+              style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
               ₦{a.toLocaleString()}
             </button>
           ))}
@@ -341,8 +341,8 @@ function DataView({ onBack, onSuccess }) {
           background: "rgba(163,230,53,0.055)", border: "1px solid rgba(163,230,53,0.13)",
           display: "flex", alignItems: "center", gap: 8,
         }}>
-          <span style={{ fontSize: 14 }}>💰</span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
+          <span style={{ fontSize: 15 }}>💰</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
             Cashback coming soon
           </span>
         </div>
@@ -360,7 +360,7 @@ function DataView({ onBack, onSuccess }) {
           </div>
           <button style={{
             marginTop: 4, background: "none", border: "none",
-            cursor: "pointer", color: "var(--lime)", fontSize: "10.5px",
+            cursor: "pointer", color: "var(--lime)", fontSize: "calc((10.5px) + 1px)",
             fontFamily: "var(--fb)", padding: 0,
           }} onClick={() => setPhone(profile?.phone || "")}>Use my number</button>
         </div>
@@ -384,17 +384,17 @@ function DataView({ onBack, onSuccess }) {
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
                       <span style={{
-                        fontFamily: "var(--fd)", fontSize: 10, fontWeight: 800,
+                        fontFamily: "var(--fd)", fontSize: 11, fontWeight: 800,
                         color: selPlan?.id === plan.id ? "var(--lime)" : "var(--t2)",
                       }}>{plan.label}</span>
                     </div>
                     <div>
-                      <div style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>{plan.label}</div>
-                      <div style={{ fontSize: 10.5, color: "var(--t2)" }}>{plan.validity}</div>
+                      <div style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 700, color: "var(--t1)" }}>{plan.label}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--t2)" }}>{plan.validity}</div>
                     </div>
                   </div>
                   <div style={{
-                    fontFamily: "var(--fd)", fontWeight: 800, fontSize: 13,
+                    fontFamily: "var(--fd)", fontWeight: 800, fontSize: 14,
                     color: selPlan?.id === plan.id ? "var(--lime)" : "var(--t1)",
                   }}>₦{plan.price.toLocaleString()}</div>
                 </button>
@@ -531,7 +531,7 @@ function ElectricityView({ onBack, onSuccess }) {
           <label className="xf-lbl">Amount (₦) — Min ₦500</label>
           <div className="xf-wrap" style={{ padding: "9px 11px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "var(--t2)", fontSize: 18 }}>₦</span>
+              <span style={{ color: "var(--t2)", fontSize: 19 }}>₦</span>
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0.00" className="xf-in-lg" />
             </div>
@@ -540,7 +540,7 @@ function ElectricityView({ onBack, onSuccess }) {
         <div style={{ display: "flex", gap: 5 }}>
           {[500, 1000, 2000, 5000].map(a => (
             <button key={a} className={`amt-btn ${amount === String(a) ? "sel" : ""}`}
-              onClick={() => setAmount(String(a))} style={{ flex: 1, fontSize: 11 }}>
+              onClick={() => setAmount(String(a))} style={{ flex: 1, fontSize: 12 }}>
               ₦{a.toLocaleString()}
             </button>
           ))}
@@ -671,7 +671,7 @@ function CableTVView({ onBack, onSuccess }) {
             {TV_PROVIDERS.map(p => (
               <button key={p.id} className={`amt-btn ${provider === p.id ? "sel" : ""}`}
                 onClick={() => { setProvider(p.id); setSelPlan(null); }}
-                style={{ flex: 1, fontSize: 12, padding: "8px 5px" }}>{p.name}</button>
+                style={{ flex: 1, fontSize: 13, padding: "8px 5px" }}>{p.name}</button>
             ))}
           </div>
         </div>
@@ -696,11 +696,11 @@ function CableTVView({ onBack, onSuccess }) {
                   border: selPlan?.id === plan.id ? "1px solid rgba(163,230,53,0.26)" : "1px solid var(--b1)",
                   transition: "all .13s", boxSizing: "border-box",
                 }}>
-                  <span style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 12.5, color: "var(--t1)" }}>
+                  <span style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13.5, color: "var(--t1)" }}>
                     {plan.name}
                   </span>
                   <span style={{
-                    fontFamily: "var(--fd)", fontWeight: 800, fontSize: 13,
+                    fontFamily: "var(--fd)", fontWeight: 800, fontSize: 14,
                     color: selPlan?.id === plan.id ? "var(--lime)" : "var(--t1)",
                   }}>₦{plan.price.toLocaleString()}/mo</span>
                 </button>
@@ -833,8 +833,8 @@ function BillsView({ onBack }) {
               background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.055)",
               textAlign: "center",
             }}>
-              <div style={{ fontFamily: "var(--fd)", fontSize: 14, fontWeight: 800, color: s.color }}>{s.val}</div>
-              <div style={{ fontSize: "9.5px", color: "var(--t2)", marginTop: 2, fontFamily: "var(--fb)" }}>{s.label}</div>
+              <div style={{ fontFamily: "var(--fd)", fontSize: 15, fontWeight: 800, color: s.color }}>{s.val}</div>
+              <div style={{ fontSize: "calc((9.5px) + 1px)", color: "var(--t2)", marginTop: 2, fontFamily: "var(--fb)" }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -846,7 +846,7 @@ function BillsView({ onBack }) {
             marginBottom: 11, display: "flex", alignItems: "flex-start", gap: 8,
           }}>
             <AlertCircle size={12} color="#f87171" style={{ flexShrink: 0, marginTop: 1 }} />
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "var(--fb)", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "var(--fb)", lineHeight: 1.6 }}>
               <span style={{ color: "#f87171", fontWeight: 700 }}>
                 {dueSoon.length} bill{dueSoon.length > 1 ? "s" : ""} due soon:{" "}
               </span>
@@ -860,16 +860,16 @@ function BillsView({ onBack }) {
         </button>
 
         {loading && (
-          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--t2)", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--t2)", fontSize: 13 }}>
             Loading your bills…
           </div>
         )}
 
         {!loading && bills.length === 0 && (
           <div style={{ textAlign: "center", padding: "32px 16px" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🧾</div>
-            <div style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 700 }}>No bills added yet</div>
-            <div style={{ fontSize: 11, color: "var(--t2)", marginTop: 5, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 29, marginBottom: 8 }}>🧾</div>
+            <div style={{ fontFamily: "var(--fd)", fontSize: 14.5, fontWeight: 700 }}>No bills added yet</div>
+            <div style={{ fontSize: 12, color: "var(--t2)", marginTop: 5, lineHeight: 1.6 }}>
               Track rent, utilities, subscriptions — never miss a payment.
             </div>
           </div>
@@ -894,28 +894,28 @@ function BillsView({ onBack }) {
                       <div style={{
                         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
                         background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.055)",
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
                       }}>{cat?.emoji || "📋"}</div>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <span style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700, color: bill.is_paid ? "var(--t2)" : "var(--t1)" }}>
+                          <span style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 700, color: bill.is_paid ? "var(--t2)" : "var(--t1)" }}>
                             {bill.name}
                           </span>
                           {bill.is_paid && (
-                            <span style={{ fontSize: "8.5px", padding: "1.5px 5px", borderRadius: 20, background: "rgba(163,230,53,0.09)", color: "var(--lime)", fontWeight: 700 }}>PAID</span>
+                            <span style={{ fontSize: "calc((8.5px) + 1px)", padding: "1.5px 5px", borderRadius: 20, background: "rgba(163,230,53,0.09)", color: "var(--lime)", fontWeight: 700 }}>PAID</span>
                           )}
                           {isDue && !bill.is_paid && (
-                            <span style={{ fontSize: "8.5px", padding: "1.5px 5px", borderRadius: 20, background: "rgba(248,113,113,0.09)", color: "#f87171", fontWeight: 700 }}>DUE SOON</span>
+                            <span style={{ fontSize: "calc((8.5px) + 1px)", padding: "1.5px 5px", borderRadius: 20, background: "rgba(248,113,113,0.09)", color: "#f87171", fontWeight: 700 }}>DUE SOON</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 10.5, color: "var(--t2)", marginTop: 1 }}>
+                        <div style={{ fontSize: 11.5, color: "var(--t2)", marginTop: 1 }}>
                           {FREQUENCY_LABELS[bill.frequency] || bill.frequency}
                           {bill.due_day ? ` · Day ${bill.due_day}` : ""}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontFamily: "var(--fd)", fontSize: 13, fontWeight: 800 }}>₦{fmtNGN(bill.amount)}</div>
+                      <div style={{ fontFamily: "var(--fd)", fontSize: 14, fontWeight: 800 }}>₦{fmtNGN(bill.amount)}</div>
                       <button onClick={() => togglePaid(bill)} title={bill.is_paid ? "Mark unpaid" : "Mark paid"} style={{
                         width: 26, height: 26, borderRadius: 6,
                         border: "1px solid rgba(255,255,255,0.07)",
@@ -938,7 +938,7 @@ function BillsView({ onBack }) {
                     </div>
                   </div>
                   {bill.notes && (
-                    <div style={{ marginTop: 6, fontSize: 10.5, color: "rgba(255,255,255,0.24)", fontFamily: "var(--fb)", lineHeight: 1.5, paddingLeft: 40 }}>
+                    <div style={{ marginTop: 6, fontSize: 11.5, color: "rgba(255,255,255,0.24)", fontFamily: "var(--fb)", lineHeight: 1.5, paddingLeft: 40 }}>
                       {bill.notes}
                     </div>
                   )}
@@ -968,7 +968,7 @@ function BillsView({ onBack }) {
               <div style={{ width: 32, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.1)" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px 0" }}>
-              <span style={{ fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700 }}>Add New Bill</span>
+              <span style={{ fontFamily: "var(--fd)", fontSize: 15, fontWeight: 700 }}>Add New Bill</span>
               <button onClick={() => setShowAdd(false)} style={{
                 background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)",
                 borderRadius: 7, width: 25, height: 25, cursor: "pointer",
@@ -993,7 +993,7 @@ function BillsView({ onBack }) {
                     <button key={c.id}
                       className={`amt-btn ${form.category === c.id ? "sel" : ""}`}
                       onClick={() => setForm({ ...form, category: c.id })}
-                      style={{ fontSize: 10.5, padding: "6px 9px", display: "flex", alignItems: "center", gap: 4 }}>
+                      style={{ fontSize: 11.5, padding: "6px 9px", display: "flex", alignItems: "center", gap: 4 }}>
                       {c.emoji} {c.name}
                     </button>
                   ))}
@@ -1023,7 +1023,7 @@ function BillsView({ onBack }) {
                   {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
                     <button key={k} className={`amt-btn ${form.frequency === k ? "sel" : ""}`}
                       onClick={() => setForm({ ...form, frequency: k })}
-                      style={{ fontSize: 10.5, padding: "6px 9px" }}>{v}</button>
+                      style={{ fontSize: 11.5, padding: "6px 9px" }}>{v}</button>
                   ))}
                 </div>
               </div>
@@ -1093,13 +1093,13 @@ function MoreView({ onBack, setPage }) {
     <div className="pw-scroll">
       <Header title="All Services" onBack={onBack} icon={LayoutGrid} />
       <div className="xf-section">
-        <div style={{ fontSize: 11.5, color: "var(--t2)", fontFamily: "var(--fb)", lineHeight: 1.6, marginBottom: 14 }}>
+        <div style={{ fontSize: 12.5, color: "var(--t2)", fontFamily: "var(--fb)", lineHeight: 1.6, marginBottom: 14 }}>
           Every service on PayWave — tap any to get started.
         </div>
         {ALL_SERVICES.map((cat, ci) => (
           <div key={ci} style={{ marginBottom: 20 }}>
             <div style={{
-              fontFamily: "var(--fd)", fontSize: "9.5px", fontWeight: 700,
+              fontFamily: "var(--fd)", fontSize: "calc((9.5px) + 1px)", fontWeight: 700,
               color: "rgba(255,255,255,0.2)", textTransform: "uppercase",
               letterSpacing: "0.07em", marginBottom: 9,
             }}>{cat.category}</div>
@@ -1116,15 +1116,15 @@ function MoreView({ onBack, setPage }) {
                   <div style={{
                     width: 32, height: 32, borderRadius: 9, flexShrink: 0,
                     background: `${item.color}16`, border: `1px solid ${item.color}28`,
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
                   }}>{item.icon}</div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{
-                      fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700, color: "var(--t1)",
+                      fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 700, color: "var(--t1)",
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }}>{item.name}</div>
                     {item.soon && (
-                      <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.24)", fontFamily: "var(--fb)", marginTop: 1 }}>
+                      <div style={{ fontSize: "calc((9px) + 1px)", color: "rgba(255,255,255,0.24)", fontFamily: "var(--fb)", marginTop: 1 }}>
                         Coming soon
                       </div>
                     )}
@@ -1159,13 +1159,13 @@ export default function BillsTab({ view, onBack, onSuccess, setPage }) {
     <div className="pw-scroll">
       <Header title={info.name} onBack={onBack} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 28, textAlign: "center" }}>
-        <div style={{ fontSize: 44 }}>{info.icon}</div>
-        <div style={{ fontFamily: "var(--fd)", fontSize: 16, fontWeight: 800 }}>{info.name}</div>
-        <div style={{ fontSize: 12.5, color: "var(--t2)", lineHeight: 1.65, maxWidth: 260 }}>{info.msg}</div>
+        <div style={{ fontSize: 45 }}>{info.icon}</div>
+        <div style={{ fontFamily: "var(--fd)", fontSize: 17, fontWeight: 800 }}>{info.name}</div>
+        <div style={{ fontSize: 13.5, color: "var(--t2)", lineHeight: 1.65, maxWidth: 260 }}>{info.msg}</div>
         <div style={{
           padding: "5px 14px", borderRadius: 20,
           background: "rgba(163,230,53,0.07)", border: "1px solid rgba(163,230,53,0.14)",
-          fontSize: 10.5, color: "var(--lime)", fontWeight: 700,
+          fontSize: 11.5, color: "var(--lime)", fontWeight: 700,
         }}>COMING SOON</div>
       </div>
     </div>

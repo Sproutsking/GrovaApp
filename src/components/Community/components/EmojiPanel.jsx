@@ -843,7 +843,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {}, panelRef: externalPanelRef,
           border-radius: 9px;
           padding: 9px 11px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           box-shadow: 0 0 0 3px rgba(156,255,0,0.04) inset;
           outline: none;
         }
@@ -905,7 +905,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {}, panelRef: externalPanelRef,
           background: transparent;
           border: none;
           border-radius: 9px;
-          font-size: 21px;
+          font-size: calc((21px) + 1px);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -922,14 +922,14 @@ const EmojiPanel = ({ onSelect, onClose, style = {}, panelRef: externalPanelRef,
           grid-column: 1 / -1;
           text-align: center;
           color: #444;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           padding: 24px 0;
         }
 
         @media (max-width: 420px) {
           .community-emoji-panel { width: calc(100vw - 24px); height: min(390px, calc(100vh - 24px)); }
           .community-emoji-grid { grid-template-columns: repeat(7, 1fr); }
-          .community-emoji-item { font-size: 19px; }
+          .community-emoji-item { font-size: calc((19px) + 1px); }
         }
       `}</style>
     </div>

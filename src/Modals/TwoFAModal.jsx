@@ -102,7 +102,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
           >
             <h2
               style={{
-                fontSize: "20px",
+                fontSize: "calc((20px) + 1px)",
                 fontWeight: "700",
                 color: "#fff",
                 margin: 0,
@@ -116,7 +116,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
                 background: "none",
                 border: "none",
                 color: "#a3a3a3",
-                fontSize: "32px",
+                fontSize: "calc((32px) + 1px)",
                 cursor: "pointer",
                 padding: 0,
                 lineHeight: 1,
@@ -146,7 +146,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
               <p
                 style={{
                   color: "#a3a3a3",
-                  fontSize: "14px",
+                  fontSize: "calc((14px) + 1px)",
                   lineHeight: "1.5",
                 }}
               >
@@ -171,7 +171,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
                   border: "1px solid rgba(132, 204, 22, 0.2)",
                   borderRadius: "8px",
                   color: "#ffffff",
-                  fontSize: "24px",
+                  fontSize: "calc((24px) + 1px)",
                   textAlign: "center",
                   letterSpacing: "12px",
                   fontFamily: "monospace",
@@ -189,7 +189,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
               <p
                 style={{
                   color: "#ef4444",
-                  fontSize: "13px",
+                  fontSize: "calc((13px) + 1px)",
                   marginBottom: "16px",
                   textAlign: "center",
                 }}
@@ -212,7 +212,7 @@ const TwoFAModal = ({ show, onClose, userId, onSuccess }) => {
                 borderRadius: "12px",
                 color:
                   loading || verificationCode.length !== 6 ? "#666" : "#000",
-                fontSize: "16px",
+                fontSize: "calc((16px) + 1px)",
                 fontWeight: "700",
                 cursor:
                   loading || verificationCode.length !== 6

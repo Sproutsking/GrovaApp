@@ -31,13 +31,13 @@ const CSS = `
     flex-wrap:wrap; gap:10px;
   }
   .dsTitle {
-    font-size:13px; font-weight:800; color:#d4d4d4;
+    font-size:calc((13px) + 1px); font-weight:800; color:#d4d4d4;
     display:flex; align-items:center; gap:7px;
   }
   .dsBadges { display:flex; gap:7px; flex-wrap:wrap; }
   .dsBadge {
     display:inline-flex; align-items:center; gap:5px;
-    padding:4px 9px; border-radius:20px; font-size:11px; font-weight:700;
+    padding:4px 9px; border-radius:20px; font-size:calc((11px) + 1px); font-weight:700;
   }
   .dsBadge.ok  { background:rgba(132,204,22,.1);  color:#84cc16; border:1px solid rgba(132,204,22,.2); }
   .dsBadge.err { background:rgba(239,68,68,.1);   color:#f87171; border:1px solid rgba(239,68,68,.2); }
@@ -53,10 +53,10 @@ const CSS = `
   .dsPlatformRow:hover { background:rgba(255,255,255,.02); }
 
   .dsPDot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-  .dsPName { font-size:13px; font-weight:700; color:#d4d4d4; flex:1; }
+  .dsPName { font-size:calc((13px) + 1px); font-weight:700; color:#d4d4d4; flex:1; }
   .dsPStatus {
     display:inline-flex; align-items:center; gap:5px;
-    padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
+    padding:3px 9px; border-radius:20px; font-size:calc((11px) + 1px); font-weight:700;
   }
   .dsPStatus.ok  { background:rgba(132,204,22,.1);  color:#84cc16; }
   .dsPStatus.err { background:rgba(239,68,68,.1);   color:#f87171; }
@@ -68,11 +68,11 @@ const CSS = `
   }
   .dsPostId {
     display:flex; align-items:center; gap:7px;
-    font-size:11px; color:#454545; flex-wrap:wrap;
+    font-size:calc((11px) + 1px); color:#454545; flex-wrap:wrap;
   }
   .dsPostId code {
     background:rgba(0,0,0,.35); border-radius:5px; padding:2px 7px;
-    font-family:monospace; font-size:10.5px; color:#84cc16; word-break:break-all;
+    font-family:monospace; font-size:calc((10.5px) + 1px); color:#84cc16; word-break:break-all;
   }
   .dsCopyBtn {
     background:none; border:1px solid rgba(255,255,255,.1);
@@ -80,10 +80,10 @@ const CSS = `
     transition:border-color .14s, color .14s; display:flex; align-items:center;
   }
   .dsCopyBtn:hover { border-color:rgba(255,255,255,.25); color:#a3a3a3; }
-  .dsPublishedAt { font-size:10.5px; color:#3a3a3a; }
+  .dsPublishedAt { font-size:calc((10.5px) + 1px); color:#3a3a3a; }
   .dsViewBtn {
     display:inline-flex; align-items:center; gap:5px;
-    padding:5px 10px; border-radius:7px; font-size:11px; font-weight:700;
+    padding:5px 10px; border-radius:7px; font-size:calc((11px) + 1px); font-weight:700;
     background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.25);
     color:#84cc16; text-decoration:none; transition:background .14s; width:fit-content;
   }
@@ -92,11 +92,11 @@ const CSS = `
   .dsErrMsg {
     display:flex; align-items:flex-start; gap:7px;
     padding:8px 10px; background:rgba(239,68,68,.06);
-    border-radius:7px; font-size:11.5px; color:#f87171;
+    border-radius:7px; font-size:calc((11.5px) + 1px); color:#f87171;
   }
   .dsRetryBtn {
     display:inline-flex; align-items:center; gap:6px;
-    padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:700;
+    padding:6px 12px; border-radius:8px; font-size:calc((11.5px) + 1px); font-weight:700;
     background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25);
     color:#f87171; cursor:pointer; font-family:inherit; transition:background .14s;
     width:fit-content;
@@ -109,12 +109,12 @@ const CSS = `
     padding:14px 16px; border-top:1px solid rgba(132,204,22,.12);
     background:rgba(132,204,22,.04);
   }
-  .dsSuccessText h4 { font-size:13px; font-weight:800; color:#84cc16; margin:0 0 3px; }
-  .dsSuccessText p  { font-size:11.5px; color:#525252; margin:0; }
+  .dsSuccessText h4 { font-size:calc((13px) + 1px); font-weight:800; color:#84cc16; margin:0 0 3px; }
+  .dsSuccessText p  { font-size:calc((11.5px) + 1px); color:#525252; margin:0; }
 
   .dsLoading {
     display:flex; align-items:center; gap:10px;
-    padding:16px; font-size:12px; color:#454545;
+    padding:16px; font-size:calc((12px) + 1px); color:#454545;
   }
   .dsSpin { animation:dsSpin .9s linear infinite; }
 `;

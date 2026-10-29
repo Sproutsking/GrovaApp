@@ -178,16 +178,16 @@ const CSS = `
   }
   .idHeroEyebrow {
     display:flex; align-items:center; gap:7px;
-    font-size:10px; font-weight:800; text-transform:uppercase;
+    font-size:calc((10px) + 1px); font-weight:800; text-transform:uppercase;
     letter-spacing:.9px; color:#818cf8; margin-bottom:10px;
   }
   .idHeroTitle {
-    font-size:20px; font-weight:900; color:#f5f5f5;
+    font-size:calc((20px) + 1px); font-weight:900; color:#f5f5f5;
     margin:0 0 8px; line-height:1.2;
   }
   .idHeroTitle em { font-style:normal; color:#c4b5fd; }
   .idHeroBody {
-    font-size:12.5px; color:#d6dde7; line-height:1.7;
+    font-size:calc((12.5px) + 1px); color:#d6dde7; line-height:1.7;
     margin:0 0 18px; max-width:480px;
   }
   .idStats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -197,13 +197,13 @@ const CSS = `
     border-radius:12px; transition:border-color .2s;
   }
   .idStat:hover { border-color:rgba(139,92,246,.3); }
-  .idStatV { font-size:24px; font-weight:900; color:#c4b5fd; line-height:1; margin-bottom:4px; }
-  .idStatL { font-size:10px; color:#dfe7f2; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  .idStatV { font-size:calc((24px) + 1px); font-weight:900; color:#c4b5fd; line-height:1; margin-bottom:4px; }
+  .idStatL { font-size:calc((10px) + 1px); color:#dfe7f2; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
 
   /* ── Section label ── */
   .idLabel {
     display:flex; align-items:center; gap:6px;
-    font-size:10px; font-weight:800; color:#dfe7f2;
+    font-size:calc((10px) + 1px); font-weight:800; color:#dfe7f2;
     text-transform:uppercase; letter-spacing:.7px; margin:0 0 10px;
   }
 
@@ -222,11 +222,11 @@ const CSS = `
   .idHowNum {
     width:34px; height:34px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-size:12px; font-weight:900; color:#c4b5fd;
+    font-size:calc((12px) + 1px); font-weight:900; color:#c4b5fd;
     background:#0a0a0b; border:1px solid rgba(255,255,255,.1);
     position:relative; z-index:1;
   }
-  .idHowText { font-size:11px; color:#dfe7f2; line-height:1.55; }
+  .idHowText { font-size:calc((11px) + 1px); color:#dfe7f2; line-height:1.55; }
 
   /* ── Platform cards ──
      Grid, not flex: icon / body / action sit in three fixed columns on a
@@ -260,7 +260,7 @@ const CSS = `
   .idIcon {
     width:34px; height:34px; border-radius:9px;
     display:flex; align-items:center; justify-content:center;
-    font-size:14px; font-weight:900; border:1px solid;
+    font-size:calc((14px) + 1px); font-weight:900; border:1px solid;
     font-style:normal; transition:transform .18s; grid-column:1; grid-row:1;
     flex-shrink:0; grid-row:1 / span 2;
   }
@@ -268,7 +268,7 @@ const CSS = `
 
   .idBody { min-width:0; display:flex; flex-direction:column; grid-column:2; grid-row:1 / span 2; align-self:stretch; justify-content:space-between; }
   .idPname {
-    font-size:13px; font-weight:800; color:#f8fafc; margin:0;
+    font-size:calc((13px) + 1px); font-weight:800; color:#f8fafc; margin:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .idDivider {
@@ -277,13 +277,13 @@ const CSS = `
     background:rgba(255,255,255,.08);
     margin:0;
   }
-  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; min-width:0; min-height:17px; }
+  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:calc((10.5px) + 1px); font-weight:700; min-width:0; min-height:17px; }
   .idLiveDot {
     display:inline-block; width:5px; height:5px; border-radius:50%; flex-shrink:0;
     background:#84cc16; animation:idPulse 2s ease-in-out infinite;
   }
   .idHandle { color:#9ca3af; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .idConnectNote { font-size:10px; color:#7d8590; margin-top:4px; line-height:1.5; }
+  .idConnectNote { font-size:calc((10px) + 1px); color:#7d8590; margin-top:4px; line-height:1.5; }
 
   .idCard > .idBtn,
   .idCard > .idSoonBadge {
@@ -298,7 +298,7 @@ const CSS = `
     width:max-content; min-width:0; max-width:100%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
     padding:4px 6px; min-height:22px; box-sizing:border-box; border-radius:8px; border:1px solid rgba(255,255,255,.14);
     background:rgba(255,255,255,.07); color:#f5f5f5;
-    font-size:10px; line-height:1.15; font-weight:700; cursor:pointer; white-space:nowrap;
+    font-size:calc((10px) + 1px); line-height:1.15; font-weight:700; cursor:pointer; white-space:nowrap;
     font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
   }
   .idBtn:hover:not(:disabled) { background:rgba(255,255,255,.12); }
@@ -309,7 +309,7 @@ const CSS = `
   .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
     width:max-content; min-width:0; flex-shrink:0; text-align:center;
-    padding:4px 6px; border-radius:8px; font-size:9px; font-weight:800;
+    padding:4px 6px; border-radius:8px; font-size:calc((9px) + 1px); font-weight:800;
     background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
@@ -327,7 +327,7 @@ const CSS = `
     position:absolute; inset:0; border-radius:14px;
     background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
     display:flex; align-items:center; justify-content:center; gap:10px;
-    font-size:12px; font-weight:700; color:#c4b5fd;
+    font-size:calc((12px) + 1px); font-weight:700; color:#c4b5fd;
     animation:idSlide .2s ease;
     z-index:5;
   }
@@ -338,7 +338,7 @@ const CSS = `
     background:#1a0a0a; border:1px solid rgba(239,68,68,.3);
     border-radius:12px; padding:12px 20px;
     display:flex; align-items:center; gap:10px;
-    font-size:12.5px; color:#f87171; z-index:9999;
+    font-size:calc((12.5px) + 1px); color:#f87171; z-index:9999;
     max-width:360px; box-shadow:0 8px 30px rgba(0,0,0,.6);
     animation:idSlide .25s ease;
   }
@@ -352,7 +352,7 @@ const CSS = `
     background:#0a1a0a; border:1px solid rgba(132,204,22,.3);
     border-radius:12px; padding:12px 20px;
     display:flex; align-items:center; gap:10px;
-    font-size:12.5px; color:#84cc16; z-index:9999;
+    font-size:calc((12.5px) + 1px); color:#84cc16; z-index:9999;
     max-width:360px; box-shadow:0 8px 30px rgba(0,0,0,.6);
     animation:idSlide .25s ease;
   }
@@ -362,7 +362,7 @@ const CSS = `
     margin-top:6px;
     background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.2);
     border-radius:10px; padding:10px 12px;
-    font-size:11px; color:#fbbf24; line-height:1.6;
+    font-size:calc((11px) + 1px); color:#fbbf24; line-height:1.6;
   }
   .idDeepLink a {
     color:#fbbf24; font-weight:700; text-decoration:underline;
@@ -376,19 +376,19 @@ const CSS = `
   }
   .idTable { width:100%; border-collapse:collapse; margin-top:12px; }
   .idTable th {
-    font-size:10px; font-weight:700; color:#dfe7f2;
+    font-size:calc((10px) + 1px); font-weight:700; color:#dfe7f2;
     text-transform:uppercase; letter-spacing:.4px;
     text-align:left; padding:5px 8px;
     border-bottom:1px solid rgba(255,255,255,.06);
   }
   .idTable td {
-    font-size:12px; color:#cbd5e1; padding:9px 8px;
+    font-size:calc((12px) + 1px); color:#cbd5e1; padding:9px 8px;
     border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle;
   }
   .idTable tr:last-child td { border-bottom:none; }
   .idPill {
     display:inline-flex; align-items:center; gap:4px;
-    padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;
+    padding:2px 8px; border-radius:20px; font-size:calc((11px) + 1px); font-weight:700;
   }
   .idPill.ok  { background:rgba(132,204,22,.12); color:#84cc16; }
   .idPill.err { background:rgba(239,68,68,.12);  color:#f87171; }
@@ -399,7 +399,7 @@ const CSS = `
     background:rgba(96,165,250,.05); border:1px solid rgba(96,165,250,.14);
     border-radius:14px; padding:14px; display:flex; gap:12px; align-items:flex-start;
   }
-  .idCallout p { font-size:12px; color:#737373; line-height:1.7; margin:0; }
+  .idCallout p { font-size:calc((12px) + 1px); color:#737373; line-height:1.7; margin:0; }
   .idCallout p strong { color:#93c5fd; }
 
   .idNotice {
@@ -408,8 +408,8 @@ const CSS = `
   }
   .idNotice.warn { background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.2); }
   .idNotice.err  { background:rgba(239,68,68,.06);  border:1px solid rgba(239,68,68,.2);  }
-  .idNotice p { font-size:13px; color:#d4d4d4; line-height:1.65; margin:0; }
-  .idNotice p strong { display:block; margin-bottom:6px; font-size:14px; }
+  .idNotice p { font-size:calc((13px) + 1px); color:#d4d4d4; line-height:1.65; margin:0; }
+  .idNotice p strong { display:block; margin-bottom:6px; font-size:calc((14px) + 1px); }
   .idNotice .warnTitle { color:#fbbf24; }
   .idNotice .errTitle  { color:#f87171; }
 
@@ -424,9 +424,9 @@ const CSS = `
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
     .idCard { --id-divider-left:49px; grid-template-columns:30px minmax(0,1fr) auto; padding:8px 9px; column-gap:8px; }
-    .idIcon { width:30px; height:30px; font-size:12px; border-radius:8px; }
-    .idBtn, .idSoonBadge { padding:4px 6px; font-size:9px; }
-    .idAccountBtn { max-width:92px; padding:3px 5px; font-size:8.5px; }
+    .idIcon { width:30px; height:30px; font-size:calc((12px) + 1px); border-radius:8px; }
+    .idBtn, .idSoonBadge { padding:4px 6px; font-size:calc((9px) + 1px); }
+    .idAccountBtn { max-width:92px; padding:3px 5px; font-size:calc((8.5px) + 1px); }
   }
 `;
 
@@ -566,7 +566,7 @@ const IdentitySection = ({ userId }) => {
           alignSelf:"flex-start", padding:"10px 20px",
           background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.3)",
           borderRadius:10, color:"#f87171", fontWeight:700, cursor:"pointer",
-          fontFamily:"inherit", fontSize:13, display:"flex", alignItems:"center", gap:7,
+          fontFamily:"inherit", fontSize:14, display:"flex", alignItems:"center", gap:7,
         }}>
           <RefreshCw size={13} /> Retry
         </button>

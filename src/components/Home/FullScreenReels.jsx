@@ -611,12 +611,12 @@ const FullScreenReels = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 48px;
+          font-size: calc((48px) + 1px);
           font-weight: 800;
           color: #000;
         }
 
-        .error-message { color: rgba(255,255,255,0.7); font-size: 16px; }
+        .error-message { color: rgba(255,255,255,0.7); font-size: calc((16px) + 1px); }
 
         .reel-loading {
           position: absolute;
@@ -703,7 +703,7 @@ const FullScreenReels = ({
           background: rgba(0,0,0,0.7);
           backdrop-filter: blur(10px);
           color: white; padding: 3px 8px; border-radius: 6px;
-          font-size: 10px; font-weight: 600;
+          font-size: calc((10px) + 1px); font-weight: 600;
           font-variant-numeric: tabular-nums;
           white-space: nowrap; flex-shrink: 0;
         }
@@ -717,7 +717,7 @@ const FullScreenReels = ({
           backdrop-filter: blur(10px);
           padding: 4px 10px; border-radius: 8px;
           border: 1px solid rgba(255,255,255,0.1);
-          color: white; font-size: 12px; line-height: 1.4;
+          color: white; font-size: calc((12px) + 1px); line-height: 1.4;
           margin: 0; display: inline-block; max-width: 100%;
         }
 
@@ -740,7 +740,7 @@ const FullScreenReels = ({
           to   { transform: translateY(0);    opacity: 1; }
         }
 
-        .caption-expanded-content p { color: #e5e5e5; font-size: 14px; line-height: 1.5; margin: 0; }
+        .caption-expanded-content p { color: #e5e5e5; font-size: calc((14px) + 1px); line-height: 1.5; margin: 0; }
 
         .reel-right-actions {
           position: absolute; right: 16px; bottom: 104px;
@@ -795,8 +795,8 @@ const FullScreenReels = ({
 
           .reel-left-info { bottom: 72px; left: 12px; right: 72px; }
           .video-progress-container { left: 12px; right: 12px; bottom: max(48px, env(safe-area-inset-bottom)); }
-          .reel-caption-text { font-size: 12px; padding: 5px 8px; }
-          .caption-expanded-content p { font-size: 13px; }
+          .reel-caption-text { font-size: calc((12px) + 1px); padding: 5px 8px; }
+          .caption-expanded-content p { font-size: calc((13px) + 1px); }
           .reel-right-actions { right: 12px; bottom: 104px; gap: 8px; }
           .action-menu-btn { width: 44px; height: 44px; }
           .action-menu-btn svg { width: 22px; height: 22px; }
@@ -807,12 +807,12 @@ const FullScreenReels = ({
         @media (max-width: 480px) {
           .reel-left-info { bottom: 68px; left: 10px; right: 64px; }
           .video-progress-container { left: 10px; right: 10px; bottom: max(44px, env(safe-area-inset-bottom)); }
-          .reel-caption-text { font-size: 11px; padding: 4px 6px; }
+          .reel-caption-text { font-size: calc((11px) + 1px); padding: 4px 6px; }
           .action-menu-btn { width: 40px; height: 40px; }
           .reel-right-actions { right: 10px; bottom: 96px; gap: 6px; }
           .action-menu-btn { right: 10px; }
-          .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 18px; }
-          .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: 16px; }
+          .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: calc((18px) + 1px); }
+          .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: calc((16px) + 1px); }
         }
 
         /* Ensure no scrollbar shows */

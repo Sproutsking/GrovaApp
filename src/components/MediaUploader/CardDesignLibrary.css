@@ -16,7 +16,7 @@
   background: rgba(255, 255, 255, 0.02);
   color: var(--text-inverse, #f5f5f5);
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -68,7 +68,7 @@
 }
 
 .cdl-preview-tag {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -76,7 +76,7 @@
 }
 
 .cdl-preview-title {
-  font-size: 20px;
+  font-size: calc((20px) + 1px);
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -91,12 +91,12 @@
 }
 
 .cdl-meta strong {
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 700;
 }
 
 .cdl-meta span {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: rgba(255, 255, 255, 0.55);
 }
 

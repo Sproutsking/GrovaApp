@@ -35,7 +35,7 @@ const Avatar = ({ profile, size = 40 }) => {
   return (
     <div
       className="sm-avatar"
-      style={{ width: size, height: size, fontSize: size * 0.38 }}
+      style={{ width: size, height: size, fontSize: (size * 0.38) + 1 }}
     >
       {avatarUrl ? (
         <img src={avatarUrl} alt={profile?.full_name} />
@@ -553,7 +553,7 @@ const ShareModal = ({
           background: rgba(132,204,22,0.14);
           border-bottom: 1px solid rgba(132,204,22,0.3);
           color: #84cc16;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           padding: 10px 16px;
           display: flex;
@@ -578,7 +578,7 @@ const ShareModal = ({
           z-index: 2;
         }
         .sm-title {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0;
@@ -615,7 +615,7 @@ const ShareModal = ({
           background: none;
           border: none;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           outline: none;
         }
         .sm-search::placeholder { color: #555; }
@@ -635,7 +635,7 @@ const ShareModal = ({
 
         .sm-contacts-section { padding: 14px 16px 4px; }
         .sm-section-label {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           color: #555;
           text-transform: uppercase;
@@ -644,7 +644,7 @@ const ShareModal = ({
         }
         .sm-no-results {
           color: #555;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           text-align: center;
           padding: 16px 0;
         }
@@ -653,7 +653,7 @@ const ShareModal = ({
           align-items: center;
           gap: 8px;
           color: #555;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           padding: 8px 0;
         }
 
@@ -718,7 +718,7 @@ const ShareModal = ({
           font-weight: 700;
         }
         .sm-contact-name {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #d4d4d4;
           font-weight: 600;
           max-width: 64px;
@@ -729,7 +729,7 @@ const ShareModal = ({
         }
         .sm-contact.selected .sm-contact-name { color:#84cc16; }
         .sm-contact-username {
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
           color: #555;
           max-width: 64px;
           overflow: hidden;
@@ -748,7 +748,7 @@ const ShareModal = ({
           border: 1px solid rgba(132,204,22,0.3);
           border-radius: 20px;
           padding: 4px 10px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
           font-weight: 600;
         }
@@ -763,7 +763,7 @@ const ShareModal = ({
           border-radius: 10px;
           padding: 10px 14px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           outline: none;
           width: 100%;
           box-sizing: border-box;
@@ -780,7 +780,7 @@ const ShareModal = ({
           border: none;
           border-radius: 12px;
           color: #000;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           cursor: pointer;
           display: flex;
@@ -798,7 +798,7 @@ const ShareModal = ({
           gap: 12px;
           padding: 10px 16px;
           color: #555;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.6px;
@@ -828,7 +828,7 @@ const ShareModal = ({
           cursor: pointer;
           transition: all 0.15s;
           color: #d4d4d4;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
         }
         .sm-ext-btn:hover { background:rgba(255,255,255,0.09); transform:translateY(-1px); }

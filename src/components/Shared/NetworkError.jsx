@@ -77,7 +77,7 @@ const NetworkError = ({ onRetry }) => {
       <div style={{ textAlign: "center", maxWidth: "380px" }}>
         <h2
           style={{
-            fontSize: "22px",
+            fontSize: "calc((22px) + 1px)",
             fontWeight: "800",
             color: "#fff",
             marginBottom: "10px",
@@ -85,7 +85,7 @@ const NetworkError = ({ onRetry }) => {
         >
           {autoChecking ? "Reconnecting..." : "No Internet Connection"}
         </h2>
-        <p style={{ fontSize: "14px", color: "#9ca3af", lineHeight: "1.7" }}>
+        <p style={{ fontSize: "calc((14px) + 1px)", color: "#9ca3af", lineHeight: "1.7" }}>
           {autoChecking
             ? "Connection detected — restoring your session..."
             : "You're offline. Your session and data are safe. Everything will sync automatically when you reconnect."}
@@ -116,7 +116,7 @@ const NetworkError = ({ onRetry }) => {
               background: "rgba(132,204,22,0.06)",
               border: "1px solid rgba(132,204,22,0.12)",
               borderRadius: "20px",
-              fontSize: "12.5px",
+              fontSize: "calc((12.5px) + 1px)",
               color: "#a3e635",
             }}
           >
@@ -142,7 +142,7 @@ const NetworkError = ({ onRetry }) => {
             border: isRetrying ? "1px solid #27272a" : "none",
             borderRadius: "11px",
             color: isRetrying ? "#6b7280" : "#000",
-            fontSize: "15px",
+            fontSize: "calc((15px) + 1px)",
             fontWeight: "700",
             cursor: isRetrying ? "default" : "pointer",
             transition: "all 0.2s",

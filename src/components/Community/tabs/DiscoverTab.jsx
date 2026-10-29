@@ -24,7 +24,7 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
             <div className="dm-icon-wrap" style={{ border: community.icon_border === "none" ? "none" : community.icon_border === "lime" ? "2px solid rgba(156,255,0,.7)" : community.icon_border === "dashed" ? "2px dashed rgba(156,255,0,.55)" : "1px solid rgba(255,255,255,.28)" }}>
               {icon?.startsWith("http")
                 ? <img src={icon} alt={community.name} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
-                : <span style={{ fontSize:34,lineHeight:1 }}>{icon || community.name?.[0] || "🌟"}</span>
+                : <span style={{ fontSize:35,lineHeight:1 }}>{icon || community.name?.[0] || "🌟"}</span>
               }
             </div>
           </div>
@@ -72,22 +72,22 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         .dm-body::-webkit-scrollbar{width:4px}
         .dm-body::-webkit-scrollbar-thumb{background:rgba(156,255,0,.18);border-radius:2px}
         .dm-name-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px}
-        .dm-name{font-size:22px;font-weight:900;color:#fff;margin:0;font-family:'Outfit',sans-serif}
-        .dm-private{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;background:rgba(156,255,0,.08);border:1px solid rgba(156,255,0,.2);color:#9cff00;font-size:10px;font-weight:700}
+        .dm-name{font-size:calc((22px) + 1px);font-weight:900;color:#fff;margin:0;font-family:'Outfit',sans-serif}
+        .dm-private{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;background:rgba(156,255,0,.08);border:1px solid rgba(156,255,0,.2);color:#9cff00;font-size:calc((10px) + 1px);font-weight:700}
         .dm-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)}
-        .dm-stat{display:flex;align-items:center;gap:4px;font-size:11px;color:#888;font-weight:600}
+        .dm-stat{display:flex;align-items:center;gap:4px;font-size:calc((11px) + 1px);color:#888;font-weight:600}
         .dm-stat.online{color:#10b981}
         .dm-online-dot{width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981}
-        .dm-desc{color:#aaa;font-size:13px;line-height:1.55;margin-bottom:12px}
+        .dm-desc{color:#aaa;font-size:calc((13px) + 1px);line-height:1.55;margin-bottom:12px}
         .dm-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
-        .dm-tag{padding:3px 8px;border-radius:6px;background:rgba(156,255,0,.07);border:1px solid rgba(156,255,0,.18);color:#9cff00;font-size:10px;font-weight:700}
+        .dm-tag{padding:3px 8px;border-radius:6px;background:rgba(156,255,0,.07);border:1px solid rgba(156,255,0,.18);color:#9cff00;font-size:calc((10px) + 1px);font-weight:700}
         .dm-features{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:16px}
-        .dm-feature{display:flex;align-items:center;gap:7px;padding:9px 10px;background:rgba(16,16,16,.95);border:1px solid rgba(30,30,30,.9);border-radius:9px;color:#bbb;font-size:11px;font-weight:600}
+        .dm-feature{display:flex;align-items:center;gap:7px;padding:9px 10px;background:rgba(16,16,16,.95);border:1px solid rgba(30,30,30,.9);border-radius:9px;color:#bbb;font-size:calc((11px) + 1px);font-weight:600}
         .dm-actions{display:flex;justify-content:center}
-          .dm-join-btn{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:linear-gradient(145deg,#d9f99d 0%,#9cff00 42%,#65a30d 100%);border:1px solid rgba(236,252,203,.8);border-bottom:3px solid #3f6212;color:#172307;font-size:14px;font-weight:900;cursor:pointer;transition:transform .18s,box-shadow .18s,filter .18s;box-shadow:inset 0 1px 1px rgba(255,255,255,.7),0 5px 0 #365314,0 8px 16px rgba(0,0,0,.35),0 0 18px rgba(156,255,0,.22);font-family:'Outfit',sans-serif}
+          .dm-join-btn{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:linear-gradient(145deg,#d9f99d 0%,#9cff00 42%,#65a30d 100%);border:1px solid rgba(236,252,203,.8);border-bottom:3px solid #3f6212;color:#172307;font-size:calc((14px) + 1px);font-weight:900;cursor:pointer;transition:transform .18s,box-shadow .18s,filter .18s;box-shadow:inset 0 1px 1px rgba(255,255,255,.7),0 5px 0 #365314,0 8px 16px rgba(0,0,0,.35),0 0 18px rgba(156,255,0,.22);font-family:'Outfit',sans-serif}
           .dm-join-btn:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:inset 0 1px 1px rgba(255,255,255,.8),0 6px 0 #365314,0 11px 20px rgba(0,0,0,.42),0 0 24px rgba(156,255,0,.35)}
           .dm-join-btn:active{transform:translateY(2px);border-bottom-width:1px;box-shadow:inset 0 1px 2px rgba(0,0,0,.2),0 2px 5px rgba(0,0,0,.35)}
-        .dm-joined{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:rgba(156,255,0,.1);border:2px solid rgba(156,255,0,.3);color:#9cff00;font-size:14px;font-weight:800}
+        .dm-joined{display:flex;align-items:center;gap:7px;padding:12px 26px;border-radius:11px;background:rgba(156,255,0,.1);border:2px solid rgba(156,255,0,.3);color:#9cff00;font-size:calc((14px) + 1px);font-weight:800}
       `}</style>
     </>
   );
@@ -315,15 +315,15 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           gap: 8px; margin-bottom: 10px; position: relative; z-index: 10;
         }
         .disc-stats-row { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-        .disc-stat-chip { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
-        .disc-stat-dot { color: var(--text-muted); font-size: 11px; }
+        .disc-stat-chip { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: calc((11px) + 1px); font-weight: 700; }
+        .disc-stat-dot { color: var(--text-muted); font-size: calc((11px) + 1px); }
         .disc-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 
         .disc-ctrl {
           display: flex; align-items: center; gap: 4px;
           padding: 5px 8px; border-radius: 8px;
           background: var(--surface); border: 1px solid var(--surface-border);
-          color: var(--text-secondary); font-size: 11px; font-weight: 700; cursor: pointer;
+          color: var(--text-secondary); font-size: calc((11px) + 1px); font-weight: 700; cursor: pointer;
           transition: all .14s; line-height: 1; font-family: 'Outfit', sans-serif;
         }
         .disc-ctrl:hover, .disc-ctrl.on {
@@ -346,7 +346,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-dd-item {
           width: 100%; display: flex; align-items: center; gap: 7px;
           padding: 8px 10px; background: transparent; border: none; border-radius: 7px;
-          color: var(--text-secondary); font-size: 11.5px; font-weight: 700; cursor: pointer;
+          color: var(--text-secondary); font-size: calc((11.5px) + 1px); font-weight: 700; cursor: pointer;
           transition: all .12s; text-align: left; font-family: 'Outfit', sans-serif;
         }
         .disc-dd-item:hover { background: var(--accent-bg-soft); color: var(--text); }
@@ -360,7 +360,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           background: var(--surface-elevated); border: 1px solid var(--surface-border);
           animation: ddIn .18s ease; position: relative; z-index: 9;
         }
-        .disc-search-inp { flex:1; background:transparent; border:none; color:var(--text); font-size:13px; outline:none; font-family:'Outfit',sans-serif; }
+        .disc-search-inp { flex:1; background:transparent; border:none; color:var(--text); font-size:calc((13px) + 1px); outline:none; font-family:'Outfit',sans-serif; }
         .disc-search-inp::placeholder { color:var(--text-muted); }
         .disc-search-x { background:none; border:none; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; padding:0; transition:color .12s; }
         .disc-search-x:hover { color:var(--accent); }
@@ -442,30 +442,30 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
 
         .disc-card-info { flex: 1; min-width: 0; }
         .disc-card-name {
-          font-size: 13.5px; font-weight: 800; color: var(--text);
+          font-size: calc((13.5px) + 1px); font-weight: 800; color: var(--text);
           margin-bottom: 3px; display: flex; align-items: center; gap: 4px;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .disc-card-meta { display: flex; align-items: center; gap: 4px; }
-        .disc-cs { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: 10.5px; font-weight: 600; }
+        .disc-cs { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: calc((10.5px) + 1px); font-weight: 600; }
         .disc-cs.online { color: var(--brand-success); }
-        .disc-cs-dot { color: var(--text-muted); font-size: 10px; }
+        .disc-cs-dot { color: var(--text-muted); font-size: calc((10px) + 1px); }
         .disc-pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-success); box-shadow: 0 0 5px var(--brand-success); }
 
         .disc-card-desc {
-          color: var(--text-secondary); font-size: 11.5px; line-height: 1.45; margin-bottom: 8px;
+          color: var(--text-secondary); font-size: calc((11.5px) + 1px); line-height: 1.45; margin-bottom: 8px;
           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .disc-card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
         .disc-tag {
-          padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700;
+          padding: 2px 7px; border-radius: 5px; font-size: calc((10px) + 1px); font-weight: 700;
           background: var(--accent-bg-soft); border: 1px solid var(--accent-border); color: var(--accent);
         }
 
         /* Buttons — z-index:2, always above accent */
         .disc-card-actions { display: flex; gap: 6px; position: relative; z-index: 2; }
         .dca-btn {
-          flex: 1; min-height: 36px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 800;
+          flex: 1; min-height: 36px; padding: 8px 10px; border-radius: 8px; font-size: calc((11.5px) + 1px); font-weight: 800;
           cursor: pointer; border: 1px solid transparent; transition: background .16s,border-color .16s,color .16s,transform .16s,filter .16s;
           display: flex; align-items: center; justify-content: center; gap: 4px;
           font-family: 'Outfit', sans-serif;
@@ -486,10 +486,10 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           grid-column: 1/-1; text-align: center; padding: 48px 20px;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
-        .disc-empty-emoji { font-size: 48px; opacity: .28; animation: float 3s ease-in-out infinite; }
+        .disc-empty-emoji { font-size: calc((48px) + 1px); opacity: .28; animation: float 3s ease-in-out infinite; }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        .disc-empty h3 { font-size: 16px; font-weight: 800; color: var(--text); margin: 0; }
-        .disc-empty p { color: var(--text-secondary); font-size: 12px; margin: 0; }
+        .disc-empty h3 { font-size: calc((16px) + 1px); font-weight: 800; color: var(--text); margin: 0; }
+        .disc-empty p { color: var(--text-secondary); font-size: calc((12px) + 1px); margin: 0; }
 
         @media (max-width: 768px) {
           .disc-root { padding: 8px 12px 20px; }

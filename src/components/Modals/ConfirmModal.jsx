@@ -103,11 +103,11 @@ const ConfirmModal = ({
 
         <h3
           id="cm-title"
-          style={{ color: "#f5f5f5", fontSize: 16, fontWeight: 800, textAlign: "center", marginBottom: 10 }}
+          style={{ color: "#f5f5f5", fontSize: 17, fontWeight: 800, textAlign: "center", marginBottom: 10 }}
         >
           {title}
         </h3>
-        <p style={{ color: "#737373", fontSize: 13.5, textAlign: "center", marginBottom: 24, lineHeight: 1.65 }}>
+        <p style={{ color: "#737373", fontSize: 14.5, textAlign: "center", marginBottom: 24, lineHeight: 1.65 }}>
           {message}
         </p>
 
@@ -121,7 +121,7 @@ const ConfirmModal = ({
               border:       "1px solid rgba(255,255,255,.1)",
               borderRadius: 11,
               color:        "#a3a3a3",
-              fontSize:     14,
+              fontSize:     15,
               fontWeight:   600,
               cursor:       "pointer",
               transition:   "all .15s",
@@ -139,7 +139,7 @@ const ConfirmModal = ({
               padding:      "12px",
               border:       "none",
               borderRadius: 11,
-              fontSize:     14,
+              fontSize:     15,
               fontWeight:   700,
               cursor:       "pointer",
               transition:   "all .15s",

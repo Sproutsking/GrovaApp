@@ -80,7 +80,7 @@ const OfflineDetector = () => {
           align-items: center;
           justify-content: center;
           gap: 12px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           animation: slideDown 0.3s ease;
         }

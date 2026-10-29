@@ -173,20 +173,20 @@ const StreamerRow = ({ streamer, onClick }) => {
       onClick={() => onClick?.(streamer)}
       style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 11, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", cursor: "pointer", marginBottom: 7 }}
     >
-      <div style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, background: rc.bg, color: rc.color, fontSize: 10, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, background: rc.bg, color: rc.color, fontSize: 11, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {streamer.rank}
       </div>
-      <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: avatarUrl ? "transparent" : fallback, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 12, border: "1.5px solid rgba(255,255,255,.1)" }}>
+      <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: avatarUrl ? "transparent" : fallback, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 13, border: "1.5px solid rgba(255,255,255,.1)" }}>
         {avatarUrl
           ? <img src={avatarUrl} alt="" onError={() => setImgErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           : <span>{initial}</span>}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 2 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 2 }}>
           {pr.full_name || pr.username || `Streamer #${streamer.rank}`}
           {pr.verified && <span style={{ width: 14, height: 14, background: "#84cc16", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={8} color="#000" /></span>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#484848", whiteSpace: "nowrap", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#484848", whiteSpace: "nowrap", overflow: "hidden" }}>
           {pr.username && <><span>@{pr.username}</span><span style={{ color: "#2a2a2a" }}>·</span></>}
           <Eye size={9} style={{ opacity: .7 }} />
           <span style={{ color: "#84cc16", fontWeight: 700 }}>{fmt(streamer.peakViewers)}</span>
@@ -220,21 +220,21 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
           <div className="mt-sc-spin" />
           <div style={{ position: "absolute", inset: 3, borderRadius: "50%", overflow: "hidden", zIndex: 1 }}>
             <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "linear-gradient(135deg,#84cc16,#4d7c0f)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
-              <span style={{ fontSize: 14, fontWeight: 900, color: "#000", position: "absolute", zIndex: 0, userSelect: "none", lineHeight: 1 }}>{initial}</span>
+              <span style={{ fontSize: 15, fontWeight: 900, color: "#000", position: "absolute", zIndex: 0, userSelect: "none", lineHeight: 1 }}>{initial}</span>
               {avatarUrl && <img src={avatarUrl} alt="" onLoad={() => setImgLoaded(true)} onError={() => setImgErr(true)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", zIndex: 1, opacity: imgLoaded ? 1 : 0, transition: "opacity .2s" }} />}
             </div>
           </div>
         </div>
         <div className="mt-sc-pulse" style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(239,68,68,.35)", pointerEvents: "none" }} />
         <div className="mt-sc-dot" style={{ position: "absolute", bottom: 2, right: 2, width: 11, height: 11, borderRadius: "50%", background: "#ef4444", border: "2px solid #050505", zIndex: 2 }} />
-        <div style={{ position: "absolute", top: -3, right: -5, display: "flex", alignItems: "center", gap: 2, padding: "2px 4px", borderRadius: 4, background: "rgba(0,0,0,.88)", border: "1px solid rgba(255,255,255,.1)", fontSize: 7.5, fontWeight: 800, color: "#c4c4c4", zIndex: 3, whiteSpace: "nowrap" }}>
+        <div style={{ position: "absolute", top: -3, right: -5, display: "flex", alignItems: "center", gap: 2, padding: "2px 4px", borderRadius: 4, background: "rgba(0,0,0,.88)", border: "1px solid rgba(255,255,255,.1)", fontSize: 8.5, fontWeight: 800, color: "#c4c4c4", zIndex: 3, whiteSpace: "nowrap" }}>
           <Eye size={7} strokeWidth={2.5} />{fmt(session.peak_viewers || 0)}
         </div>
       </div>
-      <span style={{ fontSize: 10, fontWeight: 700, color: "#c4c4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", lineHeight: 1.3 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "#c4c4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", lineHeight: 1.3 }}>
         {(profile.username || profile.full_name || "stream").slice(0, 9)}
       </span>
-      <span style={{ fontSize: 8.5, fontWeight: 500, color: "#363636", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", marginTop: -3 }}>
+      <span style={{ fontSize: 9.5, fontWeight: 500, color: "#363636", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", marginTop: -3 }}>
         {(session.category || "").slice(0, 8)}
       </span>
     </div>
@@ -250,8 +250,8 @@ const SectionHeader = ({ icon: Icon, iconColor, iconBg, iconBorder, title, subti
         <Icon size={15} color={iconColor} />
       </div>
       <div>
-        <div style={{ fontSize: 12, fontWeight: 800, color: "#e5e5e5", letterSpacing: ".4px", textTransform: "uppercase" }}>{title}</div>
-        <div style={{ fontSize: 11, color: "#484848", marginTop: 1 }}>{subtitle}</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#e5e5e5", letterSpacing: ".4px", textTransform: "uppercase" }}>{title}</div>
+        <div style={{ fontSize: 12, color: "#484848", marginTop: 1 }}>{subtitle}</div>
       </div>
     </div>
     {right}
@@ -261,15 +261,15 @@ const SectionHeader = ({ icon: Icon, iconColor, iconBg, iconBorder, title, subti
 // ── Tag row ───────────────────────────────────────────────────────────────────
 const TagRow = ({ tag, index, onNavigate, onDrill }) => (
   <div onClick={() => onNavigate(tag)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 11, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", marginBottom: 7, cursor: "pointer" }}>
-    <div style={{ width: 28, height: 28, borderRadius: 8, background: index < 3 ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: index < 3 ? "#ef4444" : "#525252", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <div style={{ width: 28, height: 28, borderRadius: 8, background: index < 3 ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: index < 3 ? "#ef4444" : "#525252", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
       {index < 3 ? <Flame size={12} /> : index + 1}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.label}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#484848", flexWrap: "wrap" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#d4d4d4", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#484848", flexWrap: "wrap" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Eye size={9} />{fmt(tag.views)}</span>
         <span style={{ color: "#2e2e2e" }}>·</span><span>{tag.posts} posts</span>
-        {index < 3 && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", background: "rgba(239,68,68,.15)", color: "#ef4444", borderRadius: 4 }}>HOT</span>}
+        {index < 3 && <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", background: "rgba(239,68,68,.15)", color: "#ef4444", borderRadius: 4 }}>HOT</span>}
       </div>
     </div>
     <button onClick={(e) => { e.stopPropagation(); onDrill(tag); }} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", color: "#484848", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
@@ -283,19 +283,19 @@ const CreatorRow = ({ creator, onClick }) => {
   const rc = rankStyle(creator.rank);
   return (
     <div onClick={() => onClick(creator)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 12, background: creator.isTopTier ? "rgba(251,191,36,.03)" : "rgba(255,255,255,.03)", border: `1px solid ${creator.isTopTier ? "rgba(251,191,36,.18)" : "rgba(255,255,255,.06)"}`, marginBottom: 7, cursor: "pointer" }}>
-      <div style={{ width: 22, height: 22, borderRadius: 7, background: rc.bg, color: rc.color, fontSize: 10, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{creator.rank}</div>
+      <div style={{ width: 22, height: 22, borderRadius: 7, background: rc.bg, color: rc.color, fontSize: 11, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{creator.rank}</div>
       <div style={{ position: "relative", flexShrink: 0 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#84cc16,#65a30d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", fontWeight: 900, fontSize: 14, overflow: "hidden", border: `2px solid ${creator.isTopTier ? "rgba(251,191,36,.4)" : "rgba(132,204,22,.2)"}` }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#84cc16,#65a30d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", fontWeight: 900, fontSize: 15, overflow: "hidden", border: `2px solid ${creator.isTopTier ? "rgba(251,191,36,.4)" : "rgba(132,204,22,.2)"}` }}>
           {typeof creator.avatar === "string" && creator.avatar.startsWith("http") ? <img src={creator.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : creator.avatar}
         </div>
         {creator.isTopTier && <div style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, background: "linear-gradient(135deg,#fbbf24,#f59e0b)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #000" }}><Crown size={8} color="#000" /></div>}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, marginBottom: 2, overflow: "hidden" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, marginBottom: 2, overflow: "hidden" }}>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creator.name}</span>
           {creator.verified && <span style={{ width: 14, height: 14, background: "#84cc16", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={8} color="#000" /></span>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#484848" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#484848" }}>
           <span>@{creator.username}</span>
           <span style={{ color: "#2a2a2a" }}>·</span>
           <span style={{ color: "#84cc16", fontWeight: 700 }}>{fmt(creator.stats.likes)}</span><span>likes</span>
@@ -310,7 +310,7 @@ const CreatorRow = ({ creator, onClick }) => {
 
 // ── View more button ──────────────────────────────────────────────────────────
 const ViewMoreBtn = ({ onClick, children, red }) => (
-  <button onClick={onClick} style={{ width: "100%", padding: "10px", marginTop: 4, background: red ? "rgba(239,68,68,.05)" : "rgba(132,204,22,.05)", border: `1px dashed ${red ? "rgba(239,68,68,.22)" : "rgba(132,204,22,.2)"}`, borderRadius: 10, color: red ? "#ef4444" : "#84cc16", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+  <button onClick={onClick} style={{ width: "100%", padding: "10px", marginTop: 4, background: red ? "rgba(239,68,68,.05)" : "rgba(132,204,22,.05)", border: `1px dashed ${red ? "rgba(239,68,68,.22)" : "rgba(132,204,22,.2)"}`, borderRadius: 10, color: red ? "#ef4444" : "#84cc16", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
     {children}
   </button>
 );
@@ -326,8 +326,8 @@ const SubPanel = ({ title, subtitle, icon: Icon, iconColor, iconBg, iconBorder, 
         <Icon size={14} color={iconColor} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 11, color: "#484848", marginTop: 1 }}>{subtitle}</div>}
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 12, color: "#484848", marginTop: 1 }}>{subtitle}</div>}
       </div>
     </div>
     <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>{children}</div>
@@ -345,14 +345,14 @@ const PostCard = ({ post, onNavigate }) => (
     )}
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#84cc16", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#84cc16", flexShrink: 0, overflow: "hidden" }}>
           {post.authorAvatar?.startsWith("http") ? <img src={post.authorAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span>{post.authorAvatar || "?"}</span>}
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#d4d4d4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.authorName}</span>
-        <span style={{ fontSize: 10, color: "#484848" }}>@{post.authorUsername}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.authorName}</span>
+        <span style={{ fontSize: 11, color: "#484848" }}>@{post.authorUsername}</span>
       </div>
-      {post.caption && <p style={{ fontSize: 11, color: "#606060", margin: "0 0 4px", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.caption}</p>}
-      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "#404040" }}>
+      {post.caption && <p style={{ fontSize: 12, color: "#606060", margin: "0 0 4px", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.caption}</p>}
+      <div style={{ display: "flex", gap: 10, fontSize: 12, color: "#404040" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Eye size={9} />{fmt(post.views)}</span>
         <span>❤ {fmt(post.likes)}</span>
       </div>
@@ -576,7 +576,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(5,5,5,.98)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(132,204,22,.1)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <TrendingUp size={20} color="#84cc16" />
-            <span style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>Trending</span>
+            <span style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>Trending</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => { setRefreshing(true); loadAll(false); loadLive(); }} disabled={refreshing}
@@ -602,8 +602,8 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
                 <SectionHeader icon={Tv} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)" title="Top Streamers" subtitle="Ranked by peak viewers" />
                 {topStreamers.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}>
-                    <div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>📡</div>
-                    <p style={{ fontSize: 13, margin: 0 }}>No streamers yet — be the first to go live!</p>
+                    <div style={{ fontSize: 33, marginBottom: 8, opacity: .4 }}>📡</div>
+                    <p style={{ fontSize: 14, margin: 0 }}>No streamers yet — be the first to go live!</p>
                   </div>
                 ) : (
                   <>
@@ -623,7 +623,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
               {liveSessions.length > 0 && (
                 <div style={{ marginBottom: 22, background: "rgba(239,68,68,.03)", border: "1px solid rgba(239,68,68,.08)", borderRadius: 13, padding: "12px 12px 6px" }}>
                   <SectionHeader icon={Radio} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)" title="Live Now" subtitle="Tap a circle to join"
-                    right={<div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", fontSize: 10, fontWeight: 800, color: "#ef4444" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "mtBlink 1.6s infinite" }} />{liveSessions.length}</div>} />
+                    right={<div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", fontSize: 11, fontWeight: 800, color: "#ef4444" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "mtBlink 1.6s infinite" }} />{liveSessions.length}</div>} />
                   <div style={{ display: "flex", flexDirection: "row", gap: 12, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollbarWidth: "none", padding: "2px 0 10px" }}>
                     {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
                   </div>
@@ -634,7 +634,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
               <div style={{ marginBottom: 22 }}>
                 <SectionHeader icon={Flame} iconColor="#84cc16" iconBg="rgba(132,204,22,.1)" iconBorder="rgba(132,204,22,.2)" title="Trending Now" subtitle="What's hot on Xeevia" />
                 {topTags.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>🔥</div><p style={{ fontSize: 13, margin: 0 }}>No trending tags yet</p></div>
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 33, marginBottom: 8, opacity: .4 }}>🔥</div><p style={{ fontSize: 14, margin: 0 }}>No trending tags yet</p></div>
                 ) : (
                   <>
                     {topTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} onNavigate={handleTagNavigate} onDrill={handleTagDrill} />)}
@@ -647,7 +647,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
               <div style={{ marginBottom: 16 }}>
                 <SectionHeader icon={Crown} iconColor="#fbbf24" iconBg="rgba(251,191,36,.1)" iconBorder="rgba(251,191,36,.25)" title="Top Creators" subtitle="This week's stars" />
                 {topCreators.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>👑</div><p style={{ fontSize: 13, margin: 0 }}>No creators this week</p></div>
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 33, marginBottom: 8, opacity: .4 }}>👑</div><p style={{ fontSize: 14, margin: 0 }}>No creators this week</p></div>
                 ) : (
                   <>
                     {topCreators.map((c) => <CreatorRow key={c.userId} creator={c} onClick={handleCreatorClick} />)}
@@ -688,14 +688,14 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
           <SubPanel title={activeTag.label} subtitle={`${activeTag.posts} posts · ${fmt(activeTag.views)} views`}
             icon={Hash} iconColor="#60a5fa" iconBg="rgba(96,165,250,.1)" iconBorder="rgba(96,165,250,.22)"
             onBack={() => { setPanel("tags"); setActiveTag(null); setTagPosts([]); }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", marginBottom: 10, background: "rgba(132,204,22,.05)", border: "1px solid rgba(132,204,22,.1)", borderRadius: 9, fontSize: 12, color: "#84cc16", fontWeight: 600 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", marginBottom: 10, background: "rgba(132,204,22,.05)", border: "1px solid rgba(132,204,22,.1)", borderRadius: 9, fontSize: 13, color: "#84cc16", fontWeight: 600 }}>
               <Zap size={13} />Tap any post to open it in your feed
             </div>
             {tagPostsLoading
               ? <UnifiedLoader type="section" message={`Loading ${activeTag.label} posts…`} />
               : tagPosts.length > 0
                 ? tagPosts.map((post) => <PostCard key={`${post.contentType}-${post.id}`} post={post} onNavigate={(p) => { handlePostNavigate(p); setPanel(null); }} />)
-                : <div style={{ textAlign: "center", padding: "32px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>📭</div><p style={{ fontSize: 13, margin: 0 }}>No posts found for {activeTag.label}</p></div>}
+                : <div style={{ textAlign: "center", padding: "32px 0", color: "#2e2e2e" }}><div style={{ fontSize: 33, marginBottom: 8, opacity: .4 }}>📭</div><p style={{ fontSize: 14, margin: 0 }}>No posts found for {activeTag.label}</p></div>}
           </SubPanel>
         )}
       </div>

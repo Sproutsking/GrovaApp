@@ -18,7 +18,7 @@ const CSS = `
   background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
 }
 .bene-section-title{
-  font-size:10.5px;font-weight:700;letter-spacing:0.1em;
+  font-size:calc((10.5px) + 1px);font-weight:700;letter-spacing:0.1em;
   text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;
 }
 
@@ -35,7 +35,7 @@ const CSS = `
 }
 .bene-chip:hover{background:rgba(163,230,53,0.06);border-color:rgba(163,230,53,0.2);}
 .bene-chip-name{
-  font-size:11px;font-weight:600;color:rgba(255,255,255,0.55);
+  font-size:calc((11px) + 1px);font-weight:600;color:rgba(255,255,255,0.55);
   max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;
 }
 
@@ -53,7 +53,7 @@ const CSS = `
   color:rgba(255,255,255,0.3);
 }
 .bene-view-all-label{
-  font-size:11px;font-weight:600;color:rgba(255,255,255,0.3);text-align:center;
+  font-size:calc((11px) + 1px);font-weight:600;color:rgba(255,255,255,0.3);text-align:center;
 }
 
 .bene-page{
@@ -68,9 +68,9 @@ const CSS = `
   border-radius:13px;margin-bottom:8px;transition:background .15s;
 }
 .bene-full-row:hover{background:rgba(255,255,255,0.04);}
-.bene-full-name{font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);}
-.bene-full-handle{font-size:11.5px;color:rgba(255,255,255,0.3);font-family:"DM Mono",monospace;margin-top:2px;}
-.bene-full-meta{font-size:10.5px;color:rgba(255,255,255,0.2);margin-top:3px;display:flex;align-items:center;gap:4px;}
+.bene-full-name{font-size:calc((14px) + 1px);font-weight:700;color:rgba(255,255,255,0.85);}
+.bene-full-handle{font-size:calc((11.5px) + 1px);color:rgba(255,255,255,0.3);font-family:"DM Mono",monospace;margin-top:2px;}
+.bene-full-meta{font-size:calc((10.5px) + 1px);color:rgba(255,255,255,0.2);margin-top:3px;display:flex;align-items:center;gap:4px;}
 .bene-del-btn{
   margin-left:auto;width:30px;height:30px;border-radius:8px;border:none;
   background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.2);
@@ -79,7 +79,7 @@ const CSS = `
 .bene-del-btn:hover{background:rgba(239,68,68,0.1);color:#f87171;}
 .bene-use-btn{
   padding:6px 12px;border-radius:100px;border:1px solid rgba(163,230,53,0.2);
-  background:rgba(163,230,53,0.07);color:#a3e635;font-size:11px;font-weight:600;
+  background:rgba(163,230,53,0.07);color:#a3e635;font-size:calc((11px) + 1px);font-weight:600;
   cursor:pointer;transition:all .15s;white-space:nowrap;margin-right:6px;
 }
 .bene-use-btn:hover{background:rgba(163,230,53,0.14);border-color:rgba(163,230,53,0.35);}
@@ -132,8 +132,8 @@ function BeneficiaryFullPage({ userId, onSelect, onBack, currentUser }) {
       {list.length === 0 ? (
         <div className="bene-empty">
           <Users size={32} style={{ opacity: 0.2, marginBottom: 10 }} />
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>No saved people yet</div>
-          <div style={{ fontSize: 12 }}>People you send to will appear here</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>No saved people yet</div>
+          <div style={{ fontSize: 13 }}>People you send to will appear here</div>
         </div>
       ) : list.map(b => (
         <div key={b.username} className="bene-full-row">

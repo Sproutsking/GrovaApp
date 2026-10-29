@@ -31,7 +31,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: var(--accent);
 }
@@ -54,7 +54,7 @@
   border: none;
   border-radius: 10px;
   color: var(--accent-contrast);
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -100,7 +100,7 @@
 .progress-text {
   display: block;
   text-align: center;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 600;
   color: var(--accent);
 }
@@ -185,7 +185,7 @@
   align-items: center;
   gap: 3px;
   color: var(--text-inverse);
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 600;
   z-index: 2;
 }
@@ -286,7 +286,7 @@
 }
 
 .item-number {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 600;
   color: var(--accent);
   min-width: 18px;
@@ -301,7 +301,7 @@
   border: none;
   border-radius: 10px;
   color: var(--accent-contrast);
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -418,7 +418,7 @@
 }
 
 .template-modal-header h3 {
-  font-size: 17px;
+  font-size: calc((17px) + 1px);
   font-weight: 700;
   color: var(--text-inverse);
   margin: 0;
@@ -473,11 +473,11 @@
 }
 
 .template-icon {
-  font-size: 28px;
+  font-size: calc((28px) + 1px);
 }
 
 .template-name {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 600;
   color: var(--text-inverse);
   text-align: center;
@@ -506,7 +506,7 @@
 
   .upload-btn {
     padding: 10px 12px;
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
   }
 
   .template-grid {
@@ -539,11 +539,11 @@
   }
 
   .template-icon {
-    font-size: 24px;
+    font-size: calc((24px) + 1px);
   }
 
   .template-name {
-    font-size: 10px;
+    font-size: calc((10px) + 1px);
   }
 
   .video-preview-content {

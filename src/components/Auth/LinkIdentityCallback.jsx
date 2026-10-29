@@ -106,8 +106,8 @@ export default function LinkIdentityCallback() {
       <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, background: "#080808", color: "#f5f5f5", fontFamily: "inherit", animation: "linkCbFade .25s ease" }}>
         <section style={{ width: "min(420px, 100%)", textAlign: "center" }}>
           {status === "loading" && <div style={{ width: 42, height: 42, margin: "0 auto 18px", border: "3px solid rgba(163,230,53,.14)", borderTopColor: "#a3e635", borderRadius: "50%", animation: "linkCbSpin .75s linear infinite" }} />}
-          <div style={{ fontSize: 18, fontWeight: 800, color: status === "error" ? "#f87171" : "#a3e635" }}>{status === "error" ? "Connection not completed" : status === "success" ? "Identity connected" : "Connecting identity"}</div>
-          <p style={{ margin: "10px auto 0", color: "#a1a1aa", fontSize: 13, lineHeight: 1.6 }}>{message}</p>
+          <div style={{ fontSize: 19, fontWeight: 800, color: status === "error" ? "#f87171" : "#a3e635" }}>{status === "error" ? "Connection not completed" : status === "success" ? "Identity connected" : "Connecting identity"}</div>
+          <p style={{ margin: "10px auto 0", color: "#a1a1aa", fontSize: 14, lineHeight: 1.6 }}>{message}</p>
         </section>
       </main>
     </>

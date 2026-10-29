@@ -49,47 +49,47 @@ const css = `
 .si.b{background:rgba(96,165,250,.09);border-color:rgba(96,165,250,.16);color:#60a5fa}
 .si.p{background:rgba(167,139,250,.09);border-color:rgba(167,139,250,.16);color:#a78bfa}
 
-.sl{font-size:13px;font-weight:700;color:#f8fafc;line-height:1;margin:0 0 2px}
-.sd{font-size:10.5px;color:#dfe7f2;font-weight:600;line-height:1}
+.sl{font-size:calc((13px) + 1px);font-weight:700;color:#f8fafc;line-height:1;margin:0 0 2px}
+.sd{font-size:calc((10.5px) + 1px);color:#dfe7f2;font-weight:600;line-height:1}
 
-.ck{padding:3px 8px;border-radius:20px;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0}
+.ck{padding:3px 8px;border-radius:20px;font-size:calc((9.5px) + 1px);font-weight:800;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0}
 .ck.g{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.18)}
 .ck.rr{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.18)}
 .ck.a{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.18)}
 
-.sg{font-size:9.5px;font-weight:800;color:#dfe7f2;letter-spacing:.08em;text-transform:uppercase;padding:10px 2px 5px;margin:0}
+.sg{font-size:calc((9.5px) + 1px);font-weight:800;color:#dfe7f2;letter-spacing:.08em;text-transform:uppercase;padding:10px 2px 5px;margin:0}
 
 .sc{padding:14px;border-radius:14px;background:linear-gradient(145deg,rgba(132,204,22,.06),rgba(132,204,22,.02));border:1px solid rgba(132,204,22,.16);margin-bottom:12px;position:relative;overflow:hidden}
 
-.sa{padding:9px 11px;border-radius:10px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-start;font-size:11.5px;line-height:1.6}
+.sa{padding:9px 11px;border-radius:10px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-start;font-size:calc((11.5px) + 1px);line-height:1.6}
 .sa.red{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.13);color:#ef4444}
 .sa.amb{background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.13);color:#fbbf24}
 .sa.blu{background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.13);color:#60a5fa}
 .sa.grn{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.13);color:#22c55e}
 
-.sin{width:100%;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#fff;font-size:12.5px;box-sizing:border-box;outline:none;transition:border .15s}
+.sin{width:100%;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#fff;font-size:calc((12.5px) + 1px);box-sizing:border-box;outline:none;transition:border .15s}
 .sin:focus{border-color:rgba(132,204,22,.5)}
 
-.bl{padding:10px 14px;border-radius:11px;border:1px solid rgba(163,230,53,.3);background:linear-gradient(135deg,rgba(163,230,53,.2),rgba(132,204,22,.12));color:#d9f99d;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(132,204,22,.1)}
+.bl{padding:10px 14px;border-radius:11px;border:1px solid rgba(163,230,53,.3);background:linear-gradient(135deg,rgba(163,230,53,.2),rgba(132,204,22,.12));color:#d9f99d;font-size:calc((11.5px) + 1px);font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(132,204,22,.1)}
 .bl:hover:not(:disabled){background:linear-gradient(135deg,rgba(190,242,100,.3),rgba(132,204,22,.2));border-color:rgba(190,242,100,.5);box-shadow:0 6px 20px rgba(132,204,22,.2)}
 .bl:disabled{opacity:.5;cursor:not-allowed}
-.bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#f8fafc;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#f8fafc;font-size:calc((11.5px) + 1px);font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
 .bg:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28)}
-.br{padding:10px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.12);color:#fecaca;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.br{padding:10px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.12);color:#fecaca;font-size:calc((11.5px) + 1px);font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
 .br:hover:not(:disabled){background:rgba(239,68,68,.20);border-color:rgba(239,68,68,.5)}
 
 .sess-card{display:flex;gap:10px;padding:10px;border-bottom:1px solid rgba(255,255,255,.04);align-items:flex-start}
 .sess-card:last-child{border-bottom:none}
 .sess-device-icon{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .sess-info{flex:1;min-width:0}
-.sess-name{font-size:12px;font-weight:700;color:#d4d4d4;margin:0 0 3px}
-.sess-meta{font-size:10px;color:#dfe7f2;display:flex;flex-direction:column;gap:2px}
+.sess-name{font-size:calc((12px) + 1px);font-weight:700;color:#d4d4d4;margin:0 0 3px}
+.sess-meta{font-size:calc((10px) + 1px);color:#dfe7f2;display:flex;flex-direction:column;gap:2px}
 .sess-meta-row{display:flex;align-items:center;gap:4px}
-.sess-current{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);border-radius:5px;color:#22c55e;font-size:9px;font-weight:800}
+.sess-current{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);border-radius:5px;color:#22c55e;font-size:calc((9px) + 1px);font-weight:800}
 
 /* [SEC-1] Withdrawal limit table */
-.wl-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px}
-.wl-table th{padding:5px 8px;text-align:left;color:#dfe7f2;font-weight:700;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(255,255,255,.05)}
+.wl-table{width:100%;border-collapse:collapse;font-size:calc((11px) + 1px);margin-bottom:4px}
+.wl-table th{padding:5px 8px;text-align:left;color:#dfe7f2;font-weight:700;font-size:calc((9.5px) + 1px);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(255,255,255,.05)}
 .wl-table td{padding:6px 8px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,.03)}
 .wl-table tr.current-level td{color:#fff;background:rgba(132,204,22,.04)}
 .wl-table tr.current-level td:first-child{color:#84cc16;font-weight:800}
@@ -510,7 +510,7 @@ const SecuritySection = ({ userId }) => {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "50px 20px", gap: 10 }}>
       <style>{`@keyframes ssSpin{to{transform:rotate(360deg)}}`}</style>
       <Loader size={26} style={{ animation: "ssSpin 1s linear infinite", color: "#84cc16" }} />
-      <p style={{ color: "#454545", fontSize: 12 }}>Loading security settings…</p>
+      <p style={{ color: "#454545", fontSize: 13 }}>Loading security settings…</p>
     </div>
   );
 
@@ -547,10 +547,10 @@ const SecuritySection = ({ userId }) => {
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,${si.color},transparent)`, borderRadius: "14px 14px 0 0" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", lineHeight: 1 }}>Security Score</div>
-              <div style={{ fontSize: 10.5, color: "#dfe7f2", marginTop: 2 }}>{si.label} protection · {si.dailyLimit}/day withdrawal limit</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", lineHeight: 1 }}>Security Score</div>
+              <div style={{ fontSize: 11.5, color: "#dfe7f2", marginTop: 2 }}>{si.label} protection · {si.dailyLimit}/day withdrawal limit</div>
             </div>
-            <div style={{ padding: "3px 10px", borderRadius: 8, background: `${si.color}18`, color: si.color, fontSize: 12, fontWeight: 900, border: `1.5px solid ${si.color}28` }}>
+            <div style={{ padding: "3px 10px", borderRadius: 8, background: `${si.color}18`, color: si.color, fontSize: 13, fontWeight: 900, border: `1.5px solid ${si.color}28` }}>
               Level {level}
             </div>
           </div>
@@ -573,7 +573,7 @@ const SecuritySection = ({ userId }) => {
 
           {/* [SEC-1] Withdrawal limits table */}
           <details style={{ cursor: "pointer" }}>
-            <summary style={{ fontSize: 10.5, color: "#484848", fontWeight: 700, userSelect: "none", listStyle: "none", display: "flex", alignItems: "center", gap: 5 }}>
+            <summary style={{ fontSize: 11.5, color: "#484848", fontWeight: 700, userSelect: "none", listStyle: "none", display: "flex", alignItems: "center", gap: 5 }}>
               <ChevronDown size={10} /> View all withdrawal limits
             </summary>
             <table className="wl-table" style={{ marginTop: 8 }}>
@@ -610,7 +610,7 @@ const SecuritySection = ({ userId }) => {
           </span>
           {!has2FA
             ? <button className="bl" onClick={() => set2FASetup(true)} disabled={saving}>Enable</button>
-            : <button className="br" style={{ padding: "10px 14px", fontSize: 11 }} onClick={disable2FA} disabled={saving}>Disable</button>
+            : <button className="br" style={{ padding: "10px 14px", fontSize: 12 }} onClick={disable2FA} disabled={saving}>Disable</button>
           }
         </div>
 
@@ -638,7 +638,7 @@ const SecuritySection = ({ userId }) => {
             {phoneVer ? <CheckCircle size={7} /> : <AlertTriangle size={7} />} {phoneVer ? "Verified" : "Pending"}
           </span>
           {!phoneVer && (
-            <button className="bl" onClick={(e) => { e.stopPropagation(); setMPhone(true); }} disabled={saving} style={{ fontSize: 11, padding: "10px 14px" }}>
+            <button className="bl" onClick={(e) => { e.stopPropagation(); setMPhone(true); }} disabled={saving} style={{ fontSize: 12, padding: "10px 14px" }}>
               Verify
             </button>
           )}
@@ -688,7 +688,7 @@ const SecuritySection = ({ userId }) => {
                 { label: "Confirm New Password", v: cfp, set: setCfp, noTog: true },
               ].map(({ label, v, set, sh, tog: tg, str, noTog }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
-                  <label style={{ display: "block", fontSize: 9.5, color: "#dfe7f2", fontWeight: 700, marginBottom: 5, letterSpacing: ".04em" }}>
+                  <label style={{ display: "block", fontSize: 10.5, color: "#dfe7f2", fontWeight: 700, marginBottom: 5, letterSpacing: ".04em" }}>
                     {label.toUpperCase()}
                   </label>
                   <div style={{ position: "relative" }}>
@@ -710,7 +710,7 @@ const SecuritySection = ({ userId }) => {
                       <div style={{ height: 3, background: "rgba(255,255,255,.06)", borderRadius: 2, marginTop: 5, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pstr}%`, background: pstrC, borderRadius: 2, transition: "all .3s" }} />
                       </div>
-                      <span style={{ fontSize: 9.5, color: pstrC, fontWeight: 700 }}>{pstrL} password</span>
+                      <span style={{ fontSize: 10.5, color: pstrC, fontWeight: 700 }}>{pstrL} password</span>
                     </>
                   )}
                 </div>
@@ -783,7 +783,7 @@ const SecuritySection = ({ userId }) => {
                           </div>
                         </div>
                         {!isCurrent && (
-                          <button className="br" style={{ padding: "5px 8px", fontSize: 10, flexShrink: 0, alignSelf: "center" }}
+                          <button className="br" style={{ padding: "5px 8px", fontSize: 11, flexShrink: 0, alignSelf: "center" }}
                             onClick={() => endSession(s.id)} disabled={saving}>
                             End
                           </button>
@@ -820,10 +820,10 @@ const SecuritySection = ({ userId }) => {
                   {devices.map((d) => (
                     <div key={d.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#d4d4d4" }}>{d.device_name || "Unknown device"}</div>
-                        <div style={{ fontSize: 10, color: "#3a3a3a" }}>Trusted {fmtAgo(d.trusted_at)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4" }}>{d.device_name || "Unknown device"}</div>
+                        <div style={{ fontSize: 11, color: "#3a3a3a" }}>Trusted {fmtAgo(d.trusted_at)}</div>
                       </div>
-                      <button className="br" style={{ padding: "4px 9px", fontSize: 10 }} onClick={() => revokeDevice(d.id)} disabled={saving}>
+                      <button className="br" style={{ padding: "4px 9px", fontSize: 11 }} onClick={() => revokeDevice(d.id)} disabled={saving}>
                         Revoke
                       </button>
                     </div>
@@ -844,10 +844,10 @@ const SecuritySection = ({ userId }) => {
                 return (
                   <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", borderBottom: i < events.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none" }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: c, flexShrink: 0 }} />
-                    <div style={{ fontSize: 11.5, fontWeight: 600, color: "#888", flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#888", flex: 1 }}>
                       {e.event_type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                     </div>
-                    <div style={{ fontSize: 10, color: "#333" }}>{fmtAgo(e.created_at)}</div>
+                    <div style={{ fontSize: 11, color: "#333" }}>{fmtAgo(e.created_at)}</div>
                   </div>
                 );
               })}

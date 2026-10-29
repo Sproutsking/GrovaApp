@@ -199,7 +199,7 @@ const HeartBurst = memo(({ x, y, onDone }) => {
     <div style={{ position:"fixed", left:x, top:y, pointerEvents:"none", zIndex:999999, transform:"translate(-50%,-50%)" }}>
       {Array.from({length:8}).map((_,i) => {
         const rad = (i/8)*360*Math.PI/180, dist = 38+Math.random()*28;
-        return <div key={i} style={{ position:"absolute", fontSize:13+Math.random()*6, animation:`uvHburst .9s ${Math.random()*150}ms cubic-bezier(.22,1,.36,1) forwards`, "--dx":`${Math.cos(rad)*dist}px`, "--dy":`${Math.sin(rad)*dist}px` }}>❤️</div>;
+        return <div key={i} style={{ position:"absolute", fontSize:(13+Math.random()*6) + 1, animation:`uvHburst .9s ${Math.random()*150}ms cubic-bezier(.22,1,.36,1) forwards`, "--dx":`${Math.cos(rad)*dist}px`, "--dy":`${Math.sin(rad)*dist}px` }}>❤️</div>;
       })}
     </div>
   );
@@ -217,7 +217,7 @@ const UAv = memo(({ user, size = 50, ring = false, nearExp = false }) => {
   const safe  = url?.startsWith("http") ? url : null;
   const ini   = (user?.full_name || user?.username || "?").charAt(0).toUpperCase();
   return (
-    <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,#0d0d0d,#1c1c1c)", border:ring?`2.5px solid ${nearExp?"#f59e0b":"#84cc16"}`:"2px solid rgba(132,204,22,.18)", flexShrink:0, fontSize:size*.4, fontWeight:800, color:"#84cc16", boxSizing:"border-box" }}>
+    <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,#0d0d0d,#1c1c1c)", border:ring?`2.5px solid ${nearExp?"#f59e0b":"#84cc16"}`:"2px solid rgba(132,204,22,.18)", flexShrink:0, fontSize:(size*.4) + 1, fontWeight:800, color:"#84cc16", boxSizing:"border-box" }}>
       {safe ? <img src={safe} alt={ini} onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span>{ini}</span>}
     </div>
   );
@@ -251,14 +251,14 @@ const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=f
         </svg>
         <div style={{position:"absolute",inset:STROKE+3,borderRadius:"50%",overflow:"hidden",background:"linear-gradient(135deg,#0d0d0d,#1c1c1c)",display:"flex",alignItems:"center",justifyContent:"center"}}>
           {mu && !isVid && !err ? <img src={mu} alt="" onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> :
-           mu && isVid         ? <div style={{width:"100%",height:"100%",background:"#111",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:18}}>▶</span></div> :
-           first?.bg           ? <div style={{width:"100%",height:"100%",background:first.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:first.text_color||"#84cc16",textAlign:"center",padding:"2px 4px",wordBreak:"break-word"}}>{first.text?.slice(0,14)}</span></div> :
+           mu && isVid         ? <div style={{width:"100%",height:"100%",background:"#111",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:19}}>▶</span></div> :
+           first?.bg           ? <div style={{width:"100%",height:"100%",background:first.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,color:first.text_color||"#84cc16",textAlign:"center",padding:"2px 4px",wordBreak:"break-word"}}>{first.text?.slice(0,14)}</span></div> :
                                   <UAv user={profile} size={SIZE-(STROKE+3)*2}/>}
           {isMe && count===0 && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#84cc16"}}><Ic.Plus/></div>}
         </div>
-        {count>1 && <div style={{position:"absolute",bottom:0,right:0,width:17,height:17,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
+        {count>1 && <div style={{position:"absolute",bottom:0,right:0,width:17,height:17,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
       </div>
-      <span style={{fontSize:10,fontWeight:600,color:"rgba(255,255,255,.5)",maxWidth:64,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+      <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.5)",maxWidth:64,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
         {isMe ? "My status" : (profile?.full_name||"?").split(" ")[0]}
       </span>
     </div>
@@ -322,9 +322,9 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
   if (failed) {
     return (
       <div style={{width:"100%",height:fullH?"100%":300,background:"#0a0a0a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
-        <div style={{fontSize:36}}>📹</div>
+        <div style={{fontSize:37}}>📹</div>
         <a href={src} target="_blank" rel="noopener noreferrer"
-          style={{color:"#84cc16",fontSize:13,fontWeight:700,padding:"8px 16px",borderRadius:12,background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.3)",textDecoration:"none"}}>
+          style={{color:"#84cc16",fontSize:14,fontWeight:700,padding:"8px 16px",borderRadius:12,background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.3)",textDecoration:"none"}}>
           Open video ↗
         </a>
       </div>
@@ -381,12 +381,12 @@ const StoryMedia = memo(({ story, mediaUrl, isVid, muted, paused, onProgress, on
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,maxWidth:420,textAlign:"center"}}>
           <div style={{width:88,height:88,borderRadius:24,display:"grid",placeItems:"center",background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.28)",color:"#84cc16",boxShadow:"0 12px 36px rgba(0,0,0,.28)"}}><Ic.Music/></div>
           <div>
-            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,.55)",textTransform:"uppercase",marginBottom:8}}>Now playing</div>
-            <div style={{fontSize:24,fontWeight:800,color:story.text_color||"#fff",lineHeight:1.25,overflowWrap:"anywhere"}}>{cleanSoundName(story.music)}</div>
+            <div style={{fontSize:12,fontWeight:800,color:"rgba(255,255,255,.55)",textTransform:"uppercase",marginBottom:8}}>Now playing</div>
+            <div style={{fontSize:25,fontWeight:800,color:story.text_color||"#fff",lineHeight:1.25,overflowWrap:"anywhere"}}>{cleanSoundName(story.music)}</div>
           </div>
         </div>
       ) : (
-        <p style={{ fontSize:story.text?.length>100?18:story.text?.length>50?22:28, fontWeight:800, color:story.text_color||"#fff", textAlign:"center", lineHeight:1.4, margin:0, wordBreak:"break-word", textShadow:"0 2px 16px rgba(0,0,0,.5)" }}>
+        <p style={{ fontSize:story.text?.length>100?19:story.text?.length>50?23:29, fontWeight:800, color:story.text_color||"#fff", textAlign:"center", lineHeight:1.4, margin:0, wordBreak:"break-word", textShadow:"0 2px 16px rgba(0,0,0,.5)" }}>
           {story.text}
         </p>
       )}
@@ -562,25 +562,25 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
     <div style={{display:"flex",alignItems:"center",gap:compact?6:10,flexWrap:"wrap"}}>
       {isMyStory && (
         <div style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)"}}>
-          <Ic.Eye/><span style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,.7)"}}>{story.views||0}</span>
+          <Ic.Eye/><span style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.7)"}}>{story.views||0}</span>
         </div>
       )}
-      <button onClick={handleLike} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:isLiked?"rgba(239,68,68,.18)":"rgba(0,0,0,.5)",border:isLiked?"1px solid rgba(239,68,68,.45)":"1px solid rgba(255,255,255,.2)",color:isLiked?"#ef4444":"#fff",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .15s",transform:isLiked?"scale(1.05)":"scale(1)"}}>
+      <button onClick={handleLike} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:isLiked?"rgba(239,68,68,.18)":"rgba(0,0,0,.5)",border:isLiked?"1px solid rgba(239,68,68,.45)":"1px solid rgba(255,255,255,.2)",color:isLiked?"#ef4444":"#fff",fontSize:14,fontWeight:700,cursor:"pointer",transition:"all .15s",transform:isLiked?"scale(1.05)":"scale(1)"}}>
         <Ic.Heart f={isLiked}/>{isMyStory && <span>{story.likes||0}</span>}
       </button>
       {!isMyStory && (
-        <button onClick={()=>{setShowRep(r=>!r);setPaused(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.2)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+        <button onClick={()=>{setShowRep(r=>!r);setPaused(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.2)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
           <Ic.Reply/><span>Reply</span>
         </button>
       )}
       {!isMyStory && (
-        <button onClick={handleRepost} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:repostDone?"rgba(132,204,22,.2)":"rgba(0,0,0,.5)",border:repostDone?"1px solid rgba(132,204,22,.5)":"1px solid rgba(255,255,255,.2)",color:repostDone?"#84cc16":"#fff",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
+        <button onClick={handleRepost} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:repostDone?"rgba(132,204,22,.2)":"rgba(0,0,0,.5)",border:repostDone?"1px solid rgba(132,204,22,.5)":"1px solid rgba(255,255,255,.2)",color:repostDone?"#84cc16":"#fff",fontSize:14,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
           <Ic.Repost/><span>{repostDone?"Reposted!":"Repost"}</span>
         </button>
       )}
       {story.music && (
         <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:24,background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.3)"}}>
-          <Ic.Music/><span style={{fontSize:11,color:"#84cc16",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(story.music)}</span>
+          <Ic.Music/><span style={{fontSize:12,color:"#84cc16",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(story.music)}</span>
         </div>
       )}
       {(isVid || story.music) && (
@@ -588,7 +588,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           {muted?<Ic.SoundOff/>:<Ic.SoundOn/>}
         </button>
       )}
-      {soundError && story.music && <div role="status" style={{position:"absolute",left:16,right:16,bottom:70,padding:"8px 12px",borderRadius:10,background:"rgba(0,0,0,.78)",border:"1px solid rgba(245,158,11,.25)",color:"#f3c66d",fontSize:12,textAlign:"center"}}>This song could not be played. Check that its library file is reachable.</div>}
+      {soundError && story.music && <div role="status" style={{position:"absolute",left:16,right:16,bottom:70,padding:"8px 12px",borderRadius:10,background:"rgba(0,0,0,.78)",border:"1px solid rgba(245,158,11,.25)",color:"#f3c66d",fontSize:13,textAlign:"center"}}>This song could not be played. Check that its library file is reachable.</div>}
     </div>
   );
 
@@ -597,7 +597,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
       <input value={repTxt} onChange={e=>setRepTxt(e.target.value)} autoFocus
         placeholder={`Reply to ${story.profile?.full_name?.split(" ")[0]||""}…`}
         onKeyDown={e=>e.key==="Enter"&&handleReply()} disabled={sending}
-        style={{flex:1,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderRadius:24,color:"#fff",fontSize:13,padding:"10px 16px",outline:"none",caretColor:"#84cc16"}}/>
+        style={{flex:1,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderRadius:24,color:"#fff",fontSize:14,padding:"10px 16px",outline:"none",caretColor:"#84cc16"}}/>
       <button onClick={handleReply} disabled={!repTxt.trim()||sending}
         style={{width:44,height:44,borderRadius:"50%",background:"#84cc16",border:"none",color:"#000",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
         {sending ? <span style={{width:14,height:14,border:"2px solid rgba(0,0,0,.3)",borderTopColor:"#000",borderRadius:"50%",animation:"uvSpin .7s linear infinite",display:"block"}}/> : <Ic.Send/>}
@@ -618,11 +618,11 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 14px 8px"}}>
             <UAv user={story.profile||group.user} size={36} ring nearExp={nearE}/>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
                 <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{story.profile?.full_name||group.user?.full_name}</span>
                 {story.profile?.verified && <Ic.Verified/>}
               </div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>{fmtRel(story.created_at)}{nearE&&<span style={{color:"#f59e0b",marginLeft:5}}><Ic.Clock/> {fmtCountdown(story.expires_at)}</span>}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.5)"}}>{fmtRel(story.created_at)}{nearE&&<span style={{color:"#f59e0b",marginLeft:5}}><Ic.Clock/> {fmtCountdown(story.expires_at)}</span>}</div>
             </div>
             <button onClick={()=>setPaused(p=>!p)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
               {paused?<Ic.Play/>:<Ic.Pause/>}
@@ -642,7 +642,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onUnmute={() => setMutePreference(false)} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
           {story.text && mediaUrl && (
             <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(0,0,0,.85),transparent)",padding:"28px 16px 14px"}}>
-              <p style={{color:story.text_color||"#fff",fontSize:15,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
+              <p style={{color:story.text_color||"#fff",fontSize:16,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
             </div>
           )}
           <button onClick={(e)=>{e.stopPropagation();retreat();}} style={{position:"absolute",left:0,top:"15%",bottom:"25%",width:"30%",background:"transparent",border:"none",cursor:"pointer",zIndex:2}}/>
@@ -650,7 +650,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
         </div>
 
         <div style={{background:"rgba(0,0,0,.92)",backdropFilter:"blur(12px)",padding:"10px 16px",paddingBottom:"max(env(safe-area-inset-bottom,0px),14px)",flexShrink:0}}>
-          {repDone && <div style={{display:"flex",alignItems:"center",gap:6,color:"#84cc16",fontSize:13,fontWeight:600,justifyContent:"center",paddingBottom:8}}><Ic.Check/> Reply sent ✓</div>}
+          {repDone && <div style={{display:"flex",alignItems:"center",gap:6,color:"#84cc16",fontSize:14,fontWeight:600,justifyContent:"center",paddingBottom:8}}><Ic.Check/> Reply sent ✓</div>}
           <ActionsBar/><ReplyInput/>
         </div>
       </div>
@@ -666,9 +666,9 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
     const iv = isVideoStatusFull(s);
     return (
       <button onClick={onClick} style={{flexShrink:0,width:115,height:185,borderRadius:18,overflow:"hidden",border:"1px solid rgba(255,255,255,.07)",background:"#111",cursor:"pointer",opacity:.38,transform:side==="left"?"scale(.88) translateX(18px)":"scale(.88) translateX(-18px)",transition:"all .25s",outline:"none"}}>
-        {mu ? (iv ? <div style={{width:"100%",height:"100%",background:"#000",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:28,opacity:.8}}>▶</span></div> : <img src={mu} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>) :
+        {mu ? (iv ? <div style={{width:"100%",height:"100%",background:"#000",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:29,opacity:.8}}>▶</span></div> : <img src={mu} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>) :
           <div style={{width:"100%",height:"100%",background:s?.bg||"#0d1a00",display:"flex",alignItems:"center",justifyContent:"center",padding:8,boxSizing:"border-box"}}>
-            <span style={{fontSize:11,color:s?.text_color||"#84cc16",textAlign:"center",lineHeight:1.4}}>{s?.text?.slice(0,40)}</span>
+            <span style={{fontSize:12,color:s?.text_color||"#84cc16",textAlign:"center",lineHeight:1.4}}>{s?.text?.slice(0,40)}</span>
           </div>}
       </button>
     );
@@ -691,11 +691,11 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"2px 14px 8px",flexShrink:0,position:"relative",zIndex:2}}>
             <UAv user={story.profile||group.user} size={34} ring nearExp={nearE}/>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
                 <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{story.profile?.full_name||group.user?.full_name}</span>
                 {story.profile?.verified && <Ic.Verified/>}
               </div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>{fmtRel(story.created_at)}{nearE&&<span style={{color:"#f59e0b",marginLeft:5}}><Ic.Clock/> {fmtCountdown(story.expires_at)}</span>}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.4)"}}>{fmtRel(story.created_at)}{nearE&&<span style={{color:"#f59e0b",marginLeft:5}}><Ic.Clock/> {fmtCountdown(story.expires_at)}</span>}</div>
             </div>
             <button onClick={()=>setPaused(p=>!p)} style={{width:29,height:29,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
               {paused?<Ic.Play/>:<Ic.Pause/>}
@@ -711,7 +711,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
             <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onUnmute={() => setMutePreference(false)} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
             {story.text && mediaUrl && (
               <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(0,0,0,.85),transparent)",padding:"24px 14px 12px",zIndex:2}}>
-                <p style={{color:story.text_color||"#fff",fontSize:14,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
+                <p style={{color:story.text_color||"#fff",fontSize:15,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
               </div>
             )}
             <button onClick={(e)=>{e.stopPropagation();retreat();}} style={{position:"absolute",left:0,top:0,bottom:0,width:"35%",background:"transparent",border:"none",cursor:"pointer",zIndex:3}}/>
@@ -719,7 +719,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           </div>
 
           <div style={{padding:"10px 14px 14px",flexShrink:0,background:"rgba(0,0,0,.9)",borderRadius:"0 0 26px 26px",position:"relative",zIndex:2}}>
-            {repDone && <div style={{display:"flex",alignItems:"center",gap:6,color:"#84cc16",fontSize:12,fontWeight:600,marginBottom:8}}><Ic.Check/> Reply sent ✓</div>}
+            {repDone && <div style={{display:"flex",alignItems:"center",gap:6,color:"#84cc16",fontSize:13,fontWeight:600,marginBottom:8}}><Ic.Check/> Reply sent ✓</div>}
             <ActionsBar compact/><ReplyInput/>
           </div>
         </div>
@@ -845,16 +845,16 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",background:"rgba(132,204,22,.09)",border:"1px solid rgba(132,204,22,.28)",borderRadius:16}}>
           <Ic.Music/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#84cc16",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</div>
-            <div style={{fontSize:10,color:"rgba(132,204,22,.6)",marginTop:1}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#84cc16",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</div>
+            <div style={{fontSize:11,color:"rgba(132,204,22,.6)",marginTop:1}}>
               Song {Math.round((sound.songVol||1)*100)}% · Video {Math.round((sound.videoVol||0.3)*100)}%
             </div>
           </div>
-          <button onClick={openSound} style={{padding:"3px 9px",borderRadius:8,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.25)",color:"#84cc16",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0}}>Change</button>
-          <button onClick={()=>setSound(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,.35)",cursor:"pointer",fontSize:16,flexShrink:0,lineHeight:1}}>✕</button>
+          <button onClick={openSound} style={{padding:"3px 9px",borderRadius:8,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.25)",color:"#84cc16",fontSize:12,fontWeight:600,cursor:"pointer",flexShrink:0}}>Change</button>
+          <button onClick={()=>setSound(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,.35)",cursor:"pointer",fontSize:17,flexShrink:0,lineHeight:1}}>✕</button>
         </div>
       ) : (
-        <button onClick={openSound} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderRadius:16,background:"rgba(132,204,22,.05)",border:"1px solid rgba(132,204,22,.16)",color:"rgba(132,204,22,.8)",fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",justifyContent:"center",transition:"all .15s",fontFamily:"inherit"}}>
+        <button onClick={openSound} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderRadius:16,background:"rgba(132,204,22,.05)",border:"1px solid rgba(132,204,22,.16)",color:"rgba(132,204,22,.8)",fontSize:14,fontWeight:600,cursor:"pointer",width:"100%",justifyContent:"center",transition:"all .15s",fontFamily:"inherit"}}>
           <Ic.Music/> Add Sound
         </button>
       )}
@@ -877,8 +877,8 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
               <div style={{margin:"0 18px 10px",padding:"10px 12px",borderRadius:10,background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.22)",display:"flex",alignItems:"center",gap:8}}>
                 <Ic.Lock/>
                 <div>
-                  <div style={{fontSize:12,fontWeight:700,color:"#f87171"}}>Limit reached ({currentCount}/{tierLimit})</div>
-                  <div style={{fontSize:11,color:"#666",marginTop:1}}>Delete a status or upgrade</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#f87171"}}>Limit reached ({currentCount}/{tierLimit})</div>
+                  <div style={{fontSize:12,color:"#666",marginTop:1}}>Delete a status or upgrade</div>
                 </div>
               </div>
             )}
@@ -929,7 +929,7 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
               {sound && (
                 <div style={{position:"absolute",bottom:8,left:8,display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:"rgba(0,0,0,.7)",borderRadius:20,backdropFilter:"blur(6px)"}}>
                   <Ic.Music/>
-                  <span style={{fontSize:11,color:"#84cc16",fontWeight:600,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</span>
+                  <span style={{fontSize:12,color:"#84cc16",fontWeight:600,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</span>
                 </div>
               )}
             </div>
@@ -943,7 +943,7 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
                     strokeDasharray={`${2*Math.PI*10}`} strokeDashoffset={`${2*Math.PI*10*(1-charPct/100)}`} strokeLinecap="round"
                     style={{transform:"rotate(-90deg)",transformOrigin:"center",transition:"all .2s"}}/>
                 </svg>
-                <span style={{fontSize:11,color:charPct>90?"#ef4444":"#555"}}>{CHAR_MAX-text.length}</span>
+                <span style={{fontSize:12,color:charPct>90?"#ef4444":"#555"}}>{CHAR_MAX-text.length}</span>
               </div>
             </div>
 
@@ -986,15 +986,15 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
             <div className="as-dur-preview" style={media?{background:"#111",overflow:"hidden"}:{background:bg}}>
               {media?.type==="video" && <video key={media.url} src={media.url} muted autoPlay loop playsInline style={{height:"100%",objectFit:"cover",width:"100%"}}/>}
               {media?.type==="image" && <img src={media.url} alt="" style={{height:"100%",objectFit:"cover",width:"100%"}}/>}
-              {!media && text && <p style={{color:tcol,fontSize:13,fontWeight:700,margin:0,padding:"0 12px",textAlign:"center"}}>{text.slice(0,60)}{text.length>60?"…":""}</p>}
+              {!media && text && <p style={{color:tcol,fontSize:14,fontWeight:700,margin:0,padding:"0 12px",textAlign:"center"}}>{text.slice(0,60)}{text.length>60?"…":""}</p>}
             </div>
 
             {sound && (
               <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 18px 0"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"rgba(132,204,22,.09)",border:"1px solid rgba(132,204,22,.25)",borderRadius:14,flex:1,minWidth:0}}>
                   <Ic.Music/>
-                  <span style={{fontSize:12,fontWeight:600,color:"#84cc16",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</span>
-                  <span style={{fontSize:10,color:"rgba(132,204,22,.55)",marginLeft:"auto",flexShrink:0}}>
+                  <span style={{fontSize:13,fontWeight:600,color:"#84cc16",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(sound.name)}</span>
+                  <span style={{fontSize:11,color:"rgba(132,204,22,.55)",marginLeft:"auto",flexShrink:0}}>
                     {Math.round((sound.songVol||1)*100)}% / {Math.round((sound.videoVol||0.3)*100)}%
                   </span>
                 </div>
@@ -1068,17 +1068,17 @@ const ContactRow = memo(({ group, isSeen, onClick }) => {
         <div style={{position:"absolute",inset:STROKE+3,borderRadius:"50%",overflow:"hidden"}}>
           <UAv user={group.user} size={SIZE-(STROKE+3)*2}/>
         </div>
-        {count>1&&!isSeen&&<div style={{position:"absolute",bottom:-1,right:-1,width:16,height:16,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
+        {count>1&&!isSeen&&<div style={{position:"absolute",bottom:-1,right:-1,width:16,height:16,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
       </div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:14,fontWeight:700,color:isSeen?"#555":"#fff",display:"flex",alignItems:"center",gap:4}}>
+        <div style={{fontSize:15,fontWeight:700,color:isSeen?"#555":"#fff",display:"flex",alignItems:"center",gap:4}}>
           {group.user?.full_name}{group.user?.verified&&<Ic.Verified/>}
         </div>
-        <div style={{fontSize:12,color:"#444",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+        <div style={{fontSize:13,color:"#444",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
           {preview} · {fmtRel(first?.created_at)}
-          {nearE&&<span style={{color:"#f59e0b",marginLeft:4,fontSize:11}}>⏰ {fmtCountdown(first.expires_at)}</span>}
+          {nearE&&<span style={{color:"#f59e0b",marginLeft:4,fontSize:12}}>⏰ {fmtCountdown(first.expires_at)}</span>}
         </div>
-        {first?.music && <div style={{fontSize:10,color:"rgba(132,204,22,.5)",marginTop:2,display:"flex",alignItems:"center",gap:3}}><Ic.Music/>{cleanSoundName(first.music)}</div>}
+        {first?.music && <div style={{fontSize:11,color:"rgba(132,204,22,.5)",marginTop:2,display:"flex",alignItems:"center",gap:3}}><Ic.Music/>{cleanSoundName(first.music)}</div>}
       </div>
       {mu&&!isVid&&<div style={{width:42,height:42,borderRadius:10,overflow:"hidden",flexShrink:0}}><img src={mu} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
       {!isSeen&&<div style={{width:9,height:9,borderRadius:"50%",background:"#84cc16",flexShrink:0,boxShadow:"0 0 6px rgba(132,204,22,.6)"}}/>}
@@ -1377,12 +1377,12 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
                    mu                        ? <img src={mu} alt="" className="upd-card-media"/> : null}
                   {s.text && <span className="upd-card-text" style={{color:s.text_color||"#fff"}}>{s.text.slice(0,40)}</span>}
                   <div className="upd-card-ov"/>
-                  {s.music && <div style={{position:"absolute",bottom:32,left:6,display:"flex",alignItems:"center",gap:3,padding:"2px 6px",background:"rgba(0,0,0,.6)",borderRadius:10,backdropFilter:"blur(4px)"}}><Ic.Music/><span style={{fontSize:8,color:"#84cc16",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(s.music)}</span></div>}
+                  {s.music && <div style={{position:"absolute",bottom:32,left:6,display:"flex",alignItems:"center",gap:3,padding:"2px 6px",background:"rgba(0,0,0,.6)",borderRadius:10,backdropFilter:"blur(4px)"}}><Ic.Music/><span style={{fontSize:9,color:"#84cc16",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(s.music)}</span></div>}
                 </div>
                 <div className="upd-card-footer">
                   <div className="upd-card-meta">
-                    <span style={{display:"flex",alignItems:"center",gap:2,color:nE?"#f59e0b":"#555",fontSize:9}}><Ic.Clock/>{fmtCountdown(s.expires_at)}</span>
-                    <span style={{display:"flex",alignItems:"center",gap:2,color:"#555",fontSize:9}}><Ic.Eye/>{s.views||0}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:2,color:nE?"#f59e0b":"#555",fontSize:10}}><Ic.Clock/>{fmtCountdown(s.expires_at)}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:2,color:"#555",fontSize:10}}><Ic.Eye/>{s.views||0}</span>
                   </div>
                   <div className="upd-card-actions">
                     {nE && <button className="upd-extend-btn" onClick={(e)=>{e.stopPropagation();setExtTarget(s);}}>+time</button>}
@@ -1423,7 +1423,7 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
       {/* Empty */}
       {!loading && feedGroups.length===0 && (
         <div className="upd-empty">
-          <button onClick={()=>!atLimit&&setShowAdd(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:16,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.3)",color:"#84cc16",fontSize:14,fontWeight:700,cursor:atLimit?"not-allowed":"pointer",marginTop:8,opacity:atLimit?.4:1}}>
+          <button onClick={()=>!atLimit&&setShowAdd(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:16,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.3)",color:"#84cc16",fontSize:15,fontWeight:700,cursor:atLimit?"not-allowed":"pointer",marginTop:8,opacity:atLimit?.4:1}}>
             <Ic.Plus/> {myStatuses.length ? "Create Status" : "Create Your First Status"}
           </button>
         </div>
@@ -1442,14 +1442,14 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
       {extTarget && (
         <div style={{position:"fixed",inset:0,zIndex:20002,background:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end"}}>
           <div style={{width:"100%",background:"#0d0d0d",border:"1px solid rgba(245,158,11,.22)",borderRadius:"18px 18px 0 0",paddingBottom:"max(env(safe-area-inset-bottom,0px),16px)",animation:"uvMsUp .25s cubic-bezier(.34,1.4,.64,1)"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px 8px",fontSize:16,fontWeight:800,color:"#fff"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px 8px",fontSize:17,fontWeight:800,color:"#fff"}}>
               <span>⏳ Extend Status</span>
               <button onClick={()=>setExtTarget(null)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.07)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#555"}}><Ic.Close/></button>
             </div>
-            <p style={{fontSize:13,color:"#666",padding:"0 18px 10px",margin:0}}>Currently: <strong style={{color:"#f59e0b"}}>{fmtCountdown(extTarget.expires_at)} remaining</strong></p>
+            <p style={{fontSize:14,color:"#666",padding:"0 18px 10px",margin:0}}>Currently: <strong style={{color:"#f59e0b"}}>{fmtCountdown(extTarget.expires_at)} remaining</strong></p>
             {[3,6,12,24].map((h) => (
               <button key={h} onClick={()=>{handleExtend(extTarget.id,h);setExtTarget(null);}}
-                style={{display:"block",width:"100%",padding:"13px 18px",background:"rgba(245,158,11,.06)",border:"none",borderBottom:"1px solid rgba(255,255,255,.04)",color:"#f59e0b",fontSize:15,fontWeight:700,textAlign:"left",cursor:"pointer",fontFamily:"inherit"}}>
+                style={{display:"block",width:"100%",padding:"13px 18px",background:"rgba(245,158,11,.06)",border:"none",borderBottom:"1px solid rgba(255,255,255,.04)",color:"#f59e0b",fontSize:16,fontWeight:700,textAlign:"left",cursor:"pointer",fontFamily:"inherit"}}>
                 + {h} hours
               </button>
             ))}
@@ -1518,9 +1518,9 @@ const ROOT_CSS = `
   .upd-my-add:hover { transform:scale(1.15); }
   .upd-my-add svg { width:11px; height:11px; }
   .upd-my-info  { flex:1; min-width:0; }
-  .upd-my-name  { font-size:14px; font-weight:700; color:#fff; }
-  .upd-my-sub   { font-size:11px; color:#555; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .upd-my-badge { min-width:22px; height:22px; border-radius:11px; padding:0 6px; background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.3); color:#84cc16; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .upd-my-name  { font-size:calc((14px) + 1px); font-weight:700; color:#fff; }
+  .upd-my-sub   { font-size:calc((11px) + 1px); color:#555; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .upd-my-badge { min-width:22px; height:22px; border-radius:11px; padding:0 6px; background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.3); color:#84cc16; font-size:calc((11px) + 1px); font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 
   .upd-cards-scroll { display:flex; gap:10px; padding:10px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-shrink:0; scrollbar-width:none; }
   .upd-cards-scroll::-webkit-scrollbar { height:0; }
@@ -1529,15 +1529,15 @@ const ROOT_CSS = `
   .upd-card:hover { transform:translateY(-2px); }
   .upd-card-thumb { position:relative; height:140px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .upd-card-media { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .upd-card-text  { position:relative; z-index:1; margin-top:18px; max-width:calc(100% - 12px); font-size:10px; font-weight:700; text-align:center; padding:7px 8px; background:rgba(0,0,0,.72); border-radius:7px; word-break:break-word; line-height:1.3; }
+  .upd-card-text  { position:relative; z-index:1; margin-top:18px; max-width:calc(100% - 12px); font-size:calc((10px) + 1px); font-weight:700; text-align:center; padding:7px 8px; background:rgba(0,0,0,.72); border-radius:7px; word-break:break-word; line-height:1.3; }
   .upd-card-ov    { position:absolute; inset:0; background:linear-gradient(to top,rgba(0,0,0,.5),transparent); }
   .upd-card-footer { padding:7px 8px; background:#0a0a0a; }
   .upd-card-meta   { display:flex; justify-content:space-between; margin-bottom:5px; }
   .upd-card-actions { display:flex; justify-content:flex-end; gap:5px; }
-  .upd-extend-btn { padding:2px 6px; border-radius:6px; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3); color:#f59e0b; font-size:9px; font-weight:700; cursor:pointer; }
+  .upd-extend-btn { padding:2px 6px; border-radius:6px; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3); color:#f59e0b; font-size:calc((9px) + 1px); font-weight:700; cursor:pointer; }
   .upd-del-btn    { width:22px; height:22px; border-radius:6px; background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.18); display:flex; align-items:center; justify-content:center; cursor:pointer; }
 
-  .upd-section { font-size:10px; font-weight:700; color:#333; text-transform:uppercase; letter-spacing:.8px; padding:10px 16px 3px; flex-shrink:0; }
+  .upd-section { font-size:calc((10px) + 1px); font-weight:700; color:#333; text-transform:uppercase; letter-spacing:.8px; padding:10px 16px 3px; flex-shrink:0; }
   .upd-empty   { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:60px 24px; flex:1; }
 `;
 
@@ -1551,11 +1551,11 @@ const MODAL_CSS = `
   .as-pill   { width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,.1); margin:12px auto 0; flex-shrink:0; }
 
   .as-hdr    { display:flex; align-items:center; justify-content:space-between; padding:14px 18px 10px; flex-shrink:0; }
-  .as-title  { font-size:17px; font-weight:800; color:#fff; margin:0; }
+  .as-title  { font-size:calc((17px) + 1px); font-weight:800; color:#fff; margin:0; }
   .as-title-c { flex:1; text-align:center; }
   .as-close  { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#555; }
-  .as-back   { background:none; border:none; color:#84cc16; font-size:13px; font-weight:700; cursor:pointer; padding:0; }
-  .as-err    { padding:8px 18px; color:#ef4444; font-size:13px; font-weight:600; flex-shrink:0; }
+  .as-back   { background:none; border:none; color:#84cc16; font-size:calc((13px) + 1px); font-weight:700; cursor:pointer; padding:0; }
+  .as-err    { padding:8px 18px; color:#ef4444; font-size:calc((13px) + 1px); font-weight:600; flex-shrink:0; }
 
   .as-pick-grid { display:flex; flex-direction:column; gap:8px; padding:8px 18px 8px; }
   .as-pick-card { display:flex; align-items:center; gap:14px; padding:16px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); text-align:left; transition:background .15s,border-color .15s; width:100%; font-family:inherit; }
@@ -1565,52 +1565,52 @@ const MODAL_CSS = `
   .as-pp { background:rgba(96,165,250,.1);  border:1px solid rgba(96,165,250,.2);  color:#60a5fa; }
   .as-pv { background:rgba(192,132,252,.1); border:1px solid rgba(192,132,252,.2); color:#c084fc; }
   .as-pick-info  { flex:1; min-width:0; }
-  .as-pick-label { display:block; font-size:15px; font-weight:700; color:#fff; margin-bottom:3px; }
-  .as-pick-desc  { display:block; font-size:12px; color:#555; }
-  .as-pick-arrow { color:#333; font-size:16px; flex-shrink:0; }
+  .as-pick-label { display:block; font-size:calc((15px) + 1px); font-weight:700; color:#fff; margin-bottom:3px; }
+  .as-pick-desc  { display:block; font-size:calc((12px) + 1px); color:#555; }
+  .as-pick-arrow { color:#333; font-size:calc((16px) + 1px); flex-shrink:0; }
 
   .as-prog-wrap  { padding:4px 18px 8px; display:flex; flex-direction:column; gap:5px; flex-shrink:0; }
   .as-prog-bar   { height:4px; border-radius:2px; background:rgba(255,255,255,.08); overflow:hidden; }
   .as-prog-fill  { height:100%; background:linear-gradient(90deg,#84cc16,#a3e635); border-radius:2px; transition:width .3s; }
-  .as-prog-label { font-size:12px; color:#84cc16; font-weight:600; text-align:center; }
+  .as-prog-label { font-size:calc((12px) + 1px); color:#84cc16; font-weight:600; text-align:center; }
 
   .as-preview    { height:185px; margin:0 18px; border-radius:16px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; flex-shrink:0; }
-  .as-overlay-text { position:absolute; bottom:0; left:0; right:0; padding:14px; font-size:14px; font-weight:700; text-align:center; background:linear-gradient(to top,rgba(0,0,0,.75),transparent); word-break:break-word; margin:0; }
-  .as-placeholder  { font-size:14px; color:rgba(255,255,255,.2); text-align:center; padding:0 20px; font-style:italic; }
+  .as-overlay-text { position:absolute; bottom:0; left:0; right:0; padding:14px; font-size:calc((14px) + 1px); font-weight:700; text-align:center; background:linear-gradient(to top,rgba(0,0,0,.75),transparent); word-break:break-word; margin:0; }
+  .as-placeholder  { font-size:calc((14px) + 1px); color:rgba(255,255,255,.2); text-align:center; padding:0 20px; font-style:italic; }
 
   .as-inp-wrap { display:flex; align-items:flex-start; gap:8px; padding:10px 18px; flex-shrink:0; }
-  .as-textarea { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px; color:#fff; font-size:14px; padding:12px 14px; resize:none; outline:none; caret-color:#84cc16; min-height:72px; max-height:110px; line-height:1.5; font-family:inherit; transition:border-color .18s; }
+  .as-textarea { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px; color:#fff; font-size:calc((14px) + 1px); padding:12px 14px; resize:none; outline:none; caret-color:#84cc16; min-height:72px; max-height:110px; line-height:1.5; font-family:inherit; transition:border-color .18s; }
   .as-textarea:focus { border-color:rgba(132,204,22,.3); }
   .as-textarea::placeholder { color:#333; }
   .as-char-ring { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
 
-  .as-section-lbl { font-size:10px; font-weight:700; color:#333; text-transform:uppercase; letter-spacing:.8px; padding:4px 18px 6px; flex-shrink:0; }
+  .as-section-lbl { font-size:calc((10px) + 1px); font-weight:700; color:#333; text-transform:uppercase; letter-spacing:.8px; padding:4px 18px 6px; flex-shrink:0; }
   .as-bg-row { display:flex; gap:8px; padding:0 18px 10px; overflow-x:auto; flex-shrink:0; scrollbar-width:none; }
   .as-bg-row::-webkit-scrollbar { display:none; }
   .as-bg-sw  { width:38px; height:38px; border-radius:10px; border:2px solid transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
   .as-bg-sw.as-bg-on { border-color:#fff; box-shadow:0 0 0 2px rgba(132,204,22,.4); }
-  .as-bg-page { width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:#666; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .as-bg-page { width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:#666; font-size:calc((16px) + 1px); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
 
   .as-color-row { display:flex; gap:8px; padding:0 18px 12px; overflow-x:auto; flex-shrink:0; scrollbar-width:none; }
   .as-color-row::-webkit-scrollbar { display:none; }
   .as-color-dot { width:28px; height:28px; border-radius:50%; border:2px solid rgba(255,255,255,.1); cursor:pointer; flex-shrink:0; transition:all .12s; }
   .as-color-dot.as-dot-on { border-color:#fff; box-shadow:0 0 0 3px rgba(132,204,22,.4); }
 
-  .as-cta { margin:8px 18px 6px; padding:14px; border-radius:16px; background:linear-gradient(135deg,rgba(132,204,22,.18),rgba(101,163,13,.12)); border:1px solid rgba(132,204,22,.35); color:#84cc16; font-size:15px; font-weight:700; cursor:pointer; transition:all .15s; display:block; width:calc(100% - 36px); font-family:inherit; }
+  .as-cta { margin:8px 18px 6px; padding:14px; border-radius:16px; background:linear-gradient(135deg,rgba(132,204,22,.18),rgba(101,163,13,.12)); border:1px solid rgba(132,204,22,.35); color:#84cc16; font-size:calc((15px) + 1px); font-weight:700; cursor:pointer; transition:all .15s; display:block; width:calc(100% - 36px); font-family:inherit; }
   .as-cta:disabled { opacity:.35; cursor:not-allowed; }
 
   .as-dur-preview { height:130px; margin:0 18px; border-radius:16px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
-  .as-dur-hint    { font-size:13px; color:#555; text-align:center; padding:10px 24px 4px; margin:0; flex-shrink:0; }
+  .as-dur-hint    { font-size:calc((13px) + 1px); color:#555; text-align:center; padding:10px 24px 4px; margin:0; flex-shrink:0; }
   .as-dur-cards   { display:flex; flex-direction:column; gap:8px; padding:4px 18px; flex-shrink:0; }
   .as-dur-card    { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); cursor:pointer; text-align:left; transition:background .15s,border-color .15s; position:relative; width:100%; font-family:inherit; }
   .as-dur-on      { background:rgba(132,204,22,.08) !important; border-color:rgba(132,204,22,.35) !important; }
-  .as-dur-time    { font-size:18px; font-weight:800; color:#fff; min-width:42px; }
+  .as-dur-time    { font-size:calc((18px) + 1px); font-weight:800; color:#fff; min-width:42px; }
   .as-dur-on .as-dur-time { color:#84cc16; }
-  .as-dur-desc    { font-size:12px; color:#555; flex:1; }
+  .as-dur-desc    { font-size:calc((12px) + 1px); color:#555; flex:1; }
   .as-dur-check   { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:24px; height:24px; border-radius:50%; background:#84cc16; display:flex; align-items:center; justify-content:center; color:#000; }
-  .as-dur-expiry  { display:flex; align-items:center; gap:6px; font-size:11px; color:#444; padding:8px 18px; flex-shrink:0; }
+  .as-dur-expiry  { display:flex; align-items:center; gap:6px; font-size:calc((11px) + 1px); color:#444; padding:8px 18px; flex-shrink:0; }
 
-  .as-share-btn { display:flex; align-items:center; justify-content:center; gap:10px; margin:10px 18px; padding:15px; border-radius:16px; background:linear-gradient(135deg,#84cc16,#65a30d); border:none; color:#000; font-size:15px; font-weight:800; cursor:pointer; transition:all .15s; font-family:inherit; }
+  .as-share-btn { display:flex; align-items:center; justify-content:center; gap:10px; margin:10px 18px; padding:15px; border-radius:16px; background:linear-gradient(135deg,#84cc16,#65a30d); border:none; color:#000; font-size:calc((15px) + 1px); font-weight:800; cursor:pointer; transition:all .15s; font-family:inherit; }
   .as-share-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(132,204,22,.35); }
   .as-share-btn.as-saving,.as-share-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
   .as-spinner { width:16px; height:16px; border:2px solid rgba(0,0,0,.2); border-top-color:#000; border-radius:50%; animation:uvSpin .7s linear infinite; display:inline-block; }

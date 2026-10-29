@@ -87,7 +87,7 @@ export const GLOBAL_STYLES = `
     background: var(--bg);
     color: var(--t1);
     font-family: var(--fb);
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -164,7 +164,7 @@ export const GLOBAL_STYLES = `
     color: #060e02;
     font-family: var(--fd);
     font-weight: 800;
-    font-size: 12.5px;
+    font-size: calc((12.5px) + 1px);
     letter-spacing: 0.01em;
     padding: 11px 18px;
     border-radius: var(--r2);
@@ -198,7 +198,7 @@ export const GLOBAL_STYLES = `
   .btn-p:disabled { opacity: 0.28; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-p:disabled::after { display: none; }
   .btn-p.full { width: 100%; display: flex; }
-  .btn-p.sm   { padding: 8px 13px; font-size: 11.5px; }
+  .btn-p.sm   { padding: 8px 13px; font-size: calc((11.5px) + 1px); }
 
   .btn-dk {
     background: rgba(255,255,255,0.055);
@@ -206,7 +206,7 @@ export const GLOBAL_STYLES = `
     color: var(--t1);
     font-family: var(--fd);
     font-weight: 700;
-    font-size: 12.5px;
+    font-size: calc((12.5px) + 1px);
     padding: 11px 18px;
     border-radius: var(--r2);
     cursor: pointer;
@@ -227,7 +227,7 @@ export const GLOBAL_STYLES = `
     color: var(--t1);
     font-family: var(--fb);
     font-weight: 500;
-    font-size: 12.5px;
+    font-size: calc((12.5px) + 1px);
     padding: 11px 18px;
     border-radius: var(--r2);
     cursor: pointer;
@@ -241,7 +241,7 @@ export const GLOBAL_STYLES = `
   .btn-g:hover { background: var(--s2); border-color: var(--b2); }
   .btn-g:active { transform: scale(0.97); }
   .btn-g.full { width: 100%; display: flex; }
-  .btn-g.sm   { padding: 8px 13px; font-size: 11.5px; }
+  .btn-g.sm   { padding: 8px 13px; font-size: calc((11.5px) + 1px); }
 
   /* Paired buttons */
   .btn-pair { display: flex; gap: 8px; width: 100%; }
@@ -273,7 +273,7 @@ export const GLOBAL_STYLES = `
   .pw-back-btn:hover { background: var(--s2); border-color: var(--lime-ring); color: var(--lime); }
   .pw-hdr-title {
     font-family: var(--fd);
-    font-size: 14px; font-weight: 700;
+    font-size: calc((14px) + 1px); font-weight: 700;
     color: var(--t1); letter-spacing: -0.01em;
     flex: 1;
   }
@@ -300,7 +300,7 @@ export const GLOBAL_STYLES = `
     cursor: pointer;
     transition: all .18s;
     font-family: var(--fb);
-    font-size: 9px; font-weight: 500;
+    font-size: calc((9px) + 1px); font-weight: 500;
   }
   .pw-nav-btn.active {
     background: rgba(163,230,53,0.09);
@@ -339,7 +339,7 @@ export const GLOBAL_STYLES = `
       border: none; background: transparent;
       color: var(--t3); cursor: pointer;
       transition: all .15s;
-      font-family: var(--fb); font-size: 8.5px; font-weight: 500;
+      font-family: var(--fb); font-size: calc((8.5px) + 1px); font-weight: 500;
       position: relative;
     }
     .pw-side-btn::before {
@@ -367,7 +367,7 @@ export const GLOBAL_STYLES = `
   .xf-lbl {
     font-family: var(--fb);
     color: var(--t3);
-    font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
+    font-size: calc((10px) + 1px); letter-spacing: 0.07em; text-transform: uppercase;
     display: block; margin-bottom: 5px; font-weight: 600;
   }
   .xf-wrap {
@@ -384,13 +384,13 @@ export const GLOBAL_STYLES = `
   .xf-in {
     width: 100%; background: transparent;
     color: var(--t1); border: none; outline: none;
-    font-family: var(--fb); font-size: 13px;
+    font-family: var(--fb); font-size: calc((13px) + 1px);
   }
   .xf-in::placeholder { color: var(--t4); }
   .xf-in-lg {
     width: 100%; background: transparent;
     color: var(--t1); border: none; outline: none;
-    font-family: var(--fd); font-size: 26px; font-weight: 800;
+    font-family: var(--fd); font-size: calc((26px) + 1px); font-weight: 800;
   }
   .xf-in-lg::placeholder { color: var(--t4); }
 
@@ -401,7 +401,7 @@ export const GLOBAL_STYLES = `
     border-radius: var(--r1);
     background: var(--s1); border: 1px solid var(--b1);
     color: var(--t2); font-family: var(--fb);
-    font-weight: 600; font-size: 11.5px;
+    font-weight: 600; font-size: calc((11.5px) + 1px);
     cursor: pointer; transition: all .13s; text-align: center;
   }
   .amt-btn.sel {
@@ -417,7 +417,7 @@ export const GLOBAL_STYLES = `
   .net-btn {
     aspect-ratio: 1; border-radius: var(--r2);
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-family: var(--fd); font-weight: 700; font-size: 10.5px;
+    color: #fff; font-family: var(--fd); font-weight: 700; font-size: calc((10.5px) + 1px);
     border: 2px solid transparent; cursor: pointer;
     box-shadow: var(--sh1); transition: transform .13s;
   }
@@ -426,7 +426,7 @@ export const GLOBAL_STYLES = `
   .prov-btn {
     aspect-ratio: 16/9; border-radius: var(--r1);
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-family: var(--fd); font-weight: 700; font-size: 10.5px;
+    color: #fff; font-family: var(--fd); font-weight: 700; font-size: calc((10.5px) + 1px);
     border: 2px solid transparent; cursor: pointer;
     box-shadow: var(--sh1); transition: transform .13s;
   }
@@ -436,7 +436,7 @@ export const GLOBAL_STYLES = `
   /* ── Section header ── */
   .xsec-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .xsec-t {
-    font-family: var(--fd); font-size: 12.5px; font-weight: 700;
+    font-family: var(--fd); font-size: calc((12.5px) + 1px); font-weight: 700;
     color: var(--t1); letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 7px;
   }
@@ -450,7 +450,7 @@ export const GLOBAL_STYLES = `
     flex-shrink: 0;
   }
   .xsec-link {
-    color: var(--lime); font-size: 10.5px; font-weight: 600;
+    color: var(--lime); font-size: calc((10.5px) + 1px); font-weight: 600;
     background: transparent; border: none; cursor: pointer;
     font-family: var(--fb);
     transition: opacity .13s;
@@ -470,11 +470,11 @@ export const GLOBAL_STYLES = `
     background: rgba(163,230,53,0.1);
     border-color: rgba(163,230,53,0.22);
   }
-  .tx-name  { font-family: var(--fb); color: var(--t1); font-size: 12.5px; font-weight: 500; }
-  .tx-date  { color: var(--t3); font-size: 10.5px; margin-top: 1px; }
-  .tx-amt   { font-family: var(--fd); font-weight: 700; font-size: 13px; color: var(--t1); }
+  .tx-name  { font-family: var(--fb); color: var(--t1); font-size: calc((12.5px) + 1px); font-weight: 500; }
+  .tx-date  { color: var(--t3); font-size: calc((10.5px) + 1px); margin-top: 1px; }
+  .tx-amt   { font-family: var(--fd); font-weight: 700; font-size: calc((13px) + 1px); color: var(--t1); }
   .tx-amt.cr { color: var(--lime); }
-  .tx-stat  { color: rgba(163,230,53,0.5); font-size: 9px; font-weight: 600; letter-spacing: 0.04em; }
+  .tx-stat  { color: rgba(163,230,53,0.5); font-size: calc((9px) + 1px); font-weight: 600; letter-spacing: 0.04em; }
 
   /* ── Info boxes ── */
   .info-lime {
@@ -504,9 +504,9 @@ export const GLOBAL_STYLES = `
     flex-shrink: 0;
     box-shadow: 0 4px 14px rgba(163,230,53,0.24);
   }
-  .xav-sm { width: 32px; height: 32px; font-size: 12px; }
-  .xav-md { width: 40px; height: 40px; font-size: 15px; }
-  .xav-lg { width: 52px; height: 52px; font-size: 19px; }
+  .xav-sm { width: 32px; height: 32px; font-size: calc((12px) + 1px); }
+  .xav-md { width: 40px; height: 40px; font-size: calc((15px) + 1px); }
+  .xav-lg { width: 52px; height: 52px; font-size: calc((19px) + 1px); }
 
   /* ── Icon chip ── */
   .ic-chip {
@@ -523,7 +523,7 @@ export const GLOBAL_STYLES = `
     background: var(--lime); border: 1.5px solid var(--bg);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 7.5px; font-weight: 800; color: #060e02;
+    font-size: calc((7.5px) + 1px); font-weight: 800; color: #060e02;
   }
 
   /* ── Toggle ── */
@@ -540,7 +540,7 @@ export const GLOBAL_STYLES = `
     padding: 9px 11px; border-radius: var(--r2);
     background: var(--s1); border: 1px solid var(--b1);
   }
-  .copy-val { color: var(--t1); font-family: var(--fm); font-size: 13px; }
+  .copy-val { color: var(--t1); font-family: var(--fm); font-size: calc((13px) + 1px); }
   .copy-ic {
     padding: 4px; border-radius: 6px;
     background: rgba(163,230,53,0.09); border: none;
@@ -555,7 +555,7 @@ export const GLOBAL_STYLES = `
     padding: 9px 11px; border-radius: var(--r2);
     color: var(--t1); outline: none;
     border: 1px solid var(--b1);
-    font-size: 13px; font-family: var(--fb);
+    font-size: calc((13px) + 1px); font-family: var(--fb);
     cursor: pointer; transition: border-color .15s;
     appearance: none;
   }
@@ -581,7 +581,7 @@ export const GLOBAL_STYLES = `
   }
   .quick-btn:hover .quick-icon { transform: scale(1.07) translateY(-2px); }
   .quick-btn:active .quick-icon { transform: scale(0.93); }
-  .quick-lbl { color: var(--t2); font-size: 9.5px; font-weight: 500; font-family: var(--fb); }
+  .quick-lbl { color: var(--t2); font-size: calc((9.5px) + 1px); font-weight: 500; font-family: var(--fb); }
 
   /* ── Services grid ── */
   .srv-grid  { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
@@ -589,7 +589,7 @@ export const GLOBAL_STYLES = `
   .srv-icon  { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; transition: transform .16s; }
   .srv-item:hover .srv-icon  { transform: scale(1.07) translateY(-2px); }
   .srv-item:active .srv-icon { transform: scale(0.93); }
-  .srv-lbl   { color: var(--t2); font-size: 9.5px; font-weight: 500; text-align: center; line-height: 1.3; font-family: var(--fb); }
+  .srv-lbl   { color: var(--t2); font-size: calc((9.5px) + 1px); font-weight: 500; text-align: center; line-height: 1.3; font-family: var(--fb); }
 
   /* ── Gradient swatches ── */
   .g-purple{background:linear-gradient(145deg,#a855f7,#7c3aed);box-shadow:0 6px 18px rgba(168,85,247,0.35),inset 0 1px 0 rgba(255,255,255,0.14)}
@@ -753,8 +753,8 @@ export default function PayWaveApp({ onBack, userId }) {
             display:"flex", alignItems:"center", justifyContent:"center" }}>
             <Zap size={22} color="var(--lime)" />
           </div>
-          <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800 }}>Coming Soon</div>
-          <div style={{ color:"var(--t2)", fontSize:12, textAlign:"center", lineHeight:1.6 }}>
+          <div style={{ fontFamily:"var(--fd)", fontSize:16, fontWeight:800 }}>Coming Soon</div>
+          <div style={{ color:"var(--t2)", fontSize:13, textAlign:"center", lineHeight:1.6 }}>
             This feature is under development
           </div>
         </div>
@@ -777,7 +777,7 @@ export default function PayWaveApp({ onBack, userId }) {
                 className={`pw-side-btn ${activeNavId === tab.id ? "active" : ""}`}
                 onClick={() => setPage(tab.id)} title={tab.label}>
                 <div className="pw-side-icon"><tab.icon size={16} /></div>
-                <span style={{ fontSize:"7.5px", letterSpacing:"0.03em" }}>{tab.label}</span>
+                <span style={{ fontSize:"calc((7.5px) + 1px)", letterSpacing:"0.03em" }}>{tab.label}</span>
               </button>
             ))}
           </div>

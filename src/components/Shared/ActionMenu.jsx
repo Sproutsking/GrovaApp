@@ -25,7 +25,7 @@ const Toast = ({ message, type = "success", onDone }) => {
       left: "50%", transform: "translateX(-50%)",
       background: type === "error" ? "rgba(239,68,68,0.12)" : "var(--panel)",
       color: "var(--text)", padding: "9px 18px", borderRadius: "999px",
-      fontSize: "13px", fontWeight: 600, zIndex: 999999,
+      fontSize: "calc((13px) + 1px)", fontWeight: 600, zIndex: 999999,
       boxShadow: "0 4px 24px rgba(0,0,0,0.2)",
       border: type === "error" ? "1px solid rgba(252,165,165,0.8)" : "1px solid rgba(132,204,22,0.24)",
       whiteSpace: "nowrap", animation: "toastIn 0.25s ease",
@@ -63,23 +63,23 @@ const ConfirmDialog = ({ contentType, loading, onConfirm, onCancel }) =>
         }}>
           <Trash2 size={20} color="#ef4444" />
         </div>
-        <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
+        <p style={{ color: "var(--text)", fontSize: "calc((15px) + 1px)", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
           Delete {contentType}?
         </p>
-        <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "calc((13px) + 1px)", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
           This will be permanently removed and cannot be recovered.
         </p>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={onCancel} disabled={loading} style={{
             flex: 1, padding: "11px", background: "var(--surface)",
             border: "1px solid var(--surface-border)", borderRadius: "11px",
-            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: "var(--text-secondary)", fontSize: "calc((14px) + 1px)", fontWeight: 600, cursor: "pointer",
           }}>Cancel</button>
           <button onClick={onConfirm} disabled={loading} style={{
             flex: 1, padding: "11px",
             background: loading ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.12)",
             border: "1px solid rgba(239,68,68,0.45)", borderRadius: "11px",
-            color: "#ef4444", fontSize: "14px", fontWeight: 700,
+            color: "#ef4444", fontSize: "calc((14px) + 1px)", fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
           }}>
             {loading ? "Deleting…" : "Delete"}
@@ -115,10 +115,10 @@ const InterestedDialog = ({ interested, onConfirm, onCancel }) =>
         }}>
           {interested ? <ThumbsUp size={20} color="#84cc16" /> : <ThumbsDown size={20} color="#737373" />}
         </div>
-        <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
+        <p style={{ color: "var(--text)", fontSize: "calc((15px) + 1px)", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
           {interested ? "See more like this?" : "See less like this?"}
         </p>
-        <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "calc((13px) + 1px)", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
           {interested
             ? "We'll show you more content similar to this in your feed."
             : "We'll reduce content like this in your feed."}
@@ -127,13 +127,13 @@ const InterestedDialog = ({ interested, onConfirm, onCancel }) =>
           <button onClick={onCancel} style={{
             flex: 1, padding: "11px", background: "var(--surface)",
             border: "1px solid var(--surface-border)", borderRadius: "11px",
-            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: "var(--text-secondary)", fontSize: "calc((14px) + 1px)", fontWeight: 600, cursor: "pointer",
           }}>No thanks</button>
           <button onClick={onConfirm} style={{
             flex: 1, padding: "11px",
             background: "rgba(132,204,22,0.12)",
             border: "1px solid rgba(132,204,22,0.4)", borderRadius: "11px",
-            color: "#84cc16", fontSize: "14px", fontWeight: 700, cursor: "pointer",
+            color: "#84cc16", fontSize: "calc((14px) + 1px)", fontWeight: 700, cursor: "pointer",
           }}>Yes, update</button>
         </div>
       </div>
@@ -161,12 +161,12 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
         animation: "confirmIn 0.2s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700 }}>Report {contentType}</p>
+          <p style={{ color: "var(--text)", fontSize: "calc((15px) + 1px)", fontWeight: 700 }}>Report {contentType}</p>
           <button onClick={onCancel} style={{ background: "none", border: "none", color: "#737373", cursor: "pointer", padding: 4 }}>
             <X size={18} />
           </button>
         </div>
-        <p style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: 14 }}>Select a reason:</p>
+        <p style={{ color: "var(--text-secondary)", fontSize: "calc((12px) + 1px)", marginBottom: 14 }}>Select a reason:</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
           {reasons.map(r => (
             <button key={r} onClick={() => setReason(r)} style={{
@@ -174,7 +174,7 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
               border: `1px solid ${reason === r ? "rgba(251,146,60,0.5)" : "rgba(255,255,255,0.08)"}`,
               background: reason === r ? "rgba(251,146,60,0.1)" : "transparent",
               color: reason === r ? "#fb923c" : "#a3a3a3",
-              fontSize: "13px", fontWeight: 600, cursor: "pointer",
+              fontSize: "calc((13px) + 1px)", fontWeight: 600, cursor: "pointer",
             }}>{r}</button>
           ))}
         </div>
@@ -182,14 +182,14 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
           <button onClick={onCancel} style={{
             flex: 1, padding: "11px", background: "var(--surface)",
             border: "1px solid var(--surface-border)", borderRadius: "11px",
-            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: "var(--text-secondary)", fontSize: "calc((14px) + 1px)", fontWeight: 600, cursor: "pointer",
           }}>Cancel</button>
           <button onClick={() => reason && onConfirm(reason)} disabled={!reason} style={{
             flex: 1, padding: "11px",
             background: reason ? "rgba(251,146,60,0.12)" : "var(--surface)",
             border: `1px solid ${reason ? "rgba(251,146,60,0.4)" : "var(--surface-border)"}`,
             borderRadius: "11px", color: reason ? "#fb923c" : "var(--text-secondary)",
-            fontSize: "14px", fontWeight: 700, cursor: reason ? "pointer" : "not-allowed",
+            fontSize: "calc((14px) + 1px)", fontWeight: 700, cursor: reason ? "pointer" : "not-allowed",
           }}>Submit Report</button>
         </div>
       </div>
@@ -291,8 +291,8 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
               <BookmarkPlus size={15} color="#84cc16" />
             </div>
             <div>
-              <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 700 }}>Save to Folder</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{folders.length}/10 folders</div>
+              <div style={{ color: "var(--text)", fontSize: "calc((14px) + 1px)", fontWeight: 700 }}>Save to Folder</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "calc((11px) + 1px)" }}>{folders.length}/10 folders</div>
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -309,7 +309,7 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
             background: flash.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(132,204,22,0.1)",
             border: `1px solid ${flash.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(132,204,22,0.3)"}`,
             color: flash.type === "error" ? "#ef4444" : "#84cc16",
-            fontSize: "12px", fontWeight: 600, textAlign: "center",
+            fontSize: "calc((12px) + 1px)", fontWeight: 600, textAlign: "center",
           }}>{flash.msg}</div>
         )}
 
@@ -321,7 +321,7 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
               border: `1px solid ${saving === folder ? "rgba(132,204,22,0.4)" : "var(--surface-border)"}`,
               borderRadius: "11px", display: "flex", alignItems: "center",
               justifyContent: "space-between", cursor: "pointer",
-              color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600,
+              color: "var(--text-secondary)", fontSize: "calc((13px) + 1px)", fontWeight: 600,
               transition: "all 0.15s",
             }}>
               <span>📁 {folder}</span>
@@ -340,7 +340,7 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
               width: "100%", padding: "10px", background: "transparent",
               border: "1px dashed rgba(132,204,22,0.3)", borderRadius: "11px",
               color: folders.length >= 10 ? "#525252" : "#84cc16",
-              fontSize: "13px", fontWeight: 600, cursor: folders.length >= 10 ? "not-allowed" : "pointer",
+              fontSize: "calc((13px) + 1px)", fontWeight: 600, cursor: folders.length >= 10 ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
               <FolderPlus size={15} />
@@ -358,14 +358,14 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
                 style={{
                   flex: 1, padding: "10px 12px", background: "var(--surface)",
                   border: "1px solid rgba(132,204,22,0.3)", borderRadius: "10px",
-                  color: "var(--text)", fontSize: "13px", outline: "none",
+                  color: "var(--text)", fontSize: "calc((13px) + 1px)", outline: "none",
                   fontFamily: "inherit",
                 }}
               />
               <button onClick={createFolder} style={{
                 padding: "10px 14px", background: "rgba(132,204,22,0.12)",
                 border: "1px solid rgba(132,204,22,0.4)", borderRadius: "10px",
-                color: "#84cc16", fontSize: "13px", fontWeight: 700, cursor: "pointer",
+                color: "#84cc16", fontSize: "calc((13px) + 1px)", fontWeight: 700, cursor: "pointer",
               }}>Save</button>
               <button onClick={() => setCreating(false)} style={{
                 padding: "10px 12px", background: "rgba(255,255,255,0.04)",
@@ -599,7 +599,7 @@ const ActionMenu = ({
         }
         .am-panel--mobile .am-head { padding-top:6px; }
         .am-head-dot  { width:7px;height:7px;background:#84cc16;border-radius:50%;flex-shrink:0; }
-        .am-head-title{ flex:1;font-size:11px;font-weight:700;color:#84cc16;text-transform:uppercase;letter-spacing:.7px; }
+        .am-head-title{ flex:1;font-size:calc((11px) + 1px);font-weight:700;color:#84cc16;text-transform:uppercase;letter-spacing:.7px; }
         .am-x {
           width:26px;height:26px;background:var(--surface);
           border:1px solid var(--surface-border);border-radius:50%;
@@ -622,14 +622,14 @@ const ActionMenu = ({
           display:flex;align-items:center;justify-content:center;flex-shrink:0;
         }
         .am-label-wrap { flex:1;display:flex;flex-direction:column;gap:1px;min-width:0; }
-        .am-label { font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .am-desc  { font-size:10.5px;color:var(--text-secondary);line-height:1.2; }
+        .am-label { font-size:calc((13px) + 1px);font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .am-desc  { font-size:calc((10.5px) + 1px);color:var(--text-secondary);line-height:1.2; }
         .am-divider { height:1px;background:var(--surface-border);margin:5px 3px; }
         @media(max-width:768px) {
           .am-item { padding:11px 10px; }
           .am-icon-wrap { width:33px;height:33px;border-radius:9px; }
-          .am-label { font-size:14px; }
-          .am-desc  { font-size:11px;color:#525252; }
+          .am-label { font-size:calc((14px) + 1px); }
+          .am-desc  { font-size:calc((11px) + 1px);color:#525252; }
         }
         @media(max-width:360px) { .am-desc { display:none; } }
       `}</style>

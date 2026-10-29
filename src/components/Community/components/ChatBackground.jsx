@@ -1,12 +1,12 @@
 import React from "react";
 
 const scatteredMarks = [
-  { text: "GROVA", top: "12%", left: "18%", fontSize: "clamp(30px, 3vw, 52px)", rotate: -18, opacity: 0.11 },
-  { text: "🌍", top: "26%", left: "74%", fontSize: "clamp(24px, 2.5vw, 36px)", rotate: 8, opacity: 0.17 },
-  { text: "G", top: "44%", left: "8%", fontSize: "clamp(58px, 6vw, 100px)", rotate: -12, opacity: 0.12 },
-  { text: "GROVA", top: "66%", left: "61%", fontSize: "clamp(34px, 3vw, 58px)", rotate: 20, opacity: 0.1 },
-  { text: "🌍", top: "77%", left: "27%", fontSize: "clamp(20px, 2vw, 32px)", rotate: -14, opacity: 0.14 },
-  { text: "◌", top: "58%", left: "83%", fontSize: "clamp(26px, 2.2vw, 36px)", rotate: 14, opacity: 0.14 },
+  { text: "GROVA", top: "12%", left: "18%", fontSize: "calc((clamp(30px, 3vw, 52px)) + 1px)", rotate: -18, opacity: 0.11 },
+  { text: "🌍", top: "26%", left: "74%", fontSize: "calc((clamp(24px, 2.5vw, 36px)) + 1px)", rotate: 8, opacity: 0.17 },
+  { text: "G", top: "44%", left: "8%", fontSize: "calc((clamp(58px, 6vw, 100px)) + 1px)", rotate: -12, opacity: 0.12 },
+  { text: "GROVA", top: "66%", left: "61%", fontSize: "calc((clamp(34px, 3vw, 58px)) + 1px)", rotate: 20, opacity: 0.1 },
+  { text: "🌍", top: "77%", left: "27%", fontSize: "calc((clamp(20px, 2vw, 32px)) + 1px)", rotate: -14, opacity: 0.14 },
+  { text: "◌", top: "58%", left: "83%", fontSize: "calc((clamp(26px, 2.2vw, 36px)) + 1px)", rotate: 14, opacity: 0.14 },
 ];
 
 const ChatBackground = ({ style }) => {
@@ -48,7 +48,7 @@ const ChatBackground = ({ style }) => {
       >
         <div
           style={{
-            fontSize: "clamp(140px, 24vw, 330px)",
+            fontSize: "calc((clamp(140px, 24vw, 330px)) + 1px)",
             fontWeight: 900,
             letterSpacing: "0.08em",
             lineHeight: 1,

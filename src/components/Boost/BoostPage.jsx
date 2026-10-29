@@ -141,7 +141,7 @@ const BoostPage = ({
             background: "rgba(255,255,255,0.05)",
             color: "rgba(255,255,255,0.8)",
             cursor: "pointer",
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 600,
             transition: "all 0.2s",
           }}

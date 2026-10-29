@@ -53,7 +53,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
           Loading boost status...
         </div>
       </div>
@@ -82,10 +82,10 @@ export const ProfileBoostSection = ({ userId = null }) => {
       >
         <Zap size={18} color='#bfe4ff' />
         <div>
-          <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'rgba(255,255,255,0.95)' }}>
+          <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'rgba(255,255,255,0.95)' }}>
             Profile Boost
           </h3>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', margin: '4px 0 0 0' }}>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '4px 0 0 0' }}>
             Unlock premium profile designs
           </p>
         </div>
@@ -105,12 +105,12 @@ export const ProfileBoostSection = ({ userId = null }) => {
                 marginBottom: 16,
               }}
             >
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 700, marginBottom: 6 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700, marginBottom: 6 }}>
                 CURRENT TIER
               </div>
               <div
                 style={{
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: 800,
                   color: '#bfe4ff',
                   textTransform: 'capitalize',
@@ -119,7 +119,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
                 {boost.tier}
               </div>
               {boost.expires_at && (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>
                   Expires: {new Date(boost.expires_at).toLocaleDateString()}
                 </div>
               )}
@@ -137,7 +137,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
                   color: '#bfe4ff',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 14,
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
@@ -170,7 +170,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
                   color: 'rgba(255,255,255,0.6)',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 14,
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
@@ -188,7 +188,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
           </div>
         ) : (
           <div style={{ marginBottom: 24 }}>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>
               No active boost. Upgrade to unlock premium profile designs, custom animations, and exclusive features.
             </p>
 
@@ -203,7 +203,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
                 color: '#bfe4ff',
                 fontWeight: 700,
                 cursor: 'pointer',
-                fontSize: 14,
+                fontSize: 15,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -240,7 +240,7 @@ export const ProfileBoostSection = ({ userId = null }) => {
             }}
           >
             <AlertCircle size={16} color='#ef4444' style={{ marginTop: 2, flexShrink: 0 }} />
-            <div style={{ fontSize: 12, color: '#ef4444' }}>
+            <div style={{ fontSize: 13, color: '#ef4444' }}>
               {upgradeError}
             </div>
           </div>
@@ -295,11 +295,11 @@ const InfoBox = ({ icon, label, value, color }) => (
       textAlign: 'center',
     }}
   >
-    <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>
+    <div style={{ fontSize: 19, marginBottom: 4 }}>{icon}</div>
+    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>
       {label}
     </div>
-    <div style={{ fontSize: 13, color, fontWeight: 800, marginTop: 4 }}>
+    <div style={{ fontSize: 14, color, fontWeight: 800, marginTop: 4 }}>
       {value}
     </div>
   </div>
@@ -313,13 +313,13 @@ export const SettingsPageExample = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>
+      <h1 style={{ fontSize: 29, fontWeight: 800, marginBottom: 24 }}>
         Account Settings
       </h1>
 
       {/* Profile section */}
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
           Profile
         </h2>
         {/* Your existing profile settings here */}
@@ -332,7 +332,7 @@ export const SettingsPageExample = () => {
 
       {/* Notifications section */}
       <section>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
           Notifications
         </h2>
         {/* Your existing notification settings here */}
@@ -357,10 +357,10 @@ export const BoostLaunchPageExample = () => {
           background: 'linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%)',
         }}
       >
-        <h1 style={{ fontSize: 40, fontWeight: 900, marginBottom: 16 }}>
+        <h1 style={{ fontSize: 41, fontWeight: 900, marginBottom: 16 }}>
           Boost Your Profile
         </h1>
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', maxWidth: 500, margin: '0 auto' }}>
+        <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', maxWidth: 500, margin: '0 auto' }}>
           Stand out with premium designs, animations, and exclusive features
         </p>
       </div>

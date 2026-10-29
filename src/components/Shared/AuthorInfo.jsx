@@ -65,7 +65,7 @@ const AuthorInfo = ({
           justify-content: center;
           color: #000;
           font-weight: 700;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
         }
 
         .author-details-wrapper {
@@ -83,7 +83,7 @@ const AuthorInfo = ({
         }
 
         .author-name-text {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 700;
           color: #ffffff;
           white-space: nowrap;
@@ -101,18 +101,18 @@ const AuthorInfo = ({
           background: #84cc16;
           border-radius: 50%;
           color: #000;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 900;
         }
 
         .author-username-text {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #84cc16;
           font-weight: 500;
         }
 
         .author-time-text {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #737373;
           font-weight: 500;
         }

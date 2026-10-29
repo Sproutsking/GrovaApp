@@ -48,7 +48,7 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color,
-      fontSize: 11, fontWeight: 700,
+      fontSize: 12, fontWeight: 700,
       display: "inline-flex", alignItems: "center", gap: 5,
       border: `1px solid ${s.color}28`,
     }}>
@@ -99,7 +99,7 @@ function UserAvatar({ profile, size = 30 }) {
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
       background: `linear-gradient(135deg, ${color}, ${color}88)`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.36, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px",
+      fontSize: (size * 0.36) + 1, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px",
       border: "2px solid rgba(255,255,255,0.08)",
       boxShadow: `0 2px 8px ${color}30`,
     }}>
@@ -123,7 +123,7 @@ function AdminBadge({ adminId, size = 30 }) {
       boxShadow: `0 2px 8px ${color}20`,
     }}>
       <Shield size={size * 0.36} style={{ color, flexShrink: 0 }} />
-      <span style={{ fontSize: 10, fontWeight: 800, color, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
         {tag}
       </span>
     </div>
@@ -138,7 +138,7 @@ function TypingIndicator({ isStaff = true, adminId, userProfile }) {
       {isStaff ? <AdminBadge adminId={adminId} size={28} /> : <UserAvatar profile={userProfile} size={28} />}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
         {isStaff && (
-          <div style={{ fontSize: 10, color: "#a3e635", fontWeight: 700, display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+          <div style={{ fontSize: 11, color: "#a3e635", fontWeight: 700, display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
             <Shield size={10} /> Xeevia Support
           </div>
         )}
@@ -321,12 +321,12 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
             <ArrowLeft size={14} />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {ticket.subject}
             </div>
             <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
               <StatusBadge status={ticket.status} />
-              {cat && <span style={{ fontSize: 11, color: "#525252" }}>{cat.label}</span>}
+              {cat && <span style={{ fontSize: 12, color: "#525252" }}>{cat.label}</span>}
             </div>
           </div>
           <button onClick={loadMessages} style={{
@@ -346,8 +346,8 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
             borderRadius: 10,
           }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", animation: "ctPulse 2s infinite", flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 700 }}>Live Support Session</span>
-            <span style={{ fontSize: 11, color: "#3a3a3a", marginLeft: "auto" }}>Avg reply: ~2h</span>
+            <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 700 }}>Live Support Session</span>
+            <span style={{ fontSize: 12, color: "#3a3a3a", marginLeft: "auto" }}>Avg reply: ~2h</span>
           </div>
         )}
         {ticket.status === "resolved" && (
@@ -358,8 +358,8 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
           }}>
             <CheckCircle size={13} color="#8b5cf6" />
             <div>
-              <span style={{ fontSize: 12, color: "#8b5cf6", fontWeight: 700 }}>Resolved by support</span>
-              {ticket.resolve_note && <div style={{ fontSize: 11, color: "#525252", marginTop: 2 }}>{ticket.resolve_note}</div>}
+              <span style={{ fontSize: 13, color: "#8b5cf6", fontWeight: 700 }}>Resolved by support</span>
+              {ticket.resolve_note && <div style={{ fontSize: 12, color: "#525252", marginTop: 2 }}>{ticket.resolve_note}</div>}
             </div>
           </div>
         )}
@@ -377,10 +377,10 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
               width: 64, height: 64, borderRadius: 20, margin: "0 auto 16px",
               background: "rgba(132,204,22,0.08)", border: "1px solid rgba(132,204,22,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 30,
+              fontSize: 31,
             }}>💬</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Ticket received</div>
-            <div style={{ fontSize: 12, color: "#484848", lineHeight: 1.7 }}>Our team has your ticket and will reply shortly.</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Ticket received</div>
+            <div style={{ fontSize: 13, color: "#484848", lineHeight: 1.7 }}>Our team has your ticket and will reply shortly.</div>
           </div>
         ) : messages.map((msg, i) => {
           const isMine  = msg.user_id === userId && !msg.is_staff;
@@ -392,7 +392,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
               {!isMine && (isStaff ? <AdminBadge adminId={msg.user_id} size={28} /> : <UserAvatar profile={senderProfile} size={28} />)}
               <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start" }}>
                 {isStaff && (
-                  <div style={{ fontSize: 10, color: "#a3e635", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ fontSize: 11, color: "#a3e635", fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
                     <Shield size={10} /> Xeevia Support
                   </div>
                 )}
@@ -406,11 +406,11 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
                   border: isStaff && !isMine ? "1px solid rgba(132,204,22,0.15)" : "none",
                   boxShadow: isMine ? "0 3px 12px rgba(132,204,22,.2)" : "none",
                 }}>
-                  <div style={{ fontSize: 13, color: isMine ? "#000" : "#e5e7eb", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  <div style={{ fontSize: 14, color: isMine ? "#000" : "#e5e7eb", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                     {msg.content}
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: "#363636", marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: "#363636", marginTop: 3 }}>
                   {new Date(msg.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
@@ -429,7 +429,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
             marginTop: 4, padding: "9px 12px", borderRadius: 10,
             background: "rgba(239,68,68,0.06)",
             border: "1px solid rgba(239,68,68,0.18)",
-            color: "#fca5a5", fontSize: 12, lineHeight: 1.5,
+            color: "#fca5a5", fontSize: 13, lineHeight: 1.5,
           }}>
             {sendError}
           </div>
@@ -457,7 +457,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
                 flex: 1, padding: "10px 14px",
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 13, color: "#fff", fontSize: 13, outline: "none",
+                borderRadius: 13, color: "#fff", fontSize: 14, outline: "none",
                 resize: "none", fontFamily: "inherit", lineHeight: 1.6,
                 transition: "border-color .18s",
               }}
@@ -481,7 +481,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
           <button onClick={closeTicket} style={{
             marginTop: 9, width: "100%", padding: "7px",
             background: "transparent", border: "1px solid rgba(239,68,68,.12)",
-            borderRadius: 9, color: "#ef4444", fontSize: 11, fontWeight: 600,
+            borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 600,
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
             transition: "all .18s",
           }}
@@ -492,7 +492,7 @@ function LiveChat({ ticket: init, userId, userProfile, onBack, onRefresh }) {
         </div>
       ) : (
         <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.05)", textAlign: "center" }}>
-          <span style={{ fontSize: 12, color: "#484848" }}>Ticket is {ticket.status}.</span>
+          <span style={{ fontSize: 13, color: "#484848" }}>Ticket is {ticket.status}.</span>
         </div>
       )}
     </div>
@@ -532,10 +532,10 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
         width: 72, height: 72, borderRadius: 22, margin: "0 auto 18px",
         background: "linear-gradient(135deg, rgba(132,204,22,.15), rgba(132,204,22,.05))",
         border: "1px solid rgba(132,204,22,.3)",
-        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 39,
       }}>✅</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Ticket Created!</div>
-      <div style={{ fontSize: 13, color: "#484848", lineHeight: 1.7 }}>Our team will respond within 2–4 hours.</div>
+      <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Ticket Created!</div>
+      <div style={{ fontSize: 14, color: "#484848", lineHeight: 1.7 }}>Our team will respond within 2–4 hours.</div>
     </div>
   );
 
@@ -551,8 +551,8 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
           <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
             <AlertTriangle size={14} style={{ color: "#f59e0b", marginTop: 1, flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b", marginBottom: 3 }}>Active ticket exists</div>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>"{existingActive.subject}" — resolve or close it first.</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f59e0b", marginBottom: 3 }}>Active ticket exists</div>
+              <div style={{ fontSize: 13, color: "#6b7280" }}>"{existingActive.subject}" — resolve or close it first.</div>
             </div>
           </div>
         </div>
@@ -560,7 +560,7 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
 
       {/* Category */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#525252", marginBottom: 10, letterSpacing: ".5px", textTransform: "uppercase" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#525252", marginBottom: 10, letterSpacing: ".5px", textTransform: "uppercase" }}>
           Issue Category
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
@@ -575,8 +575,8 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
                 boxShadow: active ? "0 2px 10px rgba(132,204,22,.12)" : "none",
                 transition: "all .18s",
               }}>
-                <div style={{ fontSize: 12, color: active ? "#a3e635" : "#d4d4d4", fontWeight: 700, marginBottom: 2 }}>{cat.label}</div>
-                <div style={{ fontSize: 11, color: "#484848" }}>{cat.desc}</div>
+                <div style={{ fontSize: 13, color: active ? "#a3e635" : "#d4d4d4", fontWeight: 700, marginBottom: 2 }}>{cat.label}</div>
+                <div style={{ fontSize: 12, color: "#484848" }}>{cat.desc}</div>
               </button>
             );
           })}
@@ -585,13 +585,13 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
 
       {/* Subject */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#525252", marginBottom: 8, letterSpacing: ".5px", textTransform: "uppercase" }}>Subject</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#525252", marginBottom: 8, letterSpacing: ".5px", textTransform: "uppercase" }}>Subject</div>
         <input value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
           placeholder="Brief description of your issue" maxLength={100}
           style={{
             width: "100%", padding: "11px 14px",
             background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 11, color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box",
+            borderRadius: 11, color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box",
             transition: "border-color .18s",
           }}
           onFocus={(e) => e.target.style.borderColor = "rgba(132,204,22,.3)"}
@@ -601,14 +601,14 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
 
       {/* Description */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#525252", marginBottom: 8, letterSpacing: ".5px", textTransform: "uppercase" }}>Describe Your Issue</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#525252", marginBottom: 8, letterSpacing: ".5px", textTransform: "uppercase" }}>Describe Your Issue</div>
         <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           placeholder="Include relevant details — the more context you provide, the faster we can help."
           rows={4}
           style={{
             width: "100%", padding: "11px 14px",
             background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 11, color: "#fff", fontSize: 13, outline: "none",
+            borderRadius: 11, color: "#fff", fontSize: 14, outline: "none",
             resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", lineHeight: 1.6,
             transition: "border-color .18s",
           }}
@@ -621,7 +621,7 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
         <div style={{
           padding: "10px 14px", background: "rgba(239,68,68,0.06)",
           border: "1px solid rgba(239,68,68,0.18)", borderRadius: 11,
-          color: "#fca5a5", fontSize: 12, display: "flex", gap: 8, alignItems: "flex-start",
+          color: "#fca5a5", fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start",
         }}>
           <XCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           {error}
@@ -630,7 +630,7 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
 
       <button onClick={submit} disabled={creating || !!existingActive || !userId} style={{
         padding: "14px", background: "linear-gradient(135deg,#84cc16,#65a30d)",
-        border: "none", borderRadius: 13, color: "#000", fontSize: 14, fontWeight: 800,
+        border: "none", borderRadius: 13, color: "#000", fontSize: 15, fontWeight: 800,
         cursor: creating || existingActive || !userId ? "not-allowed" : "pointer",
         opacity: existingActive || !userId ? 0.4 : 1,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -658,14 +658,14 @@ function NewTicketForm({ userId, existingActive, onCreated }) {
               background: "rgba(255,255,255,0.02)", borderRadius: 9, textAlign: "center",
               border: "1px solid rgba(255,255,255,0.05)",
             }}>
-              <div style={{ fontSize: 18, marginBottom: 3 }}>{item.icon}</div>
-              <div style={{ fontSize: 10, color: "#484848", marginBottom: 3 }}>{item.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#3b82f6" }}>{item.time}</div>
+              <div style={{ fontSize: 19, marginBottom: 3 }}>{item.icon}</div>
+              <div style={{ fontSize: 11, color: "#484848", marginBottom: 3 }}>{item.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#3b82f6" }}>{item.time}</div>
             </div>
           ))}
         </div>
         <div style={{
-          fontSize: 11, color: "#363636", textAlign: "center",
+          fontSize: 12, color: "#363636", textAlign: "center",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
         }}>
           <Clock size={10} />
@@ -691,13 +691,13 @@ function TicketList({ tickets, loading, onSelect, onNew }) {
       <div style={{
         width: 72, height: 72, borderRadius: 22, margin: "0 auto 18px",
         background: "rgba(132,204,22,0.06)", border: "1px solid rgba(132,204,22,0.15)",
-        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 33,
       }}>🎫</div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 6 }}>No tickets yet</div>
-      <div style={{ fontSize: 13, color: "#484848", marginBottom: 20, lineHeight: 1.7 }}>Open a ticket and our team will help you directly.</div>
+      <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 6 }}>No tickets yet</div>
+      <div style={{ fontSize: 14, color: "#484848", marginBottom: 20, lineHeight: 1.7 }}>Open a ticket and our team will help you directly.</div>
       <button onClick={onNew} style={{
         padding: "11px 26px", background: "linear-gradient(135deg,#84cc16,#65a30d)",
-        border: "none", borderRadius: 11, color: "#000", fontSize: 13, fontWeight: 700,
+        border: "none", borderRadius: 11, color: "#000", fontSize: 14, fontWeight: 700,
         cursor: "pointer", boxShadow: "0 3px 14px rgba(132,204,22,.25)",
         display: "inline-flex", alignItems: "center", gap: 7,
       }}>
@@ -725,13 +725,13 @@ function TicketList({ tickets, loading, onSelect, onNew }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {isActive && <Zap size={10} style={{ color: "#a3e635", marginRight: 4, verticalAlign: "middle" }} />}
               {ticket.subject}
             </div>
             <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-              {cat && <span style={{ fontSize: 11, color: "#484848" }}>{cat.label}</span>}
-              <span style={{ fontSize: 11, color: "#363636" }}>· {timeAgo(ticket.updated_at)}</span>
+              {cat && <span style={{ fontSize: 12, color: "#484848" }}>{cat.label}</span>}
+              <span style={{ fontSize: 12, color: "#363636" }}>· {timeAgo(ticket.updated_at)}</span>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -749,7 +749,7 @@ function TicketList({ tickets, loading, onSelect, onNew }) {
       {closed.length > 0 && (
         <>
           <div style={{
-            fontSize: 10, color: "#363636", fontWeight: 700, letterSpacing: "1px",
+            fontSize: 11, color: "#363636", fontWeight: 700, letterSpacing: "1px",
             textTransform: "uppercase", padding: "10px 0 4px", marginTop: 8,
           }}>Closed (30-day history)</div>
           {closed.map(renderRow)}
@@ -829,10 +829,10 @@ export default function ContactTab({ userId: userIdProp }) {
       <div style={{
         width: 64, height: 64, borderRadius: 20, margin: "0 auto 18px",
         background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)",
-        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 29,
       }}>🔐</div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Sign in required</div>
-      <div style={{ fontSize: 13, color: "#484848" }}>Please log in to access support.</div>
+      <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Sign in required</div>
+      <div style={{ fontSize: 14, color: "#484848" }}>Please log in to access support.</div>
     </div>
   );
 
@@ -858,8 +858,8 @@ export default function ContactTab({ userId: userIdProp }) {
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <UserAvatar profile={userProfile} size={46} />
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>Support Center</div>
-            <div style={{ fontSize: 12, color: "#484848", marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>Support Center</div>
+            <div style={{ fontSize: 13, color: "#484848", marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
               <MessageCircle size={10} color="#84cc16" />
               We usually respond within 2–4 hours
             </div>
@@ -877,7 +877,7 @@ export default function ContactTab({ userId: userIdProp }) {
               border: `1px solid ${tab === t.key ? "rgba(132,204,22,0.4)" : "rgba(255,255,255,0.07)"}`,
               background: tab === t.key ? "rgba(132,204,22,0.1)" : "rgba(255,255,255,0.02)",
               color: tab === t.key ? "#a3e635" : "#525252",
-              fontSize: 12, fontWeight: 700, cursor: "pointer",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
               boxShadow: tab === t.key ? "0 2px 10px rgba(132,204,22,.08)" : "none",
               transition: "all .18s",
             }}>
@@ -901,10 +901,10 @@ export default function ContactTab({ userId: userIdProp }) {
             onMouseLeave={(e) => e.currentTarget.style.background = "rgba(34,197,94,.05)"}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", flexShrink: 0, animation: "ctPulse 2s infinite" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Active ticket</div>
-              <div style={{ fontSize: 12, color: "#484848", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{existingActive.subject}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Active ticket</div>
+              <div style={{ fontSize: 13, color: "#484848", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{existingActive.subject}</div>
             </div>
-            <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 700, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 13, color: "#22c55e", fontWeight: 700, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
               Open Chat <ChevronRight size={12} />
             </span>
           </button>

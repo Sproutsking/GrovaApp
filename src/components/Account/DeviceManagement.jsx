@@ -125,7 +125,7 @@ function Toast({ msg, type = "success", onDone }) {
       transform: "translateX(-50%)",
       padding: "10px 20px", borderRadius: 12,
       background: `${color}18`, border: `1px solid ${color}40`,
-      color, fontSize: 12, fontWeight: 800, zIndex: 99999,
+      color, fontSize: 13, fontWeight: 800, zIndex: 99999,
       whiteSpace: "nowrap", boxShadow: `0 4px 20px ${color}22`,
       animation: "dmToast 2.6s ease forwards", pointerEvents: "none",
     }}>
@@ -147,13 +147,13 @@ function ConfirmDialog({ title, body, confirmLabel, danger, onConfirm, onCancel 
         width: "min(340px, calc(100vw - 32px))", zIndex: 10002,
         boxShadow: "0 24px 80px rgba(0,0,0,0.95)",
       }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 10 }}>{title}</div>
-        <div style={{ fontSize: 13, color: "#737373", marginBottom: 24, lineHeight: 1.6 }}>{body}</div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 10 }}>{title}</div>
+        <div style={{ fontSize: 14, color: "#737373", marginBottom: 24, lineHeight: 1.6 }}>{body}</div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onCancel} style={{ flex: 1, padding: "11px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 11, color: "#a3a3a3", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "11px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 11, color: "#a3a3a3", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
             Cancel
           </button>
-          <button onClick={onConfirm} style={{ flex: 1, padding: "11px", background: danger ? "rgba(239,68,68,0.12)" : "rgba(132,204,22,0.12)", border: `1px solid ${danger ? "rgba(239,68,68,0.45)" : "rgba(132,204,22,0.35)"}`, borderRadius: 11, color: danger ? "#ef4444" : "#84cc16", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "11px", background: danger ? "rgba(239,68,68,0.12)" : "rgba(132,204,22,0.12)", border: `1px solid ${danger ? "rgba(239,68,68,0.45)" : "rgba(132,204,22,0.35)"}`, borderRadius: 11, color: danger ? "#ef4444" : "#84cc16", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
             {confirmLabel}
           </button>
         </div>
@@ -182,7 +182,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
         <div style={{
           position: "absolute", top: -11, left: 16,
           background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
-          color: "#000", fontSize: 10, fontWeight: 900,
+          color: "#000", fontSize: 11, fontWeight: 900,
           padding: "2px 10px", borderRadius: 8,
         }}>
           This Device
@@ -202,21 +202,21 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 3 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
               {session.browser} on {session.os}
             </span>
             {session.isTrusted && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 7px", borderRadius: 6, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e", fontSize: 10, fontWeight: 700 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 7px", borderRadius: 6, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e", fontSize: 11, fontWeight: 700 }}>
                 <ShieldCheck size={9} /> Trusted
               </span>
             )}
             {expired && (
-              <span style={{ padding: "1px 7px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 10, fontWeight: 700 }}>
+              <span style={{ padding: "1px 7px", borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 11, fontWeight: 700 }}>
                 Expired
               </span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: "#525252" }}>
+          <div style={{ fontSize: 12, color: "#525252" }}>
             {session.deviceName && session.deviceName !== "Unknown Device" ? session.deviceName : `${session.os} Device`}
           </div>
         </div>
@@ -229,7 +229,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
             boxShadow: recentActivity ? "0 0 0 0 rgba(34,197,94,0.4)" : "none",
             animation: recentActivity ? "dmPulse 2s ease-out infinite" : "none",
           }} />
-          <span style={{ fontSize: 10, color: recentActivity ? "#22c55e" : "#383838", fontWeight: 700 }}>
+          <span style={{ fontSize: 11, color: recentActivity ? "#22c55e" : "#383838", fontWeight: 700 }}>
             {recentActivity ? "Online" : "Offline"}
           </span>
         </div>
@@ -245,7 +245,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
         ].map(({ Icon, label }, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 0" }}>
             <Icon size={12} color="#383838" />
-            <span style={{ fontSize: 11, color: "#525252", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+            <span style={{ fontSize: 12, color: "#525252", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
           </div>
         ))}
       </div>
@@ -262,7 +262,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
                 background: session.isTrusted ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)",
                 border: `1px solid ${session.isTrusted ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}`,
                 color: session.isTrusted ? "#ef4444" : "#22c55e",
-                fontSize: 11, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer",
+                fontSize: 12, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer",
                 opacity: busy ? 0.5 : 1, fontFamily: "inherit",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
               }}
@@ -276,7 +276,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
             style={{
               flex: 1, padding: "9px 0", borderRadius: 10,
               background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)",
-              color: "#ef4444", fontSize: 11, fontWeight: 700,
+              color: "#ef4444", fontSize: 12, fontWeight: 700,
               cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1,
               fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
@@ -291,7 +291,7 @@ function SessionCard({ session, isCurrent, onRevoke, onToggleTrust, busy }) {
       {isCurrent && (
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 9, background: "rgba(132,204,22,0.04)", border: "1px solid rgba(132,204,22,0.12)" }}>
           <Lock size={11} color="#84cc16" />
-          <span style={{ fontSize: 11, color: "#4d7c0f" }}>This is your current active session</span>
+          <span style={{ fontSize: 12, color: "#4d7c0f" }}>This is your current active session</span>
         </div>
       )}
     </div>
@@ -311,15 +311,15 @@ function DeviceOnlyCard({ device, onUntrust }) {
         <Monitor size={18} color="#383838" />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#737373", marginBottom: 2 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#737373", marginBottom: 2 }}>
           {device.device_name || `${device.browser || "Unknown"} on ${device.os || "Unknown"}`}
         </div>
-        <div style={{ fontSize: 11, color: "#383838" }}>
+        <div style={{ fontSize: 12, color: "#383838" }}>
           Last seen {timeAgo(device.last_seen)} · {[device.location_city, device.location_country].filter(Boolean).join(", ") || "Unknown location"}
         </div>
       </div>
       {device.is_trusted && (
-        <button onClick={() => onUntrust(device)} style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+        <button onClick={() => onUntrust(device)} style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
           Untrust
         </button>
       )}
@@ -563,8 +563,8 @@ const DeviceManagement = ({ userId, onClose }) => {
               <Shield size={22} color="#000" />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>Sessions & Devices</div>
-              <div style={{ fontSize: 12, color: "#525252", marginTop: 2 }}>
+              <div style={{ fontSize: 19, fontWeight: 900, color: "#fff" }}>Sessions & Devices</div>
+              <div style={{ fontSize: 13, color: "#525252", marginTop: 2 }}>
                 {activeCount} active session{activeCount !== 1 ? "s" : ""} · {trustedCount} trusted device{trustedCount !== 1 ? "s" : ""}
               </div>
             </div>
@@ -581,29 +581,29 @@ const DeviceManagement = ({ userId, onClose }) => {
             {loading ? (
               <div style={{ textAlign: "center", padding: "60px 20px" }}>
                 <Loader size={36} color="#84cc16" style={{ animation: "dmSpin 1s linear infinite", display: "block", margin: "0 auto 14px" }} />
-                <div style={{ color: "#525252", fontSize: 13 }}>Loading sessions…</div>
+                <div style={{ color: "#525252", fontSize: 14 }}>Loading sessions…</div>
               </div>
             ) : (
               <>
                 {/* Security tip */}
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 13px", marginBottom: 20, background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.12)", borderRadius: 13 }}>
                   <AlertTriangle size={14} color="#60a5fa" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div style={{ fontSize: 12, color: "#525252", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 13, color: "#525252", lineHeight: 1.6 }}>
                     Remove sessions you don't recognize immediately. Trusted devices skip extra verification steps.
                   </div>
                 </div>
 
                 {/* Active Sessions */}
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12 }}>
                   Active Sessions ({sessions.length})
                 </div>
 
                 {sessions.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "32px 20px", color: "#383838", fontSize: 13 }}>
+                  <div style={{ textAlign: "center", padding: "32px 20px", color: "#383838", fontSize: 14 }}>
                     <WifiOff size={32} color="#252525" style={{ display: "block", margin: "0 auto 12px" }} />
                     No active sessions found.
                     <br />
-                    <span style={{ fontSize: 11, color: "#2a2a2a" }}>Sessions appear here when logged in on a device.</span>
+                    <span style={{ fontSize: 12, color: "#2a2a2a" }}>Sessions appear here when logged in on a device.</span>
                   </div>
                 ) : (
                   sessions.map(session => (
@@ -621,7 +621,7 @@ const DeviceManagement = ({ userId, onClose }) => {
                 {/* Known Devices (no active session) */}
                 {devices.length > 0 && (
                   <>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "1px", margin: "20px 0 10px" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "1px", margin: "20px 0 10px" }}>
                       Known Devices — Inactive ({devices.length})
                     </div>
                     {devices.map(d => (
@@ -631,10 +631,10 @@ const DeviceManagement = ({ userId, onClose }) => {
                 )}
 
                 {sessions.length === 0 && devices.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "20px", color: "#383838", fontSize: 13 }}>
+                  <div style={{ textAlign: "center", padding: "20px", color: "#383838", fontSize: 14 }}>
                     <CheckCircle2 size={40} color="#22c55e" style={{ display: "block", margin: "0 auto 12px" }} />
                     <div style={{ fontWeight: 700, color: "#737373", marginBottom: 4 }}>No sessions or devices found</div>
-                    <div style={{ fontSize: 11, color: "#383838" }}>Your account is clean. Activity appears here on next login.</div>
+                    <div style={{ fontSize: 12, color: "#383838" }}>Your account is clean. Activity appears here on next login.</div>
                   </div>
                 )}
               </>

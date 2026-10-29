@@ -55,7 +55,7 @@ export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {
           background: none;
           border: none;
           border-radius: 50%;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -236,19 +236,19 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
         }
 
         .rb-emoji {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           line-height: 1;
         }
-        .ann-pill .rb-emoji { font-size: 18px; }
+        .ann-pill .rb-emoji { font-size: calc((18px) + 1px); }
 
         .rb-count {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           color: #888;
           min-width: 12px;
           text-align: center;
         }
-        .ann-pill .rb-count { font-size: 13px; }
+        .ann-pill .rb-count { font-size: calc((13px) + 1px); }
       `}</style>
     </div>
   );
@@ -297,7 +297,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          font-size: 28px;
+          font-size: calc((28px) + 1px);
           animation: burstMain 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
         @keyframes burstMain {

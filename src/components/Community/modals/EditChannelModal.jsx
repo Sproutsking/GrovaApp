@@ -204,7 +204,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
         .channel-modal-body{padding:20px;}
         .channel-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
         .channel-icon-row{display:flex;align-items:center;gap:8px;position:relative;}
-        .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:24px;cursor:pointer;flex-shrink:0;}
+        .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:calc((24px) + 1px);cursor:pointer;flex-shrink:0;}
         .channel-icon-picker-btn{height:40px;border:1px solid rgba(156,255,0,.25);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;display:flex;align-items:center;gap:5px;padding:0 10px;cursor:pointer;white-space:nowrap;}
         .channel-icon-picker{position:fixed;left:0;top:0;z-index:100002;}
         @media(max-width:768px){.channel-modal-overlay{inset:0;padding:0;align-items:stretch}.channel-modal{width:100%;height:100dvh;max-height:none;border-radius:0;border:none}.channel-modal-header{padding:10px 12px}.channel-modal-body{padding:10px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
@@ -323,7 +323,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
         }
 
         .modal-title {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 800;
           color: #fff;
           letter-spacing: -0.5px;
@@ -379,7 +379,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
           border: 2px solid rgba(255, 107, 107, 0.3);
           border-radius: 12px;
           color: #ff6b6b;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
           margin-bottom: 20px;
           animation: shake 0.4s;
@@ -396,7 +396,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
         .channel-modal .form-label {
           display: block;
           width: 100%;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           color: #9cff00;
           margin: 0;
@@ -439,7 +439,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
         }
 
         .channel-type-card span {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
         }
 
@@ -451,7 +451,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
           border: 2px solid rgba(42, 42, 42, 0.6);
           border-radius: 12px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-family: inherit;
           transition: all 0.3s;
           outline: none;
@@ -476,7 +476,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
 
         .channel-modal .help-text {
           width: 100%;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #666;
           margin: 0;
         }
@@ -513,29 +513,29 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
         .checkbox span {
           color: #9cff00;
           font-weight: 800;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .checkbox-label {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           color: #fff;
           font-weight: 500;
         }
-        .manage-access-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:10px 12px;border:1px solid rgba(156,255,0,.28);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;font-size:11px;font-weight:800;cursor:pointer}.manage-access-btn:hover:not(:disabled){background:rgba(156,255,0,.15);border-color:rgba(156,255,0,.5)}.manage-access-btn:disabled{opacity:.5;cursor:not-allowed}
+        .manage-access-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:10px 12px;border:1px solid rgba(156,255,0,.28);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;font-size:calc((11px) + 1px);font-weight:800;cursor:pointer}.manage-access-btn:hover:not(:disabled){background:rgba(156,255,0,.15);border-color:rgba(156,255,0,.5)}.manage-access-btn:disabled{opacity:.5;cursor:not-allowed}
 
         .modal-actions {
           display: flex;
           gap: 12px;
           margin-top: 28px;
         }
-        .channel-icon-upload{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border:1px dashed rgba(156,255,0,.35);border-radius:8px;color:#9cff00;font-size:11px;font-weight:700;cursor:pointer;background:rgba(156,255,0,.05)}
+        .channel-icon-upload{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border:1px dashed rgba(156,255,0,.35);border-radius:8px;color:#9cff00;font-size:calc((11px) + 1px);font-weight:700;cursor:pointer;background:rgba(156,255,0,.05)}
         .channel-icon-upload input{display:none}
 
         .action-btn {
           flex: 1;
           padding: 14px 24px;
           border-radius: 12px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

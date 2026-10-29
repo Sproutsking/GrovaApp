@@ -66,7 +66,7 @@ function Pill({ label, color = C.accent }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center",
-      fontSize: 9, fontWeight: 800, letterSpacing: "1.5px",
+      fontSize: 10, fontWeight: 800, letterSpacing: "1.5px",
       textTransform: "uppercase", color,
       background: `${color}12`, border: `1px solid ${color}28`,
       borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap",
@@ -82,7 +82,7 @@ function LevelBadge({ level }) {
       display: "inline-flex", alignItems: "center", gap: 4,
       padding: "3px 9px", borderRadius: 20,
       background: cfg.badgeBg, border: `1px solid ${cfg.badgeBorder}`,
-      fontSize: 10, fontWeight: 800, color: cfg.color, whiteSpace: "nowrap",
+      fontSize: 11, fontWeight: 800, color: cfg.color, whiteSpace: "nowrap",
     }}>
       {cfg.icon} Lv{level} {cfg.name}
     </span>
@@ -145,13 +145,13 @@ function StatCard({ icon: Icon, label, value, sub, color = C.accent, prefix = ""
       }}>
         <Icon size={15} color={color} strokeWidth={2} />
       </div>
-      <div style={{ fontSize: 9, fontWeight: 800, color: C.muted, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 6 }}>
         {label}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 900, color: C.text, letterSpacing: -1, lineHeight: 1 }}>
+      <div style={{ fontSize: 27, fontWeight: 900, color: C.text, letterSpacing: -1, lineHeight: 1 }}>
         <CountUp target={value} prefix={prefix} decimals={decimals} />
       </div>
-      {sub && <div style={{ fontSize: 10, color: C.muted, marginTop: 5 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>{sub}</div>}
     </div>
   );
 }
@@ -162,16 +162,16 @@ function LevelBreakdown({ levelBreakdown, totalAmbassadors }) {
   const max = Math.max(...levelBreakdown.map((l) => l.count), 1);
   return (
     <div style={{ background: "#0f0f0f", border: "1px solid #1d1d1d", borderRadius: 16, padding: 18 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 14 }}>Level Distribution</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 14 }}>Level Distribution</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {levelBreakdown.map((item) => {
           const cfg = getLevelConfig(item.level);
           const pct = totalAmbassadors > 0 ? (item.count / totalAmbassadors) * 100 : 0;
           return (
             <div key={item.level} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 14, flexShrink: 0, width: 20 }}>{cfg.icon}</span>
+              <span style={{ fontSize: 15, flexShrink: 0, width: 20 }}>{cfg.icon}</span>
               <div style={{ width: 56, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color }}>{cfg.name}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{cfg.name}</span>
               </div>
               <div style={{ flex: 1, height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden" }}>
                 <div style={{
@@ -182,7 +182,7 @@ function LevelBreakdown({ levelBreakdown, totalAmbassadors }) {
                   transition: "width .9s cubic-bezier(.4,0,.2,1)",
                 }} />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 800, color: C.muted, width: 28, textAlign: "right" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.muted, width: 28, textAlign: "right" }}>
                 {item.count}
               </span>
             </div>
@@ -208,7 +208,7 @@ function CopyBtn({ text, label = "Copy" }) {
       border: `1px solid ${copied ? C.accent + "44" : "#282828"}`,
       background: copied ? `${C.accent}0a` : "transparent",
       color: copied ? C.accent : "#666",
-      fontSize: 10, fontWeight: 700, cursor: "pointer",
+      fontSize: 11, fontWeight: 700, cursor: "pointer",
       fontFamily: "inherit", transition: "all .15s", whiteSpace: "nowrap",
     }}>
       {copied ? "✓" : label}
@@ -238,10 +238,10 @@ function LevelOverrideModal({ ambassador, onClose, onSave }) {
         borderRadius: 18, padding: 26, width: "100%", maxWidth: 440,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 900, color: C.text }}>Override Ambassador Level</div>
+          <div style={{ fontSize: 15, fontWeight: 900, color: C.text }}>Override Ambassador Level</div>
           <button onClick={onClose} style={{ background: "transparent", border: "1px solid #252525", borderRadius: 7, color: "#555", cursor: "pointer", padding: "3px 9px", fontFamily: "inherit" }}>×</button>
         </div>
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
           Manually set level for <strong style={{ color: C.text2 }}>{ambassador.user?.full_name || "this ambassador"}</strong>.
           This overrides automatic monthly recalculation until cleared.
         </div>
@@ -258,12 +258,12 @@ function LevelOverrideModal({ ambassador, onClose, onSave }) {
                 transition: "all .15s",
               }}
             >
-              <span style={{ fontSize: 18 }}>{l.icon}</span>
+              <span style={{ fontSize: 19 }}>{l.icon}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: selectedLevel === l.level ? l.color : C.text2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: selectedLevel === l.level ? l.color : C.text2 }}>
                   Level {l.level} — {l.name}
                 </div>
-                <div style={{ fontSize: 10, color: C.muted }}>{l.commissionPct}% commission · {l.minMonthly}–{l.maxMonthly === Infinity ? "∞" : l.maxMonthly}/mo</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{l.commissionPct}% commission · {l.minMonthly}–{l.maxMonthly === Infinity ? "∞" : l.maxMonthly}/mo</div>
               </div>
               {selectedLevel === l.level && (
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: l.color, boxShadow: `0 0 8px ${l.color}` }} />
@@ -275,14 +275,14 @@ function LevelOverrideModal({ ambassador, onClose, onSave }) {
           <button onClick={onClose} style={{
             flex: 1, padding: "11px", borderRadius: 11,
             border: "1px solid #252525", background: "transparent",
-            color: "#666", fontWeight: 700, fontSize: 12,
+            color: "#666", fontWeight: 700, fontSize: 13,
             cursor: "pointer", fontFamily: "inherit",
           }}>Cancel</button>
           <button onClick={save} disabled={saving} style={{
             flex: 2, padding: "11px", borderRadius: 11, border: "none",
             background: saving ? "#1a1a1a" : `linear-gradient(135deg, ${C.accent}, #65a30d)`,
             color: saving ? "#333" : "#061000",
-            fontWeight: 800, fontSize: 12,
+            fontWeight: 800, fontSize: 13,
             cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit",
           }}>
             {saving ? "Saving…" : `Set Level ${selectedLevel} (${getLevelConfig(selectedLevel).name})`}
@@ -357,21 +357,21 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
             background: `linear-gradient(135deg, ${cfg.color}30, ${cfg.color}10)`,
             border: `2px solid ${cfg.color}33`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 900, color: cfg.color,
+            fontSize: 14, fontWeight: 900, color: cfg.color,
           }}>
             {initials}
           </div>
           {/* Name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>
                 {user.full_name || "Unknown"}
               </span>
               <LevelBadge level={ambassador.current_level} />
               {isSuspended && <Pill label="SUSPENDED" color={C.danger} />}
               {ambassador.level_override && <Pill label="OVERRIDE" color={C.warn} />}
             </div>
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span>@{user.username || "—"}</span>
               <span>·</span>
               <span style={{ fontFamily: "monospace", color: cfg.color }}>?ref={ambassador.invite_code}</span>
@@ -383,10 +383,10 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
           </div>
           {/* Earnings */}
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: C.success }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: C.success }}>
               {fmt$(ambassador.lifetime_earned)}
             </div>
-            <div style={{ fontSize: 9, color: C.muted }}>lifetime earned</div>
+            <div style={{ fontSize: 10, color: C.muted }}>lifetime earned</div>
           </div>
           {/* Commission */}
           <div style={{
@@ -394,8 +394,8 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
             background: cfg.badgeBg, border: `1px solid ${cfg.badgeBorder}`,
             textAlign: "center", flexShrink: 0,
           }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: cfg.color }}>{ambassador.commission_pct}%</div>
-            <div style={{ fontSize: 8, color: C.muted }}>rate</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: cfg.color }}>{ambassador.commission_pct}%</div>
+            <div style={{ fontSize: 9, color: C.muted }}>rate</div>
           </div>
           {/* Expand arrow */}
           <div style={{ color: C.muted, flexShrink: 0 }}>
@@ -411,7 +411,7 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                 padding: "7px 12px", borderRadius: 8,
                 background: toast.ok ? "rgba(52,211,153,.07)" : "rgba(248,113,113,.07)",
                 border: `1px solid ${toast.ok ? "rgba(52,211,153,.2)" : "rgba(248,113,113,.2)"}`,
-                fontSize: 11, fontWeight: 700,
+                fontSize: 12, fontWeight: 700,
                 color: toast.ok ? C.success : C.danger,
               }}>{toast.text}</div>
             )}
@@ -428,8 +428,8 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                   background: "#0a0a0a", border: "1px solid #141414",
                   borderRadius: 10, padding: "10px 12px",
                 }}>
-                  <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>{s.label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: s.color }}>{s.value}</div>
                 </div>
               ))}
             </div>
@@ -441,17 +441,17 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                 background: "#080808", border: "1px solid #1a1a1a",
                 borderRadius: 10, padding: "8px 12px",
               }}>
-                <span style={{ fontSize: 10, color: "#555", fontWeight: 700, flexShrink: 0 }}>🔗 Link</span>
-                <span style={{ flex: 1, fontSize: 11, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace" }}>
+                <span style={{ fontSize: 11, color: "#555", fontWeight: 700, flexShrink: 0 }}>🔗 Link</span>
+                <span style={{ flex: 1, fontSize: 12, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace" }}>
                   {link}
                 </span>
                 <CopyBtn text={link} label="Copy" />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <div style={{ flex: 1, background: "#080808", border: "1px solid #1a1a1a", borderRadius: 10, padding: "7px 12px", fontSize: 10, color: "#555" }}>
+                <div style={{ flex: 1, background: "#080808", border: "1px solid #1a1a1a", borderRadius: 10, padding: "7px 12px", fontSize: 11, color: "#555" }}>
                   📧 {user.email || "—"}
                 </div>
-                <div style={{ flex: 1, background: "#080808", border: "1px solid #1a1a1a", borderRadius: 10, padding: "7px 12px", fontSize: 10, color: "#555" }}>
+                <div style={{ flex: 1, background: "#080808", border: "1px solid #1a1a1a", borderRadius: 10, padding: "7px 12px", fontSize: 11, color: "#555" }}>
                   🕐 Last seen: {timeAgo(user.last_seen)}
                 </div>
               </div>
@@ -468,7 +468,7 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                   display: "flex", alignItems: "center", gap: 6,
                   padding: "8px 13px", borderRadius: 9,
                   border: `1px solid ${C.warn}33`, background: `${C.warn}08`,
-                  color: C.warn, fontWeight: 700, fontSize: 11,
+                  color: C.warn, fontWeight: 700, fontSize: 12,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -482,7 +482,7 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                     display: "flex", alignItems: "center", gap: 6,
                     padding: "8px 13px", borderRadius: 9,
                     border: `1px solid ${C.danger}33`, background: `${C.danger}08`,
-                    color: C.danger, fontWeight: 700, fontSize: 11,
+                    color: C.danger, fontWeight: 700, fontSize: 12,
                     cursor: actionBusy ? "not-allowed" : "pointer", fontFamily: "inherit",
                   }}
                 >
@@ -496,7 +496,7 @@ function AmbassadorRow({ ambassador, onOverrideLevel, onSuspend, onRestore }) {
                     display: "flex", alignItems: "center", gap: 6,
                     padding: "8px 13px", borderRadius: 9,
                     border: `1px solid ${C.success}33`, background: `${C.success}08`,
-                    color: C.success, fontWeight: 700, fontSize: 11,
+                    color: C.success, fontWeight: 700, fontSize: 12,
                     cursor: actionBusy ? "not-allowed" : "pointer", fontFamily: "inherit",
                   }}
                 >
@@ -552,7 +552,7 @@ function PayoutQueue() {
         padding: "14px 18px", borderBottom: "1px solid #181818",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>💸 Payout Queue</div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>💸 Payout Queue</div>
         <div style={{ display: "flex", gap: 6 }}>
           {["pending", "paid", "rejected", "all"].map((f) => (
             <button key={f} onClick={() => setFilter(f)} style={{
@@ -560,7 +560,7 @@ function PayoutQueue() {
               border: `1px solid ${filter === f ? C.accent + "44" : "#252525"}`,
               background: filter === f ? `${C.accent}0a` : "transparent",
               color: filter === f ? C.accent : "#555",
-              fontSize: 10, fontWeight: 700, cursor: "pointer",
+              fontSize: 11, fontWeight: 700, cursor: "pointer",
               fontFamily: "inherit", textTransform: "capitalize",
             }}>{f}</button>
           ))}
@@ -580,17 +580,17 @@ function PayoutQueue() {
           padding: "7px 12px", borderRadius: 8,
           background: toast.ok ? "rgba(52,211,153,.07)" : "rgba(248,113,113,.07)",
           border: `1px solid ${toast.ok ? "rgba(52,211,153,.2)" : "rgba(248,113,113,.2)"}`,
-          fontSize: 11, fontWeight: 700,
+          fontSize: 12, fontWeight: 700,
           color: toast.ok ? C.success : C.danger,
         }}>{toast.text}</div>
       )}
 
       {loading ? (
-        <div style={{ padding: 32, textAlign: "center", color: C.muted, fontSize: 12 }}>Loading payouts…</div>
+        <div style={{ padding: 32, textAlign: "center", color: C.muted, fontSize: 13 }}>Loading payouts…</div>
       ) : payouts.length === 0 ? (
         <div style={{ padding: 32, textAlign: "center" }}>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>🎉</div>
-          <div style={{ fontSize: 12, color: C.muted }}>No {filter !== "all" ? filter : ""} payouts</div>
+          <div style={{ fontSize: 29, marginBottom: 10 }}>🎉</div>
+          <div style={{ fontSize: 13, color: C.muted }}>No {filter !== "all" ? filter : ""} payouts</div>
         </div>
       ) : (
         <div>
@@ -610,29 +610,29 @@ function PayoutQueue() {
                   width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
                   background: lvlCfg.badgeBg, border: `1px solid ${lvlCfg.badgeBorder}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 16,
+                  fontSize: 17,
                 }}>
                   {lvlCfg.icon}
                 </div>
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
                     {user.full_name || "—"}
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
                     @{user.username || "—"} · {user.email || "—"}
                   </div>
                   {payout.payout_info?.bank && (
-                    <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
                       Payout to: {payout.payout_info.bank}
                       {payout.payout_info.accountNumber && ` · ${payout.payout_info.accountNumber}`}
                     </div>
                   )}
-                  <div style={{ fontSize: 9, color: "#333", marginTop: 1 }}>{timeAgo(payout.requested_at)}</div>
+                  <div style={{ fontSize: 10, color: "#333", marginTop: 1 }}>{timeAgo(payout.requested_at)}</div>
                 </div>
                 {/* Amount */}
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: C.success }}>{fmt$(payout.amount)}</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: C.success }}>{fmt$(payout.amount)}</div>
                   <LevelBadge level={amb.current_level || 1} />
                 </div>
                 {/* Status / actions */}
@@ -646,7 +646,7 @@ function PayoutQueue() {
                         padding: "7px 12px", borderRadius: 9, border: "none",
                         background: isBusy ? "#1a1a1a" : `linear-gradient(135deg, ${C.success}, #059669)`,
                         color: isBusy ? "#333" : "#001a0d",
-                        fontWeight: 800, fontSize: 10,
+                        fontWeight: 800, fontSize: 11,
                         cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit",
                       }}
                     >
@@ -659,7 +659,7 @@ function PayoutQueue() {
                         display: "flex", alignItems: "center", gap: 5,
                         padding: "7px 12px", borderRadius: 9,
                         border: `1px solid ${C.danger}33`, background: `${C.danger}08`,
-                        color: C.danger, fontWeight: 800, fontSize: 10,
+                        color: C.danger, fontWeight: 800, fontSize: 11,
                         cursor: isBusy ? "not-allowed" : "pointer", fontFamily: "inherit",
                       }}
                     >
@@ -686,8 +686,8 @@ function PayoutQueue() {
             background: "#0d0d0d", border: "1px solid #252525",
             borderRadius: 16, padding: 24, width: "100%", maxWidth: 380,
           }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: C.text, marginBottom: 8 }}>Reject Payout</div>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginBottom: 8 }}>Reject Payout</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
               Rejecting {fmt$(rejectModal.amount)} for {rejectModal.ambassador?.user?.full_name || "ambassador"}
             </div>
             <textarea
@@ -698,7 +698,7 @@ function PayoutQueue() {
               style={{
                 width: "100%", background: "#111", border: "1px solid #252525",
                 borderRadius: 10, padding: "9px 12px", color: C.text,
-                fontSize: 12, fontFamily: "inherit", outline: "none",
+                fontSize: 13, fontFamily: "inherit", outline: "none",
                 resize: "none", marginBottom: 14, transition: "border-color .15s",
               }}
               onFocus={(e) => (e.target.style.borderColor = `${C.danger}44`)}
@@ -708,14 +708,14 @@ function PayoutQueue() {
               <button onClick={() => setRejectModal(null)} style={{
                 flex: 1, padding: "10px", borderRadius: 10,
                 border: "1px solid #252525", background: "transparent",
-                color: "#666", fontWeight: 700, fontSize: 12,
+                color: "#666", fontWeight: 700, fontSize: 13,
                 cursor: "pointer", fontFamily: "inherit",
               }}>Cancel</button>
               <button onClick={handleReject} style={{
                 flex: 1, padding: "10px", borderRadius: 10, border: "none",
                 background: `${C.danger}18`, color: C.danger,
                 border: `1px solid ${C.danger}44`,
-                fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
               }}>Confirm Reject</button>
             </div>
           </div>
@@ -753,13 +753,13 @@ export default function AmbassadorSection({ adminData }) {
               background: `linear-gradient(135deg, ${C.accent}20, ${C.accent}08)`,
               border: `1px solid ${C.accent}28`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18,
+              fontSize: 19,
             }}>🌐</div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: 0, letterSpacing: -0.5 }}>
+            <h2 style={{ fontSize: 19, fontWeight: 900, color: C.text, margin: 0, letterSpacing: -0.5 }}>
               Ambassador Program
             </h2>
           </div>
-          <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
+          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
             Manage ambassadors, level overrides, commissions, and payout processing
           </p>
         </div>
@@ -767,7 +767,7 @@ export default function AmbassadorSection({ adminData }) {
           display: "flex", alignItems: "center", gap: 6,
           padding: "8px 14px", borderRadius: 10,
           border: "1px solid #252525", background: "transparent",
-          color: C.muted, fontSize: 11, fontWeight: 700,
+          color: C.muted, fontSize: 12, fontWeight: 700,
           cursor: "pointer", fontFamily: "inherit",
         }}>
           <RefreshCw size={12} /> Refresh
@@ -802,8 +802,8 @@ export default function AmbassadorSection({ adminData }) {
         {/* Commission schedule */}
         <div style={{ background: "#0f0f0f", border: "1px solid #1d1d1d", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #181818" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>Commission Schedule</div>
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Level resets 1st of each month</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Commission Schedule</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Level resets 1st of each month</div>
           </div>
           <div>
             {AMBASSADOR_LEVELS.map((l, i) => (
@@ -812,10 +812,10 @@ export default function AmbassadorSection({ adminData }) {
                 padding: "9px 16px",
                 borderBottom: i < AMBASSADOR_LEVELS.length - 1 ? "1px solid #111" : "none",
               }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>{l.icon}</span>
+                <span style={{ fontSize: 15, flexShrink: 0 }}>{l.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: l.color }}>{l.name}</div>
-                  <div style={{ fontSize: 9, color: C.muted }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: l.color }}>{l.name}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>
                     {l.minMonthly}–{l.maxMonthly === Infinity ? "∞" : l.maxMonthly} referrals/month
                   </div>
                 </div>
@@ -823,7 +823,7 @@ export default function AmbassadorSection({ adminData }) {
                   padding: "3px 10px", borderRadius: 8,
                   background: l.badgeBg, border: `1px solid ${l.badgeBorder}`,
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: l.color }}>{l.commissionPct}%</span>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: l.color }}>{l.commissionPct}%</span>
                 </div>
               </div>
             ))}
@@ -840,7 +840,7 @@ export default function AmbassadorSection({ adminData }) {
             border: "none", borderBottom: tab === t.id ? `2px solid ${C.accent}` : "2px solid transparent",
             background: "transparent",
             color: tab === t.id ? C.accent : C.muted,
-            fontWeight: tab === t.id ? 800 : 600, fontSize: 12,
+            fontWeight: tab === t.id ? 800 : 600, fontSize: 13,
             cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
           }}>
             {t.icon} {t.label}
@@ -860,7 +860,7 @@ export default function AmbassadorSection({ adminData }) {
               style={{
                 flex: 1, background: "#0e0e0e", border: "1.5px solid #1e1e1e",
                 borderRadius: 10, padding: "9px 14px", color: C.text,
-                fontSize: 12, fontFamily: "inherit", outline: "none",
+                fontSize: 13, fontFamily: "inherit", outline: "none",
                 transition: "border-color .15s",
               }}
               onFocus={(e) => (e.target.style.borderColor = `${C.accent}44`)}
@@ -873,7 +873,7 @@ export default function AmbassadorSection({ adminData }) {
                 return (
                   <button key={lv} onClick={() => setFilterLevel(lv)} style={{
                     padding: "8px 12px", borderRadius: 9, cursor: "pointer",
-                    fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+                    fontFamily: "inherit", fontSize: 12, fontWeight: 700,
                     border: `1px solid ${isCurrent ? (cfg?.badgeBorder || `${C.accent}44`) : "#1e1e1e"}`,
                     background: isCurrent ? (cfg?.badgeBg || `${C.accent}0a`) : "transparent",
                     color: isCurrent ? (cfg?.color || C.accent) : C.muted,
@@ -887,7 +887,7 @@ export default function AmbassadorSection({ adminData }) {
           </div>
 
           {/* Count */}
-          <div style={{ fontSize: 11, color: C.muted }}>
+          <div style={{ fontSize: 12, color: C.muted }}>
             {loading ? "Loading…" : `${fmtNum(total)} ambassadors${filterLevel !== "all" ? ` · Level ${filterLevel} filter` : ""}`}
           </div>
 
@@ -895,7 +895,7 @@ export default function AmbassadorSection({ adminData }) {
             <div style={{
               padding: "10px 14px", borderRadius: 10,
               background: "rgba(248,113,113,.06)", border: "1px solid rgba(248,113,113,.18)",
-              fontSize: 12, color: C.danger,
+              fontSize: 13, color: C.danger,
             }}>
               {error}
               <button onClick={reload} style={{ marginLeft: 10, color: C.accent, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
@@ -910,9 +910,9 @@ export default function AmbassadorSection({ adminData }) {
               padding: 40, textAlign: "center",
               background: "#0a0a0a", border: "1px dashed #1e1e1e", borderRadius: 14,
             }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>🌐</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 6 }}>No ambassadors yet</div>
-              <div style={{ fontSize: 11, color: "#333" }}>When users join the ambassador program, they'll appear here</div>
+              <div style={{ fontSize: 29, marginBottom: 10 }}>🌐</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.muted, marginBottom: 6 }}>No ambassadors yet</div>
+              <div style={{ fontSize: 12, color: "#333" }}>When users join the ambassador program, they'll appear here</div>
             </div>
           ) : (
             ambassadors.map((amb) => (
@@ -936,11 +936,11 @@ export default function AmbassadorSection({ adminData }) {
                   padding: "7px 14px", borderRadius: 9,
                   border: "1px solid #252525", background: "transparent",
                   color: page === 0 ? "#333" : C.muted,
-                  fontSize: 11, fontWeight: 700, cursor: page === 0 ? "not-allowed" : "pointer",
+                  fontSize: 12, fontWeight: 700, cursor: page === 0 ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
                 }}
               >← Prev</button>
-              <span style={{ fontSize: 11, color: C.muted, lineHeight: "32px" }}>
+              <span style={{ fontSize: 12, color: C.muted, lineHeight: "32px" }}>
                 Page {page + 1} of {Math.ceil(total / 20)}
               </span>
               <button
@@ -950,7 +950,7 @@ export default function AmbassadorSection({ adminData }) {
                   padding: "7px 14px", borderRadius: 9,
                   border: "1px solid #252525", background: "transparent",
                   color: (page + 1) * 20 >= total ? "#333" : C.muted,
-                  fontSize: 11, fontWeight: 700,
+                  fontSize: 12, fontWeight: 700,
                   cursor: (page + 1) * 20 >= total ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
                 }}
@@ -970,7 +970,7 @@ export default function AmbassadorSection({ adminData }) {
             background: "#0f0f0f", border: "1px solid #1d1d1d",
             borderRadius: 16, padding: 20,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 16 }}>Program Rules</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 16 }}>Program Rules</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
                 { label: "Minimum Payout Threshold", value: "$10.00", note: "Ambassadors must earn ≥ $10 to request withdrawal" },
@@ -986,13 +986,13 @@ export default function AmbassadorSection({ adminData }) {
                   background: "#0a0a0a", border: "1px solid #141414",
                 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.text2 }}>{r.label}</div>
-                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.note}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text2 }}>{r.label}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{r.note}</div>
                   </div>
                   <div style={{
                     padding: "3px 10px", borderRadius: 7, flexShrink: 0,
                     background: `${C.accent}08`, border: `1px solid ${C.accent}22`,
-                    fontSize: 11, fontWeight: 800, color: C.accent,
+                    fontSize: 12, fontWeight: 800, color: C.accent,
                   }}>{r.value}</div>
                 </div>
               ))}
@@ -1003,7 +1003,7 @@ export default function AmbassadorSection({ adminData }) {
             padding: "14px 16px",
             background: "rgba(96,165,250,.04)",
             border: "1px solid rgba(96,165,250,.14)",
-            borderRadius: 12, fontSize: 11, color: "#3a5a7a", lineHeight: 1.7,
+            borderRadius: 12, fontSize: 12, color: "#3a5a7a", lineHeight: 1.7,
           }}>
             <strong style={{ color: C.info }}>ℹ️ Monthly level recalculation</strong> is handled by the Supabase
             pg_cron job: <code style={{ background: "#0a1520", padding: "1px 5px", borderRadius: 4 }}>SELECT public.reset_monthly_ambassador_stats()</code> — scheduled to run on the 1st of every month at midnight UTC.

@@ -669,7 +669,7 @@ class SocialConnectService {
       justify-content:center;min-height:100vh;gap:16px;
       text-align:center;padding:24px;
     }
-    .logo{font-size:28px;font-weight:900;letter-spacing:-1px;
+    .logo{font-size:calc((28px) + 1px);font-weight:900;letter-spacing:-1px;
       background:linear-gradient(135deg,#a3e635,#4d7c0f);
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;
       margin-bottom:4px;
@@ -679,11 +679,11 @@ class SocialConnectService {
       background:${platformColors[platform] || "#666"}18;
       border:2px solid ${platformColors[platform] || "#666"}40;
       display:flex;align-items:center;justify-content:center;
-      font-size:28px;font-weight:900;color:${platformColors[platform] || "#fff"};
+      font-size:calc((28px) + 1px);font-weight:900;color:${platformColors[platform] || "#fff"};
       margin:0 auto 8px;
     }
-    .title{font-size:18px;font-weight:800;color:#f0f0f0;margin-bottom:6px;}
-    .sub{font-size:12px;color:#555;margin-bottom:24px;line-height:1.6;}
+    .title{font-size:calc((18px) + 1px);font-weight:800;color:#f0f0f0;margin-bottom:6px;}
+    .sub{font-size:calc((12px) + 1px);color:#555;margin-bottom:24px;line-height:1.6;}
     .spinner{
       width:40px;height:40px;border-radius:50%;
       border:3px solid rgba(163,230,53,.15);
@@ -691,15 +691,15 @@ class SocialConnectService {
       animation:spin .7s linear infinite;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
-    .status{font-size:13px;color:#555;margin-top:8px}
-    .err{color:#ef4444;font-size:13px;max-width:300px;line-height:1.6}
+    .status{font-size:calc((13px) + 1px);color:#555;margin-top:8px}
+    .err{color:#ef4444;font-size:calc((13px) + 1px);max-width:300px;line-height:1.6}
     .btn{
       padding:12px 28px;border-radius:12px;border:none;
       background:linear-gradient(135deg,#a3e635,#65a30d);
-      color:#040a00;font-size:14px;font-weight:800;
+      color:#040a00;font-size:calc((14px) + 1px);font-weight:800;
       cursor:pointer;font-family:inherit;margin-top:16px;
     }
-    .note{font-size:10px;color:#2a2a2a;margin-top:8px;max-width:280px;line-height:1.6;}
+    .note{font-size:calc((10px) + 1px);color:#2a2a2a;margin-top:8px;max-width:280px;line-height:1.6;}
   </style>
 </head>
 <body>

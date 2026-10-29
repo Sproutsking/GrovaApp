@@ -209,7 +209,7 @@ const VideoProgressBar = ({ videoRef, isPlaying }) => {
           color: white;
           padding: 4px 8px;
           border-radius: 4px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           white-space: nowrap;
           pointer-events: none;
@@ -222,7 +222,7 @@ const VideoProgressBar = ({ videoRef, isPlaying }) => {
           justify-content: center;
           gap: 4px;
           color: rgba(255, 255, 255, 0.9);
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           margin-top: 2px;
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);

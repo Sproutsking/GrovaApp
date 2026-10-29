@@ -197,7 +197,7 @@ const FullContentView = ({
         }
         .header-btn:hover { background:rgba(132,204,22,0.2); border-color:rgba(132,204,22,0.4); color:#84cc16; transform:scale(1.05); }
         .close-btn:hover  { background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#ef4444; }
-        .header-title { font-size:16px; font-weight:600; color:#fff; margin:0; }
+        .header-title { font-size:calc((16px) + 1px); font-weight:600; color:#fff; margin:0; }
 
         .fullscreen-content { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#84cc16 rgba(255,255,255,0.05); }
         .fullscreen-content::-webkit-scrollbar { width:10px; }
@@ -211,18 +211,18 @@ const FullContentView = ({
         .story-article-container { max-width:720px; margin:0 auto; padding:40px 24px; }
 
         .story-full-category { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
-        .category-pill { padding:8px 16px; background:rgba(132,204,22,0.15); border:1px solid rgba(132,204,22,0.3); border-radius:24px; font-size:13px; font-weight:700; color:#84cc16; text-transform:uppercase; letter-spacing:1px; }
-        .reading-time   { display:flex; align-items:center; gap:6px; color:#737373; font-size:14px; font-weight:500; }
+        .category-pill { padding:8px 16px; background:rgba(132,204,22,0.15); border:1px solid rgba(132,204,22,0.3); border-radius:24px; font-size:calc((13px) + 1px); font-weight:700; color:#84cc16; text-transform:uppercase; letter-spacing:1px; }
+        .reading-time   { display:flex; align-items:center; gap:6px; color:#737373; font-size:calc((14px) + 1px); font-weight:500; }
 
-        .story-full-title { font-size:40px; font-weight:900; color:#fff; margin:0 0 32px; line-height:1.2; letter-spacing:-1px; background:linear-gradient(135deg,#fff 0%,#d4d4d4 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .story-full-title { font-size:calc((40px) + 1px); font-weight:900; color:#fff; margin:0 0 32px; line-height:1.2; letter-spacing:-1px; background:linear-gradient(135deg,#fff 0%,#d4d4d4 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
         .story-full-author { display:flex; align-items:center; gap:16px; margin-bottom:32px; }
         .author-meta { display:flex; flex-direction:column; gap:4px; }
-        .publish-date { color:#737373; font-size:14px; }
+        .publish-date { color:#737373; font-size:calc((14px) + 1px); }
 
         .content-divider { height:1px; background:linear-gradient(90deg,transparent 0%,rgba(132,204,22,0.3) 50%,transparent 100%); margin:32px 0; }
 
-        .story-full-body { font-size:18px; color:#e5e5e5; line-height:1.8; margin-bottom:48px; white-space:pre-wrap; word-wrap:break-word; }
+        .story-full-body { font-size:calc((18px) + 1px); color:#e5e5e5; line-height:1.8; margin-bottom:48px; white-space:pre-wrap; word-wrap:break-word; }
         .story-full-body p { margin-bottom:24px; }
         .story-full-body a { color:#84cc16; text-decoration:underline; }
         .story-full-body a:hover { color:#a3e635; }
@@ -232,8 +232,8 @@ const FullContentView = ({
         .stat-box:hover { background:rgba(132,204,22,0.1); border-color:rgba(132,204,22,0.3); transform:translateY(-2px); }
         .stat-box svg { color:#84cc16; flex-shrink:0; }
         .stat-info { display:flex; flex-direction:column; gap:2px; }
-        .stat-value { font-size:20px; font-weight:700; color:#fff; }
-        .stat-label { font-size:12px; color:#737373; text-transform:uppercase; letter-spacing:0.5px; }
+        .stat-value { font-size:calc((20px) + 1px); font-weight:700; color:#fff; }
+        .stat-label { font-size:calc((12px) + 1px); color:#737373; text-transform:uppercase; letter-spacing:0.5px; }
 
         .story-full-reactions { padding:24px 0; border-top:1px solid rgba(132,204,22,0.1); }
 
@@ -243,11 +243,11 @@ const FullContentView = ({
           .header-btn { width:44px; height:44px; }
           .story-full-hero { height:300px; }
           .story-article-container { padding:32px 16px; }
-          .story-full-title { font-size:28px; margin-bottom:24px; }
-          .story-full-body { font-size:16px; line-height:1.7; }
+          .story-full-title { font-size:calc((28px) + 1px); margin-bottom:24px; }
+          .story-full-body { font-size:calc((16px) + 1px); line-height:1.7; }
           .story-stats-section { grid-template-columns:1fr; gap:12px; }
           .stat-box { padding:16px; }
-          .stat-value { font-size:18px; }
+          .stat-value { font-size:calc((18px) + 1px); }
         }
       `}</style>
     </>

@@ -117,7 +117,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
         </div>
         <div
           style={{
-            fontSize: 22,
+            fontSize: 23,
             fontWeight: 700,
             color: "var(--text)",
             marginBottom: 6,
@@ -127,7 +127,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
         </div>
         <div
           style={{
-            fontSize: 14,
+            fontSize: 15,
             color: "var(--text3)",
             textAlign: "center",
             marginBottom: 6,
@@ -136,7 +136,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
         >
           {amount} {fromCurrency} → {outputAmount} {toCurrency}
         </div>
-        <div style={{ fontSize: 12, color: "var(--danger)", marginBottom: 30 }}>
+        <div style={{ fontSize: 13, color: "var(--danger)", marginBottom: 30 }}>
           {EP_BURN_SWAP} EP burned
         </div>
         <button
@@ -187,7 +187,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
           <div
             style={{
               marginTop: 8,
-              fontSize: 11,
+              fontSize: 12,
               color: "var(--text3)",
               fontFamily: "var(--font-mono)",
             }}
@@ -253,7 +253,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
             border: "1px solid rgba(245,158,11,0.12)",
             borderRadius: "var(--radius-xs)",
             marginTop: 8,
-            fontSize: 12,
+            fontSize: 13,
             color: "var(--text3)",
             lineHeight: 1.5,
           }}
@@ -288,7 +288,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
             }}
           >
             <AlertCircle size={15} color="var(--danger)" />
-            <span style={{ fontSize: 13, color: "#f87171" }}>{error}</span>
+            <span style={{ fontSize: 14, color: "#f87171" }}>{error}</span>
           </div>
         )}
       </div>

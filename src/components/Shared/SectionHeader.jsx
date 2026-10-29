@@ -35,8 +35,8 @@ const SectionHeader = ({
         .sh-left{display:flex;align-items:center;gap:12px;min-width:0;}
         .sh-icon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;border:1px solid currentColor;flex-shrink:0;box-shadow:0 10px 30px rgba(0,0,0,0.12);}
         .sh-text{display:flex;flex-direction:column;min-width:0;}
-        .sh-title{font-size:15px;font-weight:900;color:var(--text);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}
-        .sh-subtitle{font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
+        .sh-title{font-size:calc((15px) + 1px);font-weight:900;color:var(--text);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;}
+        .sh-subtitle{font-size:calc((12px) + 1px);color:var(--text-secondary);margin-top:4px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
         .sh-right{flex-shrink:0;display:flex;align-items:center;gap:8px;}
         @media(max-width:768px){.sh-root{margin-bottom:12px;}.sh-icon{width:36px;height:36px;}}
       `}</style>

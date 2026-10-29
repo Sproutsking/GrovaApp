@@ -108,7 +108,7 @@ const NotifCard = memo(({ notif, onRead }) => {
       <div style={{ flex:1, minWidth:0, paddingLeft:unread?2:0 }}>
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:5, marginBottom:2 }}>
           <div style={{
-            fontFamily:"var(--fm)", fontSize:12, lineHeight:1.4,
+            fontFamily:"var(--fm)", fontSize:13, lineHeight:1.4,
             fontWeight:unread?700:400,
             color:unread?"var(--t1)":"var(--t2)",
           }}>{title}</div>
@@ -117,17 +117,17 @@ const NotifCard = memo(({ notif, onRead }) => {
               <div style={{ width:5.5, height:5.5, borderRadius:"50%",
                 background:"#a3e635", boxShadow:"0 0 5px rgba(163,230,53,0.65)" }} />
             )}
-            <span style={{ fontSize:"9.5px", color:"var(--t4)" }}>{timeAgo(notif.created_at)}</span>
+            <span style={{ fontSize:"calc((9.5px) + 1px)", color:"var(--t4)" }}>{timeAgo(notif.created_at)}</span>
           </div>
         </div>
         {body && (
-          <div style={{ fontSize:11, color:"var(--t3)", lineHeight:1.5, marginBottom:4, wordBreak:"break-word" }}>
+          <div style={{ fontSize:12, color:"var(--t3)", lineHeight:1.5, marginBottom:4, wordBreak:"break-word" }}>
             {body}
           </div>
         )}
         {def.label && (
           <span style={{
-            padding:"1.5px 7px", borderRadius:20, fontSize:"9px", fontWeight:700,
+            padding:"1.5px 7px", borderRadius:20, fontSize:"calc((9px) + 1px)", fontWeight:700,
             background:def.bg||"rgba(255,255,255,0.05)",
             border:`1px solid ${(def.color||"#555")}2a`,
             color:def.color||"#888",
@@ -156,9 +156,9 @@ function EmptyState({ filter }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
       padding:"48px 20px", textAlign:"center", gap:9 }}>
-      <div style={{ fontSize:36, opacity:.1, filter:"grayscale(1)" }}>{m.emoji}</div>
-      <div style={{ fontFamily:"var(--fm)", fontSize:12.5, fontWeight:700, color:"var(--t3)" }}>{m.title}</div>
-      <div style={{ fontSize:11, color:"var(--t4)", lineHeight:1.65, maxWidth:220 }}>{m.hint}</div>
+      <div style={{ fontSize:37, opacity:.1, filter:"grayscale(1)" }}>{m.emoji}</div>
+      <div style={{ fontFamily:"var(--fm)", fontSize:13.5, fontWeight:700, color:"var(--t3)" }}>{m.title}</div>
+      <div style={{ fontSize:12, color:"var(--t4)", lineHeight:1.65, maxWidth:220 }}>{m.hint}</div>
     </div>
   );
 }
@@ -230,11 +230,11 @@ export default function NotificationsTab() {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", height:"var(--hdr-h)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:7 }}>
             <Bell size={13} color="#a3e635" />
-            <span style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700 }}>Notifications</span>
+            <span style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:700 }}>Notifications</span>
             {unread > 0 && (
               <span style={{ padding:"1.5px 7px",
                 background:"rgba(163,230,53,0.1)", border:"1px solid rgba(163,230,53,0.25)",
-                borderRadius:20, fontSize:"9px", fontWeight:700, color:"#a3e635" }}>
+                borderRadius:20, fontSize:"calc((9px) + 1px)", fontWeight:700, color:"#a3e635" }}>
                 {unread>99?"99+":unread}
               </span>
             )}
@@ -244,7 +244,7 @@ export default function NotificationsTab() {
               <button onClick={markAll} style={{
                 display:"flex", alignItems:"center", gap:3, padding:"4px 9px",
                 background:"rgba(163,230,53,0.07)", border:"1px solid rgba(163,230,53,0.18)",
-                borderRadius:7, color:"#a3e635", fontSize:"10.5px", fontWeight:600, cursor:"pointer",
+                borderRadius:7, color:"#a3e635", fontSize:"calc((10.5px) + 1px)", fontWeight:600, cursor:"pointer",
               }}>
                 <CheckCheck size={10} /> Read all
               </button>
@@ -269,7 +269,7 @@ export default function NotificationsTab() {
               <button key={tab.id} onClick={()=>setFilter(tab.id)} style={{
                 display:"flex", alignItems:"center", gap:4,
                 flexShrink:0, padding:"4px 10px",
-                borderRadius:20, fontSize:"10.5px", fontWeight:600, cursor:"pointer",
+                borderRadius:20, fontSize:"calc((10.5px) + 1px)", fontWeight:600, cursor:"pointer",
                 transition:"all .13s",
                 background:on?"rgba(163,230,53,0.1)":"rgba(255,255,255,0.035)",
                 border:`1px solid ${on?"rgba(163,230,53,0.28)":"rgba(255,255,255,0.065)"}`,
@@ -277,7 +277,7 @@ export default function NotificationsTab() {
               }}>
                 {tab.label}
                 {cnt>0 && (
-                  <span style={{ padding:"0.5px 4px", borderRadius:10, fontSize:"8.5px", fontWeight:700,
+                  <span style={{ padding:"0.5px 4px", borderRadius:10, fontSize:"calc((8.5px) + 1px)", fontWeight:700,
                     background:on?"rgba(163,230,53,0.22)":"rgba(255,255,255,0.08)",
                     color:on?"#a3e635":"var(--t3)" }}>
                     {cnt}

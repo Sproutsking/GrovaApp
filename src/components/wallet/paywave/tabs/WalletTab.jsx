@@ -87,8 +87,8 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
       <div className="xf-section xf-stack">
         {/* Balance */}
         <div className="xg xg-lime" style={{ padding: "11px 13px", textAlign: "center" }}>
-          <div style={{ color: "var(--t2)", fontSize: 10.5, marginBottom: 2 }}>Available Balance</div>
-          <div style={{ fontFamily: "var(--fd)", fontSize: 24, fontWeight: 800 }}>₦{fmtNGN(pwBalance)}</div>
+          <div style={{ color: "var(--t2)", fontSize: 11.5, marginBottom: 2 }}>Available Balance</div>
+          <div style={{ fontFamily: "var(--fd)", fontSize: 25, fontWeight: 800 }}>₦{fmtNGN(pwBalance)}</div>
         </div>
 
         {/* Transfer type */}
@@ -99,12 +99,12 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
         </button>
 
         {sendTo === "opay" && (
-          <div className="info-gold" style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 7 }}>
+          <div className="info-gold" style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ color: "var(--gold)" }}>⚠ OPay transfers carry a small processing fee</span>
           </div>
         )}
         {sendTo === "paywave" && (
-          <div className="info-lime" style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 7 }}>
+          <div className="info-lime" style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ color: "var(--lime)" }}>⚡ Free · Instant · No fees for Xeevia users</span>
           </div>
         )}
@@ -127,13 +127,13 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
           <label className="xf-lbl">Amount (₦)</label>
           <div className="xf-wrap" style={{ padding: "9px 11px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "var(--t2)", fontSize: 18 }}>₦</span>
+              <span style={{ color: "var(--t2)", fontSize: 19 }}>₦</span>
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0.00" className="xf-in-lg" />
             </div>
           </div>
           {parsedAmt > pwBalance && (
-            <div style={{ color: "#f87171", fontSize: 10.5, marginTop: 4 }}>
+            <div style={{ color: "#f87171", fontSize: 11.5, marginTop: 4 }}>
               Insufficient balance · Available: ₦{fmtNGN(pwBalance)}
             </div>
           )}
@@ -193,13 +193,13 @@ function ReceiveView({ onBack }) {
               width: 52, height: 52, borderRadius: "50%", margin: "0 auto 10px",
               background: "linear-gradient(135deg,#a3e635,#65a30d)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "var(--fd)", fontSize: 18, fontWeight: 800, color: "#060e02",
+              fontFamily: "var(--fd)", fontSize: 19, fontWeight: 800, color: "#060e02",
               boxShadow: "0 4px 14px rgba(163,230,53,0.26)",
             }}>{initials[0] || "U"}</div>
-            <div style={{ fontFamily: "var(--fd)", fontSize: 15, fontWeight: 800, color: "var(--t1)", marginTop: 8 }}>
+            <div style={{ fontFamily: "var(--fd)", fontSize: 16, fontWeight: 800, color: "var(--t1)", marginTop: 8 }}>
               {displayName}
             </div>
-            <div style={{ color: "var(--t2)", fontSize: 11.5, marginTop: 2 }}>
+            <div style={{ color: "var(--t2)", fontSize: 12.5, marginTop: 2 }}>
               Share your details to receive ₦
             </div>
           </div>
@@ -211,7 +211,7 @@ function ReceiveView({ onBack }) {
           </button>
         </div>
 
-        <div className="info-lime" style={{ marginTop: 12, fontSize: 11.5 }}>
+        <div className="info-lime" style={{ marginTop: 12, fontSize: 12.5 }}>
           <span style={{ color: "var(--lime)", fontWeight: 700 }}>⚡ Free internal transfers</span>
           <div style={{ color: "rgba(255,255,255,0.42)", marginTop: 3, lineHeight: 1.6 }}>
             Other Xeevia users can send you ₦ for free using your @username. No bank account needed.
@@ -373,7 +373,7 @@ function CardsView({ onBack, onSuccess }) {
             <div style={{ width: 30, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.1)" }} />
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px 0" }}>
-            <span style={{ fontFamily: "var(--fd)", fontSize: 14, fontWeight: 700 }}>{title}</span>
+            <span style={{ fontFamily: "var(--fd)", fontSize: 15, fontWeight: 700 }}>{title}</span>
             <button onClick={onClose} style={{
               background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)",
               borderRadius: 7, width: 25, height: 25, cursor: "pointer",
@@ -394,7 +394,7 @@ function CardsView({ onBack, onSuccess }) {
         {/* OPay Account */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
-            <span style={{ fontFamily: "var(--fd)", fontSize: 11.5, fontWeight: 700 }}>OPay Account</span>
+            <span style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700 }}>OPay Account</span>
           </div>
           {opayAcct ? (
             <div className="xg" style={{ padding: "11px 13px", borderColor: "rgba(16,185,129,0.18)" }}>
@@ -406,18 +406,18 @@ function CardsView({ onBack, onSuccess }) {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     boxShadow: "0 3px 10px rgba(16,185,129,0.24)",
                   }}>
-                    <span style={{ fontFamily: "var(--fd)", fontSize: 11, fontWeight: 900, color: "#fff" }}>OP</span>
+                    <span style={{ fontFamily: "var(--fd)", fontSize: 12, fontWeight: 900, color: "#fff" }}>OP</span>
                   </div>
                   <div>
-                    <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13 }}>OPay Connected</div>
-                    <div style={{ color: "rgba(16,185,129,0.65)", fontSize: 11, fontFamily: "var(--fm)" }}>
+                    <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14 }}>OPay Connected</div>
+                    <div style={{ color: "rgba(16,185,129,0.65)", fontSize: 12, fontFamily: "var(--fm)" }}>
                       •••• {opayAcct.last_four}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{
-                    fontSize: "8.5px", padding: "2px 7px", borderRadius: 20,
+                    fontSize: "calc((8.5px) + 1px)", padding: "2px 7px", borderRadius: 20,
                     background: "rgba(16,185,129,0.09)", border: "1px solid rgba(16,185,129,0.18)",
                     color: "#10b981", fontWeight: 700,
                   }}>● LIVE</span>
@@ -444,10 +444,10 @@ function CardsView({ onBack, onSuccess }) {
                 <Link size={16} color="#10b981" />
               </div>
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13, color: "var(--t1)" }}>
+                <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14, color: "var(--t1)" }}>
                   Connect OPay Account
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.34)", marginTop: 2, fontFamily: "var(--fb)" }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.34)", marginTop: 2, fontFamily: "var(--fb)" }}>
                   Link to enable external transfers & bills
                 </div>
               </div>
@@ -459,10 +459,10 @@ function CardsView({ onBack, onSuccess }) {
         {/* Virtual Cards */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
-            <span style={{ fontFamily: "var(--fd)", fontSize: 11.5, fontWeight: 700 }}>Virtual Cards</span>
+            <span style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700 }}>Virtual Cards</span>
             <button onClick={() => setShowCreate(true)} style={{
               background: "transparent", border: "none", cursor: "pointer",
-              color: "var(--lime)", fontSize: 11.5, display: "flex", alignItems: "center",
+              color: "var(--lime)", fontSize: 12.5, display: "flex", alignItems: "center",
               gap: 3, fontFamily: "var(--fb)", fontWeight: 600,
             }}><Plus size={11} /> Create</button>
           </div>
@@ -482,7 +482,7 @@ function CardsView({ onBack, onSuccess }) {
               }}>
                 <CreditCard size={14} color="rgba(163,230,53,0.4)" />
               </div>
-              <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.26)", fontSize: 12 }}>No virtual cards yet</div>
+              <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.26)", fontSize: 13 }}>No virtual cards yet</div>
               <button className="btn-p sm" style={{ marginTop: 9 }} onClick={() => setShowCreate(true)}>
                 <Plus size={10} /> Create Card
               </button>
@@ -501,24 +501,24 @@ function CardsView({ onBack, onSuccess }) {
               }} />
               <div style={{ position: "relative" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ fontSize: "8px", color: "rgba(163,230,53,0.4)", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: "calc((8px) + 1px)", color: "rgba(163,230,53,0.4)", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" }}>
                     PayWave Virtual
                   </div>
-                  <div style={{ fontFamily: "var(--fd)", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.8)" }}>
+                  <div style={{ fontFamily: "var(--fd)", fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.8)" }}>
                     {card.brand}
                   </div>
                 </div>
-                <div style={{ fontFamily: "var(--fm)", fontSize: 13, color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em", marginBottom: 11 }}>
+                <div style={{ fontFamily: "var(--fm)", fontSize: 14, color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em", marginBottom: 11 }}>
                   •••• •••• •••• {card.last_four}
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div>
-                    <div style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.26)", textTransform: "uppercase" }}>Card Name</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{card.card_name}</div>
+                    <div style={{ fontSize: "calc((7.5px) + 1px)", color: "rgba(255,255,255,0.26)", textTransform: "uppercase" }}>Card Name</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{card.card_name}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.26)", textTransform: "uppercase" }}>Expires</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{card.expiry}</div>
+                    <div style={{ fontSize: "calc((7.5px) + 1px)", color: "rgba(255,255,255,0.26)", textTransform: "uppercase" }}>Expires</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{card.expiry}</div>
                   </div>
                   <button onClick={() => deleteCard(card.id)} style={{
                     background: "rgba(248,113,113,0.07)", border: "1px solid rgba(248,113,113,0.14)",
@@ -536,15 +536,15 @@ function CardsView({ onBack, onSuccess }) {
         {/* External Cards */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
-            <span style={{ fontFamily: "var(--fd)", fontSize: 11.5, fontWeight: 700 }}>Linked Cards</span>
+            <span style={{ fontFamily: "var(--fd)", fontSize: 12.5, fontWeight: 700 }}>Linked Cards</span>
             <button onClick={() => setShowLinkCard(true)} style={{
               background: "transparent", border: "none", cursor: "pointer",
-              color: "var(--lime)", fontSize: 11.5, display: "flex", alignItems: "center",
+              color: "var(--lime)", fontSize: 12.5, display: "flex", alignItems: "center",
               gap: 3, fontFamily: "var(--fb)", fontWeight: 600,
             }}><Link size={11} /> Link</button>
           </div>
           {!loading && extCards.length === 0 && (
-            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--t2)", fontSize: 11.5 }}>
+            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--t2)", fontSize: 12.5 }}>
               <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.24)" }}>No linked cards</div>
             </div>
           )}
@@ -561,8 +561,8 @@ function CardsView({ onBack, onSuccess }) {
                     <CreditCard size={14} color="#fff" />
                   </div>
                   <div>
-                    <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 12.5 }}>{card.card_name}</div>
-                    <div style={{ color: "var(--t2)", fontSize: 10.5 }}>{card.bank_name} · •••• {card.last_four}</div>
+                    <div style={{ fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13.5 }}>{card.card_name}</div>
+                    <div style={{ color: "var(--t2)", fontSize: 11.5 }}>{card.bank_name} · •••• {card.last_four}</div>
                   </div>
                 </div>
                 <button onClick={() => deleteCard(card.id)} style={{
@@ -603,7 +603,7 @@ function CardsView({ onBack, onSuccess }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
               {["Visa", "Mastercard", "Verve"].map(b => (
                 <button key={b} className={`amt-btn ${cardBrand === b ? "sel" : ""}`}
-                  onClick={() => setCardBrand(b)} style={{ fontSize: 11 }}>{b}</button>
+                  onClick={() => setCardBrand(b)} style={{ fontSize: 12 }}>{b}</button>
               ))}
             </div>
           </div>
@@ -651,7 +651,7 @@ function CardsView({ onBack, onSuccess }) {
           <div style={{
             padding: "8px 10px", background: "rgba(212,168,71,0.04)",
             border: "1px solid rgba(212,168,71,0.11)", borderRadius: 9,
-            fontSize: 10.5, color: "rgba(255,255,255,0.26)", lineHeight: 1.6,
+            fontSize: 11.5, color: "rgba(255,255,255,0.26)", lineHeight: 1.6,
           }}>
             🔒 Card details encrypted. CVV verified and never stored.
           </div>
@@ -672,7 +672,7 @@ function CardsView({ onBack, onSuccess }) {
           <div style={{
             padding: "9px 11px", background: "rgba(16,185,129,0.04)",
             border: "1px solid rgba(16,185,129,0.13)", borderRadius: 9,
-            fontSize: 11, color: "rgba(255,255,255,0.36)", lineHeight: 1.65,
+            fontSize: 12, color: "rgba(255,255,255,0.36)", lineHeight: 1.65,
           }}>
             Connecting your OPay account enables external transfers and bill payments from PayWave.
           </div>
@@ -692,7 +692,7 @@ function CardsView({ onBack, onSuccess }) {
                 onChange={e => setOpayPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="Enter your OPay PIN" className="xf-in" />
             </div>
-            <div style={{ fontSize: 10.5, color: "var(--t2)", marginTop: 3 }}>
+            <div style={{ fontSize: 11.5, color: "var(--t2)", marginTop: 3 }}>
               PIN is verified by OPay and never stored by Xeevia.
             </div>
           </div>
@@ -703,7 +703,7 @@ function CardsView({ onBack, onSuccess }) {
             <button style={{
               flex: 1, padding: "11px 14px", borderRadius: "var(--r2)", border: "none",
               background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff",
-              fontFamily: "var(--fd)", fontWeight: 700, fontSize: 13,
+              fontFamily: "var(--fd)", fontWeight: 700, fontSize: 14,
               cursor: connecting ? "not-allowed" : "pointer", opacity: connecting ? 0.65 : 1,
             }}
               disabled={opayPhone.replace(/\D/g, "").length < 10 || !opayPin || connecting}

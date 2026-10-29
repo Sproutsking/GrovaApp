@@ -435,7 +435,7 @@ const MembersSection = ({ community, userId }) => {
           display: flex;
           align-items: center;
           gap: 12px;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
         }
@@ -444,7 +444,7 @@ const MembersSection = ({ community, userId }) => {
           padding: 4px 12px;
           background: linear-gradient(135deg, #9cff00 0%, #667eea 100%);
           border-radius: 20px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 800;
           color: #000;
         }
@@ -471,7 +471,7 @@ const MembersSection = ({ community, userId }) => {
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 10px;
           color: #999;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -536,7 +536,7 @@ const MembersSection = ({ community, userId }) => {
           padding: 8px 12px;
           border-bottom: 1px solid rgba(156, 255, 0, 0.2);
           margin-bottom: 12px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           color: #9cff00;
           text-transform: uppercase;
@@ -550,7 +550,7 @@ const MembersSection = ({ community, userId }) => {
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 8px;
           color: #fff;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           transition: all 0.2s;
         }
 
@@ -572,7 +572,7 @@ const MembersSection = ({ community, userId }) => {
           border: 1px solid rgba(255, 107, 107, 0.3);
           border-radius: 6px;
           color: #ff6b6b;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -613,7 +613,7 @@ const MembersSection = ({ community, userId }) => {
           border: 1px solid rgba(42, 42, 42, 0.6);
           border-radius: 8px;
           color: #d4d4d4;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 500;
           cursor: pointer;
           transition: all 0.2s;
@@ -654,7 +654,7 @@ const MembersSection = ({ community, userId }) => {
           background: rgba(156, 255, 0, 0.1);
           border: 1px solid rgba(156, 255, 0, 0.3);
           border-radius: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 700;
           color: #9cff00;
         }
@@ -689,13 +689,13 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .empty-state h3 {
-          font-size: 16px;
+          font-size: calc((16px) + 1px);
           color: #999;
           margin: 16px 0 8px 0;
         }
 
         .empty-state p {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .role-group {
@@ -711,18 +711,18 @@ const MembersSection = ({ community, userId }) => {
           border: 1px solid;
           border-left: 4px solid;
           border-radius: 18px;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           margin-bottom: 16px;
         }
-        .role-group-icon{font-size:15px;line-height:1;filter:drop-shadow(0 0 5px currentColor)}
+        .role-group-icon{font-size:calc((15px) + 1px);line-height:1;filter:drop-shadow(0 0 5px currentColor)}
 
         .role-member-count {
           padding: 4px 10px;
           border-radius: 12px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 800;
           margin-left: auto;
           border: 1px solid;
@@ -752,8 +752,8 @@ const MembersSection = ({ community, userId }) => {
         .member-profile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.48);backdrop-filter:blur(4px);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px}
         .member-profile-popover{position:relative;width:min(300px,100%);padding:24px 20px;background:#0d0f12;border:1px solid rgba(156,255,0,.25);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.65);text-align:center}
         .member-profile-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.06);color:#888;display:flex;align-items:center;justify-content:center;cursor:pointer}
-        .member-profile-avatar{width:68px;height:68px;margin:0 auto 10px;border-radius:20px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(135deg,#9cff00,#667eea);color:#000;font-size:28px;font-weight:900}
-        .member-profile-avatar img{width:100%;height:100%;object-fit:cover}.member-profile-popover h3{margin:0;color:#fff;font-size:16px}.member-profile-popover p{margin:4px 0 12px;color:#666;font-size:11px}.member-profile-role{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:800;margin-bottom:16px}.member-role-picker{display:flex;flex-direction:column;gap:7px;text-align:left;color:#888;font-size:11px;font-weight:700}.member-role-picker span{display:flex;align-items:center;gap:5px}.member-role-picker select{padding:9px;border-radius:8px;background:#171717;border:1px solid rgba(156,255,0,.25);color:#ccc;outline:0}
+        .member-profile-avatar{width:68px;height:68px;margin:0 auto 10px;border-radius:20px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(135deg,#9cff00,#667eea);color:#000;font-size:calc((28px) + 1px);font-weight:900}
+        .member-profile-avatar img{width:100%;height:100%;object-fit:cover}.member-profile-popover h3{margin:0;color:#fff;font-size:calc((16px) + 1px)}.member-profile-popover p{margin:4px 0 12px;color:#666;font-size:calc((11px) + 1px)}.member-profile-role{display:flex;align-items:center;justify-content:center;gap:5px;font-size:calc((12px) + 1px);font-weight:800;margin-bottom:16px}.member-role-picker{display:flex;flex-direction:column;gap:7px;text-align:left;color:#888;font-size:calc((11px) + 1px);font-weight:700}.member-role-picker span{display:flex;align-items:center;gap:5px}.member-role-picker select{padding:9px;border-radius:8px;background:#171717;border:1px solid rgba(156,255,0,.25);color:#ccc;outline:0}
 
         .member-card-header {
           display: flex;
@@ -795,7 +795,7 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .avatar-fallback {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 700;
           color: #fff;
         }
@@ -850,7 +850,7 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .member-name {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #ffffffd3;
           margin-bottom: 4px;
@@ -867,7 +867,7 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .member-username {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #999;
           white-space: nowrap;
           overflow: hidden;
@@ -875,7 +875,7 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .member-joined {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #666;
           text-align: center;
           padding-top: 8px;

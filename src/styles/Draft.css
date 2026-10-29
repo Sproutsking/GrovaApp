@@ -64,7 +64,7 @@
 }
 
 .drafts-title {
-  font-size: 24px;
+  font-size: calc((24px) + 1px);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -122,7 +122,7 @@
   padding: 8px 16px;
   border-radius: 20px;
   color: #a0a0a0;
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -142,7 +142,7 @@
   padding: 8px 16px;
   border-radius: 20px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -183,7 +183,7 @@
   color: var(--accent);
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -219,7 +219,7 @@
 }
 
 .draft-title {
-  font-size: 16px;
+  font-size: calc((16px) + 1px);
   font-weight: 600;
   color: var(--text-inverse);
   margin: 0 0 8px 0;
@@ -229,7 +229,7 @@
 }
 
 .draft-preview {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   color: #a0a0a0;
   margin: 0 0 12px 0;
   overflow: hidden;
@@ -252,7 +252,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: #666;
 }
 
@@ -263,7 +263,7 @@
   background: var(--surface);
   padding: 4px 8px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: #a0a0a0;
 }
 
@@ -290,7 +290,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: calc((16px) + 1px);
   font-weight: 600;
   color: var(--accent-contrast);
 }
@@ -308,14 +308,14 @@
 }
 
 .drafts-empty h3 {
-  font-size: 20px;
+  font-size: calc((20px) + 1px);
   font-weight: 600;
   color: #a0a0a0;
   margin: 0 0 8px 0;
 }
 
 .drafts-empty p {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   color: #666;
   margin: 0;
 }
@@ -333,7 +333,7 @@
 }
 
 .drafts-loading p {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   color: #a0a0a0;
   margin: 0;
 }
@@ -373,7 +373,7 @@
   }
 
   .drafts-title {
-    font-size: 20px;
+    font-size: calc((20px) + 1px);
   }
 
   .drafts-content {
@@ -386,7 +386,7 @@
   }
 
   .filter-chip {
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     padding: 6px 12px;
   }
 }

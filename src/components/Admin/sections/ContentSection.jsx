@@ -141,7 +141,7 @@ export default function UsersSection({ adminData, userMgmt }) {
           <div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 color: C.text,
                 display: "flex",
@@ -153,7 +153,7 @@ export default function UsersSection({ adminData, userMgmt }) {
               {u.verified && <CheckCircle2 size={12} color={C.accent} />}
               {u.is_pro && <Star size={12} color="#f59e0b" />}
             </div>
-            <div style={{ fontSize: 11, color: C.muted }}>@{u.username}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>@{u.username}</div>
           </div>
         </div>
       ),
@@ -161,7 +161,7 @@ export default function UsersSection({ adminData, userMgmt }) {
     {
       label: "Email",
       render: (u) => (
-        <span style={{ fontSize: 12, color: C.muted }}>{u.email}</span>
+        <span style={{ fontSize: 13, color: C.muted }}>{u.email}</span>
       ),
     },
     {
@@ -183,7 +183,7 @@ export default function UsersSection({ adminData, userMgmt }) {
     {
       label: "Joined",
       render: (u) => (
-        <span style={{ fontSize: 12, color: C.muted }}>
+        <span style={{ fontSize: 13, color: C.muted }}>
           {new Date(u.created_at).toLocaleDateString()}
         </span>
       ),
@@ -271,11 +271,11 @@ export default function UsersSection({ adminData, userMgmt }) {
       >
         <div>
           <h1
-            style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}
+            style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}
           >
             User Management
           </h1>
-          <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
+          <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
             {count.toLocaleString()} total users
           </p>
         </div>
@@ -350,10 +350,10 @@ export default function UsersSection({ adminData, userMgmt }) {
                 color={selectedUser.verified ? C.accent : C.muted}
               />
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>
+                <div style={{ fontSize: 19, fontWeight: 800, color: C.text }}>
                   {selectedUser.full_name}
                 </div>
-                <div style={{ fontSize: 13, color: C.muted }}>
+                <div style={{ fontSize: 14, color: C.muted }}>
                   @{selectedUser.username} · {selectedUser.email}
                 </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -402,7 +402,7 @@ export default function UsersSection({ adminData, userMgmt }) {
                 >
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       color: C.muted,
                       textTransform: "uppercase",
                       letterSpacing: ".06em",
@@ -412,7 +412,7 @@ export default function UsersSection({ adminData, userMgmt }) {
                   </div>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: C.text,
                       fontWeight: 600,
                       marginTop: 2,

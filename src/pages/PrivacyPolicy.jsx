@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
           color: #d4fc72;
           cursor: pointer;
           text-decoration: none;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 700;
           transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           user-select: none;
@@ -87,12 +87,12 @@ export default function PrivacyPolicy() {
           .privacy-back-btn {
             min-height: 48px;
             min-width: 100%;
-            font-size: 14px;
+            font-size: calc((14px) + 1px);
             padding: 14px 18px;
           }
         }
         .privacy-header-title {
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 700;
           color: #ffffff;
           letter-spacing: "-0.3px";
@@ -103,7 +103,7 @@ export default function PrivacyPolicy() {
           padding-top: 80px;
         }
         .privacy-container h1 {
-          font-size: 36px;
+          font-size: calc((36px) + 1px);
           font-weight: 900;
           margin-bottom: 8px;
           color: #ffffff;
@@ -115,13 +115,13 @@ export default function PrivacyPolicy() {
           background-clip: text;
         }
         .privacy-container .updated-date {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #5a7a5a;
           margin-bottom: 32px;
           font-weight: 500;
         }
         .privacy-container h2 {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 700;
           margin-top: 36px;
           margin-bottom: 14px;
@@ -140,7 +140,7 @@ export default function PrivacyPolicy() {
           border-radius: 50%;
         }
         .privacy-container p, .privacy-container li {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.8;
           color: #c8d8b0;
           margin-bottom: 14px;
@@ -168,7 +168,7 @@ export default function PrivacyPolicy() {
           border-top: 1px solid rgba(168, 230, 61, 0.2);
           border-bottom: 1px solid rgba(168, 230, 61, 0.1);
           color: #7a9a7a;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           text-align: center;
           font-weight: 500;
           letter-spacing: "0.2px";
@@ -178,20 +178,20 @@ export default function PrivacyPolicy() {
             padding: 14px 16px;
           }
           .privacy-header-title {
-            font-size: 13px;
+            font-size: calc((13px) + 1px);
           }
           .privacy-container {
             padding-top: 70px;
             padding-bottom: 24px;
           }
           .privacy-container h1 {
-            font-size: 28px;
+            font-size: calc((28px) + 1px);
           }
           .privacy-container h2 {
-            font-size: 18px;
+            font-size: calc((18px) + 1px);
           }
           .privacy-container p, .privacy-container li {
-            font-size: 13px;
+            font-size: calc((13px) + 1px);
           }
         }
       `}</style>

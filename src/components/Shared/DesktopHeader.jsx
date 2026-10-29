@@ -443,7 +443,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     transition: opacity 0.12s, color 0.12s;
   }
   .dh-greeting-text {
-    font-size: 12px; font-weight: 600;
+    font-size: calc((12px) + 1px); font-weight: 600;
     color: ${greetingColor};
     white-space: nowrap; position: relative;
     transition: color 0.12s;
@@ -473,7 +473,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     padding: 0 12px; height: 32px;
     border-radius: 9px; border: 1px solid transparent;
     background: transparent; color: var(--text-muted);
-    font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
+    font-size: calc((11.5px) + 1px); font-weight: 700; letter-spacing: 0.01em;
     cursor: pointer;
     transition: color 0.06s cubic-bezier(0.34,1.56,0.64,1), background 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.06s cubic-bezier(0.34,1.56,0.64,1);
     white-space: nowrap; font-family: inherit; user-select: none;
@@ -506,7 +506,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     background: var(--surface-muted);
     border: 1px solid var(--surface-border);
     border-radius: 9px;
-    font-size: 12.5px; font-weight: 600;
+    font-size: calc((12.5px) + 1px); font-weight: 600;
     cursor: pointer; transition: all 0.18s;
     white-space: nowrap; font-family: inherit;
   }
@@ -521,7 +521,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   .dh-badge {
     position: absolute; top: -8px; right: -8px;
     min-width: 19px; height: 19px; padding: 0 5px;
-    border-radius: 10px; font-size: 10px; font-weight: 900;
+    border-radius: 10px; font-size: calc((10px) + 1px); font-weight: 900;
     display: flex; align-items: center; justify-content: center;
     border: 2.5px solid var(--bg-strong);
     line-height: 1; z-index: 2; letter-spacing: -0.2px;

@@ -115,7 +115,7 @@ const QuickAction = ({ emoji, label, sub, color, onClick, idx, badge }) => (
     onClick={onClick}
     type="button"
   >
-    <div className="ds-qa-icon" style={{ background:`${color}14`, border:`1px solid ${color}28`, fontSize:15 }}>
+    <div className="ds-qa-icon" style={{ background:`${color}14`, border:`1px solid ${color}28`, fontSize:16 }}>
       {emoji}
     </div>
     <div className="ds-qa-text">
@@ -125,7 +125,7 @@ const QuickAction = ({ emoji, label, sub, color, onClick, idx, badge }) => (
     {badge > 0 && (
       <span style={{
         minWidth:16, height:16, borderRadius:8, background:color, color:"#000",
-        fontSize:8, fontWeight:900, display:"flex", alignItems:"center",
+        fontSize:9, fontWeight:900, display:"flex", alignItems:"center",
         justifyContent:"center", padding:"0 3px", flexShrink:0,
       }}>{badge > 99 ? "99+" : badge}</span>
     )}
@@ -146,13 +146,13 @@ const EPBreakdown = ({ daily, weekly, monthly }) => {
     <div className="ds-ep-breakdown">
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:10 }}>
         <Zap size={12} color="#84cc16" />
-        <span style={{ fontSize:10, fontWeight:800, color:"#555", textTransform:"uppercase", letterSpacing:"0.8px" }}>EP Earnings</span>
+        <span style={{ fontSize:11, fontWeight:800, color:"#555", textTransform:"uppercase", letterSpacing:"0.8px" }}>EP Earnings</span>
         <LiveDot color="#84cc16" size={4} />
       </div>
       <div style={{ display:"flex", gap:6 }}>
         {bars.map((b, i) => (
           <div key={i} style={{ flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:900, color:"#fff", marginBottom:3 }}>{fmtEP(b.val)}</div>
+            <div style={{ fontSize:14, fontWeight:900, color:"#fff", marginBottom:3 }}>{fmtEP(b.val)}</div>
             <div style={{ height:3, borderRadius:2, background:"rgba(255,255,255,0.05)", marginBottom:4, overflow:"hidden" }}>
               <div style={{
                 width:`${Math.min((b.val / b.max) * 100, 100)}%`, height:"100%",
@@ -160,7 +160,7 @@ const EPBreakdown = ({ daily, weekly, monthly }) => {
                 transition:"width 0.8s cubic-bezier(.34,1.4,.64,1)",
               }} />
             </div>
-            <div style={{ fontSize:8, color:"#444", fontWeight:600 }}>{b.label}</div>
+            <div style={{ fontSize:9, color:"#444", fontWeight:600 }}>{b.label}</div>
           </div>
         ))}
       </div>
@@ -199,8 +199,8 @@ const LiveViewsChart = ({ totalViews, totalLikes }) => {
     <div className="ds-spark-row">
       <div className="ds-spark-bar-top" />
       <div className="ds-spark-info">
-        <div style={{ fontSize:10, fontWeight:800, color:"#555", marginBottom:2 }}>Views Trend</div>
-        <div style={{ fontSize:9, color:"#3a3a3a" }}><AnimVal raw={totalLikes} /> likes total</div>
+        <div style={{ fontSize:11, fontWeight:800, color:"#555", marginBottom:2 }}>Views Trend</div>
+        <div style={{ fontSize:10, color:"#3a3a3a" }}><AnimVal raw={totalLikes} /> likes total</div>
       </div>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow:"visible", flexShrink:0 }}>
         <defs>
@@ -218,8 +218,8 @@ const LiveViewsChart = ({ totalViews, totalLikes }) => {
         </circle>
       </svg>
       <div style={{ textAlign:"right", flexShrink:0 }}>
-        <div style={{ fontSize:20, fontWeight:900, color:"#84cc16", lineHeight:1 }}><AnimVal raw={totalViews} /></div>
-        <div style={{ fontSize:8, color:"#3a3a3a", fontWeight:600, marginTop:2 }}>TOTAL VIEWS</div>
+        <div style={{ fontSize:21, fontWeight:900, color:"#84cc16", lineHeight:1 }}><AnimVal raw={totalViews} /></div>
+        <div style={{ fontSize:9, color:"#3a3a3a", fontWeight:600, marginTop:2 }}>TOTAL VIEWS</div>
       </div>
     </div>
   );
@@ -532,21 +532,21 @@ const DashboardSection = ({
           width:46px; height:46px; border-radius:13px;
           background: linear-gradient(135deg,#84cc16,#4d7c0f);
           display:flex; align-items:center; justify-content:center;
-          font-size:19px; font-weight:900; color:#000; flex-shrink:0;
+          font-size:calc((19px) + 1px); font-weight:900; color:#000; flex-shrink:0;
           border:1.5px solid rgba(132,204,22,0.3);
           box-shadow:0 4px 14px rgba(132,204,22,0.16);
           position:relative; overflow:hidden;
         }
         .ds-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:11px; }
         .ds-hero-info { flex:1; min-width:0; }
-        .ds-greeting  { font-size:10px; color:#484848; font-weight:600; margin:0 0 2px; }
+        .ds-greeting  { font-size:calc((10px) + 1px); color:#484848; font-weight:600; margin:0 0 2px; }
         .ds-name-row  { display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-bottom:1px; }
-        .ds-name      { font-size:16px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
-        .ds-username  { font-size:10.5px; color:#3a3a3a; font-weight:500; }
+        .ds-name      { font-size:calc((16px) + 1px); font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+        .ds-username  { font-size:calc((10.5px) + 1px); color:#3a3a3a; font-weight:500; }
         .ds-badge {
           display:inline-flex; align-items:center; gap:2px;
           padding:2px 6px; border-radius:5px;
-          font-size:8px; font-weight:800; letter-spacing:0.2px;
+          font-size:calc((8px) + 1px); font-weight:800; letter-spacing:0.2px;
         }
         .ds-vfx { width:14px; height:14px; border-radius:50%; background:linear-gradient(135deg,#84cc16,#4d7c0f); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .ds-notif-dot {
@@ -556,8 +556,8 @@ const DashboardSection = ({
         }
         .ds-social-row  { display:flex; gap:0; justify-content:space-between; }
         .ds-social-item { flex:1; text-align:center; }
-        .ds-social-val  { display:block; font-size:13px; font-weight:900; color:#fff; }
-        .ds-social-lbl  { display:block; font-size:8.5px; color:#444; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }
+        .ds-social-val  { display:block; font-size:calc((13px) + 1px); font-weight:900; color:#fff; }
+        .ds-social-lbl  { display:block; font-size:calc((8.5px) + 1px); color:#444; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }
 
         .ds-wallet-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; padding:12px 12px 0; }
         .ds-wallet-card {
@@ -565,8 +565,8 @@ const DashboardSection = ({
           border:1px solid; animation:dsGlow 3.2s ease-in-out infinite;
         }
         .ds-wallet-icon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-bottom:2px; }
-        .ds-wallet-val  { font-size:14px; font-weight:900; line-height:1; }
-        .ds-wallet-lbl  { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+        .ds-wallet-val  { font-size:calc((14px) + 1px); font-weight:900; line-height:1; }
+        .ds-wallet-lbl  { font-size:calc((8px) + 1px); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
 
         .ds-ep-breakdown {
           margin:8px 12px 0; padding:11px 12px; border-radius:12px;
@@ -595,8 +595,8 @@ const DashboardSection = ({
         .ds-chip:hover { border-color:color-mix(in srgb,var(--c) 28%,transparent); transform:translateY(-2px) scale(1.015); }
         .ds-chip-icon-wrap { width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .ds-chip-body { flex:1; width:100%; }
-        .ds-chip-val  { display:block; font-size:15px; font-weight:900; color:#fff; line-height:1.1; }
-        .ds-chip-lbl  { display:block; font-size:8.5px; font-weight:700; color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+        .ds-chip-val  { display:block; font-size:calc((15px) + 1px); font-weight:900; color:#fff; line-height:1.1; }
+        .ds-chip-lbl  { display:block; font-size:calc((8.5px) + 1px); font-weight:700; color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
 
         .ds-spark-row {
           display:flex; align-items:center; justify-content:space-between;
@@ -612,7 +612,7 @@ const DashboardSection = ({
         .ds-spark-info { flex:1; min-width:0; }
 
         .ds-sec {
-          font-size:9px; font-weight:800; color:#333;
+          font-size:calc((9px) + 1px); font-weight:800; color:#333;
           text-transform:uppercase; letter-spacing:1.2px;
           padding:14px 14px 7px; margin:0;
         }
@@ -624,9 +624,9 @@ const DashboardSection = ({
           cursor:pointer; transition:all .17s;
         }
         .ds-boost-card:hover { transform:translateY(-1px); }
-        .ds-boost-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
-        .ds-boost-val  { font-size:13px; font-weight:900; color:#fff; line-height:1.1; }
-        .ds-boost-lbl  { font-size:8.5px; color:#444; font-weight:600; }
+        .ds-boost-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:calc((14px) + 1px); }
+        .ds-boost-val  { font-size:calc((13px) + 1px); font-weight:900; color:#fff; line-height:1.1; }
+        .ds-boost-lbl  { font-size:calc((8.5px) + 1px); color:#444; font-weight:600; }
 
         .ds-finance-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:0 12px; }
         .ds-fin-card {
@@ -635,8 +635,8 @@ const DashboardSection = ({
           display:flex; align-items:center; gap:8px;
         }
         .ds-fin-icon { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .ds-fin-val  { font-size:13px; font-weight:900; line-height:1.1; }
-        .ds-fin-lbl  { font-size:8.5px; color:#444; font-weight:600; }
+        .ds-fin-val  { font-size:calc((13px) + 1px); font-weight:900; line-height:1.1; }
+        .ds-fin-lbl  { font-size:calc((8.5px) + 1px); color:#444; font-weight:600; }
 
         .ds-comm-chip {
           margin:8px 12px 0;
@@ -647,8 +647,8 @@ const DashboardSection = ({
         }
         .ds-comm-chip:hover { border-color:rgba(52,211,153,0.3); transform:translateY(-1px); }
         .ds-comm-icon { width:28px; height:28px; border-radius:8px; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .ds-comm-val  { font-size:14px; font-weight:900; color:#34d399; }
-        .ds-comm-lbl  { font-size:9px; color:#444; font-weight:600; }
+        .ds-comm-val  { font-size:calc((14px) + 1px); font-weight:900; color:#34d399; }
+        .ds-comm-lbl  { font-size:calc((9px) + 1px); color:#444; font-weight:600; }
 
         /* Quick actions — 2-col grid */
         .ds-qa-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:0 12px; }
@@ -669,8 +669,8 @@ const DashboardSection = ({
         .ds-qa:active { transform:scale(.97)!important; }
         .ds-qa-icon  { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .ds-qa-text  { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; overflow:hidden; }
-        .ds-qa-label { font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .ds-qa-sub   { font-size:8.5px; color:#444; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ds-qa-label { font-size:calc((12px) + 1px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ds-qa-sub   { font-size:calc((8.5px) + 1px); color:#444; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
         .ds-upgrade {
           margin:10px 12px 0; padding:13px; border-radius:13px;
@@ -680,7 +680,7 @@ const DashboardSection = ({
           cursor:pointer; transition:all .17s;
         }
         .ds-upgrade:hover { transform:translateY(-1px); border-color:rgba(251,191,36,0.32); }
-        .ds-upgrade-icon  { width:36px; height:36px; border-radius:10px; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; }
+        .ds-upgrade-icon  { width:36px; height:36px; border-radius:10px; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:calc((18px) + 1px); }
 
         .ds-spinner { width:20px; height:20px; border:2px solid rgba(132,204,22,0.1); border-top-color:#84cc16; border-radius:50%; animation:dsSpin .7s linear infinite; margin:60px auto; }
       `}</style>
@@ -711,7 +711,7 @@ const DashboardSection = ({
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:1 }}>
                 <span className="ds-username">@{username}</span>
-                {rlevel !== "none" && <span style={{ fontSize:10 }}>{rcolor.emoji}</span>}
+                {rlevel !== "none" && <span style={{ fontSize:11 }}>{rcolor.emoji}</span>}
               </div>
             </div>
 
@@ -723,7 +723,7 @@ const DashboardSection = ({
                   position:"absolute", top:-4, right:-4,
                   minWidth:14, height:14, borderRadius:7,
                   background:"#f87171", color:"#000",
-                  fontSize:7, fontWeight:900,
+                  fontSize:8, fontWeight:900,
                   display:"flex", alignItems:"center", justifyContent:"center",
                   padding:"0 2px",
                 }}>
@@ -755,7 +755,7 @@ const DashboardSection = ({
             <div className="ds-wallet-lbl" style={{ color:"#84cc16", opacity:0.6 }}>EP Balance</div>
           </div>
           <div className="ds-wallet-card" style={{ background:"rgba(251,191,36,0.04)", borderColor:"rgba(251,191,36,0.14)" }}>
-            <div className="ds-wallet-icon" style={{ background:"rgba(251,191,36,0.1)", border:"1px solid rgba(251,191,36,0.2)", fontSize:11 }}>🪙</div>
+            <div className="ds-wallet-icon" style={{ background:"rgba(251,191,36,0.1)", border:"1px solid rgba(251,191,36,0.2)", fontSize:12 }}>🪙</div>
             <div className="ds-wallet-val" style={{ color:"#fbbf24" }}><AnimVal raw={data.grovaTokens} /></div>
             <div className="ds-wallet-lbl" style={{ color:"#fbbf24", opacity:0.6 }}>GT Balance</div>
           </div>
@@ -817,7 +817,7 @@ const DashboardSection = ({
             onClick={() => navigate("rewards")}
           >
             <div className="ds-boost-icon"
-              style={{ background:`${rcolor.fg}14`, border:`1px solid ${rcolor.fg}22`, fontSize:14 }}
+              style={{ background:`${rcolor.fg}14`, border:`1px solid ${rcolor.fg}22`, fontSize:15 }}
             >
               {rcolor.emoji}
             </div>
@@ -837,10 +837,10 @@ const DashboardSection = ({
             background:"rgba(249,115,22,0.04)", border:"1px solid rgba(249,115,22,0.13)",
             display:"flex", alignItems:"center", gap:9
           }}>
-            <span style={{ fontSize:18, animation:"dsFlame 1.6s ease-in-out infinite", display:"block" }}>🔥</span>
+            <span style={{ fontSize:19, animation:"dsFlame 1.6s ease-in-out infinite", display:"block" }}>🔥</span>
             <div>
-              <div style={{ fontSize:20, fontWeight:900, color:"#f97316", lineHeight:1 }}>{data.loginStreak}</div>
-              <div style={{ fontSize:8.5, color:"#484848", fontWeight:600 }}>Day Streak</div>
+              <div style={{ fontSize:21, fontWeight:900, color:"#f97316", lineHeight:1 }}>{data.loginStreak}</div>
+              <div style={{ fontSize:9.5, color:"#484848", fontWeight:600 }}>Day Streak</div>
             </div>
           </div>
           <div style={{
@@ -850,10 +850,10 @@ const DashboardSection = ({
           }}>
             <Shield size={16} color="#84cc16" />
             <div>
-              <div style={{ fontSize:14, fontWeight:900, color:"#84cc16", lineHeight:1 }}>
+              <div style={{ fontSize:15, fontWeight:900, color:"#84cc16", lineHeight:1 }}>
                 {isVerified ? "Verified" : "Unverified"}
               </div>
-              <div style={{ fontSize:8.5, color:"#484848", fontWeight:600 }}>Account status</div>
+              <div style={{ fontSize:9.5, color:"#484848", fontWeight:600 }}>Account status</div>
             </div>
           </div>
         </div>
@@ -929,8 +929,8 @@ const DashboardSection = ({
               boxShadow:"0 0 18px rgba(251,191,36,0.14)",
             }}>👑</div>
             <div style={{ flex:1 }}>
-              <p style={{ fontSize:13, fontWeight:900, color:"#fbbf24", margin:"0 0 2px" }}>Premium profile upgrade</p>
-              <p style={{ fontSize:10, color:"#d4d4d4", margin:0 }}>Silver · Gold · Diamond styles + vivid boosted identity</p>
+              <p style={{ fontSize:14, fontWeight:900, color:"#fbbf24", margin:"0 0 2px" }}>Premium profile upgrade</p>
+              <p style={{ fontSize:11, color:"#d4d4d4", margin:0 }}>Silver · Gold · Diamond styles + vivid boosted identity</p>
             </div>
             <ChevronRight size={12} color="#fbbf24" />
           </div>

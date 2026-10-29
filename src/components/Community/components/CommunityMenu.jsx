@@ -42,10 +42,10 @@ const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) =
         .conf-dialog{background:rgba(15,15,15,.98);border:2px solid rgba(156,255,0,.25);border-radius:16px;padding:24px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:cslideUp .3s cubic-bezier(.4,0,.2,1)}
         @keyframes cslideUp{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
         .conf-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-        .conf-header h3{font-size:17px;font-weight:800;color:#fff;margin:0}
-        .conf-msg{font-size:13px;color:#aaa;line-height:1.6;margin:0 0 20px}
+        .conf-header h3{font-size:calc((17px) + 1px);font-weight:800;color:#fff;margin:0}
+        .conf-msg{font-size:calc((13px) + 1px);color:#aaa;line-height:1.6;margin:0 0 20px}
         .conf-actions{display:flex;gap:10px;justify-content:flex-end}
-        .conf-btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .2s}
+        .conf-btn{padding:9px 18px;border-radius:8px;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .2s}
         .conf-btn.cancel{background:rgba(26,26,26,.6);border-color:rgba(42,42,42,.8);color:#999}
         .conf-btn.cancel:hover{border-color:rgba(156,255,0,.3);color:#9cff00}
         .conf-btn.primary{background:linear-gradient(135deg,#9cff00,#667eea);color:#000}
@@ -64,7 +64,7 @@ const CommunityIcon = ({ community, size = 52 }) => {
   const style = {
     width: size, height: size, borderRadius: 14, flexShrink: 0,
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: size * 0.54, overflow: "hidden",
+    fontSize: (size * 0.54) + 1, overflow: "hidden",
     boxShadow: "0 4px 16px rgba(0,0,0,.3)",
   };
   const borderStyle = community?.icon_border || "default";
@@ -84,7 +84,7 @@ const CommunityIcon = ({ community, size = 52 }) => {
   }
   return (
     <div style={{ ...style, border, background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
-      {icon || <span style={{ fontSize: size * 0.34, fontWeight: 900, letterSpacing: ".04em", color: "#fff" }}>{initials}</span>}
+      {icon || <span style={{ fontSize: (size * 0.34) + 1, fontWeight: 900, letterSpacing: ".04em", color: "#fff" }}>{initials}</span>}
     </div>
   );
 };
@@ -438,12 +438,12 @@ const CommunityMenu = ({
         }
         .cm-head-main{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
         .cm-head-info{flex:1;min-width:0}
-        .cm-head-name{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:900;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .cm-head-stats{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary)}
+        .cm-head-name{display:flex;align-items:center;gap:6px;font-size:calc((16px) + 1px);font-weight:900;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .cm-head-stats{display:flex;align-items:center;gap:6px;font-size:calc((11px) + 1px);color:var(--text-secondary)}
         .cm-dot{color:var(--text-muted)}
         .cm-online{color:var(--brand-success);font-weight:700}
         .cm-head-back{display:flex;align-items:center;gap:10px;flex:1}
-        .cm-view-title{font-size:15px;font-weight:800;color:var(--text)}
+        .cm-view-title{font-size:calc((15px) + 1px);font-weight:800;color:var(--text)}
         .cm-back-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1.5px solid var(--surface-border);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
         .cm-back-btn:hover{border-color:var(--accent-border-strong);transform:translateX(-2px)}
         .cm-close-btn{width:36px;height:36px;border-radius:50%;background:var(--surface);border:1.5px solid var(--surface-border);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
@@ -458,8 +458,8 @@ const CommunityMenu = ({
         .cm-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
         .cm-stat{padding:14px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;display:flex;align-items:center;gap:10px;transition:all .25s}
         .cm-stat:hover{border-color:var(--accent-border);transform:translateY(-1px)}
-        .cm-stat-val{font-size:18px;font-weight:900;color:var(--accent)}
-        .cm-stat-lbl{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px}
+        .cm-stat-val{font-size:calc((18px) + 1px);font-weight:900;color:var(--accent)}
+        .cm-stat-lbl{font-size:calc((10px) + 1px);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px}
 
         .cm-item{display:flex;align-items:center;gap:10px;padding:13px 12px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);margin-bottom:6px;min-width:0}
         .cm-action-grid .cm-item{margin-bottom:0;min-height:68px}
@@ -467,8 +467,8 @@ const CommunityMenu = ({
         .cm-item.danger:hover{border-color:var(--danger-border);background:var(--danger-bg)}
         .cm-item-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
         .cm-item-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-        .cm-item-title{font-size:13px;font-weight:700;color:var(--text)}
-        .cm-item-desc{font-size:10px;color:var(--text-secondary)}
+        .cm-item-title{font-size:calc((13px) + 1px);font-weight:700;color:var(--text)}
+        .cm-item-desc{font-size:calc((10px) + 1px);color:var(--text-secondary)}
 
         .community-help-shell {
           padding: 18px 16px 24px;
@@ -481,7 +481,7 @@ const CommunityMenu = ({
         }
         .community-help-kicker {
           display: inline-block;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           letter-spacing: 0.12em;
           text-transform: uppercase;
           color: #9cff00;
@@ -490,7 +490,7 @@ const CommunityMenu = ({
         }
         .community-help-header h2 {
           margin: 0;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           color: #fff;
           line-height: 1.2;
         }
@@ -506,13 +506,13 @@ const CommunityMenu = ({
           padding: 14px 14px 12px;
         }
         .community-help-card-title {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
           color: #fff;
           margin-bottom: 5px;
         }
         .community-help-card-summary {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
           color: #9cff00;
           margin-bottom: 6px;
@@ -520,7 +520,7 @@ const CommunityMenu = ({
         .community-help-card p {
           margin: 0;
           color: #a3a3a3;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           line-height: 1.5;
         }
 

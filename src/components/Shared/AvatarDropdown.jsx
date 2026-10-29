@@ -52,19 +52,19 @@ const LogoutConfirm = ({ onConfirm, onCancel }) =>
         <div style={{ width:52,height:52, background:"radial-gradient(circle at 30% 30%,rgba(239,68,68,0.2),rgba(239,68,68,0.04))", border:"1px solid rgba(239,68,68,0.3)", borderRadius:"16px", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", boxShadow:"0 4px 20px rgba(239,68,68,0.15)" }}>
           <LogOut size={22} color="#ef4444"/>
         </div>
-        <p style={{ color:"var(--text)", fontSize:"17px", fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Sign out?</p>
-        <p style={{ color:"var(--text-secondary)", fontSize:"13px", textAlign:"center", margin:"0 0 22px", lineHeight:1.5 }}>You'll be returned to the sign-in screen.</p>
+        <p style={{ color:"var(--text)", fontSize:"calc((17px) + 1px)", fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Sign out?</p>
+        <p style={{ color:"var(--text-secondary)", fontSize:"calc((13px) + 1px)", textAlign:"center", margin:"0 0 22px", lineHeight:1.5 }}>You'll be returned to the sign-in screen.</p>
         <div style={{ display:"flex", gap:10 }}>
           <button
             onClick={onCancel}
-            style={{ flex:1, padding:"12px", background:"var(--surface)", border:"1px solid var(--surface-border)", borderRadius:"13px", color:"var(--text-secondary)", fontSize:"14px", fontWeight:700, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
+            style={{ flex:1, padding:"12px", background:"var(--surface)", border:"1px solid var(--surface-border)", borderRadius:"13px", color:"var(--text-secondary)", fontSize:"calc((14px) + 1px)", fontWeight:700, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
             onMouseEnter={e=>{e.currentTarget.style.background="var(--surface-strong)";e.currentTarget.style.color="var(--text)";}}
             onMouseLeave={e=>{e.currentTarget.style.background="var(--surface)";e.currentTarget.style.color="var(--text-secondary)";}}>
             Stay
           </button>
           <button
             onClick={onConfirm}
-            style={{ flex:1, padding:"12px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.45)", borderRadius:"13px", color:"#ef4444", fontSize:"14px", fontWeight:800, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
+            style={{ flex:1, padding:"12px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.45)", borderRadius:"13px", color:"#ef4444", fontSize:"calc((14px) + 1px)", fontWeight:800, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
             onMouseEnter={e=>{e.currentTarget.style.background="rgba(239,68,68,0.22)";}}
             onMouseLeave={e=>{e.currentTarget.style.background="rgba(239,68,68,0.12)";}}>
             Sign Out
@@ -136,7 +136,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         transform: isActive ? "scale(1.01) translateY(-1px)" : "scale(1) translateY(0)",
         willChange: "transform, opacity",
         color: isLockedMode ? "rgba(148,163,184,0.8)" : isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
-        fontSize: "11px",
+        fontSize: "calc((11px) + 1px)",
         fontWeight: isActive ? 700 : 600,
         fontFamily: "inherit",
         lineHeight: 1,
@@ -159,7 +159,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         }
       }}
     >
-      <span style={{ fontSize: "14px", lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: "calc((14px) + 1px)", lineHeight: 1 }}>{icon}</span>
       {label}
     </button>
   );
@@ -172,8 +172,8 @@ const SwitchAccountModal = ({ accounts, currentUserId, onClose, onSwitchAccount 
       <div style={{ width: "min(520px, 100%)", background: "rgba(12,14,18,0.97)", border: "1px solid rgba(132,204,22,0.22)", borderRadius: 22, boxShadow: "0 30px 80px rgba(0,0,0,0.55)", padding: 20, animation: "adSlideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#84cc16", fontWeight: 800 }}>Account switch</div>
-            <h3 style={{ margin: "8px 0 0", color: "#fff", fontSize: 22, fontWeight: 900 }}>Choose a profile</h3>
+            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#84cc16", fontWeight: 800 }}>Account switch</div>
+            <h3 style={{ margin: "8px 0 0", color: "#fff", fontSize: 23, fontWeight: 900 }}>Choose a profile</h3>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Close account switcher">
             <X size={16} />
@@ -196,18 +196,18 @@ const SwitchAccountModal = ({ accounts, currentUserId, onClose, onSwitchAccount 
                 }}
               >
                 <div style={{ width: 60, height: 60, borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg, #84cc16 0%, #496a1b 100%)", border: "1px solid rgba(132,204,22,0.4)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                  {account.avatar ? <img src={account.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22, fontWeight: 900, color: "#000" }}>{(account.fullName || "U").charAt(0).toUpperCase()}</span>}
+                  {account.avatar ? <img src={account.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 23, fontWeight: 900, color: "#000" }}>{(account.fullName || "U").charAt(0).toUpperCase()}</span>}
                 </div>
                 <div style={{ width: "100%" }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{account.fullName || "User"}</div>
-                  <div style={{ marginTop: 4, color: "#8b93a5", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{account.username || "user"}</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{account.fullName || "User"}</div>
+                  <div style={{ marginTop: 4, color: "#8b93a5", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{account.username || "user"}</div>
                 </div>
                 {isCurrent ? (
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.12)", border: "1px solid rgba(132,204,22,0.32)", color: "#84cc16", fontWeight: 800, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.12)", border: "1px solid rgba(132,204,22,0.32)", color: "#84cc16", fontWeight: 800, fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                     <Check size={10} /> Active
                   </div>
                 ) : (
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#60a5fa", fontWeight: 800, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#60a5fa", fontWeight: 800, fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                     <RefreshCw size={10} /> Switch
                   </div>
                 )}
@@ -334,7 +334,7 @@ const DropdownPortal = ({
 
       {/* ── Trinity Mode Selector ── */}
       <div style={{ padding: "8px 0 12px", borderBottom: "1px solid var(--surface-border)" }}>
-        <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", padding: "0 12px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        <p style={{ fontSize: "calc((11px) + 1px)", fontWeight: 700, color: "var(--text-tertiary)", padding: "0 12px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
           Experience Mode
         </p>
         <div style={{ display: "flex", gap: "4px", padding: "0 8px" }}>
@@ -343,7 +343,7 @@ const DropdownPortal = ({
           <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="streaming" label="Streaming" icon={<Radio size={11}/>} onAccount={onAccount}/>
         </div>
-        <div style={{ padding: "8px 12px 0", color: "rgba(148,163,184,0.85)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>
+        <div style={{ padding: "8px 12px 0", color: "rgba(148,163,184,0.85)", fontSize: "calc((10px) + 1px)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>
           Focus: community-first creator empire
         </div>
       </div>
@@ -351,12 +351,12 @@ const DropdownPortal = ({
       <div style={{ padding: "10px 8px", borderBottom: "1px solid var(--surface-border)" }}>
         <button
           onClick={() => setThemeNotice(true)}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "9px 10px", background: "var(--surface)", border: "1px solid var(--surface-border)", borderRadius: "10px", color: "var(--text-secondary)", cursor: "pointer", fontSize: "12px", fontWeight: 700, fontFamily: "inherit" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "9px 10px", background: "var(--surface)", border: "1px solid var(--surface-border)", borderRadius: "10px", color: "var(--text-secondary)", cursor: "pointer", fontSize: "calc((12px) + 1px)", fontWeight: 700, fontFamily: "inherit" }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Sun size={14} color="#fbbf24" /> Theme</span>
-          <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Coming soon</span>
+          <span style={{ fontSize: "calc((10px) + 1px)", color: "var(--text-tertiary)" }}>Coming soon</span>
         </button>
-        {themeNotice && <div style={{ padding: "7px 4px 0", color: "var(--text-tertiary)", fontSize: "10px", textAlign: "center" }}>Theme preferences are coming soon.</div>}
+        {themeNotice && <div style={{ padding: "7px 4px 0", color: "var(--text-tertiary)", fontSize: "calc((10px) + 1px)", textAlign: "center" }}>Theme preferences are coming soon.</div>}
       </div>
 
       <div className="ad-menu">
@@ -574,19 +574,19 @@ const AvatarDropdown = ({
         .ad-profile-card::after {
           content: 'tap to switch accounts';
           position:absolute; bottom:5px; right:34px;
-          font-size:8px; color:rgba(132,204,22,0.35); font-weight:600;
+          font-size:calc((8px) + 1px); color:rgba(132,204,22,0.35); font-weight:600;
           letter-spacing:0.3px; text-transform:uppercase; transition:opacity 0.2s;
         }
         .ad-profile-card.open::after { opacity:0; }
 
         .ad-mini-avatar { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#84cc16 0%,#4d7c0f 100%); border:1.5px solid rgba(132,204,22,0.4); overflow:hidden; flex-shrink:0; position:relative; display:flex; align-items:center; justify-content:center; }
-        .ad-mini-fallback { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; color:#000; z-index:1; }
+        .ad-mini-fallback { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc((16px) + 1px); font-weight:800; color:#000; z-index:1; }
         .ad-mini-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; transition:opacity 0.3s; }
         .ad-mini-info { flex:1; min-width:0; }
-        .ad-mini-name { font-size:13px; font-weight:800; color:#fff; margin:0 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
-        .ad-mini-user { font-size:11px; color:#84cc16; font-weight:600; margin:0; }
+        .ad-mini-name { font-size:calc((13px) + 1px); font-weight:800; color:#fff; margin:0 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+        .ad-mini-user { font-size:calc((11px) + 1px); color:#84cc16; font-weight:600; margin:0; }
         .ad-mini-badges { display:flex; align-items:center; gap:4px; margin-top:3px; }
-        .ad-mini-badge { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:5px; font-size:9px; font-weight:800; }
+        .ad-mini-badge { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:5px; font-size:calc((9px) + 1px); font-weight:800; }
         .ad-mini-badge.pro      { background:rgba(251,191,36,0.14); border:1px solid rgba(251,191,36,0.35); color:#fbbf24; }
         .ad-mini-badge.verified { background:rgba(132,204,22,0.1);  border:1px solid rgba(132,204,22,0.28); color:#84cc16; }
         .ad-acc-chevron { flex-shrink:0; transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1); margin-left:2px; }
@@ -595,27 +595,27 @@ const AvatarDropdown = ({
         .ad-switcher { max-height:0; overflow:hidden; transition:max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; opacity:0; background:var(--panel); border-top:1px solid transparent; }
         .ad-switcher.open { max-height:280px; opacity:1; border-top-color:rgba(132,204,22,0.1); }
         .ad-switcher-inner { padding:10px 10px 6px; }
-        .ad-switcher-title { display:flex; align-items:center; gap:5px; font-size:9px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding:0 2px; }
-        .ad-switcher-count { margin-left:auto; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.2); color:#84cc16; border-radius:8px; padding:0 5px; font-size:9px; }
+        .ad-switcher-title { display:flex; align-items:center; gap:5px; font-size:calc((9px) + 1px); font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding:0 2px; }
+        .ad-switcher-count { margin-left:auto; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.2); color:#84cc16; border-radius:8px; padding:0 5px; font-size:calc((9px) + 1px); }
         .ad-switcher-sep { height:1px; background:var(--surface-border); margin:6px 0; }
 
         .ad-acc-row { display:flex; align-items:center; gap:9px; padding:8px 6px; border-radius:10px; transition:background 0.18s; animation:adAccIn 0.2s ease both; }
         .ad-acc-row:hover { background:var(--surface-strong); }
-        .ad-acc-avatar { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#000; flex-shrink:0; overflow:hidden; position:relative; border:1.5px solid rgba(132,204,22,0.25); }
+        .ad-acc-avatar { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:calc((13px) + 1px); font-weight:800; color:#000; flex-shrink:0; overflow:hidden; position:relative; border:1.5px solid rgba(132,204,22,0.25); }
         .ad-acc-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
         .ad-acc-avatar span { position:relative; z-index:1; }
         .ad-acc-active-dot { position:absolute; bottom:-2px; right:-2px; width:8px; height:8px; background:#84cc16; border-radius:50%; border:1.5px solid var(--panel); box-shadow:0 0 6px rgba(132,204,22,0.6); }
         .ad-acc-info { flex:1; min-width:0; }
-        .ad-acc-name { font-size:12px; font-weight:700; color:#e5e5e5; margin:0 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .ad-acc-user { font-size:10px; color:#525252; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ad-acc-name { font-size:calc((12px) + 1px); font-weight:700; color:#e5e5e5; margin:0 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ad-acc-user { font-size:calc((10px) + 1px); color:#525252; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .ad-acc-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; }
-        .ad-acc-current-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.25); border-radius:8px; font-size:9px; font-weight:800; color:#84cc16; }
-        .ad-acc-switch-btn { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.25); border-radius:8px; font-size:9px; font-weight:800; color:#60a5fa; cursor:pointer; transition:all 0.18s; }
+        .ad-acc-current-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.25); border-radius:8px; font-size:calc((9px) + 1px); font-weight:800; color:#84cc16; }
+        .ad-acc-switch-btn { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.25); border-radius:8px; font-size:calc((9px) + 1px); font-weight:800; color:#60a5fa; cursor:pointer; transition:all 0.18s; }
         .ad-acc-switch-btn:hover { background:rgba(96,165,250,0.16); }
         .ad-acc-remove-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:7px; color:#ef444480; cursor:pointer; transition:all 0.18s; }
         .ad-acc-remove-btn:hover { background:rgba(239,68,68,0.14); color:#ef4444; }
 
-        .ad-add-account { width:100%; display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:10px; border:1px dashed rgba(132,204,22,0.2); background:transparent; cursor:pointer; transition:all 0.2s; margin-top:4px; color:var(--text-secondary); font-size:11px; font-weight:700; }
+        .ad-add-account { width:100%; display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:10px; border:1px dashed rgba(132,204,22,0.2); background:transparent; cursor:pointer; transition:all 0.2s; margin-top:4px; color:var(--text-secondary); font-size:calc((11px) + 1px); font-weight:700; }
         .ad-add-account:hover:not(:disabled) { border-color:rgba(132,204,22,0.4); background:rgba(132,204,22,0.05); color:#84cc16; }
         .ad-add-account:disabled { opacity:0.3; cursor:not-allowed; }
         .ad-add-icon { width:22px; height:22px; border-radius:7px; background:rgba(132,204,22,0.08); border:1px solid rgba(132,204,22,0.2); display:flex; align-items:center; justify-content:center; }
@@ -642,11 +642,11 @@ const AvatarDropdown = ({
         .ad-item:hover .ad-icon-account { background:rgba(132,204,22,0.22); }
         .ad-item:hover .ad-icon-boost  { background:rgba(251,191,36,0.22); }
         .ad-item:hover .ad-icon-logout  { background:rgba(239,68,68,0.18); }
-        .ad-item-label { flex:1; font-size:13px; font-weight:800; letter-spacing:0.1px; }
+        .ad-item-label { flex:1; font-size:calc((13px) + 1px); font-weight:800; letter-spacing:0.1px; }
         .ad-item.account .ad-item-label { color:#c4f07c; }
         .ad-item.boost .ad-item-label { color:#f9d66b; }
         .ad-item.logout  .ad-item-label { color:#f87171; }
-        .ad-item-arrow { font-size:16px; line-height:1; font-weight:300; transition:transform 0.18s, opacity 0.18s; opacity:0.35; }
+        .ad-item-arrow { font-size:calc((16px) + 1px); line-height:1; font-weight:300; transition:transform 0.18s, opacity 0.18s; opacity:0.35; }
         .ad-item.account .ad-item-arrow { color:#84cc16; }
         .ad-item.boost .ad-item-arrow { color:#fbbf24; }
         .ad-item.logout  .ad-item-arrow { color:#ef4444; }

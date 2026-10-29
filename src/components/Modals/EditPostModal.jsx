@@ -93,7 +93,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
           borderBottom: "1px solid rgba(255,255,255,0.07)",
           flexShrink: 0,
         }}>
-          <h2 style={{ color: "#f5f5f5", fontSize: "16px", fontWeight: 700, margin: 0 }}>Edit Post</h2>
+          <h2 style={{ color: "#f5f5f5", fontSize: "calc((16px) + 1px)", fontWeight: 700, margin: 0 }}>Edit Post</h2>
           <button onClick={onClose} disabled={isSaving} style={{
             width: 32, height: 32, background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%",
@@ -109,7 +109,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
             background: flash.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(132,204,22,0.1)",
             border: `1px solid ${flash.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(132,204,22,0.3)"}`,
             color: flash.type === "error" ? "#ef4444" : "#84cc16",
-            fontSize: "13px", fontWeight: 600,
+            fontSize: "calc((13px) + 1px)", fontWeight: 600,
           }}>{flash.msg}</div>
         )}
 
@@ -117,7 +117,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
         <div style={{ padding: "16px 18px", flex: 1, overflowY: "auto" }}>
           {/* Caption */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#84cc16", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Caption</label>
+            <label style={{ display: "block", fontSize: "calc((12px) + 1px)", fontWeight: 700, color: "#84cc16", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Caption</label>
             <textarea
               ref={textareaRef}
               value={content}
@@ -130,18 +130,18 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.1)",
                 borderRadius: "12px", color: "#f5f5f5",
-                fontSize: "15px", lineHeight: 1.6, resize: "vertical",
+                fontSize: "calc((15px) + 1px)", lineHeight: 1.6, resize: "vertical",
                 fontFamily: "inherit", outline: "none", boxSizing: "border-box",
               }}
               onFocus={e => { e.target.style.borderColor = "rgba(132,204,22,0.4)"; }}
               onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; }}
             />
-            <div style={{ textAlign: "right", fontSize: "11px", color: "#525252", marginTop: 4 }}>{content.length}/2000</div>
+            <div style={{ textAlign: "right", fontSize: "calc((11px) + 1px)", color: "#525252", marginTop: 4 }}>{content.length}/2000</div>
           </div>
 
           {/* Category */}
           <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#84cc16", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Category</label>
+            <label style={{ display: "block", fontSize: "calc((12px) + 1px)", fontWeight: 700, color: "#84cc16", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Category</label>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
@@ -151,7 +151,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.1)",
                 borderRadius: "11px", color: "#f5f5f5",
-                fontSize: "14px", cursor: "pointer", outline: "none",
+                fontSize: "calc((14px) + 1px)", cursor: "pointer", outline: "none",
                 fontFamily: "inherit",
               }}
             >
@@ -160,7 +160,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
           </div>
 
           {/* Note */}
-          <p style={{ fontSize: "12px", color: "#fb923c", marginTop: 14, lineHeight: 1.5 }}>
+          <p style={{ fontSize: "calc((12px) + 1px)", color: "#fb923c", marginTop: 14, lineHeight: 1.5 }}>
             Note: Media files cannot be changed after posting. Only caption and category can be edited.
           </p>
         </div>
@@ -173,7 +173,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
           <button onClick={onClose} disabled={isSaving} style={{
             flex: 1, padding: "12px", background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.1)", borderRadius: "11px",
-            color: "#a3a3a3", fontSize: "14px", fontWeight: 600,
+            color: "#a3a3a3", fontSize: "calc((14px) + 1px)", fontWeight: 600,
             cursor: isSaving ? "not-allowed" : "pointer",
           }}>Cancel</button>
           <button onClick={handleSave} disabled={isSaving || !hasContent} style={{
@@ -181,7 +181,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
             background: isSaving || !hasContent ? "rgba(132,204,22,0.15)" : "linear-gradient(135deg, #84cc16 0%, #65a30d 100%)",
             border: "none", borderRadius: "11px",
             color: isSaving || !hasContent ? "#525252" : "#000",
-            fontSize: "14px", fontWeight: 700,
+            fontSize: "calc((14px) + 1px)", fontWeight: 700,
             cursor: isSaving || !hasContent ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             transition: "all 0.2s",

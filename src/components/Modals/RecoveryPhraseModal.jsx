@@ -360,7 +360,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
           flex:1; padding:10px; border-radius:10px;
           border:1.5px solid rgba(255,255,255,0.1);
           background:rgba(255,255,255,0.03);
-          color:#666; font-size:13px; font-weight:700;
+          color:#666; font-size:calc((13px) + 1px); font-weight:700;
           cursor:pointer; transition:all .2s;
         }
         .rp-count-btn.active {
@@ -392,14 +392,14 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
           border-radius:9px; padding:8px 10px;
           display:flex; align-items:center; gap:6px;
         }
-        .rp-word-num { font-size:9px; color:#444; font-weight:700; min-width:14px; }
-        .rp-word-text { font-size:13px; color:#e5e5e5; font-weight:600; font-family:monospace; }
+        .rp-word-num { font-size:calc((9px) + 1px); color:#444; font-weight:700; min-width:14px; }
+        .rp-word-text { font-size:calc((13px) + 1px); color:#e5e5e5; font-weight:600; font-family:monospace; }
 
         /* Action buttons */
         .rp-btn-row { display:flex; gap:10px; margin-bottom:14px; }
         .rp-btn {
           flex:1; padding:12px; border-radius:11px; border:none;
-          font-size:13px; font-weight:700; cursor:pointer;
+          font-size:calc((13px) + 1px); font-weight:700; cursor:pointer;
           display:flex; align-items:center; justify-content:center; gap:7px;
           transition:all .2s;
         }
@@ -441,7 +441,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
           display:inline-flex; align-items:center; gap:4px;
           padding:3px 10px; border-radius:20px;
           background:rgba(132,204,22,0.15); border:1px solid rgba(132,204,22,0.3);
-          color:#84cc16; font-size:10px; font-weight:800;
+          color:#84cc16; font-size:calc((10px) + 1px); font-weight:800;
           margin-left:8px;
         }
 
@@ -463,11 +463,11 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
                 <Key size={20} color="#000" />
               </div>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center" }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center" }}>
                   Recovery Phrase
                   {isNew && <span className="rp-new-badge">✨ NEW</span>}
                 </div>
-                <div style={{ fontSize: 11, color: "#555" }}>
+                <div style={{ fontSize: 12, color: "#555" }}>
                   {saved ? "Your backup phrase" : "Generate & save your backup"}
                 </div>
               </div>
@@ -485,7 +485,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
             {/* Error */}
             {step === "error" && (
               <div style={{ textAlign: "center", padding: "30px 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+                <div style={{ fontSize: 41, marginBottom: 12 }}>⚠️</div>
                 <p style={{ color: "#ef4444", marginBottom: 16 }}>{error}</p>
                 <button className="rp-btn rp-btn-primary" style={{ maxWidth: 200, margin: "0 auto" }}
                   onClick={() => loadOrGeneratePhrase(false, wordCount)}>
@@ -503,10 +503,10 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
                     <AlertTriangle size={18} color="#ef4444" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444", marginBottom: 5 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#ef4444", marginBottom: 5 }}>
                       Critical Security Information
                     </div>
-                    <div style={{ fontSize: 12, color: "#a3a3a3", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 13, color: "#a3a3a3", lineHeight: 1.6 }}>
                       • Write this down and store it somewhere extremely safe.<br />
                       • <strong style={{ color: "#fff" }}>Never share it with anyone</strong> — not even our team.<br />
                       • If you lose this phrase, you <strong style={{ color: "#fbbf24" }}>cannot</strong> recover your account.<br />
@@ -517,7 +517,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
 
                 {/* Word count selector */}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
                     Phrase Length
                   </div>
                   <div className="rp-count-row">
@@ -544,8 +544,8 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
                   {!revealed && (
                     <div className="rp-phrase-blur" onClick={() => setRevealed(true)}>
                       <Lock size={24} color="#fbbf24" />
-                      <div style={{ color: "#fbbf24", fontSize: 14, fontWeight: 700 }}>Tap to Reveal</div>
-                      <div style={{ color: "#555", fontSize: 11 }}>Keep screen private before revealing</div>
+                      <div style={{ color: "#fbbf24", fontSize: 15, fontWeight: 700 }}>Tap to Reveal</div>
+                      <div style={{ color: "#555", fontSize: 12 }}>Keep screen private before revealing</div>
                     </div>
                   )}
 
@@ -553,7 +553,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
                   {regenerating ? (
                     <div style={{ textAlign: "center", padding: "24px 0" }}>
                       <div className="rp-spinner" style={{ margin: "0 auto" }} />
-                      <div style={{ color: "#666", fontSize: 12, marginTop: 12 }}>Generating new phrase…</div>
+                      <div style={{ color: "#666", fontSize: 13, marginTop: 12 }}>Generating new phrase…</div>
                     </div>
                   ) : (
                     <div className="rp-words-grid">
@@ -604,7 +604,7 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
                       <div className={`rp-checkbox ${confirmedSaved ? "checked" : ""}`}>
                         {confirmedSaved && <Check size={12} color="#000" />}
                       </div>
-                      <div style={{ fontSize: 13, color: "#a3a3a3", lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 14, color: "#a3a3a3", lineHeight: 1.5 }}>
                         I have written down my recovery phrase and stored it in a safe place. I understand I cannot recover it if lost.
                       </div>
                     </div>
@@ -624,11 +624,11 @@ const RecoveryPhraseModal = ({ userId, onClose }) => {
             {/* Done */}
             {step === "done" && (
               <div style={{ textAlign: "center", padding: "30px 0" }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#22c55e", marginBottom: 8 }}>
+                <div style={{ fontSize: 49, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: "#22c55e", marginBottom: 8 }}>
                   Recovery Phrase Saved!
                 </div>
-                <div style={{ fontSize: 13, color: "#555" }}>
+                <div style={{ fontSize: 14, color: "#555" }}>
                   Your account is now protected.
                 </div>
               </div>

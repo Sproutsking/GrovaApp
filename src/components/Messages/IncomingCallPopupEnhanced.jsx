@@ -59,7 +59,7 @@ const CallAvatar = ({ call, size = 148 }) => {
             onError={() => setFailed(true)}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           />
-        : <span style={{ fontSize: Math.round(size * 0.4), fontWeight: 900, color: "#84cc16" }}>{initial}</span>
+        : <span style={{ fontSize: (Math.round(size * 0.4)) + 1, fontWeight: 900, color: "#84cc16" }}>{initial}</span>
       }
     </div>
   );
@@ -248,8 +248,8 @@ const IncomingCallPopupEnhanced = memo(({ call, onAccept, onDecline, isFullScree
 
         {/* Badge */}
         <div style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 7, background: "rgba(132,204,22,.12)", border: "1px solid rgba(132,204,22,.22)", borderRadius: 999, padding: "7px 16px", boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)" }}>
-          <span style={{ fontSize: 13 }}>{isVideo ? "📹" : "📞"}</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#84cc16", textTransform: "uppercase", letterSpacing: ".7px" }}>
+          <span style={{ fontSize: 14 }}>{isVideo ? "📹" : "📞"}</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#84cc16", textTransform: "uppercase", letterSpacing: ".7px" }}>
             Incoming {isVideo ? "Video" : "Voice"} Call
           </span>
         </div>
@@ -280,15 +280,15 @@ const IncomingCallPopupEnhanced = memo(({ call, onAccept, onDecline, isFullScree
             background: isDone ? (isAccepted ? "#16a34a" : "#dc2626") : "#000",
             border: "2px solid rgba(132,204,22,.3)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: isDone ? 16 : 12, fontWeight: 800, color: isDone ? "#fff" : "#84cc16", zIndex: 2,
+            fontSize: isDone ? 17 : 13, fontWeight: 800, color: isDone ? "#fff" : "#84cc16", zIndex: 2,
           }}>
             {isDone ? (isAccepted ? "✓" : "✕") : timeLeft}
           </div>
         </div>
 
         {/* Name + status */}
-        <h2 style={{ fontSize: 30, fontWeight: 900, color: "#fff", margin: "0 0 5px", textAlign: "center", letterSpacing: "-.6px" }}>{callerName}</h2>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,.45)", margin: "0 0 48px", textAlign: "center" }}>{statusText}</p>
+        <h2 style={{ fontSize: 31, fontWeight: 900, color: "#fff", margin: "0 0 5px", textAlign: "center", letterSpacing: "-.6px" }}>{callerName}</h2>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,.45)", margin: "0 0 48px", textAlign: "center" }}>{statusText}</p>
 
         {/* Buttons — ringing only */}
         {phase === "ringing" && (
@@ -308,7 +308,7 @@ const IncomingCallPopupEnhanced = memo(({ call, onAccept, onDecline, isFullScree
                   <line x1="22" y1="2" x2="2" y2="22" stroke="#fff" strokeWidth="2.5"/>
                 </svg>
               </button>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Decline</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Decline</span>
             </div>
 
             {/* Accept */}
@@ -326,7 +326,7 @@ const IncomingCallPopupEnhanced = memo(({ call, onAccept, onDecline, isFullScree
                   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
                 </svg>
               </button>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Accept</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Accept</span>
             </div>
           </div>
         )}

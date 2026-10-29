@@ -610,7 +610,7 @@ const AnalyticsSection = ({ community }) => {
           display: flex;
           align-items: center;
           gap: 12px;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
         }
@@ -659,7 +659,7 @@ const AnalyticsSection = ({ community }) => {
           border: 2px solid rgba(42, 42, 42, 0.6);
           border-radius: 8px;
           color: #999;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -702,7 +702,7 @@ const AnalyticsSection = ({ community }) => {
 
         .loading-analytics p {
           color: #999;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
 
         .analytics-content {
@@ -727,7 +727,7 @@ const AnalyticsSection = ({ community }) => {
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           color: #9cff00;
           margin-bottom: 16px;
@@ -775,7 +775,7 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .metric-value {
-          font-size: 24px;
+          font-size: calc((24px) + 1px);
           font-weight: 800;
           color: #fff;
           line-height: 1;
@@ -783,7 +783,7 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .metric-label {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #999;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -794,7 +794,7 @@ const AnalyticsSection = ({ community }) => {
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 700;
         }
 
@@ -818,14 +818,14 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .stat-value {
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: 800;
           color: #fff;
           margin-bottom: 4px;
         }
 
         .stat-label {
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #999;
         }
 
@@ -863,7 +863,7 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .hour-label {
-          font-size: 9px;
+          font-size: calc((9px) + 1px);
           color: #666;
           position: absolute;
           bottom: -20px;
@@ -900,7 +900,7 @@ const AnalyticsSection = ({ community }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
           color: #000;
           flex-shrink: 0;
@@ -924,7 +924,7 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .member-name {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 600;
           color: #fff;
           margin-bottom: 4px;
@@ -933,7 +933,7 @@ const AnalyticsSection = ({ community }) => {
         .member-metrics {
           display: flex;
           gap: 12px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #999;
         }
 
@@ -973,7 +973,7 @@ const AnalyticsSection = ({ community }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
           color: #000;
           flex-shrink: 0;
@@ -985,7 +985,7 @@ const AnalyticsSection = ({ community }) => {
         }
 
         .channel-name {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 700;
           color: #fff;
           margin-bottom: 6px;
@@ -1005,7 +1005,7 @@ const AnalyticsSection = ({ community }) => {
           background: rgba(156, 255, 0, 0.1);
           border: 1px solid rgba(156, 255, 0, 0.2);
           border-radius: 6px;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #9cff00;
         }
 

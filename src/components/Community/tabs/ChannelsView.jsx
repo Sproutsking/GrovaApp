@@ -270,7 +270,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         }
 
         .cv-title h2 {
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           font-weight: 800;
           color: var(--text);
           margin: 0;
@@ -281,7 +281,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         }
 
         .cv-member-count {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: rgba(156, 255, 0, 0.6);
           margin: 2px 0 0 0;
           font-weight: 600;
@@ -309,7 +309,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         .cv-category-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 8px 5px; border: 0; background: transparent; color: rgba(190, 239, 174, .82); cursor: pointer; font: 800 10px inherit; letter-spacing: .12em; text-transform: uppercase; }
         .cv-category-label, .cv-category-meta { display: flex; align-items: center; gap: 6px; }
         .cv-category-label svg { color: rgba(156, 255, 0, .78); }
-        .cv-category-meta { color: rgba(255, 255, 255, .38); font-size: 10px; letter-spacing: 0; }
+        .cv-category-meta { color: rgba(255, 255, 255, .38); font-size: calc((10px) + 1px); letter-spacing: 0; }
         .cv-category-meta svg { transition: transform .2s ease; }
         .cv-category-meta svg.collapsed { transform: rotate(-90deg); }
         .cv-skel-item {
@@ -380,7 +380,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         }
 
         .cv-channel-name {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 800;
           color: rgba(255, 255, 255, 0.95);
           display: block;
@@ -409,11 +409,11 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
 
         .cv-empty p {
           margin: 4px 0;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         .cv-empty-hint {
-          font-size: 11px !important;
+          font-size: calc((11px) + 1px) !important;
           color: rgba(156, 255, 0, 0.4) !important;
           margin-top: 6px !important;
         }
@@ -465,7 +465,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           justify-content: space-between;
           padding: 5px 5px 10px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 800;
         }
 
@@ -489,7 +489,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           background: transparent;
           color: #bbb;
           font-family: inherit;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           text-align: left;

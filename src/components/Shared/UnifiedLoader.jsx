@@ -79,31 +79,31 @@ const UnifiedLoader = ({
   const config = {
     'app-init': {
       scale: 1.5,
-      fontSize: '18px',
+      fontSize: "calc((18px) + 1px)",
       padding: '60px',
       showLogo: true,
       fullScreen: true
     },
     'profile': {
-      fontSize: '16px',
+      fontSize: "calc((16px) + 1px)",
       padding: '60px',
       showLogo: false,
       fullScreen: false
     },
     'section': {
-      fontSize: '15px',
+      fontSize: "calc((15px) + 1px)",
       padding: '60px',
       showLogo: false,
       fullScreen: false
     },
     'inline': {
-      fontSize: '14px',
+      fontSize: "calc((14px) + 1px)",
       padding: '0',
       showLogo: false,
       fullScreen: false
     },
     'default': {
-      fontSize: '16px',
+      fontSize: "calc((16px) + 1px)",
       padding: '40px',
       showLogo: false,
       fullScreen: false
@@ -235,7 +235,7 @@ const UnifiedLoader = ({
         .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3s ease-in-out infinite;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),rgba(255,255,255,0) 50%),linear-gradient(170deg,rgba(255,255,255,0) 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
         .liquid-sheen::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:50%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);transform:translateX(-140%) skewX(-12deg);animation:liquidGlint 3s ease-in-out infinite;}
         .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:multiply;will-change:transform;animation:liquidLogo 3s ease-in-out infinite;}
-        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc(var(--liquid-k)*18px);line-height:1.2;animation:liquidFade 2.8s ease-in-out infinite;}
+        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc((calc(var(--liquid-k)*18px)) + 1px);line-height:1.2;animation:liquidFade 2.8s ease-in-out infinite;}
         .liquid-word span{color:#d4af37;}
         @keyframes liquidOrbit{0%{transform:rotate(0) translateX(calc(var(--liquid-k)*70px))}50%{transform:rotate(360deg) translateX(0)}100%{transform:rotate(720deg) translateX(calc(var(--liquid-k)*70px))}}
         @keyframes liquidCore{0%,100%{transform:scale(1)}50%{transform:scale(1.5);border-radius:30%}}
@@ -252,7 +252,7 @@ const UnifiedLoader = ({
         @media(prefers-reduced-motion:reduce){.liquid-core,.liquid-dot,.liquid-sheen,.liquid-sheen::after,.liquid-logo,.liquid-word,.boxed-dots-loader span{animation-duration:9s!important}}
 
         .loader-logo {
-          font-size: 72px;
+          font-size: calc((72px) + 1px);
           font-weight: 900;
           letter-spacing: 0.05em;
           background: var(--accent-gradient);
@@ -309,13 +309,13 @@ const UnifiedLoader = ({
 
         .error-title {
           color: #ef4444;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
         }
 
         .error-message {
           color: #a3a3a3;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.5;
         }
 
@@ -347,13 +347,13 @@ const UnifiedLoader = ({
 
         .offline-title {
           color: #ef4444;
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
         }
 
         .offline-message {
           color: #a3a3a3;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
           line-height: 1.5;
         }
 
@@ -364,7 +364,7 @@ const UnifiedLoader = ({
           border: none;
           border-radius: 12px;
           color: #000;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 700;
           cursor: pointer;
           display: flex;

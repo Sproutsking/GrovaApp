@@ -92,7 +92,7 @@ from { opacity: 0; transform: translateY(10px); }
   box-shadow: 0 0 14px rgba(163,230,53,0.25);
 }
 :is(.wv-shell, .wallet-shell) .view-title {
-  font-size: 20px;
+  font-size: calc((20px) + 1px);
   font-weight: 800;
   color: var(--text);
   line-height: 1.15;
@@ -100,7 +100,7 @@ from { opacity: 0; transform: translateY(10px); }
   letter-spacing: 0;
 }
 :is(.wv-shell, .wallet-shell) .view-subtitle {
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: var(--t3);
   margin-top: 2px;
   font-family: var(--font-mono);
@@ -122,7 +122,7 @@ from { opacity: 0; transform: translateY(10px); }
 @media (max-width: 767px) {
   .view-header { min-height: 68px; margin: 10px 12px 16px; padding: 12px; gap: 12px; }
   .view-header::before { top: 12px; bottom: 12px; }
-  :is(.wv-shell, .wallet-shell) .view-title { font-size: 18px; }
+  :is(.wv-shell, .wallet-shell) .view-title { font-size: calc((18px) + 1px); }
 }
 :is(.wv-shell, .wallet-shell) .back-btn:hover {
   background: rgba(163,230,53,0.1);
@@ -140,7 +140,7 @@ from { opacity: 0; transform: translateY(10px); }
 :is(.wv-shell, .wallet-shell) .field-group { margin-bottom: 16px; }
 :is(.wv-shell, .wallet-shell) .field-label {
   display: block;
-  font-size: 10.5px;
+  font-size: calc((10.5px) + 1px);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -155,7 +155,7 @@ from { opacity: 0; transform: translateY(10px); }
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-xs);
   color: var(--text);
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-family: var(--font-body);
   outline: none;
   transition: border-color 0.18s, box-shadow 0.18s;
@@ -168,7 +168,7 @@ from { opacity: 0; transform: translateY(10px); }
   background: rgba(163,230,53,0.03);
 }
 :is(.wv-shell, .wallet-shell) .field-hint {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: var(--t3);
   margin-top: 6px;
   font-family: var(--font-mono);
@@ -190,7 +190,7 @@ from { opacity: 0; transform: translateY(10px); }
   background: transparent;
   border: none;
   outline: none;
-  font-size: 32px;
+  font-size: calc((32px) + 1px);
   font-weight: 700;
   color: var(--text);
   font-family: var(--font-mono);
@@ -204,13 +204,13 @@ from { opacity: 0; transform: translateY(10px); }
   margin-top: 4px;
 }
 :is(.wv-shell, .wallet-shell) .amount-ticker {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
 }
 :is(.wv-shell, .wallet-shell) .amount-fiat-display {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: var(--t3);
   font-family: var(--font-mono);
 }
@@ -223,7 +223,7 @@ from { opacity: 0; transform: translateY(10px); }
   border: none;
   border-radius: var(--radius-xs);
   color: var(--accent-contrast);
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 800;
   cursor: pointer;
   font-family: var(--font-body);
@@ -254,7 +254,7 @@ from { opacity: 0; transform: translateY(10px); }
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-xs);
   color: rgba(255,255,255,0.45);
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   cursor: pointer;
   font-family: var(--font-body);
@@ -278,7 +278,7 @@ from { opacity: 0; transform: translateY(10px); }
   padding: 14px 16px;
 }
 :is(.wv-shell, .wallet-shell) .summary-card-title {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -291,7 +291,7 @@ from { opacity: 0; transform: translateY(10px); }
   justify-content: space-between;
   align-items: center;
   padding: 7px 0;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   color: var(--t2);
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
@@ -309,7 +309,7 @@ from { opacity: 0; transform: translateY(10px); }
   border: 1px solid rgba(248,113,113,0.16);
   border-radius: var(--radius-xs);
   margin: 0 20px 14px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: var(--danger);
   font-weight: 500;
   line-height: 1.5;
@@ -324,11 +324,11 @@ from { opacity: 0; transform: translateY(10px); }
   border: 1px solid rgba(34,211,238,0.15);
   border-radius: var(--radius-xs);
   margin: 0 20px 14px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   line-height: 1.6;
 }
 :is(.wv-shell, .wallet-shell) .info-box svg { flex-shrink: 0; margin-top: 1px; color: var(--ep); }
-:is(.wv-shell, .wallet-shell) .info-box h4 { font-size: 13px; font-weight: 700; color: var(--ep); margin: 0 0 3px; }
+:is(.wv-shell, .wallet-shell) .info-box h4 { font-size: calc((13px) + 1px); font-weight: 700; color: var(--ep); margin: 0 0 3px; }
 :is(.wv-shell, .wallet-shell) .info-box p { margin: 0; color: var(--t2); }
 /* ── ADDRESS CARD ── */
 .address-card {
@@ -339,7 +339,7 @@ from { opacity: 0; transform: translateY(10px); }
   padding: 14px 16px;
 }
 :is(.wv-shell, .wallet-shell) .address-label-sm {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -354,7 +354,7 @@ from { opacity: 0; transform: translateY(10px); }
 }
 :is(.wv-shell, .wallet-shell) .address-text {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: calc((12.5px) + 1px);
   color: rgba(255,255,255,0.65);
   word-break: break-all;
   line-height: 1.6;
@@ -402,7 +402,7 @@ from { opacity: 0; transform: translateY(10px); }
   box-shadow: 0 4px 20px var(--shadow);
 }
 :is(.wv-shell, .wallet-shell) .qr-label {
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: var(--t3);
   font-family: var(--font-mono);
 }
@@ -414,7 +414,7 @@ from { opacity: 0; transform: translateY(10px); }
   gap: 2px;
 }
 :is(.wv-shell, .wallet-shell) .settings-group-title {
-  font-size: 9.5px;
+  font-size: calc((9.5px) + 1px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -460,14 +460,14 @@ from { opacity: 0; transform: translateY(10px); }
 }
 :is(.wv-shell, .wallet-shell) .settings-item-info { flex: 1; min-width: 0; }
 :is(.wv-shell, .wallet-shell) .settings-item-title {
-  font-size: 13.5px;
+  font-size: calc((13.5px) + 1px);
   font-weight: 600;
   color: var(--t2);
   transition: color 0.18s;
 }
 :is(.wv-shell, .wallet-shell) .settings-item:hover .settings-item-title { color: var(--text); }
 :is(.wv-shell, .wallet-shell) .settings-item-sub {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: var(--t3);
   margin-top: 2px;
 }
@@ -490,7 +490,7 @@ from { opacity: 0; transform: translateY(10px); }
   border-color: rgba(163,230,53,0.35);
 }
 :is(.wv-shell, .wallet-shell) .swap-box-label {
-  font-size: 10px;
+  font-size: calc((10px) + 1px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -508,7 +508,7 @@ from { opacity: 0; transform: translateY(10px); }
   background: transparent;
   border: none;
   outline: none;
-  font-size: 28px;
+  font-size: calc((28px) + 1px);
   font-weight: 700;
   color: var(--text);
   font-family: var(--font-mono);
@@ -521,7 +521,7 @@ from { opacity: 0; transform: translateY(10px); }
   gap: 6px;
   padding: 6px 13px;
   border-radius: 100px;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 700;
   font-family: var(--font-mono);
   flex-shrink: 0;
@@ -563,7 +563,7 @@ from { opacity: 0; transform: translateY(10px); }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: var(--t3);
   font-family: var(--font-mono);
   padding: 10px 14px;
@@ -591,7 +591,7 @@ from { opacity: 0; transform: translateY(10px); }
   background: linear-gradient(90deg, transparent, rgba(163,230,53,0.6), transparent);
 }
 :is(.wv-shell, .wallet-shell) .balance-total {
-  font-size: 42px;
+  font-size: calc((42px) + 1px);
   font-weight: 800;
   color: var(--text);
   font-family: var(--font-mono);
@@ -600,14 +600,14 @@ from { opacity: 0; transform: translateY(10px); }
   margin-bottom: 4px;
 }
 :is(.wv-shell, .wallet-shell) .balance-token {
-  font-size: 16px;
+  font-size: calc((16px) + 1px);
   font-weight: 700;
   color: var(--lime);
   font-family: var(--font-mono);
   margin-bottom: 8px;
 }
 :is(.wv-shell, .wallet-shell) .balance-fiat {
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   color: var(--t3);
   font-family: var(--font-mono);
 }
@@ -638,7 +638,7 @@ from { opacity: 0; transform: translateY(10px); }
   background: var(--danger-bg);
   border: 1px solid rgba(239,68,68,0.3);
   border-radius: 100px;
-  font-size: 9.5px;
+  font-size: calc((9.5px) + 1px);
   font-weight: 800;
   color: var(--danger);
   font-family: var(--font-mono);

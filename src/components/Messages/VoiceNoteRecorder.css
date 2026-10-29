@@ -120,7 +120,7 @@
 }
 
 .vnr-time {
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #ef4444;
   min-width: 40px;
@@ -141,7 +141,7 @@
 }
 
 .vnr-duration {
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
   font-weight: 600;
   color: #84cc16;
   padding: 0 8px;
@@ -191,12 +191,12 @@
   }
 
   .vnr-time {
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
     min-width: 35px;
   }
 
   .vnr-duration {
-    font-size: 12px;
+    font-size: calc((12px) + 1px);
     padding: 0 6px;
   }
 }

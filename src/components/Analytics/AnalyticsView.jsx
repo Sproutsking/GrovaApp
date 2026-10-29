@@ -56,7 +56,7 @@ const NeuralBg = () => {
 
 const BlockHash = ({ value }) => {
   const h = `0x${((Number(value)||0) * 7919 + 13).toString(16).padStart(8,"0").slice(0,8)}`;
-  return <span style={{ fontFamily:"monospace", fontSize:9, color:"#1a3a08", letterSpacing:"0.4px" }}>{h}</span>;
+  return <span style={{ fontFamily:"monospace", fontSize:10, color:"#1a3a08", letterSpacing:"0.4px" }}>{h}</span>;
 };
 
 const MetricNode = ({ label, raw, color, icon, size="md", delay=0 }) => {
@@ -144,8 +144,8 @@ const EngagementRing = ({ rate }) => {
         </defs>
       </svg>
       <div style={{ position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center" }}>
-        <span style={{ fontSize:18,fontWeight:900,color:"#84cc16",lineHeight:1 }}>{display}%</span>
-        <span style={{ fontSize:8,color:"#333",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",marginTop:2 }}>Eng Rate</span>
+        <span style={{ fontSize:19,fontWeight:900,color:"#84cc16",lineHeight:1 }}>{display}%</span>
+        <span style={{ fontSize:9,color:"#333",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",marginTop:2 }}>Eng Rate</span>
       </div>
     </div>
   );
@@ -353,22 +353,22 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
           background-size:44px 44px;
         }
         .av-topbar { position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:10px; padding:10px 14px 9px; background:rgba(3,3,3,0.97); backdrop-filter:blur(24px); border-bottom:1px solid rgba(132,204,22,0.1); }
-        .av-back   { width:32px; height:32px; border-radius:9px; flex-shrink:0; background:rgba(132,204,22,0.06); border:1px solid rgba(132,204,22,0.14); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#84cc16; font-size:16px; font-weight:700; transition:all .15s; }
+        .av-back   { width:32px; height:32px; border-radius:9px; flex-shrink:0; background:rgba(132,204,22,0.06); border:1px solid rgba(132,204,22,0.14); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#84cc16; font-size:calc((16px) + 1px); font-weight:700; transition:all .15s; }
         .av-back:hover { background:rgba(132,204,22,0.12); }
-        .av-title  { font-size:15px; font-weight:900; color:#fff; }
-        .av-sub    { font-size:9px; color:#202020; font-weight:600; font-family:monospace; margin-top:1px; }
+        .av-title  { font-size:calc((15px) + 1px); font-weight:900; color:#fff; }
+        .av-sub    { font-size:calc((9px) + 1px); color:#202020; font-weight:600; font-family:monospace; margin-top:1px; }
         .av-live   { display:flex; align-items:center; gap:4px; padding:3px 8px; border-radius:7px; background:rgba(132,204,22,0.07); border:1px solid rgba(132,204,22,0.16); }
         .av-live-d { width:5px; height:5px; border-radius:50%; background:#84cc16; animation:avPulse 1.6s ease-in-out infinite; }
-        .av-live-t { font-size:9px; color:#84cc16; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; }
+        .av-live-t { font-size:calc((9px) + 1px); color:#84cc16; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; }
         .av-range { display:flex; gap:5px; padding:0 14px 9px; }
-        .av-rng   { flex:1; padding:7px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.02); color:#2a2a2a; font-size:11px; font-weight:800; cursor:pointer; transition:all .15s; }
+        .av-rng   { flex:1; padding:7px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.02); color:#2a2a2a; font-size:calc((11px) + 1px); font-weight:800; cursor:pointer; transition:all .15s; }
         .av-rng.active { background:rgba(132,204,22,0.1); border-color:rgba(132,204,22,0.26); color:#84cc16; }
         .av-tabs { display:flex; gap:4px; padding:0 14px 10px; overflow-x:auto; scrollbar-width:none; }
         .av-tabs::-webkit-scrollbar { display:none; }
-        .av-tab   { flex:1; padding:7px 6px; border-radius:8px; border:1px solid transparent; background:transparent; color:#222; font-size:10px; font-weight:800; cursor:pointer; transition:all .15s; white-space:nowrap; text-transform:uppercase; letter-spacing:0.4px; }
+        .av-tab   { flex:1; padding:7px 6px; border-radius:8px; border:1px solid transparent; background:transparent; color:#222; font-size:calc((10px) + 1px); font-weight:800; cursor:pointer; transition:all .15s; white-space:nowrap; text-transform:uppercase; letter-spacing:0.4px; }
         .av-tab.active { background:rgba(132,204,22,0.1); border-color:rgba(132,204,22,0.2); color:#84cc16; }
         .av-body { padding:0 13px 100px; position:relative; z-index:1; }
-        .av-sec { font-size:9px; font-weight:800; color:#1e1e1e; text-transform:uppercase; letter-spacing:1.2px; margin:18px 0 9px; display:flex; align-items:center; gap:8px; }
+        .av-sec { font-size:calc((9px) + 1px); font-weight:800; color:#1e1e1e; text-transform:uppercase; letter-spacing:1.2px; margin:18px 0 9px; display:flex; align-items:center; gap:8px; }
         .av-sec::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(132,204,22,0.2),transparent); }
         .av-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
         .av-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
@@ -376,46 +376,46 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
         .av-node:hover { border-color:color-mix(in srgb,var(--c) 28%,transparent); transform:translateY(-2px); }
         .av-node-glow  { position:absolute; inset:0; pointer-events:none; }
         .av-node-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-        .av-node-icon  { font-size:13px; }
+        .av-node-icon  { font-size:calc((13px) + 1px); }
         .av-node-dot   { width:5px; height:5px; border-radius:50%; animation:avPulse 2s ease-in-out infinite; }
         .av-node-val   { font-weight:900; line-height:1; margin-bottom:3px; }
-        .av-node-lbl   { font-size:9px; color:#353535; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .av-node-lbl   { font-size:calc((9px) + 1px); color:#353535; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
         .av-eng { background:rgba(132,204,22,0.03); border:1px solid rgba(132,204,22,0.12); border-radius:14px; padding:14px; display:flex; align-items:center; gap:14px; position:relative; overflow:hidden; }
-        .av-eng-info h3 { font-size:13px; font-weight:900; color:#fff; margin:0 0 4px; }
-        .av-eng-info p  { font-size:10.5px; color:#3a3a3a; margin:0; line-height:1.6; }
+        .av-eng-info h3 { font-size:calc((13px) + 1px); font-weight:900; color:#fff; margin:0 0 4px; }
+        .av-eng-info p  { font-size:calc((10.5px) + 1px); color:#3a3a3a; margin:0; line-height:1.6; }
         .av-eng-info strong { color:#84cc16; }
         .av-chart { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:13px; position:relative; overflow:hidden; }
         .av-chart-bar   { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#84cc16,#22d3ee,#f472b6,#84cc16); background-size:200% 100%; animation:avBar 4s linear infinite; }
         .av-chart-head  { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-        .av-chart-title { font-size:11px; font-weight:800; color:#666; }
+        .av-chart-title { font-size:calc((11px) + 1px); font-weight:800; color:#666; }
         .av-chart-lbls  { display:flex; justify-content:space-between; margin-top:4px; }
-        .av-chart-lbl   { font-size:8px; color:#222; font-weight:600; }
+        .av-chart-lbl   { font-size:calc((8px) + 1px); color:#222; font-weight:600; }
         .av-type-rows { display:flex; flex-direction:column; gap:7px; }
         .av-type-row  { display:flex; align-items:center; gap:9px; }
-        .av-type-lbl  { font-size:10px; font-weight:700; color:#4a4a4a; width:44px; text-align:right; flex-shrink:0; }
+        .av-type-lbl  { font-size:calc((10px) + 1px); font-weight:700; color:#4a4a4a; width:44px; text-align:right; flex-shrink:0; }
         .av-type-track { flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:2.5px; overflow:hidden; }
         .av-type-fill  { height:100%; border-radius:2.5px; transition:width 1.2s cubic-bezier(0.34,1,0.64,1); }
-        .av-type-count { font-size:10px; font-weight:800; color:#555; width:30px; flex-shrink:0; }
+        .av-type-count { font-size:calc((10px) + 1px); font-weight:800; color:#555; width:30px; flex-shrink:0; }
         .av-chain-panel { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:13px; display:flex; flex-direction:column; gap:5px; }
-        .av-chain-head  { font-size:9px; color:#1a3a08; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px; font-family:monospace; }
+        .av-chain-head  { font-size:calc((9px) + 1px); color:#1a3a08; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px; font-family:monospace; }
         .av-chain-row   { display:flex; align-items:center; gap:7px; padding:6px 9px; border-radius:7px; background:rgba(255,255,255,0.012); border:1px solid rgba(255,255,255,0.04); animation:avChain .3s ease both; transition:background .15s; }
         .av-chain-row:hover { background:rgba(255,255,255,0.025); }
-        .av-chain-idx  { font-family:monospace; font-size:9px; color:#222; width:22px; flex-shrink:0; }
-        .av-chain-lbl  { font-size:11px; font-weight:700; color:#505050; flex:1; }
+        .av-chain-idx  { font-family:monospace; font-size:calc((9px) + 1px); color:#222; width:22px; flex-shrink:0; }
+        .av-chain-lbl  { font-size:calc((11px) + 1px); font-weight:700; color:#505050; flex:1; }
         .av-chain-track { width:50px; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; flex-shrink:0; }
         .av-chain-fill  { height:100%; border-radius:2px; transition:width 1s cubic-bezier(0.34,1,0.64,1); }
-        .av-chain-val  { font-size:12px; font-weight:900; color:#fff; width:38px; text-align:right; flex-shrink:0; }
+        .av-chain-val  { font-size:calc((12px) + 1px); font-weight:900; color:#fff; width:38px; text-align:right; flex-shrink:0; }
         .av-sum-row  { display:flex; gap:7px; }
         .av-sum-chip { flex:1; padding:10px 7px; border-radius:11px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); text-align:center; }
-        .av-sum-val  { font-size:16px; font-weight:900; color:#fff; display:block; }
-        .av-sum-lbl  { font-size:9px; color:#303030; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-top:2px; }
+        .av-sum-val  { font-size:calc((16px) + 1px); font-weight:900; color:#fff; display:block; }
+        .av-sum-lbl  { font-size:calc((9px) + 1px); color:#303030; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-top:2px; }
         .av-ep-periods { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:9px; }
         .av-ep-chip    { padding:10px 12px; border-radius:11px; background:color-mix(in srgb,var(--c) 6%,transparent); border:1px solid color-mix(in srgb,var(--c) 16%,transparent); }
-        .av-ep-chip-val { display:block; font-size:18px; font-weight:900; line-height:1; }
-        .av-ep-chip-lbl { display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#404040; margin-top:2px; }
+        .av-ep-chip-val { display:block; font-size:calc((18px) + 1px); font-weight:900; line-height:1; }
+        .av-ep-chip-lbl { display:block; font-size:calc((9px) + 1px); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#404040; margin-top:2px; }
         .av-w-gt { background:linear-gradient(135deg,rgba(251,191,36,0.05),rgba(251,191,36,0.015)); border:1px solid rgba(251,191,36,0.13); border-radius:14px; padding:14px; }
         .av-w-ep { background:linear-gradient(135deg,rgba(132,204,22,0.05),rgba(132,204,22,0.015)); border:1px solid rgba(132,204,22,0.13); border-radius:14px; padding:14px; margin-top:9px; }
-        .av-w-lbl { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:9px; display:flex; align-items:center; gap:5px; }
+        .av-w-lbl { font-size:calc((10px) + 1px); font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:9px; display:flex; align-items:center; gap:5px; }
         .av-spinner { width:20px; height:20px; border:2px solid rgba(132,204,22,0.12); border-top-color:#84cc16; border-radius:50%; animation:avSpin .7s linear infinite; margin:56px auto; }
       `}</style>
 
@@ -472,7 +472,7 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
                   <div className="av-chart-bar"/>
                   <div className="av-chart-head">
                     <span className="av-chart-title">Views · {range}</span>
-                    <span style={{ fontSize:17, fontWeight:900, color:"#84cc16" }}>{fmt(d.totalViews)}</span>
+                    <span style={{ fontSize:18, fontWeight:900, color:"#84cc16" }}>{fmt(d.totalViews)}</span>
                   </div>
                   <AreaChart points={d.chartPoints} color="#84cc16" height={64}/>
                   <div className="av-chart-lbls">

@@ -186,13 +186,13 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
             }}><Zap size={17} /></div>
             <div style={{ display:"flex", alignItems:"center", gap:3 }}>
               <div style={{ width:4, height:4, borderRadius:"50%", background:"#84cc16", animation:"livePulse 1.8s ease-in-out infinite" }} />
-              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, color:"rgba(132,204,22,0.45)", letterSpacing:"0.14em" }}>LIVE</span>
+              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, color:"rgba(132,204,22,0.45)", letterSpacing:"0.14em" }}>LIVE</span>
             </div>
           </div>
 
           {/* CENTER — balance */}
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.26em", color:"rgba(132,204,22,0.45)", textTransform:"uppercase", marginBottom:4 }}>
+            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, letterSpacing:"0.26em", color:"rgba(132,204,22,0.45)", textTransform:"uppercase", marginBottom:4 }}>
               Engagement Points
             </div>
 
@@ -201,12 +201,12 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
               {loading ? (
                 <div style={{ height:36, width:130, borderRadius:5, background:"linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%)", backgroundSize:"200% 100%", animation:"skelShim 1.4s infinite" }} />
               ) : (
-                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:38, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.16)" }}>
+                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:39, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.16)" }}>
                   {hideBalance ? "••••••" : epDisplay}
                 </span>
               )}
               <span style={{
-                fontFamily:"JetBrains Mono,monospace", fontSize:9,
+                fontFamily:"JetBrains Mono,monospace", fontSize:10,
                 color:"rgba(163,230,53,0.9)", letterSpacing:"0.1em",
                 padding:"3px 7px", borderRadius:4,
                 border:"1px solid rgba(163,230,53,0.22)",
@@ -214,7 +214,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
                 marginBottom:5, flexShrink:0,
               }}>EP</span>
             </div>
-            <span style={{ fontFamily:"JetBrains Mono,monospace",fontSize:9,color:"rgba(255,255,255,.27)" }}>Internal Xeevia balance</span>
+            <span style={{ fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.27)" }}>Internal Xeevia balance</span>
           </div>
 
           {/* RIGHT — visibility control */}
@@ -262,9 +262,9 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 function StatCol({ label, value, color, sub }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"0 4px" }}>
-      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, letterSpacing:"0.17em", textTransform:"uppercase", color:"rgba(255,255,255,0.18)" }}>{label}</span>
-      <span style={{ fontFamily:"Bebas Neue,sans-serif",   fontSize:17, lineHeight:1, letterSpacing:"0.04em", color }}>{value}</span>
-      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, color:"rgba(255,255,255,0.17)" }}>{sub}</span>
+      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.17em", textTransform:"uppercase", color:"rgba(255,255,255,0.18)" }}>{label}</span>
+      <span style={{ fontFamily:"Bebas Neue,sans-serif",   fontSize:18, lineHeight:1, letterSpacing:"0.04em", color }}>{value}</span>
+      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, color:"rgba(255,255,255,0.17)" }}>{sub}</span>
     </div>
   );
 }

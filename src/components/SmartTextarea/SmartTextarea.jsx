@@ -581,10 +581,10 @@ export default function SmartTextarea({
                   <span className="wip-eng-num" style={{color:engColor(engScore)}}>{engScore}</span>
                 </div>
                 <div className="wip-eng-info">
-                  <div style={{fontSize:12,fontWeight:600,color:engColor(engScore)}}>
+                  <div style={{fontSize:13,fontWeight:600,color:engColor(engScore)}}>
                     {engScore>=75?"High Engagement":engScore>=50?"Good Engagement":engScore>=25?"Low Engagement":"Needs Work"}
                   </div>
-                  <div style={{fontSize:"9.5px",color:"rgba(255,255,255,0.35)"}}>
+                  <div style={{fontSize:"calc((9.5px) + 1px)",color:"rgba(255,255,255,0.35)"}}>
                     Hook {intelligence.engagement.breakdown.hook}/30 · CTA {intelligence.engagement.breakdown.cta}/20 · Format {intelligence.engagement.breakdown.format}/10
                   </div>
                 </div>
@@ -638,8 +638,8 @@ export default function SmartTextarea({
             <div className="wip-read-row">
               <div className="wip-read-score" style={{color:readColor(intelligence.readability.score)}}>{intelligence.readability.score}</div>
               <div className="wip-read-info">
-                <span style={{fontSize:12,fontWeight:600,color:readColor(intelligence.readability.score)}}>{intelligence.readability.level}</span>
-                <span style={{fontSize:"10px",color:"rgba(255,255,255,0.35)"}}> · {wordCount}w · ~{Math.ceil(intelligence.readTimeSeconds/60)||1}m read</span>
+                <span style={{fontSize:13,fontWeight:600,color:readColor(intelligence.readability.score)}}>{intelligence.readability.level}</span>
+                <span style={{fontSize:"calc((10px) + 1px)",color:"rgba(255,255,255,0.35)"}}> · {wordCount}w · ~{Math.ceil(intelligence.readTimeSeconds/60)||1}m read</span>
               </div>
             </div>
             {/* Tip */}

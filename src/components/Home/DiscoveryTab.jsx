@@ -477,17 +477,17 @@ const DT_CSS = `
   color:#000;flex-shrink:0;box-shadow:0 4px 16px rgba(132,204,22,0.28);
 }
 .dt-header-title{
-  font-size:16px;font-weight:800;color:rgba(255,255,255,0.9);
+  font-size:calc((16px) + 1px);font-weight:800;color:rgba(255,255,255,0.9);
   display:flex;align-items:center;gap:8px;
 }
 .dt-mood-hint{
-  font-size:10px;font-weight:700;
+  font-size:calc((10px) + 1px);font-weight:700;
   background:rgba(255,255,255,0.06);
   border:1px solid rgba(255,255,255,0.1);
   padding:2px 8px;border-radius:10px;
   color:rgba(255,255,255,0.45);
 }
-.dt-header-sub{font-size:11px;color:rgba(255,255,255,0.32);margin-top:2px;}
+.dt-header-sub{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.32);margin-top:2px;}
 
 .dt-refresh{
   width:32px;height:32px;border-radius:8px;
@@ -514,13 +514,13 @@ const DT_CSS = `
 .dt-cats::-webkit-scrollbar{display:none;}
 .dt-cat{
   display:inline-flex;align-items:center;gap:5px;padding:6px 12px;
-  border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;
+  border-radius:20px;font-size:calc((11.5px) + 1px);font-weight:700;white-space:nowrap;
   cursor:pointer;background:rgba(255,255,255,0.04);
   border:1px solid rgba(255,255,255,0.07);
   color:rgba(255,255,255,0.45);transition:all .18s;
   font-family:inherit;flex-shrink:0;
 }
-.dt-cat-emoji{font-size:13px;line-height:1;}
+.dt-cat-emoji{font-size:calc((13px) + 1px);line-height:1;}
 .dt-cat:hover{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);}
 .dt-cat--active{background:rgba(132,204,22,0.12);border-color:rgba(132,204,22,0.38);color:#a3e635;}
 
@@ -545,20 +545,20 @@ const DT_CSS = `
 
 .dt-error{
   padding:48px 20px;text-align:center;
-  color:rgba(255,255,255,0.35);font-size:14px;
+  color:rgba(255,255,255,0.35);font-size:calc((14px) + 1px);
   display:flex;flex-direction:column;align-items:center;gap:8px;
 }
 .dt-retry{
   margin-top:8px;padding:8px 22px;border-radius:20px;
   background:rgba(132,204,22,0.12);border:1px solid rgba(132,204,22,0.3);
-  color:#84cc16;font-size:13px;font-weight:700;
+  color:#84cc16;font-size:calc((13px) + 1px);font-weight:700;
   cursor:pointer;font-family:inherit;transition:background .15s;
 }
 .dt-retry:hover{background:rgba(132,204,22,0.2);}
 
 .dt-loading-more{
   display:flex;align-items:center;justify-content:center;gap:8px;
-  padding:20px;color:rgba(255,255,255,0.3);font-size:12px;
+  padding:20px;color:rgba(255,255,255,0.3);font-size:calc((12px) + 1px);
 }
 .dt-spin{
   width:16px;height:16px;border:2px solid rgba(255,255,255,0.08);
@@ -568,20 +568,20 @@ const DT_CSS = `
 .dt-end{
   display:flex;align-items:center;justify-content:center;gap:8px;
   padding:24px;color:rgba(255,255,255,0.2);
-  font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  font-size:calc((12px) + 1px);font-weight:600;letter-spacing:.05em;text-transform:uppercase;
 }
 
 .dt-saved-empty{
   padding:60px 20px;text-align:center;color:rgba(255,255,255,0.3);
   display:flex;flex-direction:column;align-items:center;gap:12px;
 }
-.dt-saved-empty p{font-size:15px;font-weight:700;color:rgba(255,255,255,0.5);margin:0;}
-.dt-saved-empty span{font-size:12px;color:rgba(255,255,255,0.22);max-width:260px;line-height:1.6;}
+.dt-saved-empty p{font-size:calc((15px) + 1px);font-weight:700;color:rgba(255,255,255,0.5);margin:0;}
+.dt-saved-empty span{font-size:calc((12px) + 1px);color:rgba(255,255,255,0.22);max-width:260px;line-height:1.6;}
 
 .dt-related-header{
   display:flex;align-items:center;gap:8px;
   padding:16px 0 12px;
-  color:rgba(255,255,255,0.5);font-size:12px;font-weight:700;
+  color:rgba(255,255,255,0.5);font-size:calc((12px) + 1px);font-weight:700;
   letter-spacing:.04em;text-transform:uppercase;
 }
 .dt-related-header svg{color:rgba(132,204,22,0.7);}

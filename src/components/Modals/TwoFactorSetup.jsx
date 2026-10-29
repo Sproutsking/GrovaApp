@@ -102,11 +102,11 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
                   )}
 
                   <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                    <p style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+                    <p style={{ fontSize: "calc((12px) + 1px)", color: '#999', marginBottom: '8px' }}>
                       Or enter this code manually:
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <code style={{ flex: 1, background: '#000', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>
+                      <code style={{ flex: 1, background: '#000', padding: '10px', borderRadius: '4px', fontSize: "calc((14px) + 1px)" }}>
                         {secret}
                       </code>
                       <button onClick={copySecret} className="btn-secondary" style={{ padding: '8px 12px' }}>
@@ -142,7 +142,7 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
                     style={{
                       width: '100%',
                       padding: '15px',
-                      fontSize: '24px',
+                      fontSize: "calc((24px) + 1px)",
                       textAlign: 'center',
                       letterSpacing: '10px',
                       marginBottom: '15px',
@@ -195,7 +195,7 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
                   <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
                       {backupCodes.map((code, index) => (
-                        <code key={index} style={{ background: '#000', padding: '8px', borderRadius: '4px', fontSize: '14px', textAlign: 'center' }}>
+                        <code key={index} style={{ background: '#000', padding: '8px', borderRadius: '4px', fontSize: "calc((14px) + 1px)", textAlign: 'center' }}>
                           {code}
                         </code>
                       ))}
@@ -207,7 +207,7 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
                   </div>
 
                   <div style={{ background: '#332200', border: '1px solid #665500', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                    <p style={{ fontSize: '14px', color: '#ffcc00', margin: 0 }}>
+                    <p style={{ fontSize: "calc((14px) + 1px)", color: '#ffcc00', margin: 0 }}>
                       ⚠️ Each backup code can only be used once. Keep them safe!
                     </p>
                   </div>
@@ -242,14 +242,14 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           font-weight: bold;
           color: #000;
         }
 
         .step-header h3 {
           margin: 0;
-          font-size: 20px;
+          font-size: calc((20px) + 1px);
           color: #fff;
         }
 
@@ -281,7 +281,7 @@ const TwoFactorSetup = ({ onClose, onSuccess }) => {
           padding: 12px;
           border-radius: 8px;
           text-align: center;
-          font-size: 14px;
+          font-size: calc((14px) + 1px);
         }
       `}</style>
     </div>

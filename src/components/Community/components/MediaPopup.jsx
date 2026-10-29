@@ -177,7 +177,7 @@ const MediaPopup = ({
           border: 1px solid transparent;
           border-radius: 8px;
           color: #666;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 800;
           letter-spacing: 0.5px;
           cursor: pointer;

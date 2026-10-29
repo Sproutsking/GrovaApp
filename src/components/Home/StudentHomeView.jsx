@@ -45,10 +45,10 @@ const StudentHomeView = (props) => {
         .student-home-section{padding:24px 18px 90px;color:var(--text);min-height:100%;background:linear-gradient(180deg,rgba(56,189,248,.06),transparent 280px)}
         .student-home-heading{display:flex;gap:14px;align-items:flex-start;max-width:720px;margin:0 auto 20px;padding:18px;border:1px solid rgba(56,189,248,.2);background:rgba(15,23,42,.5);border-radius:14px}
         .student-home-icon{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border-radius:12px;color:#7dd3fc;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.24)}
-        .student-home-kicker{display:flex;align-items:center;gap:5px;color:#7dd3fc;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-        .student-home-heading h2{margin:5px 0 4px;font-size:22px}.student-home-heading p{color:var(--text-secondary);font-size:13px;line-height:1.55}
-        .student-home-empty{max-width:720px;margin:auto;padding:28px 18px;text-align:center;color:var(--text-muted);font-size:13px;border-top:1px solid var(--surface-border)}
-        @media(max-width:768px){.student-home-section{padding:16px 10px 78px}.student-home-heading{padding:14px;gap:11px}.student-home-heading h2{font-size:19px}}
+        .student-home-kicker{display:flex;align-items:center;gap:5px;color:#7dd3fc;font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+        .student-home-heading h2{margin:5px 0 4px;font-size:calc((22px) + 1px)}.student-home-heading p{color:var(--text-secondary);font-size:calc((13px) + 1px);line-height:1.55}
+        .student-home-empty{max-width:720px;margin:auto;padding:28px 18px;text-align:center;color:var(--text-muted);font-size:calc((13px) + 1px);border-top:1px solid var(--surface-border)}
+        @media(max-width:768px){.student-home-section{padding:16px 10px 78px}.student-home-heading{padding:14px;gap:11px}.student-home-heading h2{font-size:calc((19px) + 1px)}}
       `}</style>
     </section>
   );

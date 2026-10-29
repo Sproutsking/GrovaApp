@@ -22,7 +22,7 @@
 
 .status-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: calc((16px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -39,7 +39,7 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 500;
 }
 
@@ -111,7 +111,7 @@
 }
 
 .platform-name {
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 600;
   color: #1a1a1a;
   flex: 1;
@@ -123,7 +123,7 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -164,7 +164,7 @@
 }
 
 .post-id-row .label {
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 500;
   color: #666;
   white-space: nowrap;
@@ -175,7 +175,7 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-family: "Monaco", "Courier New", monospace;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #333;
   word-break: break-all;
   flex: 1;
@@ -193,7 +193,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   flex-shrink: 0;
 }
 
@@ -210,7 +210,7 @@
 }
 
 .published-at {
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #999;
   margin-bottom: 8px;
 }
@@ -224,7 +224,7 @@
   color: #fff;
   text-decoration: none;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 500;
   transition: all 0.2s ease;
   border: none;
@@ -251,7 +251,7 @@
   background: rgba(255, 107, 107, 0.05);
   border-radius: 4px;
   color: #d32f2f;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   line-height: 1.4;
 }
 
@@ -270,7 +270,7 @@
   border: 1px solid #ff6b6b;
   color: #d32f2f;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -308,7 +308,7 @@
 
 .fallback-notice p {
   margin: 0;
-  font-size: 11px;
+  font-size: calc((11px) + 1px);
   color: #666;
   line-height: 1.4;
 }
@@ -322,7 +322,7 @@
 
 .pending-details p {
   margin: 0;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: #666;
   flex: 1;
 }
@@ -367,14 +367,14 @@
 
 .summary-text h4 {
   margin: 0 0 4px 0;
-  font-size: 14px;
+  font-size: calc((14px) + 1px);
   font-weight: 600;
   color: #55a630;
 }
 
 .summary-text p {
   margin: 0;
-  font-size: 12px;
+  font-size: calc((12px) + 1px);
   color: #666;
 }
 
@@ -386,7 +386,7 @@
   gap: 10px;
   padding: 20px;
   color: #999;
-  font-size: 13px;
+  font-size: calc((13px) + 1px);
 }
 
 .distribution-status.loading .spinner {

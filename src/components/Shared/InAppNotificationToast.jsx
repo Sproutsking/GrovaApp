@@ -321,7 +321,7 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: calc((16px) + 1px);
     font-weight: 800;
     color: #84cc16;
   }
@@ -337,7 +337,7 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 9px;
+    font-size: calc((9px) + 1px);
   }
 
   .iant-emoji-avatar {
@@ -349,7 +349,7 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: calc((18px) + 1px);
   }
 
   .iant-body {
@@ -358,7 +358,7 @@ const CSS = `
   }
 
   .iant-title {
-    font-size: 11px;
+    font-size: calc((11px) + 1px);
     font-weight: 800;
     color: #84cc16;
     text-transform: uppercase;
@@ -370,7 +370,7 @@ const CSS = `
   }
 
   .iant-msg {
-    font-size: 13px;
+    font-size: calc((13px) + 1px);
     color: #c4c4c4;
     line-height: 1.4;
     display: -webkit-box;
@@ -387,7 +387,7 @@ const CSS = `
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #555;
-    font-size: 14px;
+    font-size: calc((14px) + 1px);
     display: flex;
     align-items: center;
     justify-content: center;

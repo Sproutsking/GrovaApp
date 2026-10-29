@@ -322,7 +322,7 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
             {!notif.is_read && <span className="ni__new-pill">New</span>}
             {isPW && pwDef?.label && (
               <span style={{
-                padding: "1px 6px", borderRadius: 12, fontSize: 9, fontWeight: 700,
+                padding: "1px 6px", borderRadius: 12, fontSize: 10, fontWeight: 700,
                 background: `${pwDef.color}18`,
                 border: `1px solid ${pwDef.color}33`,
                 color: pwDef.color,
@@ -585,11 +585,11 @@ const CSS = `
   }
   .ns__head-left  { display:flex; align-items:center; gap:8px; }
   .ns__head-icon  { color:#84cc16; }
-  .ns__title      { font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.3px; }
+  .ns__title      { font-size:calc((16px) + 1px); font-weight:800; color:var(--text); letter-spacing:-.3px; }
   .ns__badge {
     padding:2px 8px;
     background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.35);
-    border-radius:20px; color:#84cc16; font-size:10.5px; font-weight:700;
+    border-radius:20px; color:#84cc16; font-size:calc((10.5px) + 1px); font-weight:700;
     animation:nsBadgePop .3s cubic-bezier(.34,1.56,.64,1);
   }
   @keyframes nsBadgePop { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
@@ -597,7 +597,7 @@ const CSS = `
   .ns__mark-btn {
     display:flex; align-items:center; gap:5px; padding:6px 11px;
     background:rgba(132,204,22,.08); border:1px solid rgba(132,204,22,.22);
-    border-radius:8px; color:#84cc16; font-size:11.5px; font-weight:600;
+    border-radius:8px; color:#84cc16; font-size:calc((11.5px) + 1px); font-weight:600;
     cursor:pointer; transition:all .15s; white-space:nowrap;
   }
   .ns__mark-btn:hover { background:rgba(132,204,22,.16); border-color:rgba(132,204,22,.4); }
@@ -621,7 +621,7 @@ const CSS = `
   .ns__cat-btn {
     display:inline-flex; align-items:center; gap:5px;
     padding:5px 11px; border-radius:20px; flex-shrink:0;
-    font-size:11.5px; font-weight:600; cursor:pointer;
+    font-size:calc((11.5px) + 1px); font-weight:600; cursor:pointer;
     background:var(--surface); border:1px solid var(--surface-border);
     color:var(--text-secondary); transition:all .15s;
   }
@@ -635,7 +635,7 @@ const CSS = `
   }
   .ns__cat-cnt {
     padding:1px 5px; border-radius:10px;
-    font-size:9px; font-weight:700;
+    font-size:calc((9px) + 1px); font-weight:700;
     background:var(--surface-strong); color:inherit;
   }
   .ns__cat-btn--on .ns__cat-cnt {
@@ -645,7 +645,7 @@ const CSS = `
   /* ── Section label ── */
   .ns__section-label {
     padding:8px 14px 4px;
-    font-size:10px; font-weight:700;
+    font-size:calc((10px) + 1px); font-weight:700;
     text-transform:uppercase; letter-spacing:.8px; color:var(--text-secondary);
     flex-shrink:0;
   }
@@ -701,7 +701,7 @@ const CSS = `
   .ni__top:hover .ni__avatar { border-color:rgba(132,204,22,.4); transform:scale(1.04); }
   .ni__avatar img     { width:100%; height:100%; object-fit:cover; display:block; }
   .ni__avatar-fb      {
-    font-weight:800; font-size:15px; color:#000;
+    font-weight:800; font-size:calc((15px) + 1px); color:#000;
     width:100%; height:100%;
     display:flex; align-items:center; justify-content:center;
   }
@@ -710,7 +710,7 @@ const CSS = `
   .ni__msg-wrap       { overflow:hidden; max-height:3.2em; transition:max-height .3s cubic-bezier(.4,0,.2,1); }
   .ni__msg-wrap--open { max-height:600px; }
   .ni__msg {
-    font-size:12.5px; color:var(--text-secondary); line-height:1.5; margin:0 0 4px;
+    font-size:calc((12.5px) + 1px); color:var(--text-secondary); line-height:1.5; margin:0 0 4px;
     word-break:break-word;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
   }
@@ -718,20 +718,20 @@ const CSS = `
   .ni--unread .ni__msg{ color:#e8e8e8; font-weight:500; }
 
   .ni__preview {
-    font-size:11.5px; color:var(--text-secondary); font-style:italic;
+    font-size:calc((11.5px) + 1px); color:var(--text-secondary); font-style:italic;
     margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
   .ni__foot { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-  .ni__time { font-size:10px; color:var(--text-secondary); flex-shrink:0; }
+  .ni__time { font-size:calc((10px) + 1px); color:var(--text-secondary); flex-shrink:0; }
   .ni__expand-btn {
     display:inline-flex; align-items:center; gap:3px;
-    font-size:10px; color:#84cc16; font-weight:600;
+    font-size:calc((10px) + 1px); color:#84cc16; font-weight:600;
     background:none; border:none; cursor:pointer; padding:0; transition:opacity .15s;
   }
   .ni__expand-btn:hover { opacity:.7; }
   .ni__new-pill {
-    font-size:9px; font-weight:700; color:#84cc16;
+    font-size:calc((9px) + 1px); font-weight:700; color:#84cc16;
     background:rgba(132,204,22,.12); border:1px solid rgba(132,204,22,.25);
     border-radius:20px; padding:1px 6px; letter-spacing:.3px;
     animation:nsBadgePop .3s cubic-bezier(.34,1.56,.64,1);
@@ -746,7 +746,7 @@ const CSS = `
   .ni__actions { display:flex; gap:6px; padding:0 10px 10px 62px; }
   .ni__btn {
     flex:1; padding:6px 12px; border-radius:8px;
-    font-size:11.5px; font-weight:700; cursor:pointer;
+    font-size:calc((11.5px) + 1px); font-weight:700; cursor:pointer;
     transition:all .15s; border:none; text-align:center; white-space:nowrap;
   }
   .ni__btn--primary {
@@ -776,21 +776,21 @@ const CSS = `
     display:flex; flex-direction:column; align-items:center;
     padding:60px 24px 40px; text-align:center; gap:8px;
   }
-  .ns__state-bell       { font-size:44px; opacity:.18; margin-bottom:6px; filter:grayscale(1); }
+  .ns__state-bell       { font-size:calc((44px) + 1px); opacity:.18; margin-bottom:6px; filter:grayscale(1); }
   .ns__state-icon--error{ color:#404040; margin-bottom:8px; }
-  .ns__state-title      { color:var(--text-secondary); font-size:14px; font-weight:700; }
-  .ns__state-hint       { color:var(--text-secondary); font-size:12px; line-height:1.6; max-width:260px; }
+  .ns__state-title      { color:var(--text-secondary); font-size:calc((14px) + 1px); font-weight:700; }
+  .ns__state-hint       { color:var(--text-secondary); font-size:calc((12px) + 1px); line-height:1.6; max-width:260px; }
   .ns__retry-btn {
     margin-top:12px; padding:8px 20px;
     background:rgba(132,204,22,.08); border:1px solid rgba(132,204,22,.25);
-    border-radius:10px; color:#84cc16; font-size:12.5px; font-weight:600;
+    border-radius:10px; color:#84cc16; font-size:calc((12.5px) + 1px); font-weight:600;
     cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px;
   }
   .ns__retry-btn:hover    { background:rgba(132,204,22,.16); }
   .ns__retry-btn:disabled { opacity:.6; cursor:not-allowed; }
   .ns__spin { animation:nsRotate .8s linear infinite; }
   @keyframes nsRotate { to{transform:rotate(360deg)} }
-  .ns__end-label { text-align:center; font-size:10.5px; color:#363636; padding:12px 0 4px; }
+  .ns__end-label { text-align:center; font-size:calc((10.5px) + 1px); color:#363636; padding:12px 0 4px; }
 `;
 
 export default NotificationSidebar;

@@ -166,7 +166,7 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
         }
 
         .profile-action-header h3 {
-          font-size: 18px;
+          font-size: calc((18px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0;
@@ -208,7 +208,7 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
           transition: all 0.2s;
           width: 100%;
           text-align: left;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 600;
         }
 

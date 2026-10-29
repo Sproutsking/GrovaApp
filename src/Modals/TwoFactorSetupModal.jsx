@@ -111,14 +111,14 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
             alignItems: 'center',
             justifyContent: 'space-between'
           }}>
-            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#fff', margin: 0 }}>
+            <h2 style={{ fontSize: "calc((22px) + 1px)", fontWeight: '700', color: '#fff', margin: 0 }}>
               🔒 Enable Two-Factor Authentication
             </h2>
             <button onClick={onClose} style={{
               background: 'none',
               border: 'none',
               color: '#a3a3a3',
-              fontSize: '32px',
+              fontSize: "calc((32px) + 1px)",
               cursor: 'pointer',
               padding: 0,
               lineHeight: 1
@@ -142,8 +142,8 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                   }}>
                     <Shield size={50} style={{ color: '#84cc16' }} />
                   </div>
-                  <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: '20px' }}>Scan QR Code</h3>
-                  <p style={{ color: '#a3a3a3', fontSize: '14px', marginBottom: '24px', lineHeight: '1.5' }}>
+                  <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: "calc((20px) + 1px)" }}>Scan QR Code</h3>
+                  <p style={{ color: '#a3a3a3', fontSize: "calc((14px) + 1px)", marginBottom: '24px', lineHeight: '1.5' }}>
                     Use Google Authenticator, Authy, or any TOTP authenticator app
                   </p>
                   
@@ -165,12 +165,12 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                     padding: '16px',
                     marginBottom: '24px'
                   }}>
-                    <p style={{ color: '#737373', fontSize: '12px', marginBottom: '8px' }}>
+                    <p style={{ color: '#737373', fontSize: "calc((12px) + 1px)", marginBottom: '8px' }}>
                       Can't scan? Enter this code manually:
                     </p>
                     <code style={{
                       color: '#84cc16',
-                      fontSize: '14px',
+                      fontSize: "calc((14px) + 1px)",
                       fontFamily: 'monospace',
                       wordBreak: 'break-all',
                       display: 'block',
@@ -184,7 +184,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', color: '#fff', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                  <label style={{ display: 'block', color: '#fff', marginBottom: '8px', fontSize: "calc((14px) + 1px)", fontWeight: '600' }}>
                     Enter 6-digit code from your app:
                   </label>
                   <input
@@ -201,7 +201,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                       border: '1px solid rgba(132, 204, 22, 0.2)',
                       borderRadius: '8px',
                       color: '#ffffff',
-                      fontSize: '24px',
+                      fontSize: "calc((24px) + 1px)",
                       textAlign: 'center',
                       letterSpacing: '12px',
                       fontFamily: 'monospace',
@@ -211,7 +211,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                 </div>
 
                 {error && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+                  <p style={{ color: '#ef4444', fontSize: "calc((13px) + 1px)", marginBottom: '16px', textAlign: 'center' }}>
                     {error}
                   </p>
                 )}
@@ -226,7 +226,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                     border: 'none',
                     borderRadius: '12px',
                     color: loading || verificationCode.length !== 6 ? '#666' : '#000',
-                    fontSize: '16px',
+                    fontSize: "calc((16px) + 1px)",
                     fontWeight: '700',
                     cursor: loading || verificationCode.length !== 6 ? 'not-allowed' : 'pointer',
                     display: 'flex',
@@ -263,8 +263,8 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                   }}>
                     <Check size={50} style={{ color: '#84cc16' }} />
                   </div>
-                  <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: '20px' }}>Save Your Backup Codes</h3>
-                  <p style={{ color: '#a3a3a3', fontSize: '14px', marginBottom: '24px', lineHeight: '1.5' }}>
+                  <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: "calc((20px) + 1px)" }}>Save Your Backup Codes</h3>
+                  <p style={{ color: '#a3a3a3', fontSize: "calc((14px) + 1px)", marginBottom: '24px', lineHeight: '1.5' }}>
                     Store these codes in a safe place. You can use them to access your account if you lose your authenticator device.
                   </p>
                 </div>
@@ -286,7 +286,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                       }}>
                         <code style={{ 
                           color: '#84cc16', 
-                          fontSize: '14px', 
+                          fontSize: "calc((14px) + 1px)",
                           fontFamily: 'monospace',
                           fontWeight: '600'
                         }}>
@@ -308,7 +308,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                   alignItems: 'flex-start'
                 }}>
                   <AlertTriangle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
-                  <p style={{ color: '#ef4444', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
+                  <p style={{ color: '#ef4444', fontSize: "calc((13px) + 1px)", margin: 0, lineHeight: '1.5' }}>
                     <strong>Important:</strong> Keep these codes secure! Each code can only be used once. Download or write them down now.
                   </p>
                 </div>
@@ -320,7 +320,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
                   border: 'none',
                   borderRadius: '12px',
                   color: '#000',
-                  fontSize: '16px',
+                  fontSize: "calc((16px) + 1px)",
                   fontWeight: '700',
                   cursor: 'pointer',
                   display: 'flex',

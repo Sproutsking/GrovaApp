@@ -34,8 +34,8 @@ export default function SecurityCenterSection({ adminData, securityCenter, team 
   return <div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: 0 }}>Security Center</h1>
-        <p style={{ color: C.muted, fontSize: 14, marginTop: 4 }}>Alarm channel, response controls, and the Xeevia security model.</p>
+        <h1 style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}>Security Center</h1>
+        <p style={{ color: C.muted, fontSize: 15, marginTop: 4 }}>Alarm channel, response controls, and the Xeevia security model.</p>
       </div>
       <Btn icon={Shield} label="Refresh" size="sm" onClick={reload} />
     </div>
@@ -52,22 +52,22 @@ export default function SecurityCenterSection({ adminData, securityCenter, team 
             <span style={{ flex: 1 }}><Badge label={alert.severity} color={color} /> <strong style={{ marginLeft: 8 }}>{alert.title}</strong><small style={{ display: "block", color: C.muted, marginTop: 4 }}>{new Date(alert.created_at).toLocaleString()} · {alert.source}</small></span>
             <Badge label={alert.status} color={alert.status === "resolved" ? C.success : C.warn} /><ChevronDown size={15} style={{ transform: expanded ? "rotate(180deg)" : "none" }} />
           </button>
-          {expanded && <div style={{ margin: "12px 0 0 26px", color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
+          {expanded && <div style={{ margin: "12px 0 0 26px", color: C.muted, fontSize: 13, lineHeight: 1.6 }}>
             <p style={{ margin: "0 0 10px" }}>{alert.description}</p>
-            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", padding: 10, background: C.bg3, borderRadius: 8, color: C.muted2, fontSize: 10 }}>{JSON.stringify(alert.metadata || {}, null, 2)}</pre>
+            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", padding: 10, background: C.bg3, borderRadius: 8, color: C.muted2, fontSize: 11 }}>{JSON.stringify(alert.metadata || {}, null, 2)}</pre>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               {alert.status === "open" && <Btn size="sm" label="Acknowledge" icon={CheckCircle2} onClick={() => handleStatus(alert.id, "acknowledged")} />}
               {alert.status !== "resolved" && <Btn size="sm" label="Resolve" icon={CheckCircle2} variant="primary" onClick={() => handleStatus(alert.id, "resolved")} />}
             </div>
-            {canManageVisibility && <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}><div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: C.text }}><Users size={13} /> Admin visibility</div>{team.filter((member) => member.role !== "ceo_owner").map((member) => { const checked = (alert.viewers || []).some((viewer) => viewer.admin_user_id === member.user_id); return <label key={member.user_id} style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: "0 12px 6px 0", fontSize: 11 }}><input type="checkbox" checked={checked} onChange={() => toggleViewer(alert, member.user_id)} />{member.full_name}</label>; })}</div>}
+            {canManageVisibility && <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}><div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: C.text }}><Users size={13} /> Admin visibility</div>{team.filter((member) => member.role !== "ceo_owner").map((member) => { const checked = (alert.viewers || []).some((viewer) => viewer.admin_user_id === member.user_id); return <label key={member.user_id} style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: "0 12px 6px 0", fontSize: 12 }}><input type="checkbox" checked={checked} onChange={() => toggleViewer(alert, member.user_id)} />{member.full_name}</label>; })}</div>}
           </div>}
         </div>;
       })}
     </Section>
 
     {adminData?.role === "ceo_owner" && <Section title="Security Model" subtitle="CEO-only operational document" accent={C.accent}>
-      <div style={{ display: "grid", gap: 12 }}>{SECURITY_MODEL.map(([title, body]) => <article key={title} style={{ padding: "13px 15px", background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10 }}><div style={{ display: "flex", alignItems: "center", gap: 8, color: C.text, fontWeight: 800, fontSize: 13 }}><BookOpen size={14} color={C.accent} />{title}</div><p style={{ color: C.muted, fontSize: 12, lineHeight: 1.65, margin: "8px 0 0" }}>{body}</p></article>)}</div>
-      <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: `1px solid ${C.danger}35`, background: `${C.danger}08`, color: C.muted, fontSize: 12, lineHeight: 1.65 }}><strong style={{ color: C.danger }}>CEO operating rule:</strong> Never paste service keys into browser code, chat, screenshots, tickets, or local storage. Rotate immediately after any suspected exposure. No UI-hidden action is a security boundary.</div>
+      <div style={{ display: "grid", gap: 12 }}>{SECURITY_MODEL.map(([title, body]) => <article key={title} style={{ padding: "13px 15px", background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10 }}><div style={{ display: "flex", alignItems: "center", gap: 8, color: C.text, fontWeight: 800, fontSize: 14 }}><BookOpen size={14} color={C.accent} />{title}</div><p style={{ color: C.muted, fontSize: 13, lineHeight: 1.65, margin: "8px 0 0" }}>{body}</p></article>)}</div>
+      <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: `1px solid ${C.danger}35`, background: `${C.danger}08`, color: C.muted, fontSize: 13, lineHeight: 1.65 }}><strong style={{ color: C.danger }}>CEO operating rule:</strong> Never paste service keys into browser code, chat, screenshots, tickets, or local storage. Rotate immediately after any suspected exposure. No UI-hidden action is a security boundary.</div>
     </Section>}
   </div>;
 }

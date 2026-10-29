@@ -284,7 +284,7 @@ function ManualSolanaInline({
             border: "1px solid rgba(245,158,11,.22)",
             borderRadius: 11,
             padding: "10px 13px",
-            fontSize: 12,
+            fontSize: 13,
             color: "#fbbf24",
           }}
         >
@@ -309,7 +309,7 @@ function ManualSolanaInline({
       >
         <span
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "#c8f56a",
             fontFamily: "monospace",
             wordBreak: "break-all",
@@ -321,7 +321,7 @@ function ManualSolanaInline({
         <span
           style={{
             flexShrink: 0,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             color: copied ? "#a3e635" : "#555",
             background: copied ? "rgba(163,230,53,.08)" : "#1a1a1a",
@@ -348,7 +348,7 @@ function ManualSolanaInline({
           border: "1px solid #252525",
           borderRadius: 8,
           color: "#666",
-          fontSize: 11,
+          fontSize: 12,
           padding: "6px 12px",
           cursor: "pointer",
           fontFamily: "inherit",
@@ -372,7 +372,7 @@ function ManualSolanaInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -391,7 +391,7 @@ function ManualSolanaInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -416,7 +416,7 @@ function ManualSolanaInline({
                   borderRadius: 10,
                   padding: "11px 13px",
                   color: "#e4e4e4",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontFamily: "monospace",
                   outline: "none",
                 }}
@@ -432,7 +432,7 @@ function ManualSolanaInline({
                   border: "1px solid #2a2a2a",
                   borderRadius: 10,
                   color: "#888",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: "inherit",
@@ -443,7 +443,7 @@ function ManualSolanaInline({
               </button>
             </div>
             {wallet && !okWal && (
-              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "#f87171", marginTop: 4 }}>
                 Enter a valid base58 Solana address
               </div>
             )}
@@ -451,7 +451,7 @@ function ManualSolanaInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -475,14 +475,14 @@ function ManualSolanaInline({
                 borderRadius: 10,
                 padding: "11px 13px",
                 color: "#e4e4e4",
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: "monospace",
                 outline: "none",
                 boxSizing: "border-box",
               }}
             />
             {txSig && !okSig && (
-              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "#f87171", marginTop: 4 }}>
                 Enter a valid Solana transaction signature (87–90 chars)
               </div>
             )}
@@ -494,7 +494,7 @@ function ManualSolanaInline({
                 border: "1px solid rgba(239,68,68,.22)",
                 borderRadius: 11,
                 padding: "11px 14px",
-                fontSize: 12.5,
+                fontSize: 13.5,
                 color: "#fca5a5",
                 lineHeight: 1.65,
               }}
@@ -523,7 +523,7 @@ function ManualSolanaInline({
                 : "#1c1c1c",
               color: can ? "#061000" : "#333",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 15,
               cursor: can ? "pointer" : "not-allowed",
               fontFamily: "inherit",
               display: "flex",
@@ -594,7 +594,7 @@ function ManualCardanoInline({
             border: "1px solid rgba(245,158,11,.22)",
             borderRadius: 11,
             padding: "10px 13px",
-            fontSize: 12,
+            fontSize: 13,
             color: "#fbbf24",
           }}
         >
@@ -619,7 +619,7 @@ function ManualCardanoInline({
       >
         <span
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "#c8f56a",
             fontFamily: "monospace",
             wordBreak: "break-all",
@@ -631,7 +631,7 @@ function ManualCardanoInline({
         <span
           style={{
             flexShrink: 0,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             color: copied ? "#a3e635" : "#555",
             background: copied ? "rgba(163,230,53,.08)" : "#1a1a1a",
@@ -658,7 +658,7 @@ function ManualCardanoInline({
           border: "1px solid #252525",
           borderRadius: 8,
           color: "#666",
-          fontSize: 11,
+          fontSize: 12,
           padding: "6px 12px",
           cursor: "pointer",
           fontFamily: "inherit",
@@ -682,7 +682,7 @@ function ManualCardanoInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -697,7 +697,7 @@ function ManualCardanoInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -722,7 +722,7 @@ function ManualCardanoInline({
                   borderRadius: 10,
                   padding: "11px 13px",
                   color: "#e4e4e4",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontFamily: "monospace",
                   outline: "none",
                 }}
@@ -738,7 +738,7 @@ function ManualCardanoInline({
                   border: "1px solid #2a2a2a",
                   borderRadius: 10,
                   color: "#888",
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: "inherit",
@@ -749,7 +749,7 @@ function ManualCardanoInline({
               </button>
             </div>
             {wallet && !okWal && (
-              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "#f87171", marginTop: 4 }}>
                 Must be a valid Shelley address starting with addr1
               </div>
             )}
@@ -757,7 +757,7 @@ function ManualCardanoInline({
           <div>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.8px",
                 textTransform: "uppercase",
@@ -781,14 +781,14 @@ function ManualCardanoInline({
                 borderRadius: 10,
                 padding: "11px 13px",
                 color: "#e4e4e4",
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: "monospace",
                 outline: "none",
                 boxSizing: "border-box",
               }}
             />
             {txHash && !okTx && (
-              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "#f87171", marginTop: 4 }}>
                 Must be exactly 64 hex characters
               </div>
             )}
@@ -804,8 +804,8 @@ function ManualCardanoInline({
               alignItems: "flex-start",
             }}
           >
-            <span style={{ fontSize: 14, flexShrink: 0 }}>ℹ️</span>
-            <span style={{ fontSize: 11.5, color: "#999", lineHeight: 1.65 }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>ℹ️</span>
+            <span style={{ fontSize: 12.5, color: "#999", lineHeight: 1.65 }}>
               Send ~2% extra to account for ADA price movement between send and
               verify.
             </span>
@@ -817,7 +817,7 @@ function ManualCardanoInline({
                 border: "1px solid rgba(239,68,68,.22)",
                 borderRadius: 11,
                 padding: "11px 14px",
-                fontSize: 12.5,
+                fontSize: 13.5,
                 color: "#fca5a5",
                 lineHeight: 1.65,
               }}
@@ -846,7 +846,7 @@ function ManualCardanoInline({
                 : "#1c1c1c",
               color: can ? "#061000" : "#333",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 15,
               cursor: can ? "pointer" : "not-allowed",
               fontFamily: "inherit",
               display: "flex",
@@ -1352,7 +1352,7 @@ export default function PaywallPayment({
     marginBottom: 12,
   };
   const labelStyle = {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 700,
     color: "#555",
     letterSpacing: "1px",
@@ -1368,7 +1368,7 @@ export default function PaywallPayment({
     padding: "12px 14px",
     color: "#f0f0f0",
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 12,
+    fontSize: 13,
     outline: "none",
     boxSizing: "border-box",
     caretColor: "#a3e635",
@@ -1381,7 +1381,7 @@ export default function PaywallPayment({
     background: "linear-gradient(135deg,#a3e635,#65a30d)",
     color: "#061000",
     fontWeight: 800,
-    fontSize: 14,
+    fontSize: 15,
     cursor: "pointer",
     fontFamily: "inherit",
     display: "flex",
@@ -1398,7 +1398,7 @@ export default function PaywallPayment({
     background: "rgba(163,230,53,.05)",
     color: "#a3e635",
     fontWeight: 700,
-    fontSize: 13,
+    fontSize: 14,
     cursor: "pointer",
     fontFamily: "inherit",
     display: "flex",
@@ -1436,7 +1436,7 @@ export default function PaywallPayment({
         {step === "error" && <span style={{ color: "#f87171" }}>✕</span>}
         <span
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: step === "error" ? "#f87171" : "#a3e635",
             lineHeight: 1.5,
           }}
@@ -1476,10 +1476,10 @@ export default function PaywallPayment({
             }}
           >
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#a3e635" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#a3e635" }}>
                 {inviteDetails.code}
               </div>
-              <div style={{ fontSize: 10, color: "#5a7a35", marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: "#5a7a35", marginTop: 2 }}>
                 {resolvePrice(inviteDetails, productPrice) === 0
                   ? "Free access unlocked"
                   : `$${fmt(resolvePrice(inviteDetails, productPrice))} entry price`}
@@ -1492,7 +1492,7 @@ export default function PaywallPayment({
                 border: "none",
                 color: "#555",
                 cursor: "pointer",
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               Remove
@@ -1517,7 +1517,7 @@ export default function PaywallPayment({
                 background: inviteLoading ? "#1c1c1c" : "rgba(163,230,53,.15)",
                 color: inviteLoading ? "#444" : "#a3e635",
                 fontWeight: 700,
-                fontSize: 12,
+                fontSize: 13,
                 cursor: inviteLoading ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
                 whiteSpace: "nowrap",
@@ -1528,7 +1528,7 @@ export default function PaywallPayment({
           </div>
         )}
         {inviteError && (
-          <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: "#f87171", marginTop: 6 }}>
             {inviteError}
           </div>
         )}
@@ -1586,7 +1586,7 @@ export default function PaywallPayment({
                   color: tab === key ? color : "#555",
                   fontFamily: "inherit",
                   fontWeight: 700,
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: "pointer",
                   transition: "all .18s",
                   boxShadow:
@@ -1604,7 +1604,7 @@ export default function PaywallPayment({
               <div style={{ marginBottom: 16 }}>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: "#e0e0e0",
                     marginBottom: 4,
@@ -1612,7 +1612,7 @@ export default function PaywallPayment({
                 >
                   Pay with Card or Bank Transfer
                 </div>
-                <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
+                <div style={{ fontSize: 12, color: "#555", lineHeight: 1.6 }}>
                   Powered by Paystack · Visa, Mastercard, bank transfer, USSD
                 </div>
               </div>
@@ -1629,9 +1629,9 @@ export default function PaywallPayment({
                   alignItems: "center",
                 }}
               >
-                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span style={{ fontSize: 12, color: "#666" }}>Amount</span>
                 <span
-                  style={{ fontSize: 18, fontWeight: 900, color: "#a3e635" }}
+                  style={{ fontSize: 19, fontWeight: 900, color: "#a3e635" }}
                 >
                   ${fmt(effectivePrice)}
                 </span>
@@ -1683,7 +1683,7 @@ export default function PaywallPayment({
                 <div
                   style={{
                     marginTop: 10,
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#3a3a3a",
                     textAlign: "center",
                     lineHeight: 1.6,
@@ -1709,7 +1709,7 @@ export default function PaywallPayment({
                     borderRadius: 11,
                     color: "#e8e8e8",
                     fontFamily: "inherit",
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 600,
                     padding: "11px 14px",
                     cursor: "pointer",
@@ -1738,9 +1738,9 @@ export default function PaywallPayment({
                   alignItems: "center",
                 }}
               >
-                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span style={{ fontSize: 12, color: "#666" }}>Amount</span>
                 <span
-                  style={{ fontSize: 18, fontWeight: 900, color: "#a3e635" }}
+                  style={{ fontSize: 19, fontWeight: 900, color: "#a3e635" }}
                 >
                   ${fmt(effectivePrice)} {EVM_CHAINS[evmChainIdx]?.token}
                 </span>
@@ -1749,7 +1749,7 @@ export default function PaywallPayment({
               {evmWallet?.address && (
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#4a5a4a",
                     marginBottom: 10,
                     fontFamily: "monospace",
@@ -1819,7 +1819,7 @@ export default function PaywallPayment({
                   </button>
                   {verifyError && (
                     <div
-                      style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}
+                      style={{ fontSize: 12, color: "#f87171", marginTop: 6 }}
                     >
                       {verifyError}
                     </div>
@@ -1835,7 +1835,7 @@ export default function PaywallPayment({
               <div
                 style={{
                   marginBottom: 14,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: "#e0e0e0",
                 }}
@@ -1845,7 +1845,7 @@ export default function PaywallPayment({
               <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: "1.5px",
                     textTransform: "uppercase",
@@ -1869,7 +1869,7 @@ export default function PaywallPayment({
                           solToken === sym ? "rgba(153,69,255,.1)" : "#111",
                         color: solToken === sym ? "#c084fc" : "#555",
                         fontWeight: 700,
-                        fontSize: 12,
+                        fontSize: 13,
                         cursor: "pointer",
                         fontFamily: "inherit",
                       }}
@@ -1891,9 +1891,9 @@ export default function PaywallPayment({
                   alignItems: "center",
                 }}
               >
-                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span style={{ fontSize: 12, color: "#666" }}>Amount</span>
                 <span
-                  style={{ fontSize: 18, fontWeight: 900, color: "#9945ff" }}
+                  style={{ fontSize: 19, fontWeight: 900, color: "#9945ff" }}
                 >
                   ${fmt(effectivePrice)} {solToken}
                 </span>
@@ -1901,7 +1901,7 @@ export default function PaywallPayment({
               {solWallet?.address && (
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#4a3a6a",
                     marginBottom: 10,
                     fontFamily: "monospace",
@@ -1948,7 +1948,7 @@ export default function PaywallPayment({
               <div
                 style={{
                   marginBottom: 14,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: "#e0e0e0",
                 }}
@@ -1967,8 +1967,8 @@ export default function PaywallPayment({
                   alignItems: "center",
                 }}
               >
-                <span style={{ fontSize: 18 }}>🏦</span>
-                <span style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>
+                <span style={{ fontSize: 19 }}>🏦</span>
+                <span style={{ fontSize: 13, color: "#888", lineHeight: 1.6 }}>
                   Send{" "}
                   <strong style={{ color: "#a3e635" }}>
                     ${fmt(effectivePrice)} ADA equivalent
@@ -1980,7 +1980,7 @@ export default function PaywallPayment({
               {adaWallet?.address && (
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "#1a2a4a",
                     marginBottom: 10,
                     fontFamily: "monospace",
@@ -2023,7 +2023,7 @@ export default function PaywallPayment({
           {!showFreeButton && (
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 color: "#3a3a3a",
                 textAlign: "center",
                 lineHeight: 1.7,

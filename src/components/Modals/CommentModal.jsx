@@ -563,7 +563,7 @@ const CommentModal = ({
           margin-left: auto;
         }
         .comment-modal-title h3 {
-          font-size: 17px;
+          font-size: calc((17px) + 1px);
           font-weight: 700;
           color: #fff;
           margin: 0;
@@ -572,7 +572,7 @@ const CommentModal = ({
           padding: 2px 9px;
           background: rgba(132, 204, 22, 0.18);
           border-radius: 12px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
           font-weight: 700;
           transition: all 0.2s;
@@ -624,7 +624,7 @@ const CommentModal = ({
           background: linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
           color: #e7e9e5;
           font-family: inherit;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: border-color .16s, background .16s, box-shadow .16s, transform .16s;
@@ -669,8 +669,8 @@ const CommentModal = ({
           gap:3px;
           padding:9px 10px 10px;
         }
-        .comment-sort-popover-heading span { color:#f4f5f2; font-size:12px; font-weight:750; }
-        .comment-sort-popover-heading small { color:#858980; font-size:10px; }
+        .comment-sort-popover-heading span { color:#f4f5f2; font-size:calc((12px) + 1px); font-weight:750; }
+        .comment-sort-popover-heading small { color:#858980; font-size:calc((10px) + 1px); }
         .comment-sort-option {
           display:flex;
           align-items:center;
@@ -709,8 +709,8 @@ const CommentModal = ({
           color:#b4ef62;
         }
         .comment-sort-option-copy { display:flex; flex:1; flex-direction:column; gap:3px; min-width:0; }
-        .comment-sort-option-copy strong { color:inherit; font-size:11px; font-weight:700; }
-        .comment-sort-option-copy small { color:#858980; font-size:10px; }
+        .comment-sort-option-copy strong { color:inherit; font-size:calc((11px) + 1px); font-weight:700; }
+        .comment-sort-option-copy small { color:#858980; font-size:calc((10px) + 1px); }
         .comment-sort-option-check { color:#a3e635; flex:0 0 auto; }
         @media(max-width:768px) {
           .comment-sort-trigger { min-height:34px; max-width:164px; padding:0 9px; gap:6px; }
@@ -736,7 +736,7 @@ const CommentModal = ({
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           color: #737373;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -770,7 +770,7 @@ const CommentModal = ({
           gap: 12px;
           padding: 40px 20px;
           color: #737373;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
         .comments-spinner {
           width: 26px;
@@ -797,12 +797,12 @@ const CommentModal = ({
         }
         .no-comments p {
           margin: 0;
-          font-size: 15px;
+          font-size: calc((15px) + 1px);
           font-weight: 600;
           color: #a3a3a3;
         }
         .no-comments span {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
         }
 
         /* ── COMMENT ITEM ── */
@@ -811,7 +811,7 @@ const CommentModal = ({
         }
         .ci-ep-err {
           color: #f87171;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           margin-bottom: 4px;
         }
         .comment-item {
@@ -829,7 +829,7 @@ const CommentModal = ({
           justify-content: center;
           color: #000;
           font-weight: 700;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           flex-shrink: 0;
           overflow: hidden;
           border: 2px solid rgba(190, 255, 104, 0.78);
@@ -863,16 +863,16 @@ const CommentModal = ({
           margin-bottom: 3px;
         }
         .comment-author {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           font-weight: 600;
           color: #fff;
         }
         .comment-time {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #737373;
         }
         .comment-text {
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           color: #e5e5e5;
           margin: 0 0 7px;
           line-height: 1.5;
@@ -890,7 +890,7 @@ const CommentModal = ({
           background: none;
           border: none;
           color: #737373;
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           font-weight: 600;
           cursor: pointer;
           transition: color 0.2s;
@@ -902,7 +902,7 @@ const CommentModal = ({
         }
         .ep-hint {
           color: rgba(200, 245, 66, 0.45);
-          font-size: 10px;
+          font-size: calc((10px) + 1px);
         }
         .comment-replies {
           margin-top: 6px;
@@ -920,7 +920,7 @@ const CommentModal = ({
           border: 1px solid rgba(239, 68, 68, 0.22);
           border-radius: 8px;
           color: #f87171;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           padding: 8px 12px;
           margin-bottom: 8px;
         }
@@ -933,7 +933,7 @@ const CommentModal = ({
           border: 1px solid rgba(132, 204, 22, 0.15);
           border-radius: 8px;
           margin-bottom: 7px;
-          font-size: 12px;
+          font-size: calc((12px) + 1px);
           color: #84cc16;
         }
         .reply-indicator button {
@@ -957,7 +957,7 @@ const CommentModal = ({
           border: 1px solid rgba(132, 204, 22, 0.2);
           border-radius: 12px;
           color: #fff;
-          font-size: 13px;
+          font-size: calc((13px) + 1px);
           resize: none;
           font-family: inherit;
           transition: border-color 0.2s;
@@ -1001,7 +1001,7 @@ const CommentModal = ({
           cursor: not-allowed;
         }
         .comment-footer-hint {
-          font-size: 11px;
+          font-size: calc((11px) + 1px);
           color: #3f3f46;
           margin-top: 6px;
           padding-left: 2px;

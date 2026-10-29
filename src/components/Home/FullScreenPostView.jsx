@@ -345,7 +345,7 @@ const CSS = `
   width:100%; padding:10px 16px;
   border-radius:10px;
   background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.3);
-  color:#84cc16; font-size:13px; font-weight:700; font-family:inherit;
+  color:#84cc16; font-size:calc((13px) + 1px); font-weight:700; font-family:inherit;
   text-decoration:none;
   transition:background 0.15s,border-color 0.15s,transform 0.1s;
 }
@@ -369,7 +369,7 @@ const CSS = `
   background:rgba(132,204,22,0.13); border-color:rgba(132,204,22,0.35); color:#84cc16; transform:scale(1.05);
 }
 .fspv-body {
-  flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px 22px; color:#f0f0f0; font-size:17px; line-height:1.85;
+  flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px 22px; color:#f0f0f0; font-size:calc((17px) + 1px); line-height:1.85;
   scrollbar-width:thin; scrollbar-color:rgba(132,204,22,0.4) rgba(255,255,255,0.03);
 }
 .fspv-post-media {
@@ -397,7 +397,7 @@ const CSS = `
 .fspv-mobile-back-btn {
   display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.06);
   border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#888;
-  font-size:12px; font-weight:600; padding:5px 10px; cursor:pointer; font-family:inherit;
+  font-size:calc((12px) + 1px); font-weight:600; padding:5px 10px; cursor:pointer; font-family:inherit;
   transition:background 0.15s,color 0.15s;
 }
 .fspv-mobile-back-btn:hover { background:rgba(132,204,22,0.08); color:#84cc16; }

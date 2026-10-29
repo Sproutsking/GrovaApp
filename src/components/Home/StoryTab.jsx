@@ -49,7 +49,7 @@ const NewStoryBanner = ({ count, onShow, isActive }) => {
           padding:9px 22px;border-radius:999px;
           background:rgba(236,72,153,0.97);
           border:1px solid rgba(255,255,255,0.22);
-          color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+          color:#fff;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;
           white-space:nowrap;font-family:inherit;
           box-shadow:0 6px 30px rgba(236,72,153,0.5);
           backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -170,11 +170,11 @@ const StoryTab = React.forwardRef(function StoryTab(
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", padding: "80px 20px", textAlign: "center", gap: 16,
         }}>
-          <div style={{ fontSize: 64, opacity: 0.3 }}>📖</div>
-          <p style={{ color: "#a3a3a3", fontSize: 18, fontWeight: 600, margin: 0 }}>
+          <div style={{ fontSize: 65, opacity: 0.3 }}>📖</div>
+          <p style={{ color: "#a3a3a3", fontSize: 19, fontWeight: 600, margin: 0 }}>
             No stories yet
           </p>
-          <span style={{ color: "#737373", fontSize: 14 }}>
+          <span style={{ color: "#737373", fontSize: 15 }}>
             Be the first to share a story!
           </span>
         </div>

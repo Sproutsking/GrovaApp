@@ -39,7 +39,7 @@ const TierBadge = ({ tier, paymentStatus }) => {
         display:        "inline-flex",
         alignItems:     "center",
         justifyContent: "center",
-        fontSize:       10,
+        fontSize:       11,
         lineHeight:     1,
         filter:         `drop-shadow(0 0 4px ${badge.glow})`,
         flexShrink:     0,
@@ -305,7 +305,7 @@ const ProfilePreview = ({
           {/* Name — live tier colour, smooth transition */}
           <div
             style={{
-              fontSize:      `${sz.name}px`,
+              fontSize:      `calc(${sz.name}px + 1px)`,
               fontFamily:    nameDesign.font?.family,
               fontWeight:    700,
               letterSpacing: nameDesign.font?.spacing,
@@ -345,7 +345,7 @@ const ProfilePreview = ({
                   border:         "1.5px solid rgba(255,255,255,0.7)",
                   transition:     "background 0.4s ease",
                   fontWeight:     900,
-                  fontSize:      11,
+                  fontSize:      12,
                   lineHeight:    1,
                   transform:      "translateY(-1px)",
                 }}
@@ -363,7 +363,7 @@ const ProfilePreview = ({
           {showUsername && username && (
             <div
               style={{
-                fontSize:     `${sz.username}px`,
+                fontSize:     `calc(${sz.username}px + 1px)`,
                 color:        displayUserColor,
                 fontWeight:   600,
                 display:      "flex",
