@@ -394,6 +394,9 @@ class RoleService {
       throw new Error("You do not have permission to manage roles");
     }
     const orderedRoles = (roles || []).filter((role) => role.community_id === communityId);
+    if (!orderedRoles.length) {
+      throw new Error("No roles for this community could be reordered.");
+    }
     const owner = orderedRoles.find((role) => String(role.name || "").trim().toLowerCase() === "owner");
     const actorRole = await this.getUserRole(communityId, actorUserId);
     if (owner && actorRole && !RoleModel.fromAPI(actorRole).isOwner() && !RoleModel.fromAPI(actorRole).canManageRole(RoleModel.fromAPI(owner))) {

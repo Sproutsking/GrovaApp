@@ -54,7 +54,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     setDashboardDataLoading(true);
     Promise.all([
       supabase.from("community_tool_settings").select("*").eq("community_id", communityId),
-      supabase.from("community_roles").select("id,name,color,icon,position,is_default,permissions").eq("community_id", communityId).order("position", { ascending: true }),
+      supabase.from("community_roles").select("id,community_id,name,color,icon,position,is_default,permissions").eq("community_id", communityId).order("position", { ascending: true }),
       supabase.from("community_access_rules").select("target_type,target_id,role_id,can_view,can_send").eq("community_id", communityId),
       supabase.from("community_channel_categories").select("id,name").eq("community_id", communityId),
     ]).then(([settingsResult, rolesResult, accessResult, categoriesResult]) => {
@@ -129,7 +129,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     await onUpdateRole(roleId, updates);
     const { data: updatedRoles, error: refreshError } = await supabase
       .from("community_roles")
-      .select("id,name,color,icon,position,is_default,permissions")
+      .select("id,community_id,name,color,icon,position,is_default,permissions")
       .eq("community_id", communityId)
       .order("position", { ascending: true });
     if (refreshError) throw refreshError;
@@ -144,7 +144,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     await onDeleteRole(roleId);
     const { data: updatedRoles, error: refreshError } = await supabase
       .from("community_roles")
-      .select("id,name,color,icon,position,is_default,permissions")
+      .select("id,community_id,name,color,icon,position,is_default,permissions")
       .eq("community_id", communityId)
       .order("position", { ascending: true });
     if (refreshError) throw refreshError;
@@ -160,7 +160,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     await onReorderRoles(reorderedRoles);
     const { data: updatedRoles, error: refreshError } = await supabase
       .from("community_roles")
-      .select("id,name,color,icon,position,is_default,permissions")
+      .select("id,community_id,name,color,icon,position,is_default,permissions")
       .eq("community_id", communityId)
       .order("position", { ascending: true });
     if (refreshError) throw refreshError;
