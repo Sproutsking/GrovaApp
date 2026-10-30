@@ -361,7 +361,7 @@ const CommunityMenu = ({
                 initialRoleId={roleToOpen}
                 onInitialRoleOpened={() => setRoleToOpen(null)}
                 canManageRoles={canManageRoles}
-                canAssignRoles={userPermissions?.assignRoles || hasAdminOverride || isOwner}
+                canAssignRoles={canManageRoles}
                 isCommunityOwner={isOwner}
                 communityOwnerId={community.owner_id}
                 onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onRemoveRoleAssignment={handleRemoveRoleAssignment} onReorderRoles={handleReorderRoles}
@@ -372,6 +372,7 @@ const CommunityMenu = ({
             {menuView === "analytics" && <AnalyticsSection community={community} />}
             {menuView === "tools" && <ToolsSection
               communityId={community.id}
+              communityName={community.name}
               userId={userId}
               channels={channels}
               canManage={canManageCommunity}

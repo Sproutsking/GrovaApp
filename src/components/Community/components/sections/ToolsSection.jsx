@@ -26,7 +26,7 @@ const TOOL_CATALOG = [
   { type: "moderation", label: "Moderation", description: "Automate safety, strikes, actions, and case history.", icon: ShieldCheck },
 ];
 
-export default function ToolsSection({ communityId, userId, channels = [], canManage = false, canManageRoles = false, onCreateRole, onReorderRoles, onUpdateRole, onDeleteRole, onManageRole, onOpenInvite, onOpenUpgrade, onOpenModeration, onCreateChannel }) {
+export default function ToolsSection({ communityId, communityName = "your community", userId, channels = [], canManage = false, canManageRoles = false, onCreateRole, onReorderRoles, onUpdateRole, onDeleteRole, onManageRole, onOpenInvite, onOpenUpgrade, onOpenModeration, onCreateChannel }) {
   const { openAccountLink } = useAccountLinking();
   const [rows, setRows] = useState([]);
   const [communityRoles, setCommunityRoles] = useState([]);
@@ -386,12 +386,13 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     const previousRows = rows;
     setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), nextRow]);
     setError("");
-    window.dispatchEvent(new CustomEvent("community:welcome-settings-updated", { detail: { communityId, config: nextConfig } }));
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
     if (saveError) {
       setRows(previousRows);
       setError(saveError.message);
+      throw saveError;
     }
+    window.dispatchEvent(new CustomEvent("community:welcome-settings-updated", { detail: { communityId, config: nextConfig } }));
   };
 
   const navigation = [
@@ -530,7 +531,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
                   {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
                 </select>
               </div>
-              <WelcomeToolDashboard value={getRow("welcome").config} communityName="your community" channels={channels} disabled={!canManage} onSave={saveWelcomeConfig} />
+              <WelcomeToolDashboard value={getRow("welcome").config} communityName={communityName} channels={channels} disabled={!canManage} onSave={saveWelcomeConfig} />
             </div>
           </section>
         </div>,

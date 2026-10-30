@@ -30,7 +30,7 @@ export function getWelcomeDesign(id) {
 
 const HERO_CRAFTS = new Set(["banner-hero", "spotlight", "poster"]);
 
-export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", heading, description = "", avatar, meta, actions, topRight, footer, density = "regular" }) {
+export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", heading, description = "", avatar, meta, actions, topRight, footer, density = "regular", layout = "hero" }) {
   const craft = design?.craft || theme?.craft || "banner-hero";
   const Icon = theme?.icon;
   const isHero = HERO_CRAFTS.has(craft);
@@ -39,7 +39,7 @@ export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", hea
   const haloAvatar = avatar && isHero ? <span className="wc-avatar-halo">{avatar}</span> : avatar;
 
   return (
-    <article className={`wc-frame craft-${craft} density-${density}`} style={{ "--wc-accent": theme?.accent, "--wc-bg": theme?.bg, "--wc-border": theme?.border }}>
+    <article className={`wc-frame craft-${craft} density-${density} layout-${layout}`} style={{ "--wc-accent": theme?.accent, "--wc-bg": theme?.bg, "--wc-border": theme?.border }}>
       <div className="wc-glow" aria-hidden="true" />
       <div className="wc-topline">{eyebrowNode}{topRight}</div>
       <div className="wc-card-content">
@@ -60,6 +60,26 @@ export function WelcomeCardFrame({ theme, design, eyebrow = "", kicker = "", hea
         .wc-card-content{position:relative;z-index:1;padding:18px 20px 20px}.wc-card-content em{display:block;margin-top:4px;font-style:normal;color:var(--wc-accent);font-size:calc((10px) + 1px);font-weight:800}.wc-frame-heading{margin:5px 0;color:#f4faf1;font-size:calc((23px) + 1px);line-height:1.14;font-weight:850}.wc-heading-grad{background:linear-gradient(175deg,#fff 20%,color-mix(in srgb,var(--wc-accent) 62%,white 38%));-webkit-background-clip:text;background-clip:text;color:transparent}.wc-heading-btn{display:inline-flex;align-items:center;justify-content:center;max-width:100%;margin:1px 0 2px;padding:5px 10px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.045));box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 8px 18px -14px rgba(0,0,0,.8);font:inherit;font-size:inherit;line-height:1.2;text-align:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;backdrop-filter:blur(10px);transition:background .16s ease,border-color .16s ease,transform .16s ease}.wc-heading-btn:hover{border-color:color-mix(in srgb,var(--wc-accent) 55%,rgba(255,255,255,.2));background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.07));transform:translateY(-1px)}.wc-heading-btn:active{transform:translateY(0)}.wc-frame p{margin:7px 0 0;color:#c3d1c0;font-size:calc((12.5px) + 1px);line-height:1.6}.wc-avatar{margin-bottom:10px}.wc-avatar-halo{display:inline-flex;position:relative}.wc-avatar-halo:before{content:"";position:absolute;inset:-14px;border-radius:50%;background:var(--wc-accent);opacity:.3;filter:blur(16px);z-index:-1}.wc-meta-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.wc-meta-row span{display:flex;align-items:center;gap:4px;padding:5px 8px;border:1px solid rgba(255,255,255,.14);border-radius:999px;color:#dfe9dc;font-size:calc((9.5px) + 1px)}.wc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.wc-actions button{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--wc-accent) 55%,transparent);border-radius:10px;background:linear-gradient(178deg,color-mix(in srgb,var(--wc-accent) 100%,white 22%),var(--wc-accent) 85%);color:#08110a;font:800 10.5px inherit;cursor:pointer}.wc-actions button+button{color:#e7f0e4;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16)}.wc-actions button:disabled{opacity:.4;cursor:not-allowed}.wc-footer{position:relative;z-index:1;padding:0 20px 14px;color:#819181;font-size:calc((9.5px) + 1px)}.craft-banner-hero .wc-card-content{text-align:center}.craft-banner-hero .wc-avatar,.craft-banner-hero .wc-actions{display:flex;justify-content:center}.craft-side-rail .wc-card-content{padding-top:14px}.craft-spotlight .wc-frame-heading{font-size:calc((27px) + 1px)}.craft-minimal-row .wc-topline{display:none}.craft-minimal-row .wc-card-content{display:flex;align-items:center;gap:12px;padding:12px 14px}.craft-minimal-row .wc-card-content p{display:none}.craft-minimal-row .wc-frame-heading{font-size:calc((15px) + 1px)}.craft-poster .wc-card-content{padding-left:120px;min-height:150px;display:flex;flex-direction:column;justify-content:end}.craft-ticket-stub .wc-card-content{padding-right:140px}
         .craft-banner-hero .wc-meta-row{justify-content:center}.craft-side-rail .wc-meta-row,.craft-spotlight .wc-meta-row,.craft-poster .wc-meta-row,.craft-ticket-stub .wc-meta-row{justify-content:flex-start}.craft-minimal-row .wc-meta-row{justify-content:flex-start}
         @media(max-width:600px){.wc-frame{margin:8px 0;border-radius:16px}.wc-topline{padding:14px 15px 0}.wc-card-content{padding:14px 15px 16px}.wc-frame-heading{font-size:calc((19px) + 1px)}.craft-spotlight .wc-frame-heading{font-size:calc((22px) + 1px)}.craft-poster .wc-card-content{padding-left:90px;min-height:135px}.craft-ticket-stub .wc-card-content{padding-right:15px}.craft-minimal-row .wc-card-content{align-items:flex-start;flex-wrap:wrap}.wc-actions{width:100%}.wc-actions button{flex:1;min-width:140px}}
+      `}</style>
+      <style>{`
+        .wc-frame.density-compact .wc-topline{padding-top:12px}
+        .wc-frame.density-compact .wc-card-content{padding-top:12px;padding-bottom:14px}
+        .wc-frame.density-compact .wc-frame-heading{font-size:calc((19px) + 1px)}
+        .wc-frame.density-compact .wc-actions{margin-top:10px}
+        .wc-frame.layout-split .wc-card-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.52fr);align-items:center;gap:8px 20px}
+        .wc-frame.layout-split .wc-card-content>em,.wc-frame.layout-split .wc-frame-heading,.wc-frame.layout-split .wc-card-content>p,.wc-frame.layout-split .wc-meta-row{grid-column:1}
+        .wc-frame.layout-split .wc-card-content>.wc-avatar{grid-column:2;grid-row:1 / span 2;justify-self:center;margin:0}
+        .wc-frame.layout-split .wc-card-content>.wc-actions{grid-column:2;grid-row:3 / span 4;flex-direction:column;align-self:stretch;width:100%;margin:0}
+        .wc-frame.layout-split .wc-actions button{width:100%}
+        .wc-frame.layout-split .wc-meta-row{margin-top:0}
+        .craft-side-rail .wc-card-content{border-left:3px solid color-mix(in srgb,var(--wc-accent) 72%,transparent);margin-left:8px;padding-left:17px}
+        .craft-poster:before{content:"";position:absolute;left:26px;bottom:24px;width:78px;height:78px;border:1px solid color-mix(in srgb,var(--wc-accent) 48%,transparent);border-radius:24px 24px 10px 24px;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--wc-accent) 36%,transparent),transparent 68%),linear-gradient(145deg,rgba(255,255,255,.1),rgba(0,0,0,.24));box-shadow:0 12px 30px rgba(0,0,0,.28);transform:rotate(-8deg)}
+        .craft-poster .wc-avatar{position:absolute;left:37px;bottom:35px;margin:0;z-index:2}
+        .craft-ticket-stub:before{content:"";position:absolute;top:15px;right:126px;bottom:15px;border-left:1px dashed color-mix(in srgb,var(--wc-accent) 45%,transparent)}
+        .craft-ticket-stub .wc-actions{position:absolute;right:14px;top:50%;width:112px;flex-direction:column;margin:0;transform:translateY(-50%)}
+        .craft-ticket-stub .wc-actions button{width:100%;padding:8px}
+        .craft-spotlight{background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--wc-accent) 12%,transparent),transparent 60%)}
+        @media(max-width:600px){.wc-frame.layout-split .wc-card-content{display:block}.wc-frame.layout-split .wc-actions{flex-direction:row;width:auto;margin-top:12px}.craft-poster:before{left:16px;bottom:18px;width:60px;height:60px}.craft-poster .wc-avatar{left:24px;bottom:26px}.craft-ticket-stub:before{display:none}.craft-ticket-stub .wc-actions{position:relative;right:auto;top:auto;width:auto;transform:none;flex-direction:row;margin-top:12px}}
       `}</style>
       <style>{`
         .craft-minimal-row .wc-card-content {
@@ -181,6 +201,7 @@ export default function WelcomeChannelCard({ community }) {
     title: "Find your people. Make something memorable.",
     description: "Introduce yourself, explore the channels, and join the conversation.",
     themeId: "lime-classic",
+    layout: "hero",
   });
 
   useEffect(() => {
@@ -204,5 +225,5 @@ export default function WelcomeChannelCard({ community }) {
   }, [community?.id]);
 
   const theme = getWelcomeTheme(welcome.themeId);
-  return <WelcomeCardFrame theme={theme} design={getWelcomeDesign(welcome.designId || welcome.craft)} density={welcome.layout === "compact" ? "compact" : "regular"} eyebrow={welcome.eyebrow || "Welcome"} kicker={`Welcome to ${community?.name || "the community"}`} heading={welcome.title} description={welcome.description} />;
+  return <WelcomeCardFrame theme={theme} design={getWelcomeDesign(welcome.designId || welcome.craft)} density={welcome.layout === "compact" ? "compact" : "regular"} layout={welcome.layout} eyebrow={welcome.eyebrow || "Welcome"} kicker={`Welcome to ${community?.name || "the community"}`} heading={welcome.title} description={welcome.description} />;
 }

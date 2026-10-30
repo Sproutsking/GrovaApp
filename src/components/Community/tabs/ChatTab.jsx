@@ -1289,7 +1289,11 @@ const ChatTab = ({
           currentUserId={userId}
           onAssignRole={async (memberId, roleId) => {
             await roleService.updateMemberRole(memberId, roleId);
-            await loadMembers();
+            await Promise.all([loadMembers(), loadRoles()]);
+          }}
+          onRemoveRoleAssignment={async (targetUserId, roleId) => {
+            await roleService.removeMemberRole(community.id, targetUserId, roleId);
+            await Promise.all([loadMembers(), loadRoles(), loadPermissions()]);
           }}
           onOpenProfile={(user) => { setProfileTarget(user); setCommunityProfileTarget(null); }}
           onOpenDm={(user) => {

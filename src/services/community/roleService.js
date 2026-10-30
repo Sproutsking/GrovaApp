@@ -561,6 +561,9 @@ class RoleService {
       p_role_id: roleId,
     });
     if (error) throw error;
+    if (data?.success === false) {
+      throw new Error(data.error || "Could not remove this role assignment.");
+    }
     return data || { success: true };
   }
 

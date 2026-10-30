@@ -60,4 +60,14 @@ describe("RoleService.reorderRoles", () => {
       p_role_id: "role-to-remove",
     });
   });
+
+  it("reports unsuccessful role removal responses", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: { success: false, error: "The role assignment is protected." },
+      error: null,
+    });
+
+    await expect(roleService.removeMemberRole("community-1", "user-1", "protected-role"))
+      .rejects.toThrow("The role assignment is protected.");
+  });
 });
