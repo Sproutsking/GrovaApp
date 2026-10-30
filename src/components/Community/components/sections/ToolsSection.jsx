@@ -14,6 +14,7 @@ import { challengeIsReady, isMethodReady, isVerificationConfigEnabled, METHOD_OR
 import SocialUpdatesDashboard from "../../updates/SocialUpdatesDashboard";
 import BotsDashboard from "../../bots/BotsDashboard";
 import TicketToolDashboard from "../../tools/TicketToolDashboard";
+import { getSelectedToolChannelIds } from "./toolChannelSelection";
 import { useAccountLinking } from "../../../../contexts/AccountLinkingContext";
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Gate access with role-based checks, rules, and identity verification.", icon: ShieldCheck },
@@ -88,12 +89,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   }, [communityId, userId]);
 
   const getRow = (type) => rows.find((row) => row.tool_type === type) || { tool_type: type, enabled: false, config: {} };
-  const selectedIds = (type) => {
-    const row = getRow(type);
-    const configured = row.config?.channel_ids;
-    if (Array.isArray(configured)) return new Set(configured);
-    return row.channel_id ? new Set([row.channel_id]) : new Set();
-  };
+  const selectedIds = (type) => getSelectedToolChannelIds(getRow(type));
 
   const createVerificationRole = async (name) => {
     if (!canManageRoles || !onCreateRole || !onReorderRoles) {
