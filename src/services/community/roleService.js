@@ -1,7 +1,7 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
-import { compareEffectiveRoles, resolveAccessForRole, resolveChannelPermission } from "./accessService";
+import { compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "./accessService";
 import { getVerificationChannelIds } from "../../components/Community/verification/verificationConfig";
 
 function getAvatarUrl(avatarId) {
@@ -510,13 +510,8 @@ class RoleService {
         if (member.user_id === community?.owner_id && !memberRoles.some((role) => role.id === ownerRole.id)) {
           memberRoles.unshift(ownerRole);
         }
-        const assignedRoles = memberRoles
-          .sort((left, right) =>
-            Number(String(right.name || "").trim().toLowerCase() === "owner")
-            - Number(String(left.name || "").trim().toLowerCase() === "owner")
-            || (left.position ?? 99) - (right.position ?? 99),
-          );
-        const role = assignedRoles[0] || member.role;
+        const assignedRoles = memberRoles.sort(compareEffectiveRoles);
+        const role = getEffectiveRole(assignedRoles) || member.role;
         return {
           ...member,
           role_id: role?.id || null,

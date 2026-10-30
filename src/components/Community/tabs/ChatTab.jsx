@@ -242,6 +242,31 @@ const ChatTab = ({
   }, [community?.id, userId]);
 
   useEffect(() => {
+    if (!community?.id || !userId) return undefined;
+    let refreshTimer;
+    const refreshRoleState = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(async () => {
+        await Promise.all([loadRoles(), loadMembers(), loadPermissions()]);
+        setChannelPermissionRefresh((current) => current + 1);
+        await loadChannels();
+      }, 150);
+    };
+    const channel = supabase
+      .channel(`community-role-state:${community.id}:${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_roles", filter: `community_id=eq.${community.id}` }, refreshRoleState)
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_member_roles", filter: `community_id=eq.${community.id}` }, refreshRoleState)
+      .subscribe();
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel).catch((error) => {
+        console.error("[CommunityRoles] Failed to stop role updates:", error);
+      });
+    };
+  }, [community?.id, userId]);
+
+  useEffect(() => {
     setReactionError("");
   }, [selectedChannel]);
 
@@ -388,8 +413,9 @@ const ChatTab = ({
     }
     if (payload.type === "role") {
       const updatedRole = await roleService.updateRole(payload.roleId, payload.updates, userId);
-      await loadRoles();
-      await loadMembers();
+      await Promise.all([loadRoles(), loadMembers(), loadPermissions()]);
+      setChannelPermissionRefresh((current) => current + 1);
+      await loadChannels();
       return updatedRole;
     }
     if (payload.type === "deleteRole") {

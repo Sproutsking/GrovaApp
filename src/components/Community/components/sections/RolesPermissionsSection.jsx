@@ -18,6 +18,19 @@ const COLORS = [
   "#f093fb","#4facfe","#43e97b","#fa709a","#ff6b6b",
   "#ffd89b","#00c9ff","#c471ed","#f97316","#10b981",
 ];
+const NOVICE_LOCKED_PERMISSIONS = [
+  "administrator",
+  "manageRoles",
+  "assignRoles",
+  "manageCommunity",
+  "manageChannels",
+  "createChannels",
+  "inviteMembers",
+  "kickMembers",
+  "banMembers",
+  "manageMessages",
+  "timeoutMembers",
+];
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const RolesPermissionsSection = ({
@@ -84,11 +97,12 @@ const RolesPermissionsSection = ({
     onInitialRoleOpened?.();
   }, [initialRoleId, roles, onInitialRoleOpened, openRole]);
 
-  const memberCount = (roleId) => members.filter((member) =>
-    member.role_id === roleId || member.roles?.some((role) => role.id === roleId),
-  ).length;
+  const roleGroupKey = (role) => {
+    const name = role.name?.trim().toLowerCase();
+    return name === "novis" ? "novice" : name || role.id;
+  };
   const roleGroups = orderedRoles.reduce((groups, role) => {
-    const key = role.name?.trim().toLowerCase() || role.id;
+    const key = roleGroupKey(role);
     const existing = groups.find((group) => group.key === key);
     if (existing) {
       existing.roles.push(role);
@@ -97,19 +111,43 @@ const RolesPermissionsSection = ({
     }
     return groups;
   }, []);
-  const membersForRole = (role) => members.filter((member) =>
-    member.role_id === role.id
-    || member.roles?.some((assignedRole) => assignedRole.id === role.id)
-  );
+  const getRoleGroup = (role) => {
+    const key = roleGroupKey(role);
+    return roleGroups.find((group) => group.key === key)?.roles || [role];
+  };
+  const membersForRole = (role) => {
+    const groupedRoles = getRoleGroup(role);
+    const roleIds = new Set(groupedRoles.map((groupRole) => String(groupRole.id)));
+    return members.flatMap((member) => {
+      const assignedRoles = member.roles?.length ? member.roles : [member.role].filter(Boolean);
+      const assignedRole = assignedRoles.find((candidate) => (
+        roleIds.has(String(candidate.id)) && !candidate.is_default
+      )) || assignedRoles.find((candidate) => roleIds.has(String(candidate.id)));
+      const assignedRoleId = assignedRole?.id
+        || (roleIds.has(String(member.role_id)) ? member.role_id : null);
+      return assignedRoleId ? [{
+        ...member,
+        roleAssignmentId: assignedRoleId,
+        roleAssignmentIsDefault: assignedRole?.is_default
+          ?? groupedRoles.find((groupRole) => String(groupRole.id) === String(assignedRoleId))?.is_default
+          ?? false,
+      }] : [];
+    });
+  };
+  const memberCount = (roleId) => {
+    const role = orderedRoles.find((candidate) => String(candidate.id) === String(roleId));
+    return role ? membersForRole(role).length : 0;
+  };
 
   const handleRemoveRoleAssignment = async (member) => {
-    if (!selectedRole || !member.user_id || !onRemoveRoleAssignment) return;
-    const assignmentKey = `${member.user_id}:${selectedRole.id}`;
+    const roleId = member.roleAssignmentId || selectedRole?.id;
+    if (!roleId || !member.user_id || !onRemoveRoleAssignment) return;
+    const assignmentKey = `${member.user_id}:${roleId}`;
     setRemovingRoleAssignment(assignmentKey);
     setMemberActionError("");
     setMemberActionNotice("");
     try {
-      await onRemoveRoleAssignment(member.user_id, selectedRole.id);
+      await onRemoveRoleAssignment(member.user_id, roleId);
       setMemberActionNotice(`${selectedRole.name} role removed. Their remaining roles still determine access.`);
     } catch (removeError) {
       setMemberActionError(removeError?.message || "Could not remove this role assignment.");
@@ -221,7 +259,7 @@ const RolesPermissionsSection = ({
             }} onDragEnd={() => setDraggedRoleId(null)} onClick={() => openRole(role)}>
               <span className="rps-role-dot" style={{ background: role.color || "#667eea" }} />
               <span className="rps-role-name">{role.name}</span>
-              <span className="rps-role-members"><Users size={10} />{membersForRole(role).length}</span>
+              <span className="rps-role-members" aria-label={`${role.name}: ${membersForRole(role).length} members`}><Users size={10} />{membersForRole(role).length}</span>
               {groupedRoles.length > 1 && <span className="rps-role-merged">{groupedRoles.length} entries</span>}
               <ChevronRight size={14} className="rps-role-arrow" />
             </div>
@@ -336,7 +374,12 @@ const RolesPermissionsSection = ({
               <Crown size={13} color="#FFD700" /> Current ownership always grants full access; these role permissions apply to assigned members.
             </div>
           )}
-          <RolePermissionCards value={editedPerms} onChange={setEditedPerms} disabled={!canEditSelectedRole} />
+          <RolePermissionCards
+            value={editedPerms}
+            onChange={setEditedPerms}
+            disabled={!canEditSelectedRole}
+            lockedPermissions={selectedRole?.is_default ? NOVICE_LOCKED_PERMISSIONS : []}
+          />
 
           {selectedRole && communityId && (
             <div className="rps-access-panel">
@@ -383,14 +426,14 @@ const RolesPermissionsSection = ({
               {canAssignRoles
                 && onRemoveRoleAssignment
                 && !isOwnerRole
-                && !selectedRole?.is_default
+                && !member.roleAssignmentIsDefault
                 && member.user_id !== communityOwnerId
                 && <button
                   type="button"
                   className="rps-remove-member-role"
                   aria-label={`Remove ${selectedRole.name} role from ${member.user?.full_name || member.user?.username || "member"}`}
                   title={`Remove ${selectedRole.name} role`}
-                  disabled={removingRoleAssignment === `${member.user_id}:${selectedRole.id}`}
+                  disabled={removingRoleAssignment === `${member.user_id}:${member.roleAssignmentId || selectedRole.id}`}
                   onClick={() => handleRemoveRoleAssignment(member)}
                 >
                   <X size={14} />
@@ -400,7 +443,7 @@ const RolesPermissionsSection = ({
           {membersForRole(selectedRole || {}).length === 0 && (
             <div className="rps-empty-members">No members have this role yet.</div>
           )}
-          {canManageRoles && !isOwnerRole && !selectedRole?.is_default && (
+          {canManageRoles && !isOwnerRole && !getRoleGroup(selectedRole || {}).some((role) => role.is_default) && (
             <label className="rps-assign-label">
               <span>Assign this role to a member</span>
               <select defaultValue="" onChange={(event) => {

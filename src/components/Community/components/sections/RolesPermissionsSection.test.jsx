@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import RolesPermissionsSection from "./RolesPermissionsSection";
 import { ROLE_PERMISSION_GROUPS } from "./rolePermissionCatalog";
 import { DANGEROUS_PERMS } from "../../verification/verificationConfig";
@@ -30,7 +30,7 @@ describe("RolesPermissionsSection permissions", () => {
 
     fireEvent.click(screen.getByText("Member"));
     const palette = screen.getByRole("group", { name: "Choose role color" });
-    expect(palette.querySelectorAll("button")).toHaveLength(15);
+    expect(within(palette).getAllByRole("button")).toHaveLength(15);
     expect(screen.getByText("#667EEA")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Set role color #9cff00" }));
 
@@ -47,7 +47,7 @@ describe("RolesPermissionsSection permissions", () => {
         id: "membership-1",
         user_id: "user-1",
         role_id: "member-custom",
-        roles: [selectedRole, duplicateRole],
+        roles: [duplicateRole, selectedRole],
         user: { full_name: "Stacked Member", username: "stacked" },
       },
       {
@@ -78,6 +78,63 @@ describe("RolesPermissionsSection permissions", () => {
 
     await waitFor(() => expect(onRemoveRoleAssignment).toHaveBeenCalledWith("user-1", "member-custom"));
     expect((await screen.findByRole("status")).textContent).toContain("remaining roles still determine access");
+  });
+
+  it("counts and lists assignments across duplicate role entries without duplicating members", async () => {
+    const firstMemberRole = { id: "member-role-1", name: "Member", position: 1, permissions: {} };
+    const duplicateMemberRole = { id: "member-role-2", name: "Member", position: 2, permissions: {} };
+    const noviceRole = { id: "novice", name: "Novice", position: 4, is_default: true, permissions: {} };
+    const roles = [
+      firstMemberRole,
+      duplicateMemberRole,
+      noviceRole,
+      { id: "novis", name: "Novis", position: 5, permissions: {} },
+    ];
+    const members = [
+      {
+        id: "membership-1",
+        user_id: "user-1",
+        role_id: firstMemberRole.id,
+        roles: [firstMemberRole, noviceRole],
+        user: { full_name: "First Member", username: "first" },
+      },
+      {
+        id: "membership-2",
+        user_id: "user-2",
+        role_id: duplicateMemberRole.id,
+        roles: [duplicateMemberRole, noviceRole, roles[3]],
+        user: { full_name: "Second Member", username: "second" },
+      },
+    ];
+    render(<RolesPermissionsSection roles={roles} members={members} />);
+
+    expect(screen.getByLabelText("Member: 2 members")).not.toBeNull();
+    expect(screen.getAllByText("2 entries")).toHaveLength(2);
+    fireEvent.click(screen.getByText("Member", { selector: ".rps-role-name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Members" }));
+
+    expect(screen.getByText("First Member")).not.toBeNull();
+    expect(screen.getByText("Second Member")).not.toBeNull();
+    expect(screen.getAllByText(/@(?:first|second)/)).toHaveLength(2);
+  });
+
+  it("keeps Novice from granting channel-management or role-management bypasses", () => {
+    const novice = {
+      id: "novice",
+      name: "Novice",
+      position: 3,
+      is_default: true,
+      permissions: { viewChannels: false, manageChannels: true, administrator: true },
+    };
+    render(<RolesPermissionsSection roles={[novice]} canManageRoles />);
+
+    fireEvent.click(screen.getByText("Novice"));
+    fireEvent.click(screen.getByRole("button", { name: "Permissions" }));
+
+    expect(screen.getByRole("button", { name: "View Channels permission On" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Manage Channels permission On" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Manage Channels permission On" }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Administrator permission On" }).disabled).toBe(true);
   });
 
   it("presents permissions as selectable cards and saves the chosen state", async () => {

@@ -3,7 +3,7 @@ import { Check, Search } from "lucide-react";
 import { ROLE_PERMISSION_GROUPS } from "./rolePermissionCatalog";
 import { DANGEROUS_PERMS } from "../../verification/verificationConfig";
 
-export default function RolePermissionCards({ value = {}, onChange, disabled = false }) {
+export default function RolePermissionCards({ value = {}, onChange, disabled = false, lockedPermissions = [] }) {
   const [search, setSearch] = useState("");
   const groups = useMemo(() => ROLE_PERMISSION_GROUPS.map((group) => {
     const permissions = group.perms.map((permission) => ({
@@ -63,6 +63,7 @@ export default function RolePermissionCards({ value = {}, onChange, disabled = f
             <div className="role-permission-grid">
               {group.perms.map((permission) => {
                 const enabled = value[permission.key] === true;
+                const permissionDisabled = disabled || lockedPermissions.includes(permission.key);
                 return (
                   <div key={permission.key} className={`role-permission-card${enabled ? " enabled" : ""}${permission.danger ? " danger" : ""}`}>
                     <span className="role-permission-card-copy">
@@ -72,7 +73,7 @@ export default function RolePermissionCards({ value = {}, onChange, disabled = f
                     <div className="role-permission-choice" role="group" aria-label={`${permission.label} permission`}>
                       <button
                         type="button"
-                        disabled={disabled}
+                        disabled={permissionDisabled}
                         aria-label={`${permission.label} permission On`}
                         aria-pressed={enabled}
                         onClick={() => onChange?.({ ...value, [permission.key]: true })}
@@ -81,7 +82,7 @@ export default function RolePermissionCards({ value = {}, onChange, disabled = f
                       </button>
                       <button
                         type="button"
-                        disabled={disabled}
+                        disabled={permissionDisabled}
                         aria-label={`${permission.label} permission Off`}
                         aria-pressed={!enabled}
                         onClick={() => onChange?.({ ...value, [permission.key]: false })}
