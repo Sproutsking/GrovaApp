@@ -52,7 +52,7 @@ class RoleService {
   }
 
   /**
-   * Create a new role (creates a "Novice" role with restricted permissions)
+   * Create a new role above the automatic Novice baseline.
    */
   async createRole(roleData, communityId, actorUserId) {
     try {
@@ -65,25 +65,36 @@ class RoleService {
       if (!validation.valid) {
         throw new Error(validation.errors.join(", "));
       }
-
-      // Keep the default novice role restricted even when older UI text uses "Novis".
-      let permissions = roleData.permissions;
-      if (["novis", "novice"].includes(roleData.name.trim().toLowerCase())) {
-        permissions = this.getNovicePermissions();
+      if (["novis", "novice", "owner"].includes(roleData.name.trim().toLowerCase())) {
+        throw new Error("Novice and Owner are reserved community roles.");
       }
 
-      const { data: lastRole } = await supabase
+      const { data: communityRoles, error: rolesError } = await supabase
         .from("community_roles")
-        .select("position")
+        .select("id,position,is_default")
         .eq("community_id", communityId)
-        .order("position", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("position", { ascending: false });
+      if (rolesError) throw rolesError;
+
+      const defaultRole = (communityRoles || []).find((role) => role.is_default);
+      const highestPosition = (communityRoles || [])
+        .filter((role) => !role.is_default)
+        .reduce((highest, role) => Math.max(highest, Number(role.position) || 0), -1);
+      const position = highestPosition + 1;
+      if (defaultRole && Number(defaultRole.position) <= position) {
+        const { error: defaultRoleError } = await supabase
+          .from("community_roles")
+          .update({ position: position + 1, updated_at: new Date().toISOString() })
+          .eq("id", defaultRole.id)
+          .eq("community_id", communityId);
+        if (defaultRoleError) throw defaultRoleError;
+      }
+
       const roleModel = new RoleModel({
         ...roleData,
         community_id: communityId,
-        position: (lastRole?.position ?? -1) + 1,
-        permissions: permissions,
+        position,
+        is_default: false,
       });
 
       const payload = roleModel.toJSON();
@@ -371,6 +382,12 @@ class RoleService {
       }
       const allowedUpdates = (({ name, color, icon, permissions }) => ({ name, color, icon, permissions }))(updates || {});
       if (isOwnerRole) allowedUpdates.name = existingRole.name;
+      if (existingRole.is_default) {
+        if (allowedUpdates.name && allowedUpdates.name.trim().toLowerCase() !== "novice") {
+          throw new Error("The automatic Novice role cannot be renamed.");
+        }
+        allowedUpdates.name = "Novice";
+      }
       const { data, error } = await supabase
         .from("community_roles")
         .update({
@@ -402,9 +419,12 @@ class RoleService {
     if (owner && actorRole && !RoleModel.fromAPI(actorRole).isOwner() && !RoleModel.fromAPI(actorRole).canManageRole(RoleModel.fromAPI(owner))) {
       throw new Error("You cannot reorder the Owner role");
     }
-    const fixedOrder = owner
-      ? [owner, ...orderedRoles.filter((role) => role.id !== owner.id)]
-      : orderedRoles;
+    const defaultRoles = orderedRoles.filter((role) => role.is_default);
+    const fixedOrder = [
+      ...(owner ? [owner] : []),
+      ...orderedRoles.filter((role) => role !== owner && !role.is_default),
+      ...defaultRoles,
+    ];
     const results = await Promise.all(fixedOrder.map((role, position) =>
       supabase.from("community_roles").update({ position, updated_at: new Date().toISOString() }).eq("id", role.id).eq("community_id", communityId),
     ));

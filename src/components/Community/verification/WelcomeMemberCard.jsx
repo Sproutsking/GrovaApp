@@ -30,11 +30,17 @@ const AVATAR_SIZE_BY_CRAFT = {
   "ticket-stub": 64,
 };
 
+const getBrowseDismissalKey = (communityId, memberId, viewerId) => (
+  communityId && memberId && viewerId
+    ? `community-welcome-browse:${communityId}:${memberId}:${viewerId}`
+    : null
+);
+
 export function getWelcomeMemberId(content) {
   return String(content || "").match(/^\[\[welcome-member:([^\]]+)\]/)?.[1] || null;
 }
 
-export default function WelcomeMemberCard({ communityId, memberId, community, createdAt, onProfileClick, onIntroduce, onBrowse }) {
+export default function WelcomeMemberCard({ communityId, memberId, viewerId, community, createdAt, onProfileClick, onIntroduce, onBrowse }) {
   const [member, setMember] = useState({
     full_name: "new member",
     username: "new member",
@@ -44,6 +50,25 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
     boost_selections: null,
   });
   const [welcomeConfig, setWelcomeConfig] = useState({});
+  const [browseDismissal, setBrowseDismissal] = useState({ key: null, dismissed: false });
+  const browseDismissalKey = getBrowseDismissalKey(communityId, memberId, viewerId);
+
+  useEffect(() => {
+    if (!browseDismissalKey) {
+      setBrowseDismissal({ key: null, dismissed: false });
+      return;
+    }
+
+    try {
+      setBrowseDismissal({
+        key: browseDismissalKey,
+        dismissed: window.localStorage.getItem(browseDismissalKey) === "1",
+      });
+    } catch (error) {
+      console.error("[WelcomeMemberCard] Failed to read browse-action state:", error);
+      setBrowseDismissal({ key: browseDismissalKey, dismissed: false });
+    }
+  }, [browseDismissalKey]);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +114,21 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
   const nameDesign = getBoostNameDesign(member?.subscription_tier, member?.boost_selections?.fontId, member?.boost_selections?.colorId);
   const avatar = mediaUrlService.resolveAvatarUrl(member?.avatar_id || member?.avatar_metadata?.url || member?.avatar_metadata?.publicUrl, 240);
   const avatarSize = AVATAR_SIZE_BY_CRAFT[cardDesign.craft] || 74;
+  const isOwnWelcomeCard = viewerId && String(viewerId) === String(memberId);
+  const showBrowseAction = isOwnWelcomeCard
+    && config.showSecondaryAction
+    && browseDismissal.key === browseDismissalKey
+    && !browseDismissal.dismissed;
+
+  const browseChannels = () => {
+    try {
+      window.localStorage.setItem(browseDismissalKey, "1");
+    } catch (error) {
+      console.error("[WelcomeMemberCard] Failed to save browse-action state:", error);
+    }
+    setBrowseDismissal({ key: browseDismissalKey, dismissed: true });
+    onBrowse?.();
+  };
 
   return <WelcomeCardFrame
     theme={theme}
@@ -102,7 +142,7 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
     description={config.description}
     avatar={<button type="button" onClick={() => onProfileClick?.(member)} aria-label={`Open ${name}'s profile`} style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex" }}><BoostAvatarRing tier={member?.subscription_tier} themeId={member?.boost_selections?.themeId} accentColor={nameDesign.color?.color || roleColor} size={avatarSize} src={avatar} letter={name.charAt(0).toUpperCase()} showBadge /></button>}
     meta={<>{role && <span style={{ color: roleColor, borderColor: `${roleColor}66` }}><ShieldCheck size={12} /> {role.name}</span>}{member?.verified && <span><Check size={12} /> Verified</span>}{member?.subscription_tier && <span>{member.subscription_tier} boost</span>}{config.showFeatures && config.features?.map((feature, index) => feature?.trim() && <span key={`${feature}-${index}`}><ShieldCheck size={11} /> {feature}</span>)}</>}
-    actions={(config.showPrimaryAction || config.showSecondaryAction) && <>{config.showPrimaryAction && <button type="button" onClick={() => onIntroduce?.(config.introChannelId)} disabled={!config.introChannelId}><UserPlus size={14} />{config.primaryLabel}</button>}{config.showSecondaryAction && <button type="button" onClick={() => onBrowse?.()}>{config.secondaryLabel}</button>}</>}
+    actions={(config.showPrimaryAction || showBrowseAction) && <>{config.showPrimaryAction && <button type="button" onClick={() => onIntroduce?.(config.introChannelId)} disabled={!config.introChannelId}><UserPlus size={14} />{config.primaryLabel}</button>}{showBrowseAction && <button type="button" onClick={browseChannels}>{config.secondaryLabel}</button>}</>}
     footer={<time dateTime={createdAt}>{createdAt ? new Date(createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Just now"}</time>}
   />;
 }

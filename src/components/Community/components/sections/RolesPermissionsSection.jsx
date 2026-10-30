@@ -275,7 +275,7 @@ const RolesPermissionsSection = ({
             className="rps-name-inp"
             value={editedName}
             onChange={(e) => setEditedName(e.target.value)}
-            disabled={!canEditSelectedRole || isOwnerRole}
+            disabled={!canEditSelectedRole || isOwnerRole || selectedRole?.is_default}
           />
 
           {/* Color */}
@@ -320,7 +320,7 @@ const RolesPermissionsSection = ({
           </div>
 
           {selectedRole?.is_default && (
-            <div className="rps-default-tag">Default role for new members</div>
+            <div className="rps-default-tag">Automatic Novice role for every community member</div>
           )}
           {isOwnerRole && (
             <div className="rps-owner-tag"><Crown size={12} color="#FFD700" /> Ownership always grants full access. This role controls assigned members after ownership is transferred.</div>
@@ -362,6 +362,9 @@ const RolesPermissionsSection = ({
       {activeTab === "members" && (
         <div className="rps-members">
           <div className="rps-field-label">Members with this role</div>
+          {selectedRole?.is_default && (
+            <div className="rps-default-tag">Novice is assigned automatically to everyone. Their highest role controls their member-list group and permissions.</div>
+          )}
           {memberActionError && <div className="rps-member-action-message error" role="alert">{memberActionError}</div>}
           {memberActionNotice && <div className="rps-member-action-message success" role="status">{memberActionNotice}</div>}
           {membersForRole(selectedRole || {}).map((member) => (
@@ -397,7 +400,7 @@ const RolesPermissionsSection = ({
           {membersForRole(selectedRole || {}).length === 0 && (
             <div className="rps-empty-members">No members have this role yet.</div>
           )}
-          {canManageRoles && !isOwnerRole && (
+          {canManageRoles && !isOwnerRole && !selectedRole?.is_default && (
             <label className="rps-assign-label">
               <span>Assign this role to a member</span>
               <select defaultValue="" onChange={(event) => {

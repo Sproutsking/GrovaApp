@@ -33,9 +33,9 @@ describe("RoleService.reorderRoles", () => {
     supabase.from.mockReturnValue(updateQuery);
 
     await expect(roleService.reorderRoles([
-      { id: "owner-role", community_id: "community-1", name: "Owner", position: 4 },
+      { id: "default-role", community_id: "community-1", name: "Novice", position: 1, is_default: true },
       { id: "member-role", community_id: "community-1", name: "Member", position: 1 },
-      { id: "default-role", community_id: "community-1", name: "Member", position: 1, is_default: true },
+      { id: "owner-role", community_id: "community-1", name: "Owner", position: 4 },
       { id: "other-community-role", community_id: "community-2", name: "Other", position: 0 },
     ], "community-1", "owner-1")).resolves.toBe(true);
 
@@ -43,6 +43,8 @@ describe("RoleService.reorderRoles", () => {
     expect(updateQuery.update).toHaveBeenNthCalledWith(1, expect.objectContaining({ position: 0 }));
     expect(updateQuery.update).toHaveBeenNthCalledWith(2, expect.objectContaining({ position: 1 }));
     expect(updateQuery.update).toHaveBeenNthCalledWith(3, expect.objectContaining({ position: 2 }));
+    expect(updateQuery.eq.mock.calls.filter(([column]) => column === "id"))
+      .toEqual([["id", "owner-role"], ["id", "member-role"], ["id", "default-role"]]);
   });
 
   it("removes only the requested member role assignment", async () => {

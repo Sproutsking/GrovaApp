@@ -1,4 +1,4 @@
-import { accessRuleAllowsPermission, compareEffectiveRoles, resolveAccessForRole, resolveChannelPermission } from "../accessService";
+import { accessRuleAllowsPermission, compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "../accessService";
 import { isCommunityMemberOnline } from "../communityOnlineStatusService";
 
 describe("community access rule enforcement", () => {
@@ -11,6 +11,17 @@ describe("community access rule enforcement", () => {
 
     expect(roles.sort(compareEffectiveRoles).map((role) => role.id))
       .toEqual(["owner", "earlier", "later"]);
+  });
+
+  it("uses only the highest assigned role as the effective role", () => {
+    const novice = { id: "novice", name: "Novice", position: 4, is_default: true };
+    const member = { id: "member", name: "Member", position: 2 };
+    const owner = { id: "owner", name: "Owner", position: 0 };
+
+    expect(getEffectiveRole([novice, member])).toBe(member);
+    expect(getEffectiveRole([novice, member, owner])).toBe(owner);
+    expect(getEffectiveRole([novice])).toBe(novice);
+    expect(getEffectiveRole(null)).toBeNull();
   });
 
   it("blocks role access when category has rules and the user role is not allowed", () => {

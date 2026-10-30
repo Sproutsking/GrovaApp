@@ -265,7 +265,7 @@ const MessageList = ({
                 <span style={{ height: 1, flex: 1, background: "rgba(251,113,133,.62)" }} />
               </div>
             )}
-            {welcomeMemberId ? <WelcomeMemberCard communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
+            {welcomeMemberId ? <WelcomeMemberCard communityId={communityId} memberId={welcomeMemberId} viewerId={userId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
             <div
               data-message-id={msg.id || msg.tempId || msg._tempId}
               className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}

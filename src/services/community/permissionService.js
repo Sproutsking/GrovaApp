@@ -1,6 +1,7 @@
 // src/services/community/permissionService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
+import { getEffectiveRole } from "./accessService";
 
 function getAvatarUrl(avatarId) {
   if (!avatarId || typeof avatarId !== "string") return "/default-avatar.png";
@@ -81,7 +82,7 @@ class PermissionService {
             - Number(String(left.name || "").trim().toLowerCase() === "owner")
             || (left.position ?? 99) - (right.position ?? 99),
           );
-        const role = roles[0] || member.role;
+        const role = getEffectiveRole(roles) || member.role;
         return {
           ...member,
           role_id: role?.id || null,
@@ -310,12 +311,7 @@ class PermissionService {
 
       if (error) throw error;
       const roles = (data || []).map((row) => row.role).filter(Boolean);
-      roles.sort((left, right) =>
-        Number(String(right.name || "").trim().toLowerCase() === "owner")
-        - Number(String(left.name || "").trim().toLowerCase() === "owner")
-        || (left.position ?? 99) - (right.position ?? 99),
-      );
-      return roles[0] || null;
+      return getEffectiveRole(roles);
     } catch (error) {
       console.error("Error getting user role:", error);
       return null;

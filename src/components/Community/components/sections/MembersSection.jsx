@@ -5,6 +5,7 @@ import { supabase } from "../../../../services/config/supabase";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
 import communityOnlineStatusService from "../../../../services/community/communityOnlineStatusService";
 import roleService from "../../../../services/community/roleService";
+import { compareEffectiveRoles, getEffectiveRole } from "../../../../services/community/accessService";
 import CommunityProfileModal from "../CommunityProfileModal";
 import UserProfileModal from "../../../Modals/UserProfileModal";
 import BoostAvatarRing from "../../../Shared/BoostAvatarRing";
@@ -114,15 +115,12 @@ const MembersSection = ({ community, userId }) => {
       });
       const normalizedMembers = (membersData || []).map((member) => {
         const memberRoles = (assignmentsByUser.get(member.user_id) || [member.role].filter(Boolean))
-          .sort((left, right) =>
-            Number(String(right.name || "").trim().toLowerCase() === "owner")
-            - Number(String(left.name || "").trim().toLowerCase() === "owner")
-            || (left.position ?? 99) - (right.position ?? 99),
-          );
-        if (member.user_id === community.owner_id && ownerRole && !memberRoles.some((role) => role.id === ownerRole.id)) {
+          .sort(compareEffectiveRoles);
+        if (String(member.user_id) === String(community.owner_id) && ownerRole && !memberRoles.some((role) => role.id === ownerRole.id)) {
           memberRoles.unshift(ownerRole);
+          memberRoles.sort(compareEffectiveRoles);
         }
-        const role = member.user_id === community.owner_id && ownerRole ? ownerRole : memberRoles[0] || member.role;
+        const role = getEffectiveRole(memberRoles) || member.role;
         return { ...member, role_id: role?.id || null, role, roles: memberRoles };
       });
       setMembers(normalizedMembers);
@@ -151,21 +149,12 @@ const MembersSection = ({ community, userId }) => {
     return matchesSearch && matchesRole;
   });
 
-  const groupedMembers = roles.reduce((groups, role) => {
-    const key = role.name?.trim().toLowerCase() || role.id;
-    const existing = groups.find((group) => group.key === key);
-    const roleMembers = filteredMembers.filter((member) =>
-      member.roles?.some((assignedRole) => assignedRole.id === role.id)
-      || member.role_id === role.id
-      || member.role?.name?.trim().toLowerCase() === key
-    );
-    if (existing) {
-      existing.members.push(...roleMembers.filter((member) => !existing.members.some((item) => item.id === member.id)));
-    } else {
-      groups.push({ key, role, members: roleMembers });
-    }
-    return groups;
-  }, [])
+  const groupedMembers = roles.map((role) => ({
+    role,
+    members: filteredMembers.filter((member) =>
+      String(member.role_id || member.role?.id || "") === String(role.id),
+    ),
+  }))
     .filter((group) => group.members.length > 0);
 
   const uniqueRoles = roles.filter((role, index, allRoles) => {

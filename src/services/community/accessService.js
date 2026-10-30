@@ -15,6 +15,10 @@ export function compareEffectiveRoles(left, right) {
     || String(left.id || "").localeCompare(String(right.id || ""));
 }
 
+export function getEffectiveRole(roles) {
+  return [...(Array.isArray(roles) ? roles : [])].filter(Boolean).sort(compareEffectiveRoles)[0] || null;
+}
+
 export function accessRuleAllowsPermission(access, permission) {
   if (!access?.restricted) return true;
   if (!access.canView) return false;
