@@ -220,4 +220,14 @@ describe("verification role choices", () => {
     });
     expect(isVerificationConfigEnabled(config)).toBe(true);
   });
+
+  it("can move a same-rank role above default when it currently sorts before default", () => {
+    const roles = [
+      { id: "member-custom", name: "Member", position: 1, is_default: false, permissions: {} },
+      { id: "member-default", name: "Member", position: 1, is_default: true, permissions: {} },
+    ];
+
+    expect(moveRoleAboveDefault(roles, "member-custom").map((role) => role.id))
+      .toEqual(["member-custom", "member-default"]);
+  });
 });

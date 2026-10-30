@@ -202,7 +202,7 @@ export function moveRoleAboveDefault(roles = [], roleId) {
   const ordered = [...roles].sort((left, right) => Number(left.position) - Number(right.position));
   const defaultIndex = ordered.findIndex((role) => role.is_default);
   const roleIndex = ordered.findIndex((role) => role.id === roleId);
-  if (defaultIndex < 0 || roleIndex < 0 || roleIndex < defaultIndex) return null;
+  if (defaultIndex < 0 || roleIndex < 0) return null;
   const role = ordered[roleIndex];
   if (getVerificationRoleIssue(role, roles) !== "rank") return null;
   ordered.splice(roleIndex, 1);
