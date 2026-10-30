@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { Send } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Check, Send, X } from "lucide-react";
 import { DEFAULT_VERIFICATION_CONFIG, getSelectableVerificationRoles, getVerificationRoleCandidates, getVerificationRoleIssue, groupVerificationRoles, isMethodReady, methodIssues, METHOD_ORDER, normalizeVerificationConfig, toPublicPanel } from "./verificationConfig";
 import VerificationModeDashboard from "./VerificationModeDashboard";
 import PictureVerificationDashboard from "./PictureVerificationDashboard";
@@ -10,7 +10,7 @@ import CreateVerificationRoleControl from "./CreateVerificationRoleControl";
 import VerificationRoleActions from "./VerificationRoleActions";
 import VerificationExperienceSettings from "./VerificationExperienceSettings";
 
-function FocusedVerificationWorkspace({ focusMode, config, roles, channels, selectedChannelIds, onToggleChannel, channelError, setupError, disabled, onConfigChange, onSaveAndPublish, publishStatus, publishing = false, children }) {
+function FocusedVerificationWorkspace({ focusMode, config, roles, channels, selectedChannelIds, onToggleChannel, channelError, setupError, publishToast, onDismissPublishToast, disabled, onConfigChange, onSaveAndPublish, publishStatus, publishing = false, children }) {
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [previewOpen, setPreviewOpen] = useState(true);
   const roleMap = new Map(roles.map((role) => [role.id, role]));
@@ -29,6 +29,11 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
 
   return (
     <div className={`verification-focused-workspace verification-focused-workspace-stable${previewOpen ? "" : " preview-collapsed"}`}>
+      {publishToast && <div className={`verification-publish-toast ${publishToast.type}`} role="status" aria-live="polite">
+        <span className="verification-publish-toast-icon">{publishToast.type === "success" ? <Check size={15} /> : publishToast.type === "error" ? <X size={15} /> : <Send size={14} />}</span>
+        <span>{publishToast.message}</span>
+        <button type="button" aria-label="Dismiss publish notification" onClick={onDismissPublishToast}><X size={13} /></button>
+      </div>}
       <div className="verification-focused-editor">
         <section className="verification-focused-channels">
         <div>
@@ -100,6 +105,15 @@ function FocusedVerificationWorkspace({ focusMode, config, roles, channels, sele
       {!previewOpen && <button type="button" className="verification-preview-show" onClick={() => setPreviewOpen(true)}>Show member preview</button>}
       <style>{`
         .verification-focused-workspace.verification-focused-workspace-stable{flex:1 1 auto;height:620px;max-height:calc(100dvh - 230px);min-height:0;grid-template-rows:minmax(0,1fr)}
+        .verification-publish-toast{position:fixed;top:18px;left:50%;z-index:100006;display:flex;align-items:center;gap:9px;width:max-content;max-width:calc(100vw - 32px);padding:11px 13px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:#111713;color:#eef8ed;box-shadow:0 12px 32px rgba(0,0,0,.5);font-size:calc((11px) + 1px);transform:translateX(-50%);animation:verificationToastIn .18s ease-out}
+        .verification-publish-toast.success{border-color:rgba(74,222,128,.5);background:#102018}
+        .verification-publish-toast.error{border-color:rgba(248,113,113,.55);background:#271313}
+        .verification-publish-toast-icon{display:grid;place-items:center;flex:0 0 24px;height:24px;border-radius:7px;background:rgba(255,255,255,.08);color:#9cff00}
+        .verification-publish-toast.success .verification-publish-toast-icon{color:#4ade80}
+        .verification-publish-toast.error .verification-publish-toast-icon{color:#f87171}
+        .verification-publish-toast>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+        .verification-publish-toast>button{display:grid;place-items:center;flex:0 0 24px;height:24px;border:0;border-radius:6px;background:rgba(255,255,255,.07);color:inherit;cursor:pointer}
+        @keyframes verificationToastIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
         .verification-focused-workspace-stable .verification-focused-channels,.verification-focused-workspace-stable .verification-member-preview{gap:7px;padding:10px}
         .verification-focused-workspace-stable .verification-focused-editor{gap:9px}
         .verification-focused-workspace-stable .verification-focused-editor{min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
@@ -254,6 +268,16 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
   const experienceConfigRef = useRef(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [publishToast, setPublishToast] = useState(null);
+  const publishToastTimeout = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(publishToastTimeout.current), []);
+
+  const showPublishToast = (type, message) => {
+    window.clearTimeout(publishToastTimeout.current);
+    setPublishToast({ type, message });
+    publishToastTimeout.current = window.setTimeout(() => setPublishToast(null), 5000);
+  };
 
   const selectMode = (modeId) => {
     onModeSelect?.(modeId);
@@ -271,18 +295,24 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
       return true;
     } catch (saveError) {
       setError(saveError.message || "Could not save verification setup.");
+      showPublishToast("error", saveError.message || "Could not save verification setup.");
       return false;
     } finally {
       setSaving(false);
     }
   };
   const saveAndPublish = async () => {
+    showPublishToast("info", "Saving and publishing verification panel…");
     const saved = await handleSave(config);
     if (!saved) return;
     try {
-      await onPublish?.(config);
+      if (!onPublish) throw new Error("Publishing is unavailable for this community.");
+      await onPublish(config);
+      showPublishToast("success", "Verification panel published successfully.");
     } catch (publishError) {
-      setError(publishError.message || "Could not publish the verification panel.");
+      const message = publishError.message || "Could not publish the verification panel.";
+      setError(message);
+      showPublishToast("error", message);
     }
   };
 
@@ -310,28 +340,28 @@ export default function VerificationToolDashboard({ communityId, value, onSave, 
 
   if (focusMode === "quick") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} publishToast={publishToast} onDismissPublishToast={() => setPublishToast(null)} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <VerificationModeDashboard mode="quick" value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings(next))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "picture") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} publishToast={publishToast} onDismissPublishToast={() => setPublishToast(null)} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <PictureVerificationDashboard value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings({ ...config, ...next }))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "reaction") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} publishToast={publishToast} onDismissPublishToast={() => setPublishToast(null)} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <ReactionVerificationDashboard value={config} roles={roles} onCreateRole={onCreateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} canManageRoles={canManageRoles} disabled={disabled} onConfigChange={setConfig} onSave={(next) => handleSave(mergeExperienceSettings(next))} />
       </FocusedVerificationWorkspace>
     );
   }
   if (focusMode === "role_grant") {
     return (
-      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
+      <FocusedVerificationWorkspace focusMode={focusMode} config={config} roles={roles} channels={channels} selectedChannelIds={selectedChannelIds} onToggleChannel={onToggleChannel} channelError={channelError} setupError={error} publishToast={publishToast} onDismissPublishToast={() => setPublishToast(null)} disabled={disabled} onConfigChange={updateExperienceSettings} onSaveAndPublish={saveAndPublish} publishStatus={publishStatus} publishing={publishing || saving}>
         <RoleGrantPage communityId={communityId} config={config} roles={roles} channels={channels} categories={categories} accessRules={accessRules} disabled={disabled} canManageRoles={canManageRoles} saving={saving} error={error} onPatch={patch} onSave={() => handleSave(mergeExperienceSettings(config))} onCreateRole={onCreateRole} onUpdateRole={onUpdateRole} onPromoteRole={handlePromoteRole} onManageRole={onManageRole} onDeleteRole={onDeleteRole} />
       </FocusedVerificationWorkspace>
     );

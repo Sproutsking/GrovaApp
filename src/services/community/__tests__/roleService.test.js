@@ -2,7 +2,7 @@ import roleService from "../roleService";
 import { supabase } from "../../config/supabase";
 
 jest.mock("../../config/supabase", () => ({
-  supabase: { from: jest.fn() },
+  supabase: { from: jest.fn(), rpc: jest.fn() },
 }));
 
 describe("RoleService.reorderRoles", () => {
@@ -43,5 +43,21 @@ describe("RoleService.reorderRoles", () => {
     expect(updateQuery.update).toHaveBeenNthCalledWith(1, expect.objectContaining({ position: 0 }));
     expect(updateQuery.update).toHaveBeenNthCalledWith(2, expect.objectContaining({ position: 1 }));
     expect(updateQuery.update).toHaveBeenNthCalledWith(3, expect.objectContaining({ position: 2 }));
+  });
+
+  it("removes only the requested member role assignment", async () => {
+    supabase.rpc.mockResolvedValue({
+      data: { success: true, effective_role_id: "remaining-role" },
+      error: null,
+    });
+
+    await expect(roleService.removeMemberRole("community-1", "user-1", "role-to-remove"))
+      .resolves.toEqual({ success: true, effective_role_id: "remaining-role" });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("remove_community_member_role", {
+      p_community_id: "community-1",
+      p_user_id: "user-1",
+      p_role_id: "role-to-remove",
+    });
   });
 });

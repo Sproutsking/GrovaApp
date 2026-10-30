@@ -198,6 +198,7 @@ const CommunityMenu = ({
     setMenuView("roles");
   };
   const handleAssignRole = async (memberId, roleId) => { await onUpdate({ type: "assignRole", memberId, roleId }); };
+  const handleRemoveRoleAssignment = async (targetUserId, roleId) => onUpdate({ type: "removeRole", userId: targetUserId, roleId });
   const handleReorderRoles = async (nextRoles) => onUpdate({ type: "reorderRoles", roles: nextRoles });
 
   if (!show) return null;
@@ -360,8 +361,10 @@ const CommunityMenu = ({
                 initialRoleId={roleToOpen}
                 onInitialRoleOpened={() => setRoleToOpen(null)}
                 canManageRoles={canManageRoles}
+                canAssignRoles={userPermissions?.assignRoles || hasAdminOverride || isOwner}
                 isCommunityOwner={isOwner}
-                onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onReorderRoles={handleReorderRoles}
+                communityOwnerId={community.owner_id}
+                onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onRemoveRoleAssignment={handleRemoveRoleAssignment} onReorderRoles={handleReorderRoles}
               />
               </>
             )}

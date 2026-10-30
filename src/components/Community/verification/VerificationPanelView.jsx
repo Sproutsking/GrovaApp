@@ -48,12 +48,13 @@ function RulesBody({ m, locked, busy, onSubmit, hasRoleChoices }) {
   );
 }
 
-function QuickBody({ m, locked, busy, onSubmit }) {
+function QuickBody({ m, locked, busy, onSubmit, showReward }) {
   const reqs = [m.minAccountAgeDays > 0 && `Account older than ${m.minAccountAgeDays} day${m.minAccountAgeDays > 1 ? "s" : ""}`, m.requireAvatar && "Profile picture added", m.requireProfileVerified && "Verified profile"].filter(Boolean);
   return (
     <div className="vp-body">
       <h2>{m.title}</h2><p className="vp-desc">{m.description}</p>
       {reqs.length > 0 && <div className="vp-reqs">{reqs.map((r) => <span key={r}><Check size={10} />{r}</span>)}</div>}
+      {showReward && <Reward m={m} />}
       <button type="button" className="vp-btn" disabled={busy || locked} onClick={() => onSubmit({})}>{busy ? "Checking…" : m.buttonLabel}</button>
     </div>
   );
@@ -181,6 +182,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
       m,
       locked,
       busy,
+      showReward: cfg.showReward && !rulesLeadToVerification,
       hasRoleChoices: !rulesLeadToVerification && (panel.roleChoices || []).length > 0,
       onSubmit: (payload) => run(id, payload),
     };
@@ -195,7 +197,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
             : id === "picture"
               ? <PictureBody key={m.cards.map((card) => `${card.id}:${card.image}`).join("|")} {...props} />
               : <ReactionBody key={m.choices.map((choice) => choice.id).join("|")} {...props} />}
-        {cfg.showReward && !rulesLeadToVerification && <Reward m={m} />}
+        {cfg.showReward && !rulesLeadToVerification && id !== "quick" && <Reward m={m} />}
         {errors[id] && <div className="vp-err">{errors[id]}</div>}
       </div>
     );

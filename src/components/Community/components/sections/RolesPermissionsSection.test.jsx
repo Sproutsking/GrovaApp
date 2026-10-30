@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import RolesPermissionsSection from "./RolesPermissionsSection";
 import { ROLE_PERMISSION_GROUPS } from "./rolePermissionCatalog";
 import { DANGEROUS_PERMS } from "../../verification/verificationConfig";
@@ -36,6 +36,48 @@ describe("RolesPermissionsSection permissions", () => {
 
     expect(screen.getByRole("button", { name: "Set role color #9cff00" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText("#9CFF00")).not.toBeNull();
+  });
+
+  it("removes only the selected role assignment for a member with stacked roles", async () => {
+    const onRemoveRoleAssignment = jest.fn().mockResolvedValue(true);
+    const selectedRole = { id: "member-custom", name: "Member", position: 1, permissions: {} };
+    const duplicateRole = { id: "member-default", name: "Member", position: 1, is_default: true, permissions: {} };
+    const members = [
+      {
+        id: "membership-1",
+        user_id: "user-1",
+        role_id: "member-custom",
+        roles: [selectedRole, duplicateRole],
+        user: { full_name: "Stacked Member", username: "stacked" },
+      },
+      {
+        id: "membership-2",
+        user_id: "user-2",
+        role_id: "member-default",
+        roles: [duplicateRole],
+        user: { full_name: "Default Member", username: "default" },
+      },
+    ];
+    render(
+      <RolesPermissionsSection
+        communityId="community-1"
+        roles={[selectedRole, duplicateRole]}
+        members={members}
+        canManageRoles
+        canAssignRoles
+        onRemoveRoleAssignment={onRemoveRoleAssignment}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Member"));
+    fireEvent.click(screen.getByRole("button", { name: "Members" }));
+
+    expect(screen.getByRole("button", { name: "Remove Member role from Stacked Member" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Remove Member role from Default Member" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Member role from Stacked Member" }));
+
+    await waitFor(() => expect(onRemoveRoleAssignment).toHaveBeenCalledWith("user-1", "member-custom"));
+    expect((await screen.findByRole("status")).textContent).toContain("remaining roles still determine access");
   });
 
   it("presents permissions as selectable cards and saves the chosen state", async () => {

@@ -41,6 +41,22 @@ describe("VerificationPanelView completion experience", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("shows the quick verification reward above the Verify button", () => {
+    render(
+      <VerificationPanelView
+        panel={{
+          ...panel,
+          methods: { quick: { ...panel.methods.quick, roleName: "Member", roleColor: "#34d399" } },
+        }}
+        onlyMethods={["quick"]}
+      />,
+    );
+
+    const body = screen.getByRole("button", { name: "Verify me" }).closest(".vp-body");
+    const content = [...body.children].map((element) => element.className || element.tagName.toLowerCase());
+    expect(content.indexOf("vp-reward")).toBeLessThan(content.indexOf("vp-btn"));
+  });
+
   it("does not show congratulations when verification is waiting for role selection", async () => {
     const onComplete = jest.fn().mockResolvedValue({ success: true, needs_role_selection: true });
     render(<VerificationPanelView panel={panel} onComplete={onComplete} onlyMethods={["quick"]} />);

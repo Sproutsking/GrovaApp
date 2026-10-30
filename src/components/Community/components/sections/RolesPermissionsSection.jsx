@@ -25,12 +25,15 @@ const RolesPermissionsSection = ({
   roles = [],
   members = [],
   canManageRoles = false,
+  canAssignRoles = false,
   isCommunityOwner = false,
+  communityOwnerId = null,
   initialRoleId = null,
   onInitialRoleOpened,
   onUpdateRole,
   onCreateRole,
   onAssignRole,
+  onRemoveRoleAssignment,
   onReorderRoles,
 }) => {
   const [orderedRoles, setOrderedRoles] = useState(roles);
@@ -52,6 +55,9 @@ const RolesPermissionsSection = ({
   const [showCreate, setShowCreate]     = useState(false);
   const [newName, setNewName]           = useState("");
   const [error, setError]               = useState("");
+  const [memberActionError, setMemberActionError] = useState("");
+  const [memberActionNotice, setMemberActionNotice] = useState("");
+  const [removingRoleAssignment, setRemovingRoleAssignment] = useState(null);
 
   useEffect(() => () => window.clearTimeout(savedTimeout.current), []);
 
@@ -94,8 +100,23 @@ const RolesPermissionsSection = ({
   const membersForRole = (role) => members.filter((member) =>
     member.role_id === role.id
     || member.roles?.some((assignedRole) => assignedRole.id === role.id)
-    || member.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()
   );
+
+  const handleRemoveRoleAssignment = async (member) => {
+    if (!selectedRole || !member.user_id || !onRemoveRoleAssignment) return;
+    const assignmentKey = `${member.user_id}:${selectedRole.id}`;
+    setRemovingRoleAssignment(assignmentKey);
+    setMemberActionError("");
+    setMemberActionNotice("");
+    try {
+      await onRemoveRoleAssignment(member.user_id, selectedRole.id);
+      setMemberActionNotice(`${selectedRole.name} role removed. Their remaining roles still determine access.`);
+    } catch (removeError) {
+      setMemberActionError(removeError?.message || "Could not remove this role assignment.");
+    } finally {
+      setRemovingRoleAssignment(null);
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedRole || !canEditSelectedRole) return;
@@ -341,6 +362,8 @@ const RolesPermissionsSection = ({
       {activeTab === "members" && (
         <div className="rps-members">
           <div className="rps-field-label">Members with this role</div>
+          {memberActionError && <div className="rps-member-action-message error" role="alert">{memberActionError}</div>}
+          {memberActionNotice && <div className="rps-member-action-message success" role="status">{memberActionNotice}</div>}
           {membersForRole(selectedRole || {}).map((member) => (
             <div className="rps-member-row" key={member.id}>
               <div className="rps-member-avatar">
@@ -354,6 +377,21 @@ const RolesPermissionsSection = ({
                 <strong>{member.user?.full_name || member.user?.username || "Unknown user"}</strong>
                 <span>@{member.user?.username || "unknown"}</span>
               </div>
+              {canAssignRoles
+                && onRemoveRoleAssignment
+                && !isOwnerRole
+                && !selectedRole?.is_default
+                && member.user_id !== communityOwnerId
+                && <button
+                  type="button"
+                  className="rps-remove-member-role"
+                  aria-label={`Remove ${selectedRole.name} role from ${member.user?.full_name || member.user?.username || "member"}`}
+                  title={`Remove ${selectedRole.name} role`}
+                  disabled={removingRoleAssignment === `${member.user_id}:${selectedRole.id}`}
+                  onClick={() => handleRemoveRoleAssignment(member)}
+                >
+                  <X size={14} />
+                </button>}
             </div>
           ))}
           {membersForRole(selectedRole || {}).length === 0 && (
@@ -463,10 +501,16 @@ const rpsStyles = `
   .rps-owner-tag{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.18);color:#FFD700;font-size:calc((11px) + 1px);font-weight:700}
 
   .rps-members{flex:1;overflow-y:auto;padding:14px 12px}
-  .rps-member-row{display:flex;align-items:center;gap:9px;min-height:42px;padding:5px 8px;margin-bottom:5px;border-radius:9px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9)}
+  .rps-member-row{display:flex;align-items:center;gap:9px;min-width:0;min-height:42px;padding:5px 8px;margin-bottom:5px;border-radius:9px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9)}
   .rps-member-avatar{width:32px;height:32px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.12);border:2px solid rgba(156,255,0,.22);color:#9cff00;font-weight:900;font-size:calc((12px) + 1px);flex-shrink:0}
   .rps-member-avatar img{width:100%;height:100%;object-fit:cover;display:block}
   .rps-member-info{display:flex;flex-direction:column;gap:2px;min-width:0}.rps-member-info strong{font-size:calc((12px) + 1px);color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rps-member-info span{font-size:calc((10px) + 1px);color:#666}
+  .rps-remove-member-role{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;margin-left:auto;border:1px solid rgba(255,107,107,.2);border-radius:8px;background:rgba(255,107,107,.06);color:#ff8585;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+  .rps-remove-member-role:hover:not(:disabled){transform:scale(1.05);border-color:rgba(255,107,107,.55);background:rgba(255,107,107,.14)}
+  .rps-remove-member-role:disabled{opacity:.5;cursor:wait}
+  .rps-member-action-message{margin:0 0 8px;padding:8px 10px;border:1px solid;border-radius:7px;font-size:calc((10px) + 1px);line-height:1.4}
+  .rps-member-action-message.error{border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.07);color:#fca5a5}
+  .rps-member-action-message.success{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.06);color:#86efac}
   .rps-empty-members{padding:18px 8px;color:#555;font-size:calc((11px) + 1px);text-align:center}
   .rps-assign-label{display:flex;flex-direction:column;gap:7px;margin-top:14px;font-size:calc((10px) + 1px);font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px}
   .rps-assign-label select{padding:9px 10px;border-radius:8px;background:#121212;border:1px solid rgba(156,255,0,.25);color:#bbb;font-size:calc((12px) + 1px);outline:none}

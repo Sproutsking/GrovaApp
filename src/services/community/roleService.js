@@ -551,6 +551,19 @@ class RoleService {
     }
   }
 
+  async removeMemberRole(communityId, userId, roleId) {
+    if (!communityId || !userId || !roleId) {
+      throw new Error("Community, member, and role are required to remove a role assignment.");
+    }
+    const { data, error } = await supabase.rpc("remove_community_member_role", {
+      p_community_id: communityId,
+      p_user_id: userId,
+      p_role_id: roleId,
+    });
+    if (error) throw error;
+    return data || { success: true };
+  }
+
   /**
    * Get user's role in community
    */

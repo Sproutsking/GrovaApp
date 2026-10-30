@@ -411,6 +411,12 @@ const ChatTab = ({
     if (payload.type === "assignRole") {
       await roleService.updateMemberRole(payload.memberId, payload.roleId, userId);
       await loadMembers();
+      return true;
+    }
+    if (payload.type === "removeRole") {
+      await roleService.removeMemberRole(community.id, payload.userId, payload.roleId);
+      await Promise.all([loadMembers(), loadPermissions(), loadChannels()]);
+      return true;
     }
   };
 

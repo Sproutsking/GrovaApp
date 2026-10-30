@@ -118,6 +118,9 @@ describe("VerificationToolDashboard", () => {
     const publishError = await screen.findByRole("alert");
     expect(publishError.textContent).toContain("Publish RPC unavailable");
     expect(publishError.closest(".verification-focused-publish-bar")).not.toBeNull();
+    expect(await screen.findByText("Publish RPC unavailable", {
+      selector: ".verification-publish-toast.error span:nth-child(2)",
+    })).not.toBeNull();
   });
 
   it("saves the role selected for Quick Verify", async () => {
@@ -180,7 +183,8 @@ describe("VerificationToolDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save and publish panel" }));
 
     await waitFor(() => expect(onPublish).toHaveBeenCalled());
-  expect(screen.getByText("Member panel preview")).not.toBeNull();
+    expect(await screen.findByText("Verification panel published successfully.")).not.toBeNull();
+    expect(screen.getByText("Member panel preview")).not.toBeNull();
     expect(onModeSelect).not.toHaveBeenCalledWith(null);
     expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
