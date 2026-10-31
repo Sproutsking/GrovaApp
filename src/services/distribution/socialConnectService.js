@@ -32,9 +32,33 @@
 
 import { supabase } from "../config/supabase";
 import { syncUserConnectorEvidence } from "../evidence/connectorService";
+import xrcService, { STREAM_TYPES, XRC_EVENTS } from "../xrc";
 
 const POPUP_W = 520;
 const POPUP_H = 620;
+
+async function recordPlatformEvent(userId, event, platform, connection) {
+  try {
+    const result = await xrcService.writeRecord(
+      STREAM_TYPES.XARC,
+      event === "platform_disconnected"
+        ? XRC_EVENTS.platformDisconnected(platform, connection)
+        : event === "platform_identity_imported"
+          ? XRC_EVENTS.platformIdentityImported(platform, connection)
+          : event === "platform_connection_observed"
+            ? XRC_EVENTS.platformConnectionObserved(platform, connection)
+        : XRC_EVENTS.platformConnected(platform, connection),
+      userId,
+    );
+    if (!result?.success && !result?.skipped) {
+      console.error("[SocialConnect] XRC platform history could not be recorded:", result?.error || "Unknown error");
+    }
+    return result;
+  } catch (error) {
+    console.error("[SocialConnect] XRC platform history could not be recorded:", error);
+    return { success: false, error: error?.message || "XRC append failed" };
+  }
+}
 
 export function resolveProviderLinkState({ platform, identities = [], connections = {} } = {}) {
   const safeIdentities = Array.isArray(identities) ? identities : [];
@@ -263,20 +287,19 @@ class SocialConnectService {
         // Check if we already have this connection
         const { data: existing } = await supabase
           .from("connections")
-          .select("id, auth_status")
+          .select("id, auth_status, platform_user_id, connected_via")
           .eq("user_id", userId)
           .eq("provider", platformKey)
           .maybeSingle();
 
         const sessionProvider = session?.user?.app_metadata?.provider;
         const providerToken = sessionProvider === identity.provider ? session?.provider_token : null;
-        if (!existing || existing.auth_status !== "active") {
-          // Create/update the connection record
-          const platformUserId = identity.identity_data?.user_name
+        const platformUserId = identity.identity_data?.user_name
             || identity.identity_data?.preferred_username
             || identity.identity_data?.sub
             || identity.id;
-
+        if (!existing || existing.auth_status !== "active" || existing.platform_user_id !== platformUserId) {
+          // Create/update the connection record
           const { data: conn } = await supabase
             .from("connections")
             .upsert({
@@ -290,6 +313,14 @@ class SocialConnectService {
             .maybeSingle();
 
           if (conn) {
+            const connectionChanged = !existing
+              || existing.auth_status !== conn.auth_status
+              || existing.platform_user_id !== conn.platform_user_id
+              || existing.connected_via !== conn.connected_via;
+            if (connectionChanged) {
+              const event = conn.auth_status === "active" ? "platform_connected" : "platform_identity_imported";
+              await recordPlatformEvent(userId, event, platformKey, conn);
+            }
             if (providerToken) {
               const { error: tokenError } = await supabase.from("tokens").upsert({
                 connection_id: conn.id,
@@ -349,7 +380,7 @@ class SocialConnectService {
 
     if (linkedState.alreadyConnected) {
       const platformUserId = linkedState.platformUserId || connectionMap[platform]?.platform_user_id || user.email || user.id;
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("connections")
         .upsert({
           user_id: userId,
@@ -357,8 +388,13 @@ class SocialConnectService {
           platform_user_id: platformUserId,
           auth_status: "active",
           connected_via: linkedState.source || "supabase_identity",
-        }, { onConflict: "user_id,provider" });
+        }, { onConflict: "user_id,provider" })
+        .select()
+        .single();
       if (error) throw new Error(`The ${config.label} connection could not be confirmed: ${error.message}`);
+      if (connectionMap[platform]?.auth_status !== "active") {
+        await recordPlatformEvent(userId, "platform_connected", platform, data);
+      }
       return { redirecting: false, alreadyConnected: true, platform };
     }
 
@@ -446,14 +482,15 @@ class SocialConnectService {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user || user.id !== userId) throw new Error("Your session expired. Sign in again before linking a profile.");
     const normalizedUrl = validateProfileUrl(platform, profileUrl);
-    const { error } = await supabase.from("connections").upsert({
+    const { data, error } = await supabase.from("connections").upsert({
       user_id: userId,
       provider: platform,
       platform_user_id: normalizedUrl,
       auth_status: "active",
       connected_via: "profile_link",
-    }, { onConflict: "user_id,provider" });
+    }, { onConflict: "user_id,provider" }).select().single();
     if (error) throw new Error(`Failed to save profile link: ${error.message}`);
+    await recordPlatformEvent(userId, "platform_connected", platform, data);
     await syncUserConnectorEvidence(userId, platform).catch((syncError) => {
       console.warn(`[SocialConnect] Connection proof sync failed for ${platform}:`, syncError?.message);
     });
@@ -507,17 +544,19 @@ class SocialConnectService {
       : await supabase.from("tokens").insert(tokenValues);
     if (tokenError) throw new Error(`The ${platform} connection was created, but its publishing token could not be saved: ${tokenError.message}`);
 
+    await recordPlatformEvent(userId, "platform_connected", platform, conn);
     return conn;
   }
 
   // ── Disconnect a platform ─────────────────────────────────────────────────
   async unlinkPlatform(userId, platform) {
-    const { data: conn } = await supabase
+    const { data: conn, error: lookupError } = await supabase
       .from("connections")
-      .select("id")
+      .select("id, auth_status, connected_via")
       .eq("user_id", userId)
       .eq("provider", platform)
       .maybeSingle();
+    if (lookupError) throw new Error(`Failed to load connection before unlinking: ${lookupError.message}`);
 
     if (conn?.id) {
       // Revoke tokens
@@ -535,7 +574,55 @@ class SocialConnectService {
       .eq("provider", platform);
 
     if (error) throw new Error(`Failed to unlink: ${error.message}`);
+    if (conn) await recordPlatformEvent(userId, "platform_disconnected", platform, conn);
     return true;
+  }
+
+  async ensurePlatformConnectionHistory(userId) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new Error(`Could not verify the current account: ${userError.message}`);
+    if (!user || user.id !== userId) throw new Error("Only the signed-in profile can reconcile its XRC connection history.");
+
+    const { data: connections, error: connectionsError } = await supabase
+      .from("connections")
+      .select("id, provider, auth_status, connected_via")
+      .eq("user_id", userId);
+    if (connectionsError) throw new Error(`Could not load linked platforms: ${connectionsError.message}`);
+    const persistedConnections = (connections || []).filter((connection) => connection.id && connection.provider);
+    if (!persistedConnections.length) return { observed: 0, alreadyTracked: 0, skipped: 0 };
+
+    const { data: records, error: recordsError } = await supabase
+      .from("xrc_records")
+      .select("payload")
+      .eq("actor_id", userId)
+      .eq("stream_type", "XARC")
+      .order("timestamp", { ascending: false })
+      .limit(1000);
+    if (recordsError) throw new Error(`Could not check existing XRC history: ${recordsError.message}`);
+
+    const trackedConnectionIds = new Set((records || [])
+      .map((record) => record.payload?.connection_id)
+      .filter(Boolean));
+    const missingConnections = persistedConnections.filter((connection) => !trackedConnectionIds.has(connection.id));
+    let observed = 0;
+    let skipped = 0;
+    for (const connection of missingConnections) {
+      const result = await recordPlatformEvent(
+        userId,
+        "platform_connection_observed",
+        connection.provider,
+        connection,
+      );
+      if (result?.success) observed += 1;
+      else if (result?.skipped) skipped += 1;
+      else throw new Error(`XRC could not record the ${connection.provider} connection state: ${result?.error || "unknown error"}`);
+    }
+
+    return {
+      observed,
+      alreadyTracked: persistedConnections.length - missingConnections.length,
+      skipped,
+    };
   }
 
   // ── Get all connections for a user ────────────────────────────────────────

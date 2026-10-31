@@ -19,7 +19,7 @@
 // All shapes resolve correctly via resolveTargetId / resolveMyId.
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
   X, UserPlus, UserCheck, Loader, Gift,
@@ -39,20 +39,25 @@ import ReelCard              from "../Home/ReelCard";
 import StoryCard             from "../Home/StoryCard";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
-import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import { buildProfileRecordSummary, buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
 import ProfileEditModal from "../Account/ProfileEditModal";
 import trendingService from "../../services/feed/trendingService";
 import VerificationDashboardPage from "./VerificationDashboardPage";
 import XRDProfileDashboard from "./XRDProfileDashboard";
+import xrcService from "../../services/xrc";
+import socialConnectService from "../../services/distribution/socialConnectService";
+import ShareModal from "./ShareModal";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles,
-  BadgeCheck, ShieldCheck, Users, MessageSquare,
+  BadgeCheck, ShieldCheck, Users, MessageSquare, GitBranch,
   ChevronRight, Edit3,
 } from "lucide-react";
+
+const XRCOracleExplorer = lazy(() => import("../Oracle/XRCOracleExplorer"));
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
@@ -181,6 +186,20 @@ const resolveTargetId = (user) =>
   user?.profile_id ||
   null;
 
+const ProfileConnectionAvatar = ({ person }) => {
+  const imageCandidates = [...new Set([
+    ...mediaUrlService.resolveAvatarUrls(person?.avatar_id, 80),
+    ...mediaUrlService.resolveAvatarUrls(person?.avatar_metadata, 80),
+  ])];
+  const candidatesKey = imageCandidates.join("\u0000");
+  const [imageIndex, setImageIndex] = useState(0);
+  useEffect(() => setImageIndex(0), [candidatesKey]);
+
+  return imageCandidates[imageIndex]
+    ? <img src={imageCandidates[imageIndex]} alt="" onError={() => setImageIndex((index) => index + 1)} />
+    : (person?.full_name || person?.username || "?").charAt(0).toUpperCase();
+};
+
 const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
   const label = kind === "following" ? "Following" : "Followers";
   const visiblePeople = [...people]
@@ -206,13 +225,10 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
       <span className="upm-people-faces" aria-hidden="true">
         {visiblePeople.map((item, index) => {
           const person = item.profiles || {};
-          const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 80);
           const size = 26 + Math.round(8 * (index / Math.max(visiblePeople.length - 1, 1)));
           return (
             <span className={`upm-people-avatar${index === visiblePeople.length - 1 ? " is-front" : ""}`} key={item.follower_id || item.following_id || person.id || index} style={{ "--avatar-size": `${size}px`, "--avatar-order": index, "--avatar-brightness": (0.6 + 0.4 * (index / Math.max(visiblePeople.length - 1, 1))).toFixed(2) }} title={`${person.full_name || person.username || "Member"}${person.verified ? " · Verified" : ""}`}>
-              {avatar
-                ? <img src={avatar} alt="" />
-                : (person.full_name || person.username || "?").charAt(0).toUpperCase()}
+              <ProfileConnectionAvatar person={person} />
               {person.verified && <span className="upm-people-verified"><BadgeCheck size={12} /></span>}
             </span>
           );
@@ -228,6 +244,134 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
       </span>
       <span className="upm-people-open" aria-hidden="true"><ChevronRight size={15} /></span>
     </button>
+  );
+};
+
+const ConnectionsDialog = ({ activeTab, lists, loading, counts, profileName, showSharedTab, onTabChange, onClose, onSelectPerson }) => {
+  const [query, setQuery] = useState("");
+  const visiblePeople = (lists[activeTab] || []).filter((item) => {
+    const person = item.profiles || {};
+    const searchText = `${person.full_name || ""} ${person.username || ""}`.toLowerCase();
+    return searchText.includes(query.trim().toLowerCase());
+  });
+  const tabs = [
+    { id: "followers", label: "Followers", icon: UsersRound },
+    { id: "following", label: "Following", icon: UserRound },
+    { id: "mutuals", label: "Mutual", icon: Heart },
+    ...(showSharedTab ? [{ id: "shared", label: "Shared", icon: Users }] : []),
+  ];
+  const tabDescriptions = {
+    followers: "People who follow this profile.",
+    following: "People this profile follows.",
+    mutuals: "People who follow each other.",
+    shared: "People you both follow.",
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="upm-connections-overlay" onClick={onClose}>
+      <section
+        className="upm-connections-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${tabs.find((tab) => tab.id === activeTab)?.label || "Connections"} for ${profileName}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="upm-connections-dialog-head">
+          <div className="upm-connections-title-wrap">
+            <span className="upm-connections-mark"><UsersRound size={17} /></span>
+            <div>
+              <span className="upm-connections-kicker">THE COMMUNITY</span>
+              <h2>{profileName}&apos;s people</h2>
+              <p>Find the people around this profile.</p>
+            </div>
+          </div>
+          <button type="button" className="upm-connections-close" onClick={onClose} aria-label="Close connections">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="upm-connections-tabs" role="tablist" aria-label="Connection type">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={id}
+              role="tab"
+              aria-selected={activeTab === id}
+              className={activeTab === id ? "is-active" : ""}
+              onClick={() => onTabChange(id)}
+            >
+              <Icon size={15} />
+              <span>{label}</span>
+              <small>{counts[id] ?? "—"}</small>
+            </button>
+          ))}
+        </div>
+        <p className="upm-connections-tab-description">{tabDescriptions[activeTab]}</p>
+
+        <label className="upm-connections-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Search ${tabs.find((tab) => tab.id === activeTab)?.label.toLowerCase()}…`}
+            aria-label="Search connections"
+          />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X size={14} /></button>}
+        </label>
+
+        <div className="upm-connections-results" role="tabpanel">
+          {loading ? (
+            <div className="upm-connections-state"><span className="upm-spin" /><strong>Gathering your people</strong><small>Just a moment…</small></div>
+          ) : visiblePeople.length ? (
+            <div className="upm-connections-list">
+              {visiblePeople.map((item, index) => {
+                const person = item.profiles || {};
+                const personId = person.id || item.follower_id || item.following_id;
+                const key = personId || `${activeTab}-${index}`;
+                return (
+                  <button
+                    type="button"
+                    className="upm-connections-person"
+                    key={key}
+                    onClick={() => onSelectPerson({ ...person, id: personId, user_id: personId, userId: personId })}
+                  >
+                    <BoostAvatarRing
+                      size={42}
+                      src={mediaUrlService.resolveAvatarUrl(person.avatar_id, 120)}
+                      fallbackSrc={mediaUrlService.resolveAvatarUrls(person.avatar_metadata, 120)}
+                      letter={(person.full_name || person.username || "?").charAt(0).toUpperCase()}
+                      showBadge={false}
+                    />
+                    <span className="upm-connections-person-copy">
+                      <strong>{person.full_name || person.username || "Xeevia member"}</strong>
+                      <small>@{person.username || "member"}</small>
+                    </span>
+                    {person.verified && <BadgeCheck className="upm-connections-verified" size={16} aria-label="Verified" />}
+                    <ChevronRight className="upm-connections-chevron" size={16} aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="upm-connections-state">
+              <span className="upm-connections-empty-icon"><UsersRound size={22} /></span>
+              <strong>{query ? "No matches found" : activeTab === "mutuals" ? "No mutual follows yet" : activeTab === "shared" ? "No shared follows yet" : `No ${activeTab} yet`}</strong>
+              <small>{query ? "Try a different name or username." : "This list will grow as people connect."}</small>
+            </div>
+          )}
+        </div>
+        <div className="upm-connections-dialog-foot"><span>Showing {loading ? "…" : visiblePeople.length} people</span><span className="upm-connections-foot-mark">XEEVIA <i /></span></div>
+      </section>
+    </div>
   );
 };
 
@@ -297,9 +441,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [replies,        setReplies]        = useState([]);
   const [contentLoading, setContentLoading] = useState(false);
   const [verificationItems, setVerificationItems] = useState([]);
+  const [profileRecordSummary, setProfileRecordSummary] = useState(null);
+  const [profileRecordSummaryError, setProfileRecordSummaryError] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
   const [showDashboard, setShowDashboard] = useState(openVerificationDashboard);
   const [showXRD, setShowXRD] = useState(false);
+  const [showXRC, setShowXRC] = useState(false);
+  const [xrcNotice, setXrcNotice] = useState("");
   const [initialXRDSection, setInitialXRDSection] = useState("Overview");
   const [selectedContent, setSelectedContent] = useState(null);
   const [verificationLoading, setVerificationLoading] = useState(true);
@@ -307,14 +456,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
   });
   const [profileCommunities, setProfileCommunities] = useState([]);
-  const [connectionPreviews, setConnectionPreviews] = useState({ followers: [], following: [] });
+  const [connectionPreviews, setConnectionPreviews] = useState({ followers: [], following: [], mutuals: [] });
   const [connectionsLoading, setConnectionsLoading] = useState(true);
-  const [connectionList, setConnectionList] = useState(null);
-  const [connectionListLoading, setConnectionListLoading] = useState(false);
+  const [connectionDialogTab, setConnectionDialogTab] = useState(null);
+  const [connectionLists, setConnectionLists] = useState({ followers: null, following: null, mutuals: null, shared: null });
+  const [connectionListsLoading, setConnectionListsLoading] = useState({ followers: false, following: false, mutuals: false, shared: false });
   const [ambassadorData, setAmbassadorData] = useState(null);
   const [linkedNetworks, setLinkedNetworks] = useState([]);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
-  const [profileNotice, setProfileNotice] = useState("");
   const [trendingTopics, setTrendingTopics] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [topStreamers, setTopStreamers] = useState([]);
@@ -451,14 +600,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     .map((item) => ({ provider: item.provider || "External profile", url: item.url }));
   const visibleNetworks = isOwn
     ? [...linkedNetworks.map((item) => ({ provider: item.provider, status: item.auth_status })), ...publicSocialLinks]
-    : evidenceProfileLinks;
-  const evidenceSourcesCount = new Set(verificationItems.map((item) => item?.provider).filter(Boolean)).size;
-  const institutionCount = new Set(verificationItems
-    .filter((item) => ["institution", "organization"].includes(String(
-      item?.entity_type || item?.entityType || item?.metadata?.entityType || item?.metadata?.entity_type || "",
-    ).toLowerCase()))
-    .map((item) => item?.provider || item?.metadata?.institution || item?.title)
-    .filter(Boolean)).size;
+    : [...publicSocialLinks, ...evidenceProfileLinks];
+  const recordSummary = buildProfileRecordSummary({
+    connectedPlatforms: linkedNetworks,
+    socialLinks: profile?.socialLinks,
+    ...(profileRecordSummary || {}),
+  });
   const sectionIconMap = {
     bio: ShieldCheck,
     socials: Users,
@@ -478,15 +625,47 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     "--cover-glow": coverVisual.glow || glowColor,
   } : undefined;
 
+  const openXRC = async () => {
+    setXrcNotice("");
+    if (isOwn && targetId) {
+      try {
+        const result = await socialConnectService.ensurePlatformConnectionHistory(targetId);
+        if (result.skipped) {
+          setXrcNotice("Existing platform links could not be added because XRC recording is disabled in this environment.");
+        } else if (result.observed) {
+          setXrcNotice(`${result.observed} existing platform connection${result.observed === 1 ? "" : "s"} recorded as observed now. This does not backdate the connection.`);
+        }
+      } catch (error) {
+        console.error("[XRC] Could not reconcile linked platform history:", error);
+        setXrcNotice(error?.message || "Linked platform history could not be reconciled.");
+      }
+    }
+    setShowXRC(true);
+  };
+  const xrcExplorer = showXRC && (
+    <Suspense fallback={<div role="status" style={{ position: "fixed", inset: 0, zIndex: 100051, display: "grid", placeItems: "center", background: "#020406", color: "#a3e635", fontSize: 14 }}>Loading XRC…</div>}>
+      <XRCOracleExplorer
+        currentUser={currentUser}
+        xrcService={xrcService}
+        notice={xrcNotice}
+        onClose={() => setShowXRC(false)}
+      />
+    </Suspense>
+  );
   const dashboardPage = (
-    <VerificationDashboardPage
-      profile={profile}
-      dashboard={dashboard}
-      verificationItems={verificationItems}
-      loading={verificationLoading}
-      onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
-      onClose={onClose}
-    />
+    <>
+      <VerificationDashboardPage
+        profile={profile}
+        dashboard={dashboard}
+        verificationItems={verificationItems}
+        loading={verificationLoading}
+        title="Xeevia Record Dashboard (XRD)"
+        onOpenXRC={openXRC}
+        onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
+        onClose={onClose}
+      />
+      {xrcExplorer}
+    </>
   );
 
   // ── Follow button inline style ────────────────────────────────────────────
@@ -528,6 +707,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     const requestId = ++profileLoadSequence.current;
     setProfile(null);
     setVerificationItems([]);
+    setProfileRecordSummary(null);
+    setProfileRecordSummaryError(false);
+    setShowShareModal(false);
     setVerificationLoading(Boolean(targetId));
     setIsFollowing(false);
     setStats({ posts: 0, reels: 0, stories: 0, followers: 0, following: 0 });
@@ -566,8 +748,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
   useEffect(() => {
     let active = true;
-    setConnectionPreviews({ followers: [], following: [] });
-    setConnectionList(null);
+    setConnectionPreviews({ followers: [], following: [], mutuals: [] });
+    setConnectionDialogTab(null);
+    setConnectionLists({ followers: null, following: null, mutuals: null, shared: null });
+    setConnectionListsLoading({ followers: false, following: false, mutuals: false, shared: false });
     setConnectionsLoading(true);
     setAmbassadorData(null);
     setLinkedNetworks([]);
@@ -579,8 +763,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     Promise.all([
       followService.getFollowers(targetId, 5),
       followService.getFollowing(targetId, 5),
-    ]).then(([followers, following]) => {
-      if (active) setConnectionPreviews({ followers, following });
+      followService.getMutualFollowers(targetId, 5),
+    ]).then(([followers, following, mutuals]) => {
+      if (active) setConnectionPreviews({ followers, following, mutuals });
     }).catch((error) => {
       console.error("[UserProfileModal] Could not load connection previews:", error);
     }).finally(() => {
@@ -619,14 +804,16 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     try {
       const { data: p } = await supabase
         .from("profiles")
-        .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
+        .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,social_links,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
         .eq("id", targetId)
         .maybeSingle();
       if (!mounted.current || profileLoadSequence.current !== requestId) return;
 
       const raw = p || {};
-      const userAvatarSource = [user?.avatar_url, user?.avatarUrl, user?.avatar]
-        .find((value) => typeof value === "string" && value.trim().length > 1);
+      const userAvatarSources = [
+        user?.avatar_url, user?.avatarUrl, user?.avatar,
+        ...(Array.isArray(user?.avatar_fallback_urls) ? user.avatar_fallback_urls : []),
+      ].filter((value) => typeof value === "string" && value.trim().length > 1);
       const currentUserMetadata = isOwn ? currentUser?.user_metadata || currentUser?.userMetadata || {} : {};
       const userMetadata = user?.user_metadata || user?.userMetadata || currentUserMetadata;
       const identityMetadata = Array.isArray(user?.identities)
@@ -634,13 +821,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         : [];
 
       const avatarCandidates = [...new Set([
+        ...mediaUrlService.resolveAvatarUrls(userAvatarSources, 300),
+        ...mediaUrlService.resolveAvatarUrls(user?.avatar_id || user?.avatarId, 300),
         ...mediaUrlService.resolveAvatarUrls(raw.avatar_id, 300),
         ...mediaUrlService.resolveAvatarUrls(raw.avatar_metadata, 300),
         ...mediaUrlService.resolveAvatarUrls(userMetadata, 300),
         ...mediaUrlService.resolveAvatarUrls(identityMetadata, 300),
-        ...mediaUrlService.resolveAvatarUrls(user?.avatar_id, 300),
         ...mediaUrlService.resolveAvatarUrls(user?.avatar_metadata || user?.avatarMetadata, 300),
-        ...mediaUrlService.resolveAvatarUrls(userAvatarSource, 300),
         ...(isOwn ? mediaUrlService.resolveAvatarUrls(currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.avatar, 300) : []),
       ])];
       const [avatarUrl, ...avatarFallbackUrls] = avatarCandidates;
@@ -663,7 +850,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           username:      raw.username  || user?.username  || "unknown",
           avatarUrl,
           avatarFallbackUrls,
-          avatarId:      raw.avatar_id || user?.avatar_id || (isOwn ? currentUser?.avatar_id : null) || null,
+          avatarId:      raw.avatar_id || user?.avatar_id || user?.avatarId || (isOwn ? currentUser?.avatar_id : null) || null,
           avatarMetadata: raw.avatar_metadata || userMetadata || null,
           bannerImageUrl,
           bannerImageId: raw.banner_image_id || null,
@@ -677,7 +864,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             : null,
           email:        raw.show_email ? raw.email : null,
           phone:        raw.show_phone ? raw.phone : null,
-          socialLinks:  user?.social_links && typeof user.social_links === "object" ? user.social_links : {},
+          socialLinks:  raw.social_links && typeof raw.social_links === "object"
+            ? raw.social_links
+            : user?.social_links && typeof user.social_links === "object" ? user.social_links : {},
           paymentStatus: raw.payment_status ?? user?.payment_status ?? "pending",
         });
 
@@ -689,7 +878,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       }
 
       // Parallel counts + follow status
-      const [postsR, reelsR, storiesR, followersR, followingR, evidenceR] =
+      const [postsR, reelsR, storiesR, followersR, followingR, evidenceR, evidenceSummaryR, verifiedEvidenceR, xrdRecordsR, identityBindingsR] =
         await Promise.allSettled([
           supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("reels").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
@@ -697,6 +886,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetId),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id",  targetId),
           supabase.from("evidence_items").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }).limit(50),
+          supabase.from("evidence_items").select("provider,entity_type,title,metadata", { count: "exact" }).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(1000),
+          supabase.from("evidence_items").select("id", { count: "exact", head: true }).eq("profile_id", targetId).eq("verified", true),
+          supabase.from("xrd_records").select("id,lifecycle_status", { count: "exact" }).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(1000),
+          supabase.from("xrd_identity_bindings").select("provider,status,visibility,revoked_at").eq("profile_id", targetId).in("status", ["claimed", "pending", "bound", "verified"]).limit(1000),
         ]);
 
       if (mounted.current && profileLoadSequence.current === requestId) {
@@ -707,7 +900,33 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           followers: followersR.status === "fulfilled" ? (followersR.value.count ?? 0) : 0,
           following: followingR.status === "fulfilled" ? (followingR.value.count ?? 0) : 0,
         });
+        const queryResults = [
+          ["evidence", evidenceR],
+          ["evidence summary", evidenceSummaryR],
+          ["verified evidence", verifiedEvidenceR],
+          ["XRD records", xrdRecordsR],
+          ["identity bindings", identityBindingsR],
+        ];
+        const failedQueries = queryResults.filter(([, result]) => (
+          result.status === "rejected" || result.value?.error
+        ));
+        failedQueries.forEach(([label, result]) => {
+          console.error(`[UserProfileModal] Could not load ${label}:`, result.status === "rejected" ? result.reason : result.value.error);
+        });
+        setProfileRecordSummaryError(failedQueries.length > 0);
+
         const storedEvidence = Array.isArray(evidenceR?.value?.data) ? evidenceR.value.data : [];
+        const summaryEvidence = Array.isArray(evidenceSummaryR?.value?.data) ? evidenceSummaryR.value.data : [];
+        const xrdRecords = Array.isArray(xrdRecordsR?.value?.data) ? xrdRecordsR.value.data : [];
+        const identityBindings = Array.isArray(identityBindingsR?.value?.data) ? identityBindingsR.value.data : [];
+        setProfileRecordSummary({
+          evidenceItems: summaryEvidence,
+          xrdRecords,
+          identityBindings,
+          evidenceCount: evidenceSummaryR?.value?.count,
+          verifiedCount: verifiedEvidenceR?.value?.count,
+          xrdRecordCount: xrdRecordsR?.value?.count,
+        });
         const oracleEvidence = verificationRecord ? [{
           id: `xrc-${verificationRecord.record_id}`,
           title: verificationRecord.payload?.event === "profile_lookup" ? "Profile identity lookup" : (verificationRecord.payload?.event || "XRC verification record"),
@@ -742,6 +961,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
     } catch (e) {
       console.warn("[UserProfileModal]", e?.message);
+      setProfileRecordSummaryError(true);
     } finally {
       if (mounted.current && profileLoadSequence.current === requestId) {
         setVerificationLoading(false);
@@ -820,34 +1040,32 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     window.dispatchEvent(new CustomEvent("xeevia:profile-app-search", { detail: { query } }));
   };
 
-  const openConnectionList = (kind) => {
-    setConnectionList(kind);
-    setConnectionListLoading(true);
-    const load = kind === "followers" ? followService.getFollowers : followService.getFollowing;
-    load.call(followService, targetId, 20)
-      .then((items) => setConnectionPreviews((previous) => ({ ...previous, [kind]: items })))
-      .finally(() => setConnectionListLoading(false));
+  const loadConnectionsTab = (kind) => {
+    if (!targetId || connectionLists[kind] !== null || connectionListsLoading[kind]) return;
+    setConnectionListsLoading((previous) => ({ ...previous, [kind]: true }));
+    const loaders = {
+      followers: followService.getFollowers,
+      following: followService.getFollowing,
+      mutuals: followService.getMutualFollowers,
+      shared: (profileId, limit) => followService.getSharedFollowing(myId, profileId, limit),
+    };
+    loaders[kind].call(followService, targetId, 1000)
+      .then((items) => setConnectionLists((previous) => ({ ...previous, [kind]: items || [] })))
+      .catch((error) => {
+        console.error(`[UserProfileModal] Could not load ${kind}:`, error);
+        setConnectionLists((previous) => ({ ...previous, [kind]: [] }));
+      })
+      .finally(() => setConnectionListsLoading((previous) => ({ ...previous, [kind]: false })));
   };
 
-  const handleShareProfile = async () => {
-    const profileUrl = `${window.location.origin}/profile/${encodeURIComponent(profile?.username || targetId)}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: profile?.fullName || "Xeevia profile", url: profileUrl });
-        return;
-      }
-      if (!navigator.clipboard?.writeText) {
-        setProfileNotice("Sharing is not available in this browser.");
-        return;
-      }
-      await navigator.clipboard.writeText(profileUrl);
-      setProfileNotice("Profile link copied.");
-    } catch (error) {
-      if (error?.name !== "AbortError") {
-        console.error("[UserProfileModal] Could not share profile:", error);
-        setProfileNotice("Could not share this profile. Please try again.");
-      }
-    }
+  const openConnectionsDialog = (kind) => {
+    setConnectionDialogTab(kind);
+    loadConnectionsTab(kind);
+  };
+
+  const changeConnectionsTab = (kind) => {
+    setConnectionDialogTab(kind);
+    loadConnectionsTab(kind);
   };
 
   const handleOpenContent = useCallback((item, type) => {
@@ -1002,12 +1220,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   <nav className="upm-sidebar-nav" aria-label="Your profile shortcuts">
                     <button type="button" onClick={() => handleOwnerShortcut("edit-profile")}><Settings size={15} /><span>Edit profile</span><ChevronRight size={13} /></button>
                     <button type="button" onClick={() => handleOwnerShortcut("saved")}><Bookmark size={15} /><span>Saved</span><ChevronRight size={13} /></button>
-                    <button type="button" onClick={() => openConnectionList("followers")}><UsersRound size={15} /><span>Followers</span><b>{fmt(stats.followers)}</b></button>
-                    <button type="button" onClick={() => openConnectionList("following")}><UserRound size={15} /><span>Following</span><b>{fmt(stats.following)}</b></button>
-                    <button type="button" onClick={() => { setInitialXRDSection("Verification"); setShowXRD(true); }}><ShieldCheck size={15} /><span>Verification / XRD</span><ChevronRight size={13} /></button>
+                    <button type="button" onClick={openXRC}><GitBranch size={15} /><span>XRC</span><ChevronRight size={13} /></button>
                     <button type="button" onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }}><Globe2 size={15} /><span>Communities</span><b>{fmt(profileCommunities.length)}</b></button>
                     <button type="button" onClick={() => handleOwnerShortcut("ambassador")}><Sparkles size={15} /><span>Ambassador</span><small>{ambassadorData ? `${ambassadorData.commission_pct}%` : "Explore"}</small></button>
-                    <button type="button" onClick={() => { setShowXRD(true); setInitialXRDSection("Oracle"); }}><ExternalLink size={15} /><span>XRC Oracle</span><ChevronRight size={13} /></button>
+                    <button type="button" onClick={openXRC}><ExternalLink size={15} /><span>XRC Oracle</span><ChevronRight size={13} /></button>
                   </nav>
                   </ProfileSidebarAccordion>
                 </>
@@ -1015,41 +1231,42 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
               <ProfileSidebarAccordion
                 id="connections"
-                title={connectionList ? `Recent ${connectionList}` : "Connections"}
+                title="Connections"
                 isOpen={expandedSidebarCard === "connections"}
                 onToggle={() => setExpandedSidebarCard((current) => current === "connections" ? null : "connections")}
                 className="upm-connections"
-                actions={connectionList
-                  ? <button type="button" onClick={() => setConnectionList(null)}>Back</button>
-                  : <button type="button" onClick={() => openConnectionList("followers")}>See all</button>}
+                actions={<button type="button" onClick={() => openConnectionsDialog("mutuals")}>See all</button>}
               >
-                <div className="upm-connections-grid">
-                {connectionListLoading ? <div className="upm-sidebar-muted">Loading connections…</div> : (connectionList ? connectionPreviews[connectionList] : [
-                  ...connectionPreviews.followers.slice(0, 3),
-                  ...connectionPreviews.following.slice(0, 3),
-                ]).slice(0, 6).map((item, index) => {
+                <div className="upm-mutual-preview">
+                {connectionPreviews.mutuals.slice(0, 4).map((item, index) => {
                   const person = item.profiles || {};
                   const key = item.follower_id || item.following_id || person.id || index;
-                  const avatar = mediaUrlService.resolveAvatarUrl(person.avatar_id, 96);
                   return (
-                    <div className="upm-connection-person" key={`${key}-${index}`}>
-                      <span>{avatar ? <img src={avatar} alt="" /> : (person.full_name || person.username || "?").charAt(0).toUpperCase()}</span>
-                      <div><strong>{person.full_name || person.username || "Xeevia member"}</strong><small>@{person.username || "member"}</small></div>
-                    </div>
+                    <button
+                      type="button"
+                      className="upm-mutual-person"
+                      key={`${key}-${index}`}
+                      title={`${person.full_name || person.username || "Member"} · mutual follow`}
+                      onClick={() => setSelectedRailProfile({ ...person, id: person.id || key, user_id: person.id || key, userId: person.id || key })}
+                    >
+                      <BoostAvatarRing
+                        size={42}
+                        src={mediaUrlService.resolveAvatarUrl(person.avatar_id, 96)}
+                        fallbackSrc={mediaUrlService.resolveAvatarUrls(person.avatar_metadata, 96)}
+                        letter={(person.full_name || person.username || "?").charAt(0).toUpperCase()}
+                        showBadge={false}
+                      />
+                      <span>{person.full_name || person.username || "Member"}</span>
+                      {person.verified && <BadgeCheck size={12} aria-label="Verified" />}
+                    </button>
                   );
                 })}
-                {!connectionListLoading && (connectionList
-                  ? connectionPreviews[connectionList].length === 0
-                  : connectionPreviews.followers.length + connectionPreviews.following.length === 0) && (
-                  <p className="upm-sidebar-muted">No connections to show yet.</p>
-                )}
+                {connectionsLoading && connectionPreviews.mutuals.length === 0 && <span className="upm-sidebar-muted">Finding mutual follows…</span>}
+                {!connectionsLoading && connectionPreviews.mutuals.length === 0 && <span className="upm-sidebar-muted">No mutual follows yet.</span>}
                 </div>
-                {!connectionList && (
-                  <div className="upm-connection-actions">
-                    <button type="button" onClick={() => openConnectionList("followers")}>Followers <b>{fmt(stats.followers)}</b></button>
-                    <button type="button" onClick={() => openConnectionList("following")}>Following <b>{fmt(stats.following)}</b></button>
-                  </div>
-                )}
+                <button type="button" className="upm-mutual-all" onClick={() => openConnectionsDialog("mutuals")}>
+                  Browse mutual follows <ChevronRight size={13} />
+                </button>
               </ProfileSidebarAccordion>
 
               <ProfileSidebarAccordion
@@ -1221,14 +1438,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     people={connectionPreviews.following}
                     total={stats.following}
                     loading={connectionsLoading}
-                    onOpen={openConnectionList}
+                    onOpen={openConnectionsDialog}
                   />
                   <ProfilePeopleStack
                     kind="followers"
                     people={connectionPreviews.followers}
                     total={stats.followers}
                     loading={connectionsLoading}
-                    onOpen={openConnectionList}
+                    onOpen={openConnectionsDialog}
                   />
                 </div>
 
@@ -1236,8 +1453,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   <div className="upm-xrd-card-head">
                     <span className="upm-xrd-mark">XRD</span>
                     <div className="upm-verification-copy">
-                      <strong>View verified records</strong>
-                      <small>{isOwn ? "Your evidence, traced to its source." : `${profile?.fullName || "This profile"}'s public evidence, traced to its source.`}</small>
+                      <strong>View XRD records</strong>
+                      <small>Claims and source evidence; verification is shown per record.</small>
                     </div>
                   </div>
                   <button type="button" className="upm-xrd-open" onClick={() => { setInitialXRDSection("Overview"); setShowXRD(true); }}>
@@ -1245,15 +1462,15 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   </button>
                   <div className="upm-xrd-stats">
                     {[
-                      [verificationItems.length, "Records"],
-                      [verificationItems.filter((item) => item?.verified).length, "Verified"],
-                      [evidenceSourcesCount, "Sources"],
-                      [institutionCount, "Institutions"],
+                      [recordSummary.records, "Records"],
+                      [recordSummary.verified, "Verified"],
+                      [recordSummary.sources, "Sources"],
+                      [recordSummary.institutions, "Institutions"],
                     ].map(([value, label]) => (
-                      <div key={label}><strong>{fmt(value)}</strong><span>{label}</span></div>
+                      <div key={label}><strong>{verificationLoading && !profileRecordSummary ? "—" : fmt(value)}</strong><span>{label}</span></div>
                     ))}
                   </div>
-                  {profileNotice && <p className="upm-profile-notice" role="status">{profileNotice}</p>}
+                  {profileRecordSummaryError && <p className="upm-profile-notice" role="status">Some XRD summary data could not be loaded.</p>}
                 </section>
               </div>
             </section>
@@ -1262,21 +1479,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               {(isOwn ? [
                 [Settings, "Edit Profile", "Update your info", "#a3e635", () => handleOwnerShortcut("edit-profile")],
                 [Bookmark, "Saved", "Your bookmarks", "#fb923c", () => handleOwnerShortcut("saved")],
-                [UsersRound, "Followers", `${fmt(stats.followers)} people`, "#60a5fa", () => openConnectionList("followers")],
-                [UserRound, "Following", `${fmt(stats.following)} people`, "#a78bfa", () => openConnectionList("following")],
-                [ShieldCheck, "Verification", "Open proof dashboard", "#c084fc", () => { setInitialXRDSection("Verification"); setShowXRD(true); }],
+                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRC],
                 [Globe2, "Communities", `${fmt(profileCommunities.length)} joined`, "#2dd4bf", () => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }],
                 [Sparkles, "Ambassador", ambassadorData ? `${ambassadorData.commission_pct}% commission` : "Explore the program", "#f59e0b", () => handleOwnerShortcut("ambassador")],
-                [ExternalLink, "XRC Oracle", "Ask your evidence", "#a3e635", () => { setInitialXRDSection("Oracle"); setShowXRD(true); }],
+                [ExternalLink, "XRC Oracle", "Explore the record chain", "#a3e635", openXRC],
               ] : [
                 [UserPlus, isFollowing ? "Following" : "Follow", isFollowing ? "Manage connection" : "Connect with this profile", "#a3e635", handleFollow],
                 [MessageSquare, "Message", "Say hello", "#fb923c", handleMessage],
-                [UsersRound, "Followers", `${fmt(stats.followers)} people`, "#60a5fa", () => openConnectionList("followers")],
-                [UserRound, "Following", `${fmt(stats.following)} people`, "#a78bfa", () => openConnectionList("following")],
-                [ShieldCheck, "Verification", "See what is verified", "#c084fc", () => { setInitialXRDSection("Verification"); setShowXRD(true); }],
+                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRC],
                 [Globe2, "Communities", `${fmt(profileCommunities.length)} joined`, "#2dd4bf", () => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }],
-                [Share2, "Share profile", "Send this profile", "#fb923c", handleShareProfile],
-                [Sparkles, "Ask Oracle", "Ask about this profile", "#a3e635", () => { setInitialXRDSection("Oracle"); setShowXRD(true); }],
+                [Share2, "Share profile", "Send this profile", "#fb923c", () => setShowShareModal(true)],
+                [Sparkles, "XRC Oracle", "Explore the record chain", "#a3e635", openXRC],
               ]).map(([Icon, title, subtitle, accent, action]) => (
                 <button type="button" key={title} className="upm-quick-action" style={{ "--upm-action-accent": accent }} onClick={action}>
                   <span className="upm-quick-icon"><Icon size={16} /></span>
@@ -1292,15 +1505,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 targetId={targetId}
                 verificationItems={verificationItems}
                 initialSection={initialXRDSection}
+                onOpenXRC={openXRC}
                 onClose={() => setShowXRD(false)}
               />
             )}
+            {xrcExplorer}
 
             {showDashboard ? (
               <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Xeevia Record Dashboard (XRD)</div>
                     <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>{verificationLoading ? "Loading sections…" : "Tap a section to inspect verified evidence."}</div>
                   </div>
                   <button type="button" onClick={() => { setShowDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -1552,6 +1767,33 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               />
             )}
 
+            {connectionDialogTab && (
+              <ConnectionsDialog
+                activeTab={connectionDialogTab}
+                showSharedTab={Boolean(myId && myId !== targetId)}
+                lists={{
+                  followers: connectionLists.followers ?? connectionPreviews.followers,
+                  following: connectionLists.following ?? connectionPreviews.following,
+                  mutuals: connectionLists.mutuals ?? connectionPreviews.mutuals,
+                  shared: connectionLists.shared ?? [],
+                }}
+                loading={connectionListsLoading[connectionDialogTab] && connectionLists[connectionDialogTab] === null}
+                counts={{
+                  followers: fmt(stats.followers),
+                  following: fmt(stats.following),
+                  mutuals: connectionLists.mutuals === null ? null : fmt(connectionLists.mutuals.length),
+                  shared: connectionLists.shared === null ? null : fmt(connectionLists.shared.length),
+                }}
+                profileName={profile?.fullName || "This profile"}
+                onTabChange={changeConnectionsTab}
+                onClose={() => setConnectionDialogTab(null)}
+                onSelectPerson={(person) => {
+                  setConnectionDialogTab(null);
+                  setSelectedRailProfile(person);
+                }}
+              />
+            )}
+
             {showProfileEditor && isOwn && (
               <ProfileEditModal
                 userId={targetId}
@@ -1616,6 +1858,20 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         )}
       </div>
 
+      {showShareModal && (
+        <ShareModal
+          content={{
+            ...profile,
+            id: targetId,
+            username: profile?.username,
+            full_name: profile?.fullName,
+          }}
+          contentType="profile"
+          currentUser={{ ...(currentUser || {}), id: myId || currentUser?.id }}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+
       <style>{`
         /* ── Backdrop: near-transparent on desktop, no blur ── */
         .upm-bd {
@@ -1659,7 +1915,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sidebar-accordion-head > button:not(.upm-sidebar-accordion-toggle) { flex:0 0 auto; padding:0; border:0; background:none; color:#a3e635; font-size:calc((9px) + 1px); font-weight:700; cursor:pointer; }
         .upm-sidebar-accordion-content .upm-sidebar-nav { padding:0; border:0; background:none; box-shadow:none; }
         .upm-sidebar-accordion:not(.is-expanded) .upm-sidebar-nav button:nth-of-type(n+3) { display:none; }
-        .upm-connections:not(.is-expanded) .upm-connection-person:nth-child(n+3) { display:none; }
+        .upm-connections:not(.is-expanded) .upm-mutual-person:nth-child(n+5) { display:none; }
         .upm-sidebar-label { display:flex; align-items:center; gap:7px; margin-bottom:9px; color:#d9f99d; font-size:calc((9px) + 1px); font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
         .upm-sidebar-label::before { width:3px; height:11px; flex:0 0 3px; border-radius:99px; background:linear-gradient(180deg,#bef264,#65a30d); box-shadow:0 0 8px rgba(163,230,53,.42); content:""; }
         .upm-sidebar-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -1681,18 +1937,79 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sidebar-nav button > svg { flex:0 0 auto; color:#93c944; }
         .upm-sidebar-nav button span { flex:1; }
         .upm-sidebar-nav button b, .upm-sidebar-nav button small { color:#9ca3af; font-size:calc((9px) + 1px); font-weight:700; }
-        .upm-connections-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
-        .upm-connection-person { display:flex; flex-direction:column; gap:6px; min-width:0; padding:7px; border:1px solid #252b25; border-radius:11px; background:linear-gradient(155deg,rgba(255,255,255,.035),rgba(0,0,0,.34)); transition:border-color .15s,background .15s; }
-        .upm-connection-person:hover { border-color:rgba(163,230,53,.28); background:linear-gradient(155deg,rgba(132,204,22,.075),rgba(0,0,0,.35)); }
-        .upm-connection-person > span { width:100%; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#d9f99d; background:linear-gradient(135deg,rgba(132,204,22,.8),rgba(16,185,129,.55)); font-size:calc((19px) + 1px); font-weight:800; }
-        .upm-connection-person > span img { width:100%; height:100%; object-fit:cover; }
-        .upm-connection-person > div { display:flex; flex-direction:column; min-width:0; gap:2px; }
-        .upm-connection-person strong { color:#d5dbd0; font-size:calc((10px) + 1px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .upm-connection-person small { color:#788174; font-size:calc((9px) + 1px); }
-        .upm-connection-actions { display:flex; justify-content:space-between; gap:8px; margin-top:8px; }
-        .upm-connection-actions button, .upm-connections-back { padding:0; border:0; background:none; color:#a3e635; font-size:calc((9px) + 1px); cursor:pointer; }
-        .upm-connection-actions b { margin-left:3px; color:#e3e8de; }
-        .upm-connections-back { margin-top:9px; color:#aab3a5; }
+        .upm-mutual-preview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
+        .upm-mutual-person { position:relative; min-width:0; min-height:68px; display:flex; align-items:center; gap:8px; padding:8px; overflow:hidden; border:1px solid #292f28; border-radius:12px; background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(0,0,0,.34)); color:#e8eee3; text-align:left; cursor:pointer; transition:transform .18s,border-color .18s,background .18s; }
+        .upm-mutual-person:hover { transform:translateY(-1px); border-color:rgba(163,230,53,.44); background:linear-gradient(145deg,rgba(132,204,22,.11),rgba(0,0,0,.42)); }
+        .upm-mutual-person > span { min-width:0; overflow:hidden; font-size:calc((9px) + 1px); font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+        .upm-mutual-person > svg { flex:none; color:#a3e635; }
+        .upm-mutual-all { width:100%; min-height:32px; display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding:0 2px; border:0; background:transparent; color:#a3e635; font-size:calc((9px) + 1px); font-weight:800; cursor:pointer; }
+        .upm-mutual-all:hover { color:#d9f99d; }
+        .upm-mutual-all svg { transition:transform .16s; }
+        .upm-mutual-all:hover svg { transform:translateX(3px); }
+
+        .upm-connections-overlay { position:fixed; inset:0; z-index:11000; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(0,0,0,.74); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); animation:upmConnectionsFade .18s ease-out; }
+        .upm-connections-dialog { --connection-accent:#a3e635; position:relative; display:flex; flex-direction:column; width:min(540px,100%); max-height:min(720px,calc(100dvh - 48px)); overflow:hidden; border:1px solid rgba(190,242,100,.24); border-radius:22px; background:radial-gradient(ellipse at 0 0,rgba(132,204,22,.12),transparent 40%),linear-gradient(155deg,#111610 0%,#090b09 48%,#050605 100%); box-shadow:0 34px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025),inset 0 1px rgba(255,255,255,.07); animation:upmConnectionsRise .24s cubic-bezier(.2,.8,.2,1); }
+        .upm-connections-dialog::before { position:absolute; top:0; left:12%; right:12%; height:1px; background:linear-gradient(90deg,transparent,#bef264,#34d399,transparent); content:""; opacity:.8; }
+        .upm-connections-dialog-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:22px 22px 18px; }
+        .upm-connections-title-wrap { display:flex; align-items:center; gap:13px; min-width:0; }
+        .upm-connections-mark { width:42px; height:42px; flex:none; display:grid; place-items:center; border:1px solid rgba(190,242,100,.34); border-radius:13px; background:linear-gradient(145deg,rgba(163,230,53,.2),rgba(16,185,129,.08)); color:#c5f76b; box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 20px rgba(132,204,22,.08); }
+        .upm-connections-title-wrap > div { min-width:0; }
+        .upm-connections-kicker { color:#a3e635; font-size:calc((8px) + 1px); font-weight:900; letter-spacing:.18em; }
+        .upm-connections-dialog h2 { margin:3px 0 2px; color:#f2f6ee; font-size:calc((19px) + 1px); font-weight:850; line-height:1.2; }
+        .upm-connections-dialog-head p { margin:0; color:#929a8d; font-size:calc((10px) + 1px); }
+        .upm-connections-close { width:34px; height:34px; flex:none; display:grid; place-items:center; border:1px solid rgba(255,255,255,.11); border-radius:11px; background:rgba(255,255,255,.045); color:#aeb5a8; cursor:pointer; transition:color .16s,border-color .16s,background .16s,transform .16s; }
+        .upm-connections-close:hover { transform:rotate(90deg); border-color:rgba(190,242,100,.42); background:rgba(163,230,53,.1); color:#d9f99d; }
+        .upm-connections-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin:0 20px; padding:5px; border:1px solid rgba(255,255,255,.075); border-radius:13px; background:rgba(0,0,0,.32); }
+        .upm-connections-tabs button { min-width:0; min-height:40px; display:flex; align-items:center; justify-content:center; gap:7px; padding:0 8px; border:1px solid transparent; border-radius:9px; background:transparent; color:#858d81; font:inherit; font-size:calc((10px) + 1px); font-weight:750; cursor:pointer; transition:background .16s,border-color .16s,color .16s,box-shadow .16s; }
+        .upm-connections-tabs button:hover { color:#dce4d6; }
+        .upm-connections-tabs button.is-active { border-color:rgba(190,242,100,.22); background:linear-gradient(135deg,rgba(163,230,53,.16),rgba(16,185,129,.09)); color:#d9f99d; box-shadow:inset 0 1px rgba(255,255,255,.06),0 4px 14px rgba(0,0,0,.2); }
+        .upm-connections-tabs button small { min-width:22px; padding:3px 5px; border-radius:7px; background:rgba(255,255,255,.07); color:#aeb6a5; font-size:calc((8px) + 1px); font-weight:800; text-align:center; }
+        .upm-connections-tabs button.is-active small { background:rgba(190,242,100,.15); color:#d9f99d; }
+        .upm-connections-tab-description { margin:8px 20px 0; color:#929a8d; font-size:calc((9px) + 1px); line-height:1.4; }
+        .upm-connections-search { min-height:42px; display:flex; align-items:center; gap:10px; margin:14px 20px 10px; padding:0 12px; border:1px solid rgba(255,255,255,.09); border-radius:11px; background:rgba(0,0,0,.26); color:#8d9787; transition:border-color .16s,box-shadow .16s; }
+        .upm-connections-search:focus-within { border-color:rgba(163,230,53,.46); box-shadow:0 0 0 3px rgba(163,230,53,.07); }
+        .upm-connections-search input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:#ecf2e7; font:inherit; font-size:calc((11px) + 1px); }
+        .upm-connections-search input::placeholder { color:#687164; }
+        .upm-connections-search input::-webkit-search-cancel-button { display:none; }
+        .upm-connections-search button { width:24px; height:24px; flex:none; display:grid; place-items:center; border:0; border-radius:7px; background:rgba(255,255,255,.07); color:#b9c3b0; cursor:pointer; }
+        .upm-connections-results { min-height:180px; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(163,230,53,.26) transparent; }
+        .upm-connections-results::-webkit-scrollbar { width:5px; }
+        .upm-connections-results::-webkit-scrollbar-thumb { border-radius:99px; background:rgba(163,230,53,.24); }
+        .upm-connections-list { display:grid; gap:6px; padding:2px 20px 14px; }
+        .upm-connections-person { width:100%; min-width:0; min-height:62px; display:flex; align-items:center; gap:12px; padding:8px 11px; border:1px solid rgba(255,255,255,.065); border-radius:13px; background:linear-gradient(100deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); color:#e7ece2; text-align:left; cursor:pointer; transition:transform .16s,border-color .16s,background .16s; }
+        .upm-connections-person:hover { transform:translateX(2px); border-color:rgba(163,230,53,.34); background:linear-gradient(100deg,rgba(132,204,22,.1),rgba(16,185,129,.025)); }
+        .upm-connections-person-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; }
+        .upm-connections-person-copy strong { overflow:hidden; color:#eef2eb; font-size:calc((11px) + 1px); font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+        .upm-connections-person-copy small { overflow:hidden; color:#858e80; font-size:calc((9px) + 1px); text-overflow:ellipsis; white-space:nowrap; }
+        .upm-connections-verified { flex:none; color:#a3e635; }
+        .upm-connections-chevron { flex:none; color:#697365; transition:transform .16s,color .16s; }
+        .upm-connections-person:hover .upm-connections-chevron { transform:translateX(2px); color:#a3e635; }
+        .upm-connections-state { min-height:200px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px; color:#a5ae9e; text-align:center; }
+        .upm-connections-state .upm-spin { margin-bottom:5px; }
+        .upm-connections-state strong { color:#dbe4d3; font-size:calc((12px) + 1px); }
+        .upm-connections-state small { color:#828b7d; font-size:calc((10px) + 1px); }
+        .upm-connections-empty-icon { width:46px; height:46px; display:grid; place-items:center; margin-bottom:3px; border:1px solid rgba(163,230,53,.18); border-radius:15px; background:rgba(163,230,53,.07); color:#a3e635; }
+        .upm-connections-dialog-foot { min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 20px; border-top:1px solid rgba(255,255,255,.065); color:#70796d; font-size:calc((8px) + 1px); }
+        .upm-connections-foot-mark { display:inline-flex; align-items:center; gap:6px; color:#84907c; font-size:calc((8px) + 1px); font-weight:900; letter-spacing:.13em; }
+        .upm-connections-foot-mark i { width:6px; height:6px; border-radius:50%; background:#a3e635; box-shadow:0 0 9px rgba(163,230,53,.7); }
+        @keyframes upmConnectionsFade { from { opacity:0; } to { opacity:1; } }
+        @keyframes upmConnectionsRise { from { opacity:0; transform:translateY(12px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @media(max-width:600px) {
+          .upm-connections-overlay { align-items:flex-end; padding:12px 0 0; }
+          .upm-connections-dialog { width:100%; max-height:calc(100dvh - 12px); border-radius:22px 22px 0 0; }
+          .upm-connections-dialog-head { padding:19px 17px 15px; }
+          .upm-connections-tabs { margin:0 14px; }
+          .upm-connections-tabs { grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; }
+          .upm-connections-tabs button { min-height:46px; display:grid; grid-template-rows:auto auto; align-content:center; gap:3px; padding:4px 2px; font-size:clamp(8px,2.4vw,9px); line-height:1.1; white-space:nowrap; }
+          .upm-connections-tabs button svg { display:none; }
+          .upm-connections-tabs button small { min-width:0; justify-self:center; padding:2px 5px; font-size:8px; line-height:1.1; }
+          .upm-connections-tab-description { margin:8px 14px 0; }
+          .upm-connections-search { margin:12px 14px 8px; }
+          .upm-connections-list { padding:2px 14px 12px; }
+          .upm-connections-dialog-foot { padding:0 14px; }
+          .upm-mutual-preview { grid-template-columns:1fr; }
+        }
+        @media(prefers-reduced-motion:reduce) { .upm-connections-overlay,.upm-connections-dialog { animation:none!important; } }
         .upm-sidebar-links a { display:flex; align-items:center; gap:7px; margin-top:6px; padding:8px; border:1px solid #202620; border-radius:9px; background:rgba(0,0,0,.28); color:#b9c0b4; text-decoration:none; text-transform:capitalize; font-size:calc((10px) + 1px); transition:border-color .15s,background .15s,color .15s; }
         .upm-sidebar-links a svg:first-child { color:#93c944; }
         .upm-sidebar-links a span { flex:1; }

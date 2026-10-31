@@ -1,0 +1,177 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "xrd": "https://xeevia.com/ns/xrd#",
+    "XRDRecord": "xrd:XRDRecord",
+    "XRDPortfolio": "xrd:XRDPortfolio",
+    "IdentityBinding": "xrd:IdentityBinding",
+    "XeeviaProfile": "xrd:XeeviaProfile",
+    "subject": {
+      "@id": "xrd:subject",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "username": "xrd:username",
+        "records": {
+          "@id": "xrd:records",
+          "@container": "@set"
+        },
+        "identityBindings": {
+          "@id": "xrd:identityBindings",
+          "@container": "@set"
+        }
+      }
+    },
+    "username": "xrd:username",
+    "visibilityAtExport": "xrd:visibilityAtExport",
+    "lifecycleStatus": "xrd:lifecycleStatus",
+    "latestSourceCheck": {
+      "@id": "xrd:latestSourceCheck",
+      "@type": "@json"
+    },
+    "recordId": "xrd:recordId",
+    "recordType": "xrd:recordType",
+    "claimTitle": "xrd:claimTitle",
+    "claimText": "xrd:claimText",
+    "schemaVersion": "xrd:schemaVersion",
+    "createdAt": {
+      "@id": "xrd:createdAt",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "records": {
+      "@id": "xrd:records",
+      "@container": "@set"
+    },
+    "identityBindings": {
+      "@id": "xrd:identityBindings",
+      "@container": "@set"
+    },
+    "relationshipGraph": {
+      "@id": "xrd:relationshipGraph",
+      "@context": {
+        "@protected": true,
+        "nodes": {
+          "@id": "xrd:nodes",
+          "@container": "@set",
+          "@context": {
+            "@protected": true,
+            "id": "@id",
+            "type": "@type",
+            "recordType": "xrd:recordType",
+            "title": "xrd:claimTitle",
+            "source": "xrd:source",
+            "status": "xrd:bindingStatus"
+          }
+        },
+        "edges": {
+          "@id": "xrd:edges",
+          "@container": "@set",
+          "@context": {
+            "@protected": true,
+            "from": {
+              "@id": "xrd:from",
+              "@type": "@id"
+            },
+            "to": {
+              "@id": "xrd:to",
+              "@type": "@id"
+            },
+            "relation": "xrd:relationship",
+            "meaning": "xrd:relationshipMeaning",
+            "assuranceScope": "xrd:assuranceScope"
+          }
+        }
+      }
+    },
+    "integrity": {
+      "@id": "xrd:integrity",
+      "@type": "@json"
+    },
+    "role": "xrd:role",
+    "organization": "xrd:organization",
+    "startDate": {
+      "@id": "xrd:startDate",
+      "@type": "http://www.w3.org/2001/XMLSchema#date"
+    },
+    "endDate": {
+      "@id": "xrd:endDate",
+      "@type": "http://www.w3.org/2001/XMLSchema#date"
+    },
+    "projectUrl": {
+      "@id": "xrd:projectUrl",
+      "@type": "@id"
+    },
+    "project_url": {
+      "@id": "xrd:projectUrl",
+      "@type": "@id"
+    },
+    "bindingMethod": "xrd:bindingMethod",
+    "assuranceScope": "xrd:assuranceScope",
+    "bindingStatus": "xrd:bindingStatus",
+    "recordedAt": {
+      "@id": "xrd:recordedAt",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "structuredClaim": {
+      "@id": "xrd:structuredClaim",
+      "@context": {
+        "@protected": true,
+        "role": "xrd:role",
+        "organization": "xrd:organization",
+        "startDate": {
+          "@id": "xrd:startDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#date"
+        },
+        "endDate": {
+          "@id": "xrd:endDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#date"
+        },
+        "projectUrl": {
+          "@id": "xrd:projectUrl",
+          "@type": "@id"
+        },
+        "credentialIssuer": "xrd:credentialIssuer",
+        "credentialUrl": {
+          "@id": "xrd:credentialUrl",
+          "@type": "@id"
+        }
+      }
+    },
+    "claimStatus": "xrd:claimStatus",
+    "recordLifecycleStatus": "xrd:recordLifecycleStatus",
+    "provenanceUrl": {
+      "@id": "xrd:provenanceUrl",
+      "@type": "@id"
+    },
+    "linkedEvidence": {
+      "@id": "xrd:linkedEvidence",
+      "@container": "@set",
+      "@context": {
+        "@protected": true,
+        "relation": "xrd:evidenceRelation",
+        "source": "xrd:source",
+        "evidenceType": "xrd:evidenceType",
+        "title": "xrd:title",
+        "sourceUrl": {
+          "@id": "xrd:sourceUrl",
+          "@type": "@id"
+        },
+        "externalId": "xrd:externalId",
+        "observedAt": {
+          "@id": "xrd:observedAt",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        }
+      }
+    },
+    "latestSourceCheck": {
+      "@id": "xrd:latestSourceCheck",
+      "@type": "@json"
+    },
+    "evidenceIncluded": {
+      "@id": "xrd:evidenceIncluded",
+      "@type": "http://www.w3.org/2001/XMLSchema#boolean"
+    },
+    "xrdIntegrityStatus": "xrd:integrityStatus"
+  }
+}

@@ -4,12 +4,12 @@
 // PostTab / StoryTab / ReelsTab components used in UserProfileModal.
 // Thumbnails show the actual content image (image_ids[0] for posts, etc.)
 // Tabs have colour-coded active states (green/purple/amber/teal).
-// Works for both ProfileSection (showComments=true) and UserProfileModal.
+// The private comments/replies tabs are enabled only by ProfileSection.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Search, X, Image, Film, BookOpen, MessageSquare,
+  Search, X, Image, Film, BookOpen, MessageSquare, MessageCircleReply,
   Heart, Eye, Play, Clock, ArrowLeft, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
@@ -30,6 +30,38 @@ const TAB_META = {
   reels:    { label: "Reels",    Icon: Film,          color: "#818cf8", emptyEmoji: "🎬" },
   stories:  { label: "Stories",  Icon: BookOpen,      color: "#f59e0b", emptyEmoji: "📖" },
   comments: { label: "Comments", Icon: MessageSquare, color: "#34d399", emptyEmoji: "💬" },
+  replies:  { label: "Replies",  Icon: MessageCircleReply, color: "#a78bfa", emptyEmoji: "↩️" },
+};
+
+const PLATFORM_LABELS = {
+  xeevia: "Xeevia",
+  x: "X",
+  twitter: "X",
+  linkedin: "LinkedIn",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  reddit: "Reddit",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  github: "GitHub",
+};
+
+export const buildActivityPlatformGroups = (rows = []) => {
+  const groups = new Map([
+    ["xeevia", { key: "xeevia", label: "Xeevia", items: [] }],
+  ]);
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const source = row?.provider || row?.source_platform || row?.platform_name || row?.platform;
+    const normalized = String(source || "xeevia").trim().toLowerCase() || "xeevia";
+    const key = normalized === "twitter" ? "x" : normalized;
+    const label = PLATFORM_LABELS[normalized] || PLATFORM_LABELS[key]
+      || String(source || "Xeevia").trim();
+    if (!groups.has(key)) groups.set(key, { key, label, items: [] });
+    groups.get(key).items.push(row);
+  });
+
+  return [...groups.values()];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -522,18 +554,18 @@ const MyContentSection = ({
   onActionMenu,
 }) => {
   const TABS = showComments
-    ? ["posts", "reels", "stories", "comments"]
+    ? ["posts", "reels", "stories", "comments", "replies"]
     : ["posts", "reels", "stories"];
 
   const [activeTab, setActiveTab] = useState("posts");
-  const [items,   setItems]   = useState({ posts: [], reels: [], stories: [], comments: [] });
-  const [loading, setLoading] = useState({ posts: false, reels: false, stories: false, comments: false });
-  const [loaded,  setLoaded]  = useState({ posts: false, reels: false, stories: false, comments: false });
-  const [errors,  setErrors]  = useState({ posts: null,  reels: null,  stories: null,  comments: null  });
-  const [counts,  setCounts]  = useState({ posts: 0,     reels: 0,     stories: 0,     comments: 0     });
+  const [items,   setItems]   = useState({ posts: [], reels: [], stories: [], comments: [], replies: [] });
+  const [loading, setLoading] = useState({ posts: false, reels: false, stories: false, comments: false, replies: false });
+  const [loaded,  setLoaded]  = useState({ posts: false, reels: false, stories: false, comments: false, replies: false });
+  const [errors,  setErrors]  = useState({ posts: null, reels: null, stories: null, comments: null, replies: null });
+  const [counts,  setCounts]  = useState({ posts: 0, reels: 0, stories: 0, comments: 0, replies: 0 });
   const [search,  setSearch]  = useState("");
   const [viewer,  setViewer]  = useState(null); // { tab, index }
-  const [commentsViewerOpen, setCommentsViewerOpen] = useState(false);
+  const [activityViewer, setActivityViewer] = useState(null);
 
   useEffect(() => {
     if (userId) { fetchCounts(); fetchTab("posts"); }
@@ -549,13 +581,15 @@ const MyContentSection = ({
       supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
       supabase.from("reels").select("*", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
       supabase.from("stories").select("*", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
-      supabase.from("comments").select("*", { count: "exact", head: true }).eq("user_id", userId),
+      supabase.from("comments").select("*", { count: "exact", head: true }).eq("user_id", userId).is("parent_id", null),
+      supabase.from("comments").select("*", { count: "exact", head: true }).eq("user_id", userId).not("parent_id", "is", null),
     ]);
     setCounts({
       posts:    res[0].status === "fulfilled" ? (res[0].value.count ?? 0) : 0,
       reels:    res[1].status === "fulfilled" ? (res[1].value.count ?? 0) : 0,
       stories:  res[2].status === "fulfilled" ? (res[2].value.count ?? 0) : 0,
       comments: res[3].status === "fulfilled" ? (res[3].value.count ?? 0) : 0,
+      replies:  res[4].status === "fulfilled" ? (res[4].value.count ?? 0) : 0,
     });
   };
 
@@ -590,14 +624,14 @@ const MyContentSection = ({
           .order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
         rows = data || [];
-      } else if (tab === "comments") {
-        // Use * so we don't fail on unknown column names — the text field may be
-        // named "body", "text", "comment_text", or "content" depending on schema.
-        const { data, error } = await supabase
+      } else if (tab === "comments" || tab === "replies") {
+        // The text field varies across existing comment rows, so normalize aliases.
+        let query = supabase
           .from("comments")
           .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false }).limit(60);
+          .eq("user_id", userId);
+        query = tab === "replies" ? query.not("parent_id", "is", null) : query.is("parent_id", null);
+        const { data, error } = await query.order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
         // Normalise: always expose the text under `body` regardless of real col name
         rows = (data || []).map(r => ({
@@ -631,6 +665,9 @@ const MyContentSection = ({
   });
 
   const meta = TAB_META[activeTab];
+  const activityPlatforms = ["comments", "replies"].includes(activeTab)
+    ? buildActivityPlatformGroups(filtered)
+    : [];
 
   return (
     <>
@@ -686,6 +723,8 @@ const MyContentSection = ({
         .mcs-tab[data-tab="reels"].mcs-active    .mcs-badge { background: rgba(129,140,248,0.15); color: #818cf8; }
         .mcs-tab[data-tab="stories"].mcs-active  .mcs-badge { background: rgba(245,158,11,0.15); color: #f59e0b; }
         .mcs-tab[data-tab="comments"].mcs-active .mcs-badge { background: rgba(52,211,153,0.15); color: #34d399; }
+        .mcs-tab[data-tab="replies"].mcs-active  { color: #a78bfa; border-bottom-color: #a78bfa; }
+        .mcs-tab[data-tab="replies"].mcs-active  .mcs-badge { background: rgba(167,139,250,0.15); color: #a78bfa; }
 
         /* ── Search ── */
         .mcs-search {
@@ -923,10 +962,10 @@ const MyContentSection = ({
           @keyframes mcs-vslideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
         }
         @media (max-width: 768px) {
-          .mcs-root { width:calc(100% + 40px); margin-left:-20px; border-left:0; border-right:0; border-radius:0; }
+          .mcs-root { width:100%; margin-left:0; border-left:0; border-right:0; border-radius:0; }
         }
         @media (max-width: 480px) {
-          .mcs-root { width:calc(100% + 24px); margin-left:-12px; border-left:0; border-right:0; border-radius:0; }
+          .mcs-root { width:100%; margin-left:0; border-left:0; border-right:0; border-radius:0; }
         }
 
         .mcs-viewer-header {
@@ -954,57 +993,25 @@ const MyContentSection = ({
         .mcs-viewer-body::-webkit-scrollbar { width: 4px; }
         .mcs-viewer-body::-webkit-scrollbar-thumb { background: rgba(132,204,22,0.2); border-radius: 2px; }
 
-        /* ── Comment preview cards (shown in grid area when tab=comments) ── */
-        .mcs-comment-preview-list {
-          display: flex; flex-direction: column; gap: 1px;
-          padding: 4px 0 8px;
+        .mcs-platform-grid {
+          display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+          gap:10px; padding:4px 14px 18px;
         }
-        .mcs-comment-preview-card {
-          display: flex; align-items: flex-start; gap: 10px;
-          padding: 12px 14px; background: none; border: none;
-          border-bottom: 1px solid rgba(255,255,255,0.04);
-          cursor: pointer; text-align: left; width: 100%;
-          transition: background 0.15s;
-          animation: mcs-pop 0.28s ease both;
+        .mcs-platform-card {
+          display:flex; align-items:center; gap:11px; min-width:0;
+          padding:13px; border:1px solid rgba(255,255,255,.09); border-radius:14px;
+          background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+          color:#f5f5f5; text-align:left; cursor:pointer; transition:transform .18s,border-color .18s,background .18s;
         }
-        .mcs-comment-preview-card:last-of-type { border-bottom: none; }
-        .mcs-comment-preview-card:hover { background: rgba(52,211,153,0.04); }
-        .mcs-cpc-left { padding-top: 2px; flex-shrink: 0; }
-        .mcs-cpc-body { flex: 1; min-width: 0; }
-        .mcs-cpc-text {
-          font-size: calc((13px) + 1px); color: #c0c0c0; line-height: 1.55; margin: 0 0 4px;
-          overflow: hidden; display: -webkit-box;
-          -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        .mcs-platform-card:hover { transform:translateY(-2px); border-color:rgba(132,204,22,.35); background:rgba(132,204,22,.06); }
+        .mcs-platform-mark {
+          display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px;
+          border-radius:11px; background:rgba(132,204,22,.12); color:#a3e635;
         }
-        .mcs-cpc-time { font-size: calc((10px) + 1px); color: #383838; }
-        .mcs-cpc-right {
-          display: flex; flex-direction: column; align-items: flex-end;
-          gap: 6px; flex-shrink: 0;
-        }
-        .mcs-cpc-likes {
-          display: flex; align-items: center; gap: 3px;
-          font-size: calc((10px) + 1px); color: #525252;
-        }
-        .mcs-cpc-arrow {
-          font-size: calc((16px) + 1px); color: #2a2a2a; line-height: 1;
-        }
-
-        /* Open all button */
-        .mcs-open-cv-btn {
-          display: flex; align-items: center; justify-content: center; gap: 7px;
-          margin: 10px 14px 4px;
-          padding: 11px 16px; border-radius: 12px;
-          background: rgba(52,211,153,0.05);
-          border: 1px solid rgba(52,211,153,0.14);
-          color: #34d399; font-size: calc((12px) + 1px); font-weight: 700;
-          cursor: pointer; transition: all 0.18s; width: calc(100% - 28px);
-        }
-        .mcs-open-cv-btn:hover {
-          background: rgba(52,211,153,0.1);
-          border-color: rgba(52,211,153,0.25);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 16px rgba(52,211,153,0.07);
-        }
+        .mcs-platform-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:3px; }
+        .mcs-platform-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+        .mcs-platform-copy small { color:#737373; font-size:11px; }
+        .mcs-platform-count { align-self:flex-start; border-radius:999px; padding:3px 7px; background:rgba(255,255,255,.07); color:#cfcfcf; font-size:10px; font-weight:800; }
       `}</style>
 
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -1065,6 +1072,28 @@ const MyContentSection = ({
             <small>{errors[activeTab]}</small>
             <button className="mcs-retry" onClick={() => retry(activeTab)}>Retry</button>
           </div>
+        ) : ["comments", "replies"].includes(activeTab) ? (
+          <div className="mcs-platform-grid" aria-label={`${meta.label} platforms`}>
+            {activityPlatforms.map((platform) => {
+              const PlatformIcon = meta.Icon;
+              return (
+                <button
+                  type="button"
+                  key={platform.key}
+                  className="mcs-platform-card"
+                  onClick={() => setActivityViewer({ ...platform, tab: activeTab })}
+                  aria-label={`${platform.label}: ${platform.items.length} ${meta.label.toLowerCase()}`}
+                >
+                  <span className="mcs-platform-mark"><PlatformIcon size={17} /></span>
+                  <span className="mcs-platform-copy">
+                    <strong>{platform.label}</strong>
+                    <small>{activeTab === "comments" ? "Your comments" : "Your replies"}</small>
+                  </span>
+                  <span className="mcs-platform-count">{platform.items.length}</span>
+                </button>
+              );
+            })}
+          </div>
         ) : filtered.length === 0 ? (
           <div className="mcs-state">
             <span className="mcs-emoji">{meta.emptyEmoji}</span>
@@ -1075,39 +1104,6 @@ const MyContentSection = ({
                 : `Create your first ${meta.label.slice(0,-1).toLowerCase()}!`}
               </small>
             )}
-          </div>
-        ) : activeTab === "comments" ? (
-          /* ── Comments: vertical preview list, not a grid ── */
-          <div className="mcs-comment-preview-list">
-            {filtered.map((item, i) => (
-              <button
-                key={item.id || i}
-                className="mcs-comment-preview-card"
-                onClick={() => setCommentsViewerOpen(true)}
-                style={{ animationDelay: `${Math.min(i * 30, 500)}ms` }}
-              >
-                <div className="mcs-cpc-left">
-                  <MessageSquare size={13} style={{ color: "#34d399", flexShrink: 0, marginTop: 2 }} />
-                </div>
-                <div className="mcs-cpc-body">
-                  <p className="mcs-cpc-text">{item.body}</p>
-                  <span className="mcs-cpc-time">{timeAgo(item.created_at)}</span>
-                </div>
-                <div className="mcs-cpc-right">
-                  {item.likes > 0 && (
-                    <span className="mcs-cpc-likes">
-                      <Heart size={9} />{fmt(item.likes)}
-                    </span>
-                  )}
-                  <div className="mcs-cpc-arrow">›</div>
-                </div>
-              </button>
-            ))}
-            {/* Open full viewer CTA */}
-            <button className="mcs-open-cv-btn" onClick={() => setCommentsViewerOpen(true)}>
-              <MessageSquare size={13} />
-              View all {filtered.length} comment{filtered.length !== 1 ? "s" : ""} with replies & reactions
-            </button>
           </div>
         ) : (
           <div className="mcs-full-feed" role="list">
@@ -1143,17 +1139,19 @@ const MyContentSection = ({
         />
       )}
 
-      {commentsViewerOpen && (
+      {activityViewer && (
         <CommentsViewer
-          comments={items.comments || []}
+          comments={activityViewer.items}
           profileData={profileData}
           currentUser={currentUser}
+          title={`${activityViewer.label} · My ${activityViewer.tab}`}
+          activityKind={activityViewer.tab}
           onGoToPost={(ctx) => {
-            setCommentsViewerOpen(false);
+            setActivityViewer(null);
             // Caller can handle navigation — pass up if prop provided
             onAuthorClick && console.log("[CommentsViewer] go to:", ctx._type, ctx.id);
           }}
-          onClose={() => setCommentsViewerOpen(false)}
+          onClose={() => setActivityViewer(null)}
         />
       )}
     </>

@@ -15,7 +15,7 @@ import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
   Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
-  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft, X,
+  Sparkles, GitBranch, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
 import ComingSoonModal from "../Shared/ComingSoonModal";
@@ -27,9 +27,8 @@ import SavedContentModal   from "../Modals/SavedContentModal";
 import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
-import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
-import { buildVerificationDashboardSections } from "../../services/evidence/verificationDashboardModel";
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
+import XRDProfileDashboard from "../Modals/XRDProfileDashboard";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
@@ -269,7 +268,6 @@ const FourStatRow = ({ stats }) => {
 const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, currentUser, profileShortcutRequest = null }) => {
   const [profile,               setProfile]               = useState(null);
   const [verificationItems,     setVerificationItems]     = useState([]);
-  const [selectedSection,       setSelectedSection]       = useState(null);
   const [verificationLoading,   setVerificationLoading]   = useState(true);
   const [tierInfo,              setTierInfo]              = useState(null);
   const [loading,               setLoading]               = useState(true);
@@ -281,6 +279,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [followersTab,          setFollowersTab]          = useState("followers");
   const [showLogoutConfirm,     setShowLogoutConfirm]     = useState(false);
   const [showVerificationDashboard, setShowVerificationDashboard] = useState(false);
+  const [showXRC,               setShowXRC]               = useState(false);
   const [liveStats,             setLiveStats]             = useState({
     totalViews:0, totalComments:0, totalLikes:0,
     followers:0, following:0, communities:0,
@@ -346,24 +345,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   }, [userId]);
 
   const isAdmin = Boolean(authIsAdmin || !!adminRole);
-
-  const verificationSections = buildVerificationDashboardSections(verificationItems, { username: profile?.username });
-  const selectedSectionData = verificationSections.find((section) => section.id === selectedSection) || null;
-  const verifiedCount = verificationItems.filter((item) => item?.verified).length;
-  const highTrustCount = verificationItems.filter((item) => {
-    const level = item?.metadata?.verificationLevel || item?.metadata?.verification_level;
-    return item?.verified && (level === "high" || level === "critical");
-  }).length;
-  const sourceCount = new Set(verificationItems.map((item) => item?.provider).filter(Boolean)).size;
-  const sectionIconMap = {
-    bio: Shield,
-    socials: Users,
-    portfolio: Briefcase,
-    reports: FileText,
-    comments: MessageSquare,
-    replies: MessageCircleReply,
-    likes: ThumbsUp,
-  };
 
   const loadVerificationItems = async () => {
     try {
@@ -633,7 +614,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       id:"edit",
       icon:<Edit size={20}/>,
       label:"Edit Profile",
-      sub:"Update your info",
+      sub:"Update info, banner & bio",
       accent:"#84cc16",
       bg:"linear-gradient(135deg,rgba(132,204,22,0.15),rgba(101,163,13,0.08))",
       border:"rgba(132,204,22,0.4)",
@@ -668,16 +649,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       bg:"linear-gradient(135deg,rgba(167,139,250,0.12),rgba(139,92,246,0.06))",
       border:"rgba(167,139,250,0.35)",
       onClick:()=>{ setFollowersTab("following"); setShowFollowersModal(true); },
-    },
-    {
-      id:"verification",
-      icon:<Shield size={20}/>,
-      label:"Verification",
-      sub:"Open proof dashboard",
-      accent:"#a855f7",
-      bg:"linear-gradient(135deg,rgba(168,85,247,0.16),rgba(124,58,237,0.08))",
-      border:"rgba(168,85,247,0.35)",
-      onClick:()=>setShowVerificationDashboard(true),
     },
     {
       id:"communities",
@@ -740,6 +711,29 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
     });
   }
 
+  actionButtons.push(
+    {
+      id:"xrd",
+      icon:<LayoutDashboard size={20}/>,
+      label:"XRD",
+      sub:"Xeevia Record Dashboard",
+      accent:"#a855f7",
+      bg:"linear-gradient(135deg,rgba(168,85,247,0.16),rgba(124,58,237,0.08))",
+      border:"rgba(168,85,247,0.35)",
+      onClick:()=>setShowVerificationDashboard(true),
+    },
+    {
+      id:"xrc",
+      icon:<GitBranch size={20}/>,
+      label:"XRC",
+      sub:"Open record chain",
+      accent:"#60a5fa",
+      bg:"linear-gradient(135deg,rgba(96,165,250,0.14),rgba(59,130,246,0.07))",
+      border:"rgba(96,165,250,0.35)",
+      onClick:()=>setShowXRC(true),
+    },
+  );
+
   return (
     <>
       {showAmbassadorComingSoon && <ComingSoonModal title="Ambassador Program" onClose={() => setShowAmbassadorComingSoon(false)} />}
@@ -752,7 +746,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes nameGradientShift { from{background-position:0% 50%} to{background-position:220% 50%} }
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
-        .profile-section { padding: 20px; }
+        .profile-section { padding: 20px; width:100%; min-width:0; box-sizing:border-box; }
+        .profile-content-region { width:calc(100% + 40px); margin-left:-20px; }
+        .profile-content-divider { height:1px; margin:18px 0 0; border:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16) 12%,rgba(255,255,255,.16) 88%,transparent); }
         .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:40px 24px 16px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
         .profile-header-content::before { content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 75% 48% at 50% 0%,rgba(132,204,22,.12),transparent 72%),radial-gradient(ellipse 55% 45% at 8% 30%,rgba(96,165,250,.055),transparent 75%); }
         .profile-header-content::after { content:"";position:absolute;top:0;left:12%;right:12%;height:1px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),rgba(132,204,22,.5),rgba(255,255,255,.18),transparent); }
@@ -810,6 +806,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         /* Mobile adjustments */
         @media (max-width: 480px) {
           .profile-section { padding: 12px; }
+          .profile-content-region { width:calc(100% + 24px); margin-left:-12px; }
           .profile-header-content { padding: 18px 12px 12px; }
           .profile-name { font-size:calc((20px) + 1px); }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
@@ -834,7 +831,15 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           embedded
           style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
         >
-          <div className="profile-header-content" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)", backdropFilter: "blur(8px)" }}>
+          <div
+            className="profile-header-content"
+            style={{
+              background: profile.bannerImageUrl
+                ? `linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.66)), url("${profile.bannerImageUrl}") center/cover`
+                : "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
 
             {/* [B2] Avatar — BoostAvatarRing with tier-animated ring */}
             <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
@@ -975,16 +980,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           />
         )}
 
-        <VerificationLedgerCard
-          userId={userId}
-          currentUser={currentUser}
-          onOpenOracle={() => {
-            if (typeof onNavigate === "function") {
-              onNavigate("oracle");
-            }
-          }}
-        />
-
         {showVerificationDashboard && (
           <VerificationDashboardPage
             profile={
@@ -999,96 +994,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             dashboard={buildPublicProfileDashboard(profile, verificationItems)}
             verificationItems={verificationItems}
             loading={verificationLoading}
-            onBack={() => {
+            title="Xeevia Record Dashboard (XRD)"
+            onOpenXRC={() => {
               setShowVerificationDashboard(false);
-              setSelectedSection(null);
+              setShowXRC(true);
             }}
-            onClose={() => {
-              setShowVerificationDashboard(false);
-              setSelectedSection(null);
-            }}
+            onBack={() => setShowVerificationDashboard(false)}
+            onClose={() => setShowVerificationDashboard(false)}
           />
-        )}
-
-        {showVerificationDashboard && (
-          <div style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(168,85,247,0.35)", background: "radial-gradient(circle at top left, rgba(168,85,247,0.18), transparent 28%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))", padding: 18, boxShadow: "0 24px 70px rgba(168,85,247,0.24)" }}>
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 15%, rgba(255,255,255,0.08), transparent 20%), radial-gradient(circle at 85% 25%, rgba(168,85,247,0.14), transparent 18%)", borderRadius: 24, pointerEvents: "none" }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
-                    <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(215,175,255,0.16)", color: "#d8b4fe", fontSize: 11, fontWeight: 800, border: "1px solid rgba(168,85,247,0.22)" }}>
-                      {verificationLoading ? "Loading" : `${verificationSections.length} modules`}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 13, color: "#c4b5fd", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
-                </div>
-                <button type="button" onClick={() => { setShowVerificationDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  Close
-                </button>
-              </div>
-
-              {selectedSectionData ? (
-                <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
-                      <div style={{ fontSize: 12, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
-                    </div>
-                    <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <ArrowLeft size={13} /> Back
-                    </button>
-                  </div>
-                  <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
-                  {selectedSectionData.items.length === 0 ? (
-                    <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 14 }}>
-                      This section is ready and will populate as evidence arrives. Connect a platform or refresh the verification flow to bring in richer proof.
-                    </div>
-                  ) : (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {selectedSectionData.items.map((item) => (
-                        <div key={item.id || item.title} style={{ padding: "12px 13px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
-                              <div style={{ fontSize: 12, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
-                            </div>
-                            <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
-                              {item.verified ? "Verified" : "Tracked"}
-                            </div>
-                          </div>
-                          {item.summary ? <div style={{ fontSize: 13, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
-                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                            <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
-                            {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  {verificationSections.map((section) => {
-                    const Icon = sectionIconMap[section.id] || Sparkles;
-                    return (
-                      <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 18, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", boxShadow: "0 10px 26px rgba(0,0,0,0.14)" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{section.title}</div>
-                          <div style={{ width: 30, height: 30, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Icon size={15} style={{ color: section.accent }} />
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
-                        <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
         )}
 
         {/* ACTION BUTTONS */}
@@ -1122,19 +1035,32 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           </div>
         </div>
 
-        <MyContentSection
-          userId={userId}
-          showComments={true}
-          profileData={{
-            ...profile,
-            stats:  { totalContent:liveStats.totalContent, totalViews:liveStats.totalViews, totalComments:liveStats.totalComments },
-            wallet: { xevTokens:liveStats.xevTokens, engagementPoints:liveStats.engagementPoints },
-            social: { followers:liveStats.followers, following:liveStats.following, communities:liveStats.communities },
-          }}
-          currentUser={{ id: userId }}
-        />
+        <div className="profile-content-region">
+          <hr className="profile-content-divider" />
+          <MyContentSection
+            userId={userId}
+            showComments={true}
+            profileData={{
+              ...profile,
+              stats:  { totalContent:liveStats.totalContent, totalViews:liveStats.totalViews, totalComments:liveStats.totalComments },
+              wallet: { xevTokens:liveStats.xevTokens, engagementPoints:liveStats.engagementPoints },
+              social: { followers:liveStats.followers, following:liveStats.following, communities:liveStats.communities },
+            }}
+            currentUser={{ id: userId }}
+          />
+        </div>
       </div>
 
+      {showXRC && (
+        <XRDProfileDashboard
+          profile={{ ...profile, avatarUrl: profile.avatar }}
+          currentUser={currentUser || authUser || { id: userId }}
+          targetId={userId}
+          verificationItems={verificationItems}
+          initialSection="Overview"
+          onClose={() => setShowXRC(false)}
+        />
+      )}
       {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, profileTags:profile.profileTags, avatar:profile.avatar, avatarId:profile.avatarId, avatarMetadata:profile.avatarMetadata, bannerImageUrl:profile.bannerImageUrl, bannerImageId:profile.bannerImageId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
       {showSavedModal       && <SavedContentModal currentUser={{id:userId}} onClose={()=>setShowSavedModal(false)} isMobile={isMobile} />}
       {showCommunitiesModal && <CommunitiesModal  currentUser={{id:userId}} onClose={()=>setShowCommunitiesModal(false)} isMobile={isMobile} />}

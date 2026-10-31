@@ -160,7 +160,10 @@ const ShareModal = ({
     try {
       setSending(true);
       const senderName = currentUser.fullName || currentUser.full_name || currentUser.name || currentUser.username || "Someone";
-      const shareLabel = contentType === "reel" ? "a reel" : contentType === "story" ? "a story" : "a post";
+      const shareLabel = contentType === "reel" ? "a reel"
+        : contentType === "story" ? "a story"
+          : contentType === "profile" ? "a profile"
+            : "a post";
       const shareLink = shareMessage
         ? `${senderName} shared ${shareLabel}\n${shareUrl}\n\n${shareMessage}`
         : `${senderName} shared ${shareLabel}\n${shareUrl}`;
@@ -266,7 +269,9 @@ const ShareModal = ({
       content?.title ||
       content?.caption ||
       content?.content ||
-      "Check this out on Grova!";
+      (contentType === "profile"
+        ? `${content?.fullName || content?.full_name || content?.username || "Someone"}'s Xeevia profile`
+        : "Check this out on Grova!");
     const shortTitle = title.substring(0, 120);
     const url = buildPlatformShareUrl(platform, { url: shareUrl, title: shortTitle });
     if (!url) {
@@ -301,8 +306,10 @@ const ShareModal = ({
     }
     try {
       await navigator.share({
-        title: content?.title || "Check this out on Grova!",
-        text: content?.caption || content?.content || "",
+        title: content?.title || (contentType === "profile"
+          ? `${content?.fullName || content?.full_name || content?.username || "Someone"}'s Xeevia profile`
+          : "Check this out on Grova!"),
+        text: content?.caption || content?.content || (contentType === "profile" ? content?.bio || "" : ""),
         url: shareUrl,
       });
     } catch (e) {
@@ -340,7 +347,7 @@ const ShareModal = ({
 
         {/* Header */}
         <div className="sm-header">
-          <h3 className="sm-title">Share {contentType}</h3>
+          <h3 className="sm-title">Share {contentType === "profile" ? "profile" : contentType}</h3>
           <button className="sm-close" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>

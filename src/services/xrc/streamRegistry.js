@@ -11,6 +11,7 @@ export const STREAM_TYPES = {
   XPRC: "XPRC", // Permission Record Chain — role assignments, access changes
   XSRC: "XSRC", // System Record Chain — platform freeze, admin actions, settings
   XWRC: "XWRC", // Wallet Record Chain — state transitions ONLY (not calculations)
+  XDRC: "XDRC", // XRD Record Chain — claims and evidence relationships
 };
 
 export const STREAM_REGISTRY = {
@@ -24,7 +25,7 @@ export const STREAM_REGISTRY = {
   },
   [STREAM_TYPES.XERC]: {
     label: "Engagement Chain",
-    description: "Likes, comments, shares, views, reactions",
+    description: "Likes, comments, shares, follows, views, reactions",
     color: "#ec4899",
     icon: "❤️",
     requiresRealUser: true,
@@ -32,7 +33,7 @@ export const STREAM_REGISTRY = {
   },
   [STREAM_TYPES.XARC]: {
     label: "Account Chain",
-    description: "Profile creation, updates, bans, deletions",
+    description: "Identity detail changes, linked platform accounts, profile updates, bans, deletions",
     color: "#3b82f6",
     icon: "👤",
     requiresRealUser: true,
@@ -72,6 +73,14 @@ export const STREAM_REGISTRY = {
     sensitive: true,
     // SPECIAL: payload MUST include: token_balance_before, token_balance_after, token_delta
     requiredPayloadFields: ["token_balance_before", "token_balance_after", "token_delta"],
+  },
+  [STREAM_TYPES.XDRC]: {
+    label: "XRD Record Chain",
+    description: "XRD claim and evidence-relationship lifecycle events",
+    color: "#a3e635",
+    icon: "📄",
+    requiresRealUser: true,
+    sensitive: true,
   },
 };
 

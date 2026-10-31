@@ -1,5 +1,77 @@
 import { buildVerificationDashboardSections } from "./verificationDashboardModel";
 
+const normalizeProvider = (provider) => String(provider || "").trim().toLowerCase();
+
+export function buildProfileRecordSummary({
+  evidenceItems = [],
+  xrdRecords = [],
+  identityBindings = [],
+  connectedPlatforms = [],
+  evidenceCount,
+  verifiedCount,
+  xrdRecordCount,
+  socialLinks = {},
+} = {}) {
+  const evidence = Array.isArray(evidenceItems) ? evidenceItems : [];
+  const claims = Array.isArray(xrdRecords) ? xrdRecords : [];
+  const bindings = Array.isArray(identityBindings) ? identityBindings : [];
+  const connections = Array.isArray(connectedPlatforms) ? connectedPlatforms : [];
+  const sources = new Set();
+  const institutions = new Set();
+
+  evidence.forEach((item) => {
+    const provider = normalizeProvider(item?.provider);
+    if (provider) sources.add(provider);
+
+    const entityType = String(
+      item?.entity_type
+      || item?.entityType
+      || item?.metadata?.entity_type
+      || item?.metadata?.entityType
+      || "",
+    ).toLowerCase();
+    if (!["institution", "organization"].includes(entityType)) return;
+
+    const institution = item?.metadata?.institution
+      || item?.metadata?.organization
+      || item?.title
+      || provider;
+    if (institution) institutions.add(String(institution).trim().toLowerCase());
+  });
+
+  bindings.forEach((binding) => {
+    if (binding?.revoked_at || !["claimed", "pending", "bound", "verified"].includes(binding?.status)) return;
+    const provider = normalizeProvider(binding?.provider);
+    if (provider) sources.add(provider);
+    if (binding?.status === "verified" && binding?.assurance_scope === "institutional_attestation" && provider) {
+      institutions.add(provider);
+    }
+  });
+
+  connections.forEach((connection) => {
+    if (connection?.auth_status !== "active") return;
+    const provider = normalizeProvider(connection?.provider);
+    if (provider) sources.add(provider);
+  });
+
+  Object.entries(socialLinks || {}).forEach(([provider, url]) => {
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) {
+      const normalized = normalizeProvider(provider);
+      if (normalized) sources.add(normalized);
+    }
+  });
+
+  return {
+    records: (Number.isFinite(evidenceCount) ? evidenceCount : evidence.length)
+      + (Number.isFinite(xrdRecordCount) ? xrdRecordCount : claims.length),
+    verified: Number.isFinite(verifiedCount)
+      ? verifiedCount
+      : evidence.filter((item) => item?.verified === true).length,
+    sources: sources.size,
+    institutions: institutions.size,
+  };
+}
+
 export function buildPublicProfileDashboard(profile, evidenceItems = []) {
   const normalized = Array.isArray(evidenceItems) ? evidenceItems : [];
   const sections = buildVerificationDashboardSections(normalized, {

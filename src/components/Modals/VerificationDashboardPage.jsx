@@ -1,13 +1,22 @@
 import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom";
-import { ArrowLeft, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, GitBranch, ShieldCheck, X } from "lucide-react";
 
 const SOCIAL_PROVIDERS = new Set([
   "x", "twitter", "facebook", "instagram", "linkedin", "tiktok", "threads",
   "reddit", "youtube", "twitch", "kick", "telegram", "pinterest",
 ]);
 
-const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [], loading, onBack, onClose }) => {
+const VerificationDashboardPage = ({
+  profile,
+  dashboard,
+  verificationItems = [],
+  loading,
+  title = "Xeevia Record Dashboard (XRD)",
+  onOpenXRC,
+  onBack,
+  onClose,
+}) => {
   const [selectedSection, setSelectedSection] = useState(null);
   const selected = dashboard?.sections?.find(section => section.id === selectedSection);
   const verifiedCount = verificationItems.filter(item => item?.verified).length;
@@ -43,6 +52,7 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
     <div className={`vdp-section-page vdp-section-${selected.id}`} style={{ "--section-accent": selected.accent || "#84cc16" }}>
       <div className="vdp-nav">
         <button type="button" onClick={() => setSelectedSection(null)}><ArrowLeft size={15}/> Back to evidence map</button>
+        {onOpenXRC && <button type="button" onClick={onOpenXRC}><GitBranch size={15}/> Open XRC</button>}
         <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
       </div>
       <div className="vdp-section-hero" style={{ "--section-accent": selected.accent || "#84cc16" }}>
@@ -66,7 +76,7 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
         .vdp-root{position:fixed;inset:0;z-index:100001;overflow-y:auto;background:#07080b;color:#f8fafc;font-family:inherit}
         .vdp-bg{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 15% 0%,rgba(132,204,22,.13),transparent 34%),radial-gradient(circle at 85% 15%,rgba(96,165,250,.1),transparent 30%),linear-gradient(135deg,#08090b,#10131b 55%,#08090b)}
         .vdp-shell{position:relative;max-width:1120px;margin:0 auto;padding:22px 24px 60px}
-        .vdp-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
+        .vdp-nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin-bottom:26px}
         .vdp-nav button{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:10px;padding:10px 13px;font-size:calc((12px) + 1px);font-weight:800;cursor:pointer}
         .vdp-kicker{color:#84cc16;font-size:calc((10px) + 1px);font-weight:900;letter-spacing:.14em;text-transform:uppercase}
         .vdp-hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;padding:28px;border:1px solid rgba(132,204,22,.2);border-radius:22px;background:linear-gradient(135deg,rgba(132,204,22,.1),rgba(255,255,255,.035) 48%,rgba(96,165,250,.08));box-shadow:0 24px 80px rgba(0,0,0,.28)}
@@ -107,6 +117,7 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
       <main className="vdp-shell">
         {!selected && <div className="vdp-nav">
           <button type="button" onClick={onBack}><ArrowLeft size={15}/> Back to profile</button>
+          {onOpenXRC && <button type="button" onClick={onOpenXRC}><GitBranch size={15}/> Open XRC</button>}
           <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
         </div>}
         {selected ? renderSectionPage() : <>
@@ -122,7 +133,7 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
           </div>
           <div className="vdp-hero-data">
             <div className="vdp-kicker">Xeevia proof layer</div>
-            <h1 className="vdp-title">Verification Dashboard</h1>
+            <h1 className="vdp-title">{title}</h1>
             <p className="vdp-sub">A structured view of {profileName}'s identity, connected signals, and verified evidence.</p>
             <div className="vdp-stats">
               <div className="vdp-stat"><strong>{verifiedCount}</strong><span>Verified signals</span></div>

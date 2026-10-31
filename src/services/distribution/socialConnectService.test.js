@@ -1,5 +1,6 @@
 import socialConnectService, { getPlatformConfig, resolveProviderLinkState, validateProfileUrl } from './socialConnectService';
 import { supabase } from "../config/supabase";
+import xrcService, { XRC_EVENTS } from "../xrc";
 
 jest.mock("../config/supabase", () => ({
   supabase: {
@@ -11,8 +12,33 @@ jest.mock("../config/supabase", () => ({
   },
 }));
 
+jest.mock("../xrc", () => ({
+  __esModule: true,
+  default: { writeRecord: jest.fn().mockResolvedValue({ success: true }) },
+  STREAM_TYPES: { XARC: "XARC" },
+  XRC_EVENTS: {
+    platformConnected: jest.fn((provider, connection) => ({ event: "platform_connected", provider, connection_id: connection?.id })),
+    platformIdentityImported: jest.fn((provider, connection) => ({ event: "platform_identity_imported", provider, connection_id: connection?.id })),
+    platformConnectionObserved: jest.fn((provider, connection) => ({ event: "platform_connection_observed", provider, connection_id: connection?.id })),
+    platformDisconnected: jest.fn((provider, connection) => ({ event: "platform_disconnected", provider, connection_id: connection?.id })),
+  },
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
+  xrcService.writeRecord.mockResolvedValue({ success: true });
+  XRC_EVENTS.platformConnected.mockImplementation((provider, connection) => ({
+    event: "platform_connected", provider, connection_id: connection?.id,
+  }));
+  XRC_EVENTS.platformIdentityImported.mockImplementation((provider, connection) => ({
+    event: "platform_identity_imported", provider, connection_id: connection?.id,
+  }));
+  XRC_EVENTS.platformConnectionObserved.mockImplementation((provider, connection) => ({
+    event: "platform_connection_observed", provider, connection_id: connection?.id,
+  }));
+  XRC_EVENTS.platformDisconnected.mockImplementation((provider, connection) => ({
+    event: "platform_disconnected", provider, connection_id: connection?.id,
+  }));
 });
 
 afterEach(() => {
@@ -115,7 +141,12 @@ describe('resolveProviderLinkState', () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockResolvedValue({
-        data: { id: "connection-x", auth_status: "active" },
+        data: {
+          id: "connection-x",
+          auth_status: "active",
+          platform_user_id: "xuser",
+          connected_via: "supabase_identity",
+        },
         error: null,
       }),
     };
@@ -201,6 +232,11 @@ describe('_storeConnection', () => {
 
     await expect(socialConnectService._storeConnection('user-1', 'discord', 'discord-user', 'access-token', 'refresh-token'))
       .resolves.toEqual({ id: 'connection-discord' });
+    expect(xrcService.writeRecord).toHaveBeenCalledWith(
+      "XARC",
+      { event: "platform_connected", provider: "discord", connection_id: "connection-discord" },
+      "user-1",
+    );
 
     expect(tokenQuery.insert).toHaveBeenCalledWith({
       connection_id: 'connection-discord',
@@ -209,6 +245,49 @@ describe('_storeConnection', () => {
       expires_at: null,
       revoked: false,
     });
+  });
+});
+
+describe("ensurePlatformConnectionHistory", () => {
+  it("records persisted platform links once without copying external account identifiers", async () => {
+    const connections = [
+      { id: "connection-github", provider: "github", auth_status: "active", connected_via: "oauth_popup", platform_user_id: "private-handle" },
+      { id: "connection-linkedin", provider: "linkedin", auth_status: "active", connected_via: "oauth_popup", platform_user_id: "private-name" },
+    ];
+    const connectionQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: connections, error: null }),
+    };
+    const recordsQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue({
+        data: [{ payload: { event: "platform_connected", connection_id: "connection-github" } }],
+        error: null,
+      }),
+    };
+    supabase.auth.getUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    supabase.from.mockImplementation((table) => table === "connections" ? connectionQuery : recordsQuery);
+
+    await expect(socialConnectService.ensurePlatformConnectionHistory("user-1"))
+      .resolves.toEqual({ observed: 1, alreadyTracked: 1, skipped: 0 });
+
+    expect(XRC_EVENTS.platformConnectionObserved).toHaveBeenCalledWith("linkedin", connections[1]);
+    expect(xrcService.writeRecord).toHaveBeenCalledWith(
+      "XARC",
+      { event: "platform_connection_observed", provider: "linkedin", connection_id: "connection-linkedin" },
+      "user-1",
+    );
+    expect(xrcService.writeRecord.mock.calls[0][1]).not.toHaveProperty("platform_user_id");
+  });
+
+  it("refuses to reconcile another user's connections", async () => {
+    supabase.auth.getUser.mockResolvedValue({ data: { user: { id: "other-user" } }, error: null });
+
+    await expect(socialConnectService.ensurePlatformConnectionHistory("user-1"))
+      .rejects.toThrow("Only the signed-in profile");
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });
 

@@ -52,6 +52,9 @@ const EVENT_LABELS = {
   content_shared:"Content Shared", token_transfer:"Token Transfer", wallet_deposit:"Wallet Deposit",
   wallet_withdrawal:"Wallet Withdrawal", account_created:"Account Created", profile_updated:"Profile Updated",
   follow_added:"User Followed", follow_removed:"Unfollowed", role_assigned:"Role Assigned",
+  platform_connected:"Platform Connected", platform_disconnected:"Platform Disconnected",
+  platform_identity_imported:"Platform Identity Imported", platform_connection_observed:"Platform Connection Observed",
+  identity_details_updated:"XRD Identity Details Updated",
   staking_started:"Staking Started", staking_withdrawn:"Stake Withdrawn",
 };
 const EVENT_ICONS = {
@@ -153,7 +156,7 @@ const CSS = `
 * { box-sizing: border-box; }
 
 .xo3-root {
-  position: fixed; inset: 0; z-index: 100000;
+  position: fixed; inset: 0; z-index: 100060;
   background: #020406;
   font-family: 'Syne', sans-serif;
   display: flex; flex-direction: column;
@@ -1426,7 +1429,7 @@ const OracleResultCards = ({ records, onSelect }) => {
 };
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────
-const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
+const XRCOracleExplorer = ({ onClose, xrcService, currentUser, notice = "" }) => {
   const [phase,         setPhase]         = useState("idle");
   const [query,         setQuery]         = useState("");
   const [searching,     setSearching]     = useState(false);
@@ -1584,6 +1587,7 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
           onRefresh={loadOverview}
           searching={searching}
         />
+        {notice && <div role="status" style={{ position: "relative", zIndex: 2, padding: "9px 18px", color: "#d8e2d3", background: "rgba(132,204,22,.08)", borderBottom: "1px solid rgba(132,204,22,.16)", fontSize: 12 }}>{notice}</div>}
 
         {/* ═══ SEARCH: Command Terminal Bar ═══ */}
         <SearchZone

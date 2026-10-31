@@ -108,7 +108,7 @@ class FollowModel {
           follower_id,
           created_at,
           profiles!follows_follower_id_fkey (
-            id, full_name, username, avatar_id, verified
+            id, full_name, username, avatar_id, avatar_metadata, verified
           )
         `)
         .eq("following_id", userId)
@@ -132,7 +132,7 @@ class FollowModel {
           following_id,
           created_at,
           profiles!follows_following_id_fkey (
-            id, full_name, username, avatar_id, verified
+            id, full_name, username, avatar_id, avatar_metadata, verified
           )
         `)
         .eq("follower_id", userId)

@@ -151,11 +151,12 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
       const updateData = {
         full_name:  formData.fullName,
         username:   formData.username,
-        bio:        formData.bio || null,
+        bio:        formData.bio.trim() || null,
         profile_tags: normalizeProfileTags(formData.profileTags),
         updated_at: new Date().toISOString(),
       };
 
+      let uploadedBanner = null;
       if (formData.avatarFile) {
         try {
           const avatarId = await uploadAvatar();
@@ -166,8 +167,9 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
       if (formData.bannerFile) {
         setUploading(true);
         try {
-          const banner = await uploadService.uploadImage(formData.bannerFile, 'xeevia/profile-banners');
-          updateData.banner_image_id = banner.id;
+          uploadedBanner = await uploadService.uploadImage(formData.bannerFile, 'xeevia/profile-banners');
+          if (!uploadedBanner?.id) throw new Error("Banner upload did not return an image ID.");
+          updateData.banner_image_id = uploadedBanner.id;
         } finally { setUploading(false); }
       }
 
@@ -183,9 +185,9 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
           ? uploadService.getImageUrl(updateData.avatar_id, { width: 400, height: 400, crop: 'fill', gravity: 'face' })
           : currentProfile?.avatar,
         avatarId: updateData.avatar_id || currentProfile?.avatarId,
-        bannerImageUrl: updateData.banner_image_id
+        bannerImageUrl: uploadedBanner?.url || (updateData.banner_image_id
           ? uploadService.getImageUrl(updateData.banner_image_id, { width: 1500, height: 520, crop: 'fill', gravity: 'auto' })
-          : currentProfile?.bannerImageUrl,
+          : currentProfile?.bannerImageUrl),
         bannerImageId: updateData.banner_image_id || currentProfile?.bannerImageId,
       };
       if (onSuccess) onSuccess(updatedProfile);

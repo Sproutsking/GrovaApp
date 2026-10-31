@@ -847,7 +847,12 @@ const HomeView = ({
         userId,
         author: candidate.author || candidate.name || candidate.full_name || candidate.profiles?.full_name,
         username: candidate.username || candidate.profiles?.username,
-        avatar: candidate.avatar || candidate.avatar_url || candidate.profiles?.avatar_id,
+        avatar: candidate.avatar || candidate.avatar_url || candidate.avatarUrl || candidate.profiles?.avatar_id,
+        avatar_id: candidate.avatar_id || candidate.avatarId || candidate.profiles?.avatar_id,
+        avatar_metadata: candidate.avatar_metadata || candidate.avatarMetadata || candidate.profiles?.avatar_metadata,
+        avatar_fallback_urls: candidate.avatar_fallback_urls || [],
+        user_metadata: candidate.user_metadata || candidate.userMetadata,
+        identities: candidate.identities,
         verified: candidate.verified || candidate.profiles?.verified,
       },
     });
@@ -1233,7 +1238,6 @@ const HomeView = ({
         <UserProfileModal
           user={modals.profile}
           currentUser={resolvedUser}
-          presentation="section"
           onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })}
         />
       )}

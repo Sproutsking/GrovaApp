@@ -15,6 +15,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import {
   ArrowLeft, MessageSquare, Heart, CornerDownRight,
   ChevronDown, ChevronUp, ExternalLink,
@@ -425,6 +426,8 @@ const CommentsViewer = ({
   comments = [],
   profileData,
   currentUser,
+  title = "My Comments",
+  activityKind = "comments",
   onGoToPost,
   onClose,
 }) => {
@@ -440,7 +443,7 @@ const CommentsViewer = ({
     };
   }, [onClose]);
 
-  return (
+  return ReactDOM.createPortal(
     <>
       {/* ══════════════════════════════════════════════════════════════════════
           STYLES — scoped with .cv- prefix
@@ -448,18 +451,21 @@ const CommentsViewer = ({
       <style>{`
         /* ── Panel shell ── */
         .cv-overlay {
-          position: fixed; inset: 0; z-index: 100000;
-          background: rgba(0,0,0,0.7);
+          position: fixed; inset: 0; z-index: 120000;
+          background: rgba(0,0,0,0.76);
           backdrop-filter: blur(10px) saturate(0.6);
           display: flex; align-items: stretch; justify-content: flex-end;
           animation: cv-bg 0.22s ease;
+          isolation: isolate;
         }
         @keyframes cv-bg { from{opacity:0} to{opacity:1} }
 
         .cv-panel {
-          width: 100%; max-width: 500px; height: 100%;
-          background: #060606;
-          border-left: 1px solid rgba(52,211,153,0.1);
+          width: min(100%, 520px); max-width: 520px; height: 100vh; height: 100dvh;
+          min-height: 0;
+          background: linear-gradient(180deg, #0b0d0c, #060706 38%);
+          border-left: 1px solid rgba(52,211,153,0.18);
+          box-shadow: -24px 0 70px rgba(0,0,0,.42);
           display: flex; flex-direction: column;
           animation: cv-slidein 0.3s cubic-bezier(0.22,1,0.36,1);
           overflow: hidden;
@@ -472,7 +478,8 @@ const CommentsViewer = ({
         @media (max-width: 580px) {
           .cv-overlay { align-items: flex-end; justify-content: center; }
           .cv-panel {
-            max-width: 100%; height: 96vh;
+            width: 100%; max-width: 100%; height: min(94vh, 900px); height: min(94dvh, 900px);
+            min-height: min(520px, 85dvh);
             border-left: none;
             border-top: 1px solid rgba(52,211,153,0.12);
             border-radius: 22px 22px 0 0;
@@ -511,7 +518,7 @@ const CommentsViewer = ({
           letter-spacing: -0.2px;
         }
         .cv-header-sub {
-          font-size: calc((11px) + 1px); color: #404040; margin-top: 1px;
+          font-size: calc((11px) + 1px); color: #8b9490; margin-top: 3px;
         }
 
         .cv-header-count {
@@ -759,12 +766,14 @@ const CommentsViewer = ({
         /* ── Empty ── */
         .cv-empty {
           display: flex; flex-direction: column; align-items: center;
-          justify-content: center; padding: 70px 24px; gap: 12px; text-align: center;
-          color: #383838;
+          justify-content: center; max-width: 420px; min-height: min(58vh, 440px);
+          margin: 20px auto; padding: 32px 24px; gap: 12px; text-align: center;
+          color: #a3e635; border: 1px solid rgba(132,204,22,.14);
+          border-radius: 22px; background: radial-gradient(circle at 50% 0,rgba(132,204,22,.08),transparent 58%),rgba(255,255,255,.025);
         }
         .cv-empty-emoji { font-size: calc((44px) + 1px); }
-        .cv-empty-title { font-size: calc((16px) + 1px); font-weight: 700; color: #525252; margin: 0; }
-        .cv-empty-sub { font-size: calc((13px) + 1px); color: #383838; margin: 0; line-height: 1.6; }
+        .cv-empty-title { font-size: calc((18px) + 1px); font-weight: 800; color: #f3f4f6; margin: 0; }
+        .cv-empty-sub { max-width:300px; font-size: calc((13px) + 1px); color: #a1aaa5; margin: 0; line-height: 1.65; }
       `}</style>
 
       {/* ══════ OVERLAY ══════ */}
@@ -779,10 +788,10 @@ const CommentsViewer = ({
             <div className="cv-header-info">
               <div className="cv-header-title">
                 <MessageSquare size={15} />
-                My Comments
+                {title}
               </div>
               <div className="cv-header-sub">
-                Tap a card to see replies & reactions
+                {activityKind === "replies" ? "Your replies and their threads" : "Tap a card to see replies & reactions"}
               </div>
             </div>
             <span className="cv-header-count">{comments.length}</span>
@@ -793,9 +802,11 @@ const CommentsViewer = ({
             {comments.length === 0 ? (
               <div className="cv-empty">
                 <span className="cv-empty-emoji">💬</span>
-                <p className="cv-empty-title">No comments yet</p>
+                <p className="cv-empty-title">{activityKind === "replies" ? "No replies yet" : "No comments yet"}</p>
                 <p className="cv-empty-sub">
-                  Comments you leave on posts,<br />reels and stories will appear here
+                  {activityKind === "replies"
+                    ? "Replies you leave on Xeevia will appear here"
+                    : "Comments you leave on posts, reels and stories will appear here"}
                 </p>
               </div>
             ) : (
@@ -814,7 +825,8 @@ const CommentsViewer = ({
 
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

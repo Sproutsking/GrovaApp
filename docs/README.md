@@ -10,10 +10,11 @@ This directory contains the canonical product and architecture documents. Root-l
 2. [System Architecture](SYSTEM_ARCHITECTURE.md) - how identity, evidence, XRC, distribution, communities, and economics fit together.
 3. [Capability Status](CAPABILITY_STATUS.md) - what is shipped, partial, planned, or dependent on external providers.
 4. [Evidence and Trust Principles](EVIDENCE_AND_TRUST.md) - the rules that keep Xeevia honest and useful.
-5. [Development Roadmap](ROADMAP.md) - the order of work required to turn the thesis into measurable advantage.
-6. [Legacy and Operations Index](LEGACY_AND_OPERATIONS.md) - deployment guides, historical records, and specialist implementation notes.
-7. [Ripple Economy](RIPPLE_ECONOMY.md) - the engagement genealogy, settlement rules, and economic invariants.
-8. [Patent Invention Disclosure](PATENT_INVENTION_DISCLOSURE.md) - confidential technical disclosure draft for qualified patent counsel.
+5. [XRD and XRC Data Contract](XRD_XRC_DATA_CONTRACT.md) - canonical entities, graph relations, visibility, and lifecycle transitions.
+6. [Development Roadmap](ROADMAP.md) - the order of work required to turn the thesis into measurable advantage.
+7. [Legacy and Operations Index](LEGACY_AND_OPERATIONS.md) - deployment guides, historical records, and specialist implementation notes.
+8. [Ripple Economy](RIPPLE_ECONOMY.md) - the engagement genealogy, settlement rules, and economic invariants.
+9. [Patent Invention Disclosure](PATENT_INVENTION_DISCLOSURE.md) - confidential technical disclosure draft for qualified patent counsel.
 
 ## Operational Guides
 

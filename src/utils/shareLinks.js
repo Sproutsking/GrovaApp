@@ -11,6 +11,7 @@ export const buildShareUrl = (type, id, params = {}) => {
     post: `/post/${encodeId(id)}`,
     reel: `/reel/${encodeId(id)}`,
     story: `/story/${encodeId(id)}`,
+    profile: `/profile/${encodeId(id)}`,
     community: `/community/${encodeId(id)}`,
     invite: `/invite/${encodeId(id)}`,
     // Keep the existing referral contract; the metadata endpoint also accepts
@@ -28,9 +29,11 @@ export const buildShareUrl = (type, id, params = {}) => {
 };
 
 export const buildContentShareUrl = (contentType, content) => {
-  const routeByType = { post: "post", reel: "reel", story: "story" };
+  const routeByType = { post: "post", reel: "reel", story: "story", profile: "profile" };
   const route = routeByType[contentType] || "post";
-  return buildShareUrl(route, content?.id);
+  const username = content?.username && content.username !== "unknown" ? content.username : null;
+  const id = contentType === "profile" ? username || content?.id : content?.id;
+  return buildShareUrl(route, id);
 };
 
 export const buildPlatformShareUrl = (platform, { url, title = "Check this out on Xeevia!" }) => {

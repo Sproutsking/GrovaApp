@@ -79,17 +79,16 @@ const ProfilePreview = ({
   const resolveUserData = () => {
     // Flat shape (from post author objects, DMs, notifications, etc.)
     if (profile.userId || profile.author) {
-      // Prioritize avatar_id and resolve it, fall back to avatar prop
-      let avatar = null;
-      if (profile.avatar_id) {
-        avatar = mediaUrlService.resolveAvatarUrl(profile.avatar_id, 160);
-      } else if (profile.avatar && typeof profile.avatar === 'string') {
-        if (profile.avatar.length === 1) {
-          avatar = profile.avatar; // Single letter fallback
-        } else {
-          avatar = mediaUrlService.resolveAvatarUrl(profile.avatar, 160);
-        }
-      }
+      const avatarSources = [
+        profile.avatar_id, profile.avatarId,
+        profile.avatar_url, profile.avatarUrl,
+        profile.avatar_metadata, profile.avatarMetadata,
+        profile.avatar,
+      ];
+      const avatarCandidates = mediaUrlService.resolveAvatarUrls(avatarSources, 160);
+      const avatar = avatarCandidates[0] || (
+        typeof profile.avatar === "string" && profile.avatar.length === 1 ? profile.avatar : null
+      );
       
       return {
         userId:            profile.userId || profile.user_id || profile.id,
@@ -97,6 +96,7 @@ const ProfilePreview = ({
         username:          profile.username || "unknown",
         createdAt:         profile.createdAt || null,
         avatar:            avatar,
+        avatarCandidates,
         avatarId:          profile.avatar_id || profile.avatarId || null,
         avatarMetadata:    profile.avatar_metadata || profile.avatarMetadata || null,
         userMetadata:      profile.user_metadata || profile.userMetadata || null,
@@ -124,23 +124,15 @@ const ProfilePreview = ({
       profile.username ||
       (author || "user").toLowerCase().replace(/\s+/g, "_");
 
-    let avatar = null;
-    const avatarSource =
-      profileData.avatar_id ||
-      profileData.avatarId ||
-      profileData.avatar_url ||
-      profileData.avatarUrl ||
-      profile.avatar_url ||
-      profile.avatarUrl ||
-      profile.avatar ||
-      profileData.avatar_metadata ||
-      profile.avatar_metadata;
-    if (avatarSource) {
-      avatar = mediaUrlService.resolveAvatarUrl(avatarSource, 200);
-    }
-    if (!avatar && profile.avatar) {
-      avatar = mediaUrlService.resolveAvatarUrl(profile.avatar, 200);
-    }
+    const avatarSources = [
+      profileData.avatar_id, profileData.avatarId,
+      profileData.avatar_url, profileData.avatarUrl,
+      profile.avatar_url, profile.avatarUrl, profile.avatar,
+      profileData.avatar_metadata, profileData.avatarMetadata,
+      profile.avatar_metadata, profile.avatarMetadata,
+    ];
+    const avatarCandidates = mediaUrlService.resolveAvatarUrls(avatarSources, 200);
+    let avatar = avatarCandidates[0] || null;
     if (!avatar) {
       avatar = author.charAt(0).toUpperCase();
     }
@@ -151,6 +143,7 @@ const ProfilePreview = ({
       username,
       createdAt: profile.createdAt || null,
       avatar,
+      avatarCandidates,
       avatarId: profileData.avatar_id || profileData.avatarId || profile.avatar_id || profile.avatarId || null,
       avatarMetadata: profileData.avatar_metadata || profileData.avatarMetadata || profile.avatar_metadata || profile.avatarMetadata || null,
       userMetadata: profileData.user_metadata || profileData.userMetadata || profile.user_metadata || profile.userMetadata || null,
@@ -175,6 +168,7 @@ const ProfilePreview = ({
     username,
     createdAt,
     avatar,
+    avatarCandidates,
     avatarId,
     avatarMetadata,
     userMetadata,
@@ -262,6 +256,7 @@ const ProfilePreview = ({
     author,
     username,
     avatar:            isValidUrl ? enhancedAvatar : avatar,
+    avatar_fallback_urls: avatarCandidates,
     avatar_id:         avatarId,
     avatarId,
     avatar_metadata:   avatarMetadata,
@@ -289,6 +284,7 @@ const ProfilePreview = ({
           themeId={themeId}
           size={sz.avatar}
           src={isValidUrl ? enhancedAvatar : null}
+          fallbackSrc={avatarCandidates}
           letter={
             typeof avatar === "string" && avatar.length === 1
               ? avatar

@@ -13,6 +13,24 @@
 import FollowModel   from "../../models/FollowModel";
 import { supabase }  from "../config/supabase";
 import pushService   from "../notifications/pushService";
+import xrcService, { STREAM_TYPES, XRC_EVENTS } from "../xrc";
+
+async function recordFollowEvent(event, followerId, followingId) {
+  try {
+    const result = await xrcService.writeRecord(
+      STREAM_TYPES.XERC,
+      event === "follow_added"
+        ? XRC_EVENTS.followAdded(followerId, followingId)
+        : XRC_EVENTS.followRemoved(followerId, followingId),
+      followerId,
+    );
+    if (!result?.success && !result?.skipped) {
+      console.error("[FollowService] XRC follow history could not be recorded:", result?.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error("[FollowService] XRC follow history could not be recorded:", error);
+  }
+}
 
 function reportFollowFailure(message) {
   if (typeof window === "undefined") return;
@@ -88,6 +106,7 @@ class FollowService {
 
       notifyFollowState(followerId, followingId, true);
       if (!result.already_following && !result.alreadyFollowing) {
+        await recordFollowEvent("follow_added", followerId, followingId);
         // [PUSH-1] Fire push after confirmed success — never awaited
         _sendFollowPush(followerId, followingId);
       }
@@ -127,6 +146,7 @@ class FollowService {
         return { success: false, error: result.message };
       }
       notifyFollowState(followerId, followingId, false);
+      await recordFollowEvent("follow_removed", followerId, followingId);
       return result;
     } catch (err) {
       const msg = String(err?.message || err || "").toLowerCase();
@@ -179,7 +199,7 @@ class FollowService {
         .select(
           `follower_id, created_at,
            profiles!follows_follower_id_fkey (
-             id, full_name, username, avatar_id, verified
+             id, full_name, username, avatar_id, avatar_metadata, verified
            )`
         )
         .eq("following_id", userId)
@@ -191,6 +211,23 @@ class FollowService {
       return mutualFollowers || [];
     } catch (error) {
       console.error("Error getting mutual followers:", error);
+      return [];
+    }
+  }
+
+  async getSharedFollowing(viewerId, profileId, limit = 20) {
+    if (!viewerId || !profileId || viewerId === profileId) return [];
+    try {
+      const [viewerFollowing, profileFollowing] = await Promise.all([
+        FollowModel.getFollowing(viewerId, 1000),
+        FollowModel.getFollowing(profileId, 1000),
+      ]);
+      const viewerFollowingIds = new Set(viewerFollowing.map((item) => item.following_id));
+      return profileFollowing
+        .filter((item) => viewerFollowingIds.has(item.following_id))
+        .slice(0, limit);
+    } catch (error) {
+      console.error("Error getting shared following:", error);
       return [];
     }
   }

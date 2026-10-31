@@ -11,7 +11,7 @@
 //   2. Must NOT be running in localhost/dev unless explicitly overridden
 //   3. Actor ID must be a real UUID (not a placeholder)
 //
-// OVERRIDE: Set XRC_FORCE_DEV=true in your .env to record in dev for testing.
+// OVERRIDE: Set REACT_APP_XRC_FORCE_DEV=true in your .env to record in dev for testing.
 // ============================================================================
 
 const IS_DEV =

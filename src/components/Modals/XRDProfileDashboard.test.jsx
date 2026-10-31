@@ -1,4 +1,6 @@
-import { getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrdPhotoSources, getXrdProfileAvatarCandidates, SOURCE_PLATFORMS } from "./XRDProfileDashboard";
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { buildXrdIdentityDetailRows, getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrcRecordSummary, getXrdPhotoSources, getXrdProfileAvatarCandidates, resolveXrdInitialSection, SOURCE_PLATFORMS, XrdEvidenceGraph } from "./XRDProfileDashboard";
 
 jest.mock("../../services/shared/mediaUrlService", () => ({
   __esModule: true,
@@ -61,6 +63,29 @@ describe("getXrdIdentityBindings", () => {
     ]);
   });
 
+  describe("getXrcRecordSummary", () => {
+    it("explains identity edits without exposing identity field values", () => {
+      expect(getXrcRecordSummary({
+        event: "identity_details_updated",
+        updated_fields: ["headline", "bio", "visibility"],
+        visibility: "public",
+      })).toBe("Identity fields changed: headline, bio, visibility · public visibility");
+    });
+
+    it("shows platform connection and follow lifecycle details", () => {
+      expect(getXrcRecordSummary({
+        event: "platform_connected",
+        provider: "github",
+        connection_method: "oauth_popup",
+        auth_status: "active",
+      })).toBe("github connected via oauth popup · account_control");
+      expect(getXrcRecordSummary({
+        event: "follow_added",
+        following_id: "profile-2",
+      })).toBe("Followed Xeevia profile profile-2");
+    });
+  });
+
   it("keeps actual external connection states and does not duplicate Xeevia", () => {
     expect(getXrdIdentityBindings({ id: "profile-1", username: "sprouts" }, [
       { provider: "github", auth_status: "active", hasValidToken: true },
@@ -83,6 +108,27 @@ describe("getXrdIdentityDetails", () => {
       note: "",
       availability: "",
     });
+
+  });
+
+  it("writes identity detail rows using the field-per-row database schema", () => {
+    expect(buildXrdIdentityDetailRows("profile-1", { headline: "Builder", bio: "" }, "public", "2026-10-31T00:00:00.000Z"))
+      .toContainEqual({
+        profile_id: "profile-1",
+        field_key: "headline",
+        value: "Builder",
+        visibility: "public",
+        updated_at: "2026-10-31T00:00:00.000Z",
+      });
+    expect(buildXrdIdentityDetailRows("profile-1", { headline: "Builder" }, "public", "timestamp"))
+      .toHaveLength(7);
+  });
+
+  it("keeps XRC-only destinations out of the XRD record dashboard", () => {
+    expect(resolveXrdInitialSection("Remarks")).toBe("Records");
+    expect(resolveXrdInitialSection("XRC Oracle")).toBe("Overview");
+    expect(resolveXrdInitialSection("Chains")).toBe("Overview");
+    expect(resolveXrdInitialSection("Activity")).toBe("Overview");
   });
 });
 
@@ -109,4 +155,56 @@ describe("getXrdIdentityRowStatus", () => {
 
 it("lists Apple as an XRD source supported by the connection service", () => {
   expect(SOURCE_PLATFORMS).toContainEqual(["apple", "Apple"]);
+});
+
+it("renders and inspects real XRD claim, evidence, and identity-binding nodes", () => {
+  const claim = {
+    id: "claim-1",
+    title: "Maintains Atlas",
+    claim_text: "I maintain the Atlas open-source library.",
+    lifecycle_status: "published",
+    evidence_links: [{ id: "link-1", evidence_item_id: "evidence-1", relation: "supports" }],
+  };
+  const evidence = {
+    id: "evidence-1",
+    provider: "github",
+    title: "Merged pull request #18",
+    evidence_type: "activity",
+    connection_id: "connection-1",
+  };
+  const binding = {
+    id: "binding-1",
+    provider: "github",
+    connection_id: "connection-1",
+    binding_method: "oauth_popup",
+    assurance_scope: "account_control",
+    status: "bound",
+  };
+
+  const { container } = render(
+    <XrdEvidenceGraph
+      items={[evidence]}
+      edges={[]}
+      profile={{ fullName: "Ada Lovelace", username: "ada" }}
+      connections={[{ id: "connection-1", provider: "github", auth_status: "active", hasValidToken: true }]}
+      bindings={[binding]}
+      claims={[claim]}
+      onPick={jest.fn()}
+      onOpenVerification={jest.fn()}
+      onOpenChain={jest.fn()}
+      onVerifyRecord={jest.fn()}
+      onTraceRecord={jest.fn()}
+      onOpenIdentity={jest.fn()}
+      onOpenClaims={jest.fn()}
+    />,
+  );
+
+  expect(container.querySelector(".xrd-graph-claim-link.is-support")).not.toBeNull();
+  expect(container.querySelector(".xrd-graph-binding-link")).not.toBeNull();
+  expect(container.querySelector(".xrd-graph-binding-evidence-link")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /XRD claim Maintains Atlas/ }));
+  expect(screen.getByText("I maintain the Atlas open-source library.")).not.toBeNull();
+  expect(screen.getByText(/1 visible evidence relationship attached/)).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /github identity binding, bound, account_control/i }));
+  expect(screen.getByText(/Assurance scope: account control/i)).not.toBeNull();
 });

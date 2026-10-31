@@ -100,33 +100,46 @@ export function createXRCService(supabase) {
     try {
       const timestampMs = Date.now();
       const recordId = generateUUID();
-      const head = await rootChain.getStreamHead(streamType);
-      const previousHash = head.hash;
-      const record = {
-        record_id: recordId,
-        stream_type: streamType,
-        previous_hash: previousHash,
-        actor_id: actorId,
-        payload,
-        timestamp: timestampMs,
-        version: 3,
-        created_at: new Date().toISOString(),
-      };
-      const recordHash = await computeRecordHash(record);
+      const createdAt = new Date().toISOString();
+      const genesisHash = await computeGenesisHash(streamType);
+      let lastError = null;
 
-      const { error: insertError } = await supabase.from("xrc_records").insert({
-        ...record,
-        record_hash: recordHash,
-      });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const head = await rootChain.getStreamHead(streamType);
+        const record = {
+          record_id: recordId,
+          stream_type: streamType,
+          previous_hash: head.hash,
+          actor_id: actorId,
+          payload,
+          timestamp: timestampMs,
+          version: 3,
+          created_at: createdAt,
+        };
+        const recordHash = await computeRecordHash(record);
+        const { error } = await supabase.rpc("append_xrc_record", {
+          p_record_id: recordId,
+          p_stream_type: streamType,
+          p_previous_hash: record.previous_hash,
+          p_record_hash: recordHash,
+          p_actor_id: actorId,
+          p_payload: payload || {},
+          p_timestamp: timestampMs,
+          p_version: 3,
+          p_created_at: createdAt,
+          p_genesis_hash: genesisHash,
+        });
 
-      if (insertError) throw insertError;
+        if (!error) {
+          logWrite(streamType, payload?.event, recordId);
+          return { success: true, recordId, hash: recordHash, skipped: false };
+        }
 
-      rootChain
-        .updateStreamHead(streamType, recordHash, recordId)
-        .catch((e) => console.error("[XRC] Root chain update error:", e));
+        lastError = error;
+        if (!String(error.message || "").includes("XRC chain head changed")) throw error;
+      }
 
-      logWrite(streamType, payload?.event, recordId);
-      return { success: true, recordId, hash: recordHash, skipped: false };
+      throw lastError || new Error("XRC append failed after retrying a concurrent stream update.");
     } catch (err) {
       console.error("[XRC] writeRecord error:", err);
       return { success: false, error: err.message, skipped: false };
@@ -605,6 +618,44 @@ export const XRC_EVENTS = {
     event: "profile_updated",
     user_id: userId,
     updated_fields: fields,
+  }),
+  identityDetailsUpdated: (userId, fields, visibility) => ({
+    event: "identity_details_updated",
+    user_id: userId,
+    updated_fields: fields,
+    visibility,
+  }),
+  platformConnected: (provider, connection) => ({
+    event: "platform_connected",
+    provider,
+    connection_id: connection?.id || null,
+    connection_method: connection?.connected_via || "unknown",
+    auth_status: connection?.auth_status || "active",
+    assurance_scope: connection?.connected_via === "profile_link" ? "profile_reference" : "account_control",
+  }),
+  platformIdentityImported: (provider, connection) => ({
+    event: "platform_identity_imported",
+    provider,
+    connection_id: connection?.id || null,
+    connection_method: connection?.connected_via || "supabase_identity",
+    auth_status: connection?.auth_status || "expired",
+    assurance_scope: "identity_reference",
+  }),
+  platformConnectionObserved: (provider, connection) => ({
+    event: "platform_connection_observed",
+    provider,
+    connection_id: connection?.id || null,
+    connection_method: connection?.connected_via || "unknown",
+    auth_status: connection?.auth_status || "unknown",
+    assurance_scope: connection?.connected_via === "profile_link" ? "profile_reference" : "account_control",
+  }),
+  platformDisconnected: (provider, connection) => ({
+    event: "platform_disconnected",
+    provider,
+    connection_id: connection?.id || null,
+    connection_method: connection?.connected_via || "unknown",
+    previous_auth_status: connection?.auth_status || "unknown",
+    assurance_scope: connection?.connected_via === "profile_link" ? "profile_reference" : "account_control",
   }),
 
   // XPRC — Permissions
