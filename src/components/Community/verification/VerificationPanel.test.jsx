@@ -45,6 +45,57 @@ describe("VerificationPanel", () => {
     expect(screen.queryByRole("heading", { name: "Quick verification" })).toBeNull();
   });
 
+  it("renders standalone rules passively when a different channel hosts the verification gate", async () => {
+    verificationService.getPanel.mockResolvedValue({
+      configured: true,
+      rulesGate: { enabled: true, rulesChannelId: "verification-rules" },
+      rulesPanel: {
+        title: "Published community rules",
+        description: "These rules are a normal community post.",
+        items: [{ id: "published-rule", title: "Be helpful", body: "" }],
+      },
+      methods: {
+        rules: {
+          ready: true,
+          title: "Verification gate rules",
+          description: "These are for gate.",
+          items: [{ id: "gate-rule", title: "Complete gate", body: "" }],
+          buttonLabel: "Accept and continue",
+        },
+      },
+    });
+
+    render(<VerificationPanel communityId="community-1" channelId="public-rules" panelType="rules" />);
+
+    expect(await screen.findByRole("heading", { name: "Published community rules" })).not.toBeNull();
+    expect(screen.getByText("Be helpful")).not.toBeNull();
+    expect(screen.queryByText("Complete gate")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Accept and continue" })).toBeNull();
+  });
+
+  it("keeps the configured gate channel interactive", async () => {
+    verificationService.getPanel.mockResolvedValue({
+      configured: true,
+      rulesGate: { enabled: true, rulesChannelId: "verification-rules", flow: "rules_only" },
+      methods: {
+        rules: {
+          ready: true,
+          title: "Gate rules",
+          description: "Accept to continue.",
+          items: [{ id: "rule-1", title: "Be respectful", body: "" }],
+          requireScroll: false,
+          requireEachRule: false,
+          acceptLabel: "I agree",
+          buttonLabel: "Accept and continue",
+        },
+      },
+    });
+
+    render(<VerificationPanel communityId="community-1" channelId="verification-rules" panelType="rules" />);
+
+    expect(await screen.findByRole("button", { name: "Accept and continue" })).not.toBeNull();
+  });
+
   it("automatically grants the only selected role after verification", async () => {
     verificationService.getPanel.mockResolvedValue({
       configured: true,

@@ -18,7 +18,7 @@ import { getSelectedToolChannelIds } from "./toolChannelSelection";
 import { useAccountLinking } from "../../../../contexts/AccountLinkingContext";
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Gate access with role-based checks, rules, and identity verification.", icon: ShieldCheck },
-  { type: "rules", label: "Rules", description: "Publish and manage community rules, with optional verification gating.", icon: Check },
+  { type: "rules", label: "Rules", description: "Publish community rules as a channel post, separate from verification.", icon: Check },
   { type: "social_updates", label: "Social updates", description: "Deliver connected updates to selected channels.", icon: Radio },
   { type: "bots", label: "Bots", description: "Route posts to Discord servers and Telegram chats.", icon: Bot },
   { type: "tickets", label: "Tickets", description: "Give members a private support entry point.", icon: Ticket },
@@ -298,11 +298,16 @@ export default function ToolsSection({ communityId, communityName = "your commun
     const publishedChannels = [];
     try {
       for (const channelId of targets) {
-        const { error: publishError } = await supabase.rpc("publish_community_tool_panel", {
-          p_community_id: communityId,
-          p_channel_id: channelId,
-          p_tool_type: toolType,
-        });
+        const { error: publishError } = toolType === "rules" && !preserveStatus
+          ? await supabase.rpc("publish_community_rules_panel", {
+            p_community_id: communityId,
+            p_channel_id: channelId,
+          })
+          : await supabase.rpc("publish_community_tool_panel", {
+            p_community_id: communityId,
+            p_channel_id: channelId,
+            p_tool_type: toolType,
+          });
         if (publishError) {
           const channelName = channels.find((channel) => String(channel.id) === channelId)?.name;
           throw new Error(`Could not publish to ${channelName ? `#${channelName}` : "the selected channel"}: ${publishError.message}`);
@@ -356,16 +361,13 @@ export default function ToolsSection({ communityId, communityName = "your commun
     for (const panel of panels) await publishToolPanels(panel.type, panel.channelIds, { preserveStatus: true });
   };
 
-  const saveRulesConfig = async ({ rulesMethod, roleGrant, experience, ...rulesGate }) => {
+  const saveStandaloneRulesConfig = async ({ rulesPanelChannelId, rulesPanel }) => {
     const current = normalizeVerificationConfig(getRow("verification").config);
     await saveVerificationConfig({
       ...current,
-      ...(experience || {}),
-      rulesGate,
       rulesPanelEnabled: true,
-      roleGrant,
-      rulesEnabled: Boolean(rulesGate.enabled),
-      methods: { ...current.methods, rules: rulesMethod },
+      rulesPanelChannelId,
+      rulesPanel,
     });
   };
 
@@ -425,6 +427,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
         const verificationReady = verificationCheckReady && (selected.size > 0 || hasRulesRoute);
         const rulesActive = verificationConfig.rulesGate.enabled;
         const rulesSaved = Boolean(getRow("verification").config?.methods?.rules?.items?.some((rule) => rule.title?.trim()));
+        const rulesConfigured = Boolean(getRow("verification").config?.rulesPanelEnabled && getRow("verification").config?.rulesPanelChannelId);
         return (
           <button type="button" className="community-tool-card" key={tool.type} disabled={dashboardDataLoading} onClick={() => openDashboard(tool)}>
             <span className="community-tool-icon"><tool.icon size={17} /></span>
@@ -440,7 +443,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
             </span>
             <em>{tool.type === "verification"
               ? verificationReady ? "Ready" : verificationActive || selected.size ? "Needs setup" : "Set up"
-              : tool.type === "rules" ? rulesActive ? "On" : rulesSaved ? "Draft" : "Set up"
+              : tool.type === "rules" ? rulesActive ? "Gate on" : rulesConfigured ? "Configured" : rulesSaved ? "Draft" : "Set up"
                 : selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em>
             <ChevronRight size={15} />
           </button>
@@ -589,7 +592,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
               <div>
                 <span className="tool-dashboard-kicker">Community tools</span>
                 <h2>Rules</h2>
-                <p>Set community rules on their own, or use them as a verification gate.</p>
+                <p>Write and send community rules to a channel. This does not change verification.</p>
               </div>
               <button type="button" onClick={() => setDashboardTool(null)} aria-label="Close rules dashboard"><X size={18} /></button>
             </header>
@@ -597,9 +600,12 @@ export default function ToolsSection({ communityId, communityName = "your commun
               <RulesVerificationDashboard
                 key="community-rules-dashboard"
                 communityId={communityId}
-                value={normalizeVerificationConfig(getRow("verification").config).rulesGate}
+                value={{
+                  ...normalizeVerificationConfig(getRow("verification").config).rulesGate,
+                  rulesChannelId: normalizeVerificationConfig(getRow("verification").config).rulesPanelChannelId || "",
+                }}
                 experienceConfig={normalizeVerificationConfig(getRow("verification").config)}
-                rulesMethod={normalizeVerificationConfig(getRow("verification").config).methods.rules}
+                rulesMethod={normalizeVerificationConfig(getRow("verification").config).rulesPanel || normalizeVerificationConfig(getRow("verification").config).methods.rules}
                 methods={normalizeVerificationConfig(getRow("verification").config).methods}
                 roleGrant={normalizeVerificationConfig(getRow("verification").config).roleGrant}
                 roles={communityRoles}
@@ -615,7 +621,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
                 onDeleteRole={canManageRoles ? deleteVerificationRole : undefined}
                 canManageRoles={canManageRoles}
                 standalone
-                onSave={saveRulesConfig}
+                onSave={saveStandaloneRulesConfig}
                 onPublish={(channelId) => publishToolPanels("rules", [channelId])}
                 publishStatus={publishStatus}
                 publishing={publishing}

@@ -309,5 +309,8 @@ export function toPublicPanel(config, roleMap = new Map(), { preview = false, ta
     icon: role.icon,
     position: role.position,
   }));
-  return { configured: true, name: c.name, accentColor: c.accentColor, icon: c.icon, message: c.message, completion: c.completion, panel: c.panel, panels: c.panels, rulesGate: c.rulesGate, methods, roleChoices };
+  const rulesPanel = c.rulesPanel && Array.isArray(c.rulesPanel.items)
+    ? c.rulesPanel
+    : c.methods.rules;
+  return { configured: true, name: c.name, accentColor: c.accentColor, icon: c.icon, message: c.message, completion: c.completion, panel: c.panel, panels: c.panels, rulesGate: c.rulesGate, rulesPanel, methods, roleChoices };
 }

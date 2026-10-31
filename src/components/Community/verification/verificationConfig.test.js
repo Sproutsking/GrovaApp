@@ -37,6 +37,27 @@ describe("verification role choices", () => {
     });
   });
 
+  it("keeps standalone rules content separate from verification gate rules", () => {
+    const config = normalizeVerificationConfig({
+      rulesPanel: {
+        title: "Community rules",
+        description: "A standalone post.",
+        items: [{ id: "public", title: "Be helpful", body: "" }],
+      },
+      rulesGate: { enabled: true, rulesChannelId: "gate-channel" },
+      methods: {
+        rules: {
+          title: "Verification rules",
+          items: [{ id: "gate", title: "Accept to continue", body: "" }],
+        },
+      },
+    });
+    const panel = toPublicPanel(config);
+
+    expect(panel.rulesPanel.title).toBe("Community rules");
+    expect(panel.methods.rules.title).toBe("Verification rules");
+  });
+
   it("falls back to the signature black theme for unknown theme values and bounds editable text", () => {
     const config = normalizeVerificationConfig({
       panel: { theme: "unsupported" },

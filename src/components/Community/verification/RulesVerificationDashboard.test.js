@@ -97,6 +97,32 @@ describe("RulesVerificationDashboard previews", () => {
     }));
   });
 
+  it("keeps standalone rules separate from verification and publishes the selected destination", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    const onPublish = jest.fn().mockResolvedValue(undefined);
+    render(
+      <RulesVerificationDashboard
+        standalone
+        value={{ enabled: true, rulesChannelId: "rules-channel" }}
+        rulesMethod={{ title: "Community rules", items: [{ id: "one", title: "Be kind", body: "" }] }}
+        channels={[{ id: "rules-channel", name: "rules", type: "text" }]}
+        onSave={onSave}
+        onPublish={onPublish}
+      />,
+    );
+
+    expect(screen.queryByText("Verification gate")).toBeNull();
+    expect(screen.getByText(/does not require members to verify/i)).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save and send rules" }));
+
+    await waitFor(() => expect(onPublish).toHaveBeenCalledWith("rules-channel"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      rulesPanelChannelId: "rules-channel",
+      rulesPanel: expect.objectContaining({ items: [expect.objectContaining({ title: "Be kind" })] }),
+    }));
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
+  });
+
   it("opens role actions for each community role and routes Manage role to role settings", () => {
     const onManageRole = jest.fn();
     render(
@@ -127,11 +153,11 @@ describe("RulesVerificationDashboard previews", () => {
 
     fireEvent.click(screen.getByRole("checkbox", { name: /Team/ }));
 
-    await waitFor(() => {
-      expect(onPromoteRole).toHaveBeenCalledWith("team");
-      expect(screen.getByRole("checkbox", { name: "Ask members to choose an access role" }).checked).toBe(true);
-      expect(screen.getByRole("checkbox", { name: /Team/ }).checked).toBe(true);
-    });
+    await waitFor(() => expect(onPromoteRole).toHaveBeenCalledWith("team"));
+    await waitFor(() => expect([
+      screen.getByRole("checkbox", { name: "Ask members to choose an access role" }).checked,
+      screen.getByRole("checkbox", { name: /Team/ }).checked,
+    ]).toEqual([true, true]));
   });
 
   it("does not select a Rules role when promotion explicitly fails", async () => {
@@ -147,9 +173,9 @@ describe("RulesVerificationDashboard previews", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Move Team above default role" }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("checkbox", { name: "Ask members to choose an access role" }).checked).toBe(false);
-      expect(screen.getByRole("checkbox", { name: /Team/ }).checked).toBe(false);
-    });
+    await waitFor(() => expect([
+      screen.getByRole("checkbox", { name: "Ask members to choose an access role" }).checked,
+      screen.getByRole("checkbox", { name: /Team/ }).checked,
+    ]).toEqual([false, false]));
   });
 });

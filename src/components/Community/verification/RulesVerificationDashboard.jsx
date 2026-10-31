@@ -90,15 +90,26 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
         <small>{label === "Mobile" ? "Narrow screen" : "Community panel"}</small>
       </div>
       <div className="rules-preview-canvas">
-        <VerificationPanelView
-          key={`${label}-${method.items.map((rule) => `${rule.id}:${rule.title}:${rule.body}`).join("|")}`}
-          panel={previewPanel}
-          state={{ completed: [], pending: [] }}
-          busy={false}
-          onComplete={async () => ({ success: false, error: "Preview only." })}
-          focusMethod="rules"
-          onlyMethods={["rules"]}
-        />
+        {standalone ? (
+          <section className="rules-announcement-preview">
+            <span>COMMUNITY RULES</span>
+            <h2>{method.title}</h2>
+            <p>{method.description}</p>
+            <ol>{method.items.filter((rule) => rule.title.trim()).map((rule) => (
+              <li key={rule.id}><strong>{rule.title}</strong>{rule.body && <p>{rule.body}</p>}</li>
+            ))}</ol>
+          </section>
+        ) : (
+          <VerificationPanelView
+            key={`${label}-${method.items.map((rule) => `${rule.id}:${rule.title}:${rule.body}`).join("|")}`}
+            panel={previewPanel}
+            state={{ completed: [], pending: [] }}
+            busy={false}
+            onComplete={async () => ({ success: false, error: "Preview only." })}
+            focusMethod="rules"
+            onlyMethods={["rules"]}
+          />
+        )}
       </div>
     </section>
   );
@@ -162,6 +173,34 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
       setError(publishError.message || "Could not publish the rules panel.");
     }
   };
+  const saveStandalone = async (publish = false) => {
+    const items = rulesText.split("\n").map((title, index) => ({
+      id: method.items[index]?.id || `rule-${index + 1}`,
+      title: title.trim(),
+      body: method.items[index]?.body || "",
+    })).filter((item) => item.title);
+    if (!config.rulesChannelId) {
+      setError("Choose where to send the community rules.");
+      return;
+    }
+    if (!items.length) {
+      setError("Add at least one community rule.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await onSave?.({
+        rulesPanelChannelId: config.rulesChannelId,
+        rulesPanel: { title: method.title, description: method.description, items },
+      });
+      if (publish) await onPublish?.(config.rulesChannelId);
+    } catch (saveError) {
+      setError(saveError.message || (publish ? "Could not send community rules." : "Could not save community rules."));
+    } finally {
+      setSaving(false);
+    }
+  };
   const promoteRole = async (roleId) => {
     setError("");
     try {
@@ -177,6 +216,44 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
       return false;
     }
   };
+
+  if (standalone) {
+    return (
+      <div className={`rules-verification-dashboard rules-standalone-dashboard${previewOpen ? "" : " preview-collapsed"}`} ref={layoutRef} style={{ "--editor-width": `${editorWidth}%` }}>
+        <div className="rules-editor-pane">
+          <section>
+            <h3>Community rules</h3>
+            <p className="rules-help">Write your rules and send them to a community channel like an announcement. This does not require members to verify or accept anything.</p>
+            <label>Send rules to<select value={config.rulesChannelId} disabled={disabled} onChange={(event) => patch({ rulesChannelId: event.target.value })}><option value="">Choose a channel</option>{textChannels.map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select></label>
+            <label>Heading<input value={method.title} disabled={disabled} onChange={(event) => patchMethod({ title: event.target.value })} /></label>
+            <label>Message<textarea value={method.description} disabled={disabled} onChange={(event) => patchMethod({ description: event.target.value })} /></label>
+            <label>Rules<textarea className="rules-text" aria-label="Community rules" value={rulesText} disabled={disabled} onChange={(event) => patchMethod({ items: event.target.value.split("\n").map((title, index) => ({ id: method.items[index]?.id || `rule-${index + 1}`, title, body: method.items[index]?.body || "" })) })} placeholder="Write one rule per line" /></label>
+          </section>
+          {error && <p className="rules-error" role="alert">{error}</p>}
+          {publishStatus && <p className="rules-help" role="status">{publishStatus}</p>}
+          <div className="rules-save-actions">
+            <button type="button" className="rules-save" disabled={disabled || saving || publishing} onClick={() => saveStandalone(false)}>{saving ? "Saving…" : "Save rules"}</button>
+            <button type="button" className="rules-save" disabled={disabled || saving || publishing} onClick={() => saveStandalone(true)}>{publishing ? "Sending…" : "Save and send rules"}</button>
+          </div>
+        </div>
+        {previewOpen && <div className="rules-preview-pane">
+          <div className="rules-preview-heading">
+            <div><strong>Preview</strong><span>Members see these rules as a post.</span></div>
+            <div className="rules-preview-controls">
+              <div className="rules-preview-device-toggle" role="group" aria-label="Preview device">
+                <button type="button" className={previewDevice === "mobile" ? "selected" : ""} aria-pressed={previewDevice === "mobile"} onClick={() => setPreviewDevice("mobile")}>Mobile</button>
+                <button type="button" className={previewDevice === "desktop" ? "selected" : ""} aria-pressed={previewDevice === "desktop"} onClick={() => setPreviewDevice("desktop")}>Desktop</button>
+              </div>
+              <button type="button" onClick={() => setPreviewOpen(false)} aria-label="Collapse preview"><EyeOff size={14} /> Hide</button>
+            </div>
+          </div>
+          {renderPreview(previewDevice === "mobile" ? "Mobile" : "Desktop")}
+        </div>}
+        {!previewOpen && <button type="button" className="rules-preview-show" onClick={() => setPreviewOpen(true)}><Eye size={14} /> Show preview</button>}
+        <style>{`.rules-standalone-dashboard{position:relative;display:grid;grid-template-columns:minmax(320px,var(--editor-width)) 8px minmax(330px,1fr);gap:0;min-height:calc(100dvh - 170px);height:100%;color:var(--text)}.rules-standalone-dashboard.preview-collapsed{grid-template-columns:minmax(0,1fr)}.rules-standalone-dashboard .rules-editor-pane{grid-column:1;min-width:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:0 12px 12px 0}.rules-standalone-dashboard .rules-editor-pane>section{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:rgba(0,0,0,.12)}.rules-standalone-dashboard h3{margin:0;font-size:14px;color:var(--text)}.rules-standalone-dashboard label{display:flex;flex-direction:column;gap:5px;color:var(--text-secondary);font-size:12px}.rules-standalone-dashboard input,.rules-standalone-dashboard textarea,.rules-standalone-dashboard select{width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit}.rules-standalone-dashboard textarea{min-height:56px;resize:vertical}.rules-standalone-dashboard .rules-text{min-height:130px}.rules-standalone-dashboard .rules-help{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.45}.rules-standalone-dashboard .rules-error{margin:0;color:var(--danger);font-size:12px}.rules-standalone-dashboard .rules-save-actions{display:flex;flex-wrap:wrap;gap:8px}.rules-standalone-dashboard .rules-save-actions .rules-save{flex:1 1 190px}.rules-standalone-dashboard .rules-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:0;border-radius:8px;background:var(--accent);color:#111;font:800 11px inherit;cursor:pointer}.rules-standalone-dashboard .rules-preview-pane{grid-column:3;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px;padding-left:12px;overflow:hidden}.rules-standalone-dashboard .rules-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:0 8px;border-bottom:1px solid var(--surface-border);background:var(--surface-strong)}.rules-standalone-dashboard .rules-preview-heading>div:first-child{display:grid;gap:2px}.rules-standalone-dashboard .rules-preview-heading strong{font-size:12px}.rules-standalone-dashboard .rules-preview-heading span,.rules-standalone-dashboard .rules-preview-device-heading small{color:var(--text-secondary);font-size:10px}.rules-standalone-dashboard .rules-preview-controls{display:flex;align-items:center;gap:8px}.rules-standalone-dashboard .rules-preview-heading button{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text-secondary);font:600 10px inherit;cursor:pointer}.rules-standalone-dashboard .rules-preview-device-toggle{display:inline-flex;padding:2px;border:1px solid var(--surface-border);border-radius:8px;background:var(--surface)}.rules-standalone-dashboard .rules-preview-device-toggle button{border:0;background:transparent;color:var(--text-secondary);font-size:10px}.rules-standalone-dashboard .rules-preview-device-toggle button.selected{border-radius:6px;background:var(--accent-bg);color:var(--accent)}.rules-standalone-dashboard .rules-preview-device{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:10px;border:1px solid var(--surface-border);border-radius:10px;background:var(--surface)}.rules-standalone-dashboard .rules-preview-device-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 7px}.rules-standalone-dashboard .rules-preview-device-heading>span{font-size:11px;font-weight:800}.rules-standalone-dashboard .rules-preview-canvas{flex:1;min-height:0;overflow:auto;padding:6px;border-radius:8px;background:var(--app-background,#0b0d0e)}.rules-standalone-dashboard .rules-preview-show{position:absolute;right:12px;top:3px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--accent);font:700 10px inherit;cursor:pointer}.rules-standalone-dashboard .rules-announcement-preview{width:calc(100% - 32px);max-width:620px;box-sizing:border-box;margin:24px auto;padding:22px;border:1px solid rgba(156,255,0,.2);border-radius:14px;background:linear-gradient(145deg,rgba(24,33,25,.96),rgba(9,13,10,.98));color:#eef8ed}.rules-standalone-dashboard .rules-announcement-preview>span{font-size:11px;font-weight:800;letter-spacing:.13em;color:#9cff00}.rules-standalone-dashboard .rules-announcement-preview h2{margin:6px 0}.rules-standalone-dashboard .rules-announcement-preview p{color:#a6b6a7;font-size:12px;line-height:1.55}.rules-standalone-dashboard .rules-announcement-preview ol{display:grid;gap:10px;margin:18px 0 0;padding-left:28px}.rules-standalone-dashboard .rules-announcement-preview li::marker{color:#9cff00;font-weight:800}@media(max-width:850px){.rules-standalone-dashboard{display:flex;flex-direction:column;gap:12px}.rules-standalone-dashboard .rules-editor-pane,.rules-standalone-dashboard .rules-preview-pane{width:100%;padding:0;overflow:visible}.rules-standalone-dashboard .rules-preview-pane{min-height:320px}}`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className={`rules-verification-dashboard${previewOpen ? "" : " preview-collapsed"}${dragging ? " is-resizing" : ""}`} ref={layoutRef} style={{ "--editor-width": `${editorWidth}%` }}>
