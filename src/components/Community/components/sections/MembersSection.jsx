@@ -11,6 +11,34 @@ import UserProfileModal from "../../../Modals/UserProfileModal";
 import BoostAvatarRing from "../../../Shared/BoostAvatarRing";
 import { getBoostNameDesign } from "../../../../services/boost/boostThemes";
 
+const getRoleGroupKey = (role) => {
+  const name = role.name?.trim().toLowerCase();
+  return name === "novis" ? "novice" : name || String(role.id);
+};
+
+export const groupRolesForDisplay = (roles) => roles.reduce((groups, role) => {
+  const key = getRoleGroupKey(role);
+  const existingGroup = groups.find((group) => group.key === key);
+  if (existingGroup) {
+    existingGroup.roles.push(role);
+    if (role.is_default && !existingGroup.role.is_default) existingGroup.role = role;
+  } else {
+    groups.push({ key, role, roles: [role] });
+  }
+  return groups;
+}, []);
+
+export const groupMembersByDisplayRole = (roles, members) => groupRolesForDisplay(roles)
+  .map(({ role, roles: groupedRoles }) => {
+    const roleIds = new Set(groupedRoles.map((groupRole) => String(groupRole.id)));
+    return {
+      role,
+      roleIds,
+      members: members.filter((member) => roleIds.has(String(member.role_id || member.role?.id || ""))),
+    };
+  })
+  .filter((group) => group.members.length > 0);
+
 const MembersSection = ({ community, userId }) => {
   const [members, setMembers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -62,9 +90,11 @@ const MembersSection = ({ community, userId }) => {
 
       if (rolesError) throw rolesError;
       const normalizedRoles = (rolesData || []).map((role) =>
-        role.name?.trim().toLowerCase() === "owner"
-          ? { ...role, name: "Owner" }
-          : role,
+        ["novice", "novis"].includes(role.name?.trim().toLowerCase())
+          ? { ...role, name: "Novice" }
+          : role.name?.trim().toLowerCase() === "owner"
+            ? { ...role, name: "Owner" }
+            : role,
       ).sort((left, right) =>
         Number(String(right.name || "").trim().toLowerCase() === "owner")
         - Number(String(left.name || "").trim().toLowerCase() === "owner")
@@ -139,28 +169,25 @@ const MembersSection = ({ community, userId }) => {
     }
   };
 
+  const roleGroups = groupRolesForDisplay(roles);
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
       member.user?.full_name
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       member.user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === "all" || member.roles?.some((role) => role.id === filterRole) || member.role_id === filterRole;
+    const selectedRoleGroup = roleGroups.find((group) => (
+      group.roles.some((role) => String(role.id) === String(filterRole))
+    ));
+    const matchesRole = filterRole === "all"
+      || (selectedRoleGroup
+        ? selectedRoleGroup.roles.some((role) => String(role.id) === String(member.role_id || member.role?.id || ""))
+        : String(member.role_id || member.role?.id || "") === String(filterRole));
     return matchesSearch && matchesRole;
   });
 
-  const groupedMembers = roles.map((role) => ({
-    role,
-    members: filteredMembers.filter((member) =>
-      String(member.role_id || member.role?.id || "") === String(role.id),
-    ),
-  }))
-    .filter((group) => group.members.length > 0);
-
-  const uniqueRoles = roles.filter((role, index, allRoles) => {
-    const key = role.name?.trim().toLowerCase() || role.id;
-    return allRoles.findIndex((candidate) => (candidate.name?.trim().toLowerCase() || candidate.id) === key) === index;
-  });
+  const groupedMembers = groupMembersByDisplayRole(roles, filteredMembers);
+  const uniqueRoles = roleGroups.map((group) => group.role);
 
   return (
     <>
@@ -262,9 +289,11 @@ const MembersSection = ({ community, userId }) => {
                     />
                     <span>{role.name}</span>
                     <span className="option-count">
-                      {members.filter((m) => m.roles?.some((assignedRole) => assignedRole.id === role.id)
-                        || m.role_id === role.id
-                        || m.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()).length}
+                      {members.filter((member) => roleGroups
+                        .find((group) => group.key === getRoleGroupKey(role))
+                        ?.roles.some((groupRole) => (
+                          String(groupRole.id) === String(member.role_id || member.role?.id || "")
+                        ))).length}
                     </span>
                   </button>
                 ))}
