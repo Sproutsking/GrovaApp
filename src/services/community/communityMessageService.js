@@ -70,10 +70,15 @@ class CommunityMessageService {
       throw new Error("User data is required");
     }
     if (options.attachments?.length) {
-      const canAttach = options.communityId && options.channel && (
-        await roleService.getChannelPermission(options.communityId, userId, options.channel, "attachFiles")
-        || await roleService.getChannelPermission(options.communityId, userId, options.channel, "manageChannels")
-      );
+      const channelPermissions = options.communityId && options.channel
+        ? await roleService.getChannelPermissions(
+          options.communityId,
+          userId,
+          options.channel,
+          ["attachFiles", "manageChannels"],
+        )
+        : {};
+      const canAttach = channelPermissions.attachFiles || channelPermissions.manageChannels;
       if (!canAttach) {
         throw new Error("You do not have permission to upload files in this channel");
       }

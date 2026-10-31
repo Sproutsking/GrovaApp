@@ -27,6 +27,14 @@ const panel = {
 };
 
 describe("VerificationPanelView completion experience", () => {
+  it("omits the panel title and secure-access kicker for a more balanced header", () => {
+    render(<VerificationPanelView panel={panel} onComplete={jest.fn()} onlyMethods={["quick"]} />);
+
+    expect(screen.queryByRole("heading", { name: panel.name })).toBeNull();
+    expect(screen.queryByText("SECURE COMMUNITY ACCESS")).toBeNull();
+    expect(screen.getByText(panel.message)).not.toBeNull();
+  });
+
   it("shows the editable congratulations card only after the role is assigned", async () => {
     const onComplete = jest.fn().mockResolvedValue({ success: true, method: "quick", role_id: "verified" });
     render(<VerificationPanelView panel={panel} onComplete={onComplete} onlyMethods={["quick"]} />);

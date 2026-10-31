@@ -90,6 +90,16 @@ const ChatTab = ({
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
   const currentUserBoost = useUserBoostTier(userId);
+  const currentMemberRoleIds = members
+    .find((member) => String(member.user_id) === String(userId))
+    ?.roles?.map((role) => String(role.id))
+    .filter(Boolean) || [];
+  const roleIdsForRealtime = community?.owner_id === userId
+    ? [...new Set([...currentMemberRoleIds, ...roles
+      .filter((role) => role.name?.trim().toLowerCase() === "owner")
+      .map((role) => String(role.id))])].sort()
+    : [...new Set(currentMemberRoleIds)].sort();
+  const roleIdsForRealtimeKey = roleIdsForRealtime.join(",");
 
   useEffect(() => {
     const channelIds = channels.map((channel) => channel.id).filter(Boolean);
@@ -183,6 +193,7 @@ const ChatTab = ({
   const unsubscribeTyping = useRef(null);
   const typingTimeout = useRef(null);
   const typingHeartbeat = useRef(null);
+  const refreshRoleAccessRef = useRef(null);
   const isAtBottom = useRef(true);
   const channelsRequestRef = useRef(0);
   const messagesRequestRef = useRef(0);
@@ -243,20 +254,40 @@ const ChatTab = ({
 
   useEffect(() => {
     if (!community?.id || !userId) return undefined;
-    let refreshTimer;
-    const refreshRoleState = () => {
+    let refreshTimer = null;
+    let refreshMembers = false;
+    const scheduleRefresh = (reloadMembers = false) => {
+      refreshMembers ||= reloadMembers;
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(async () => {
-        await Promise.all([loadRoles(), loadMembers(), loadPermissions()]);
-        setChannelPermissionRefresh((current) => current + 1);
-        await loadChannels();
-      }, 150);
+        const shouldReloadMembers = refreshMembers;
+        refreshMembers = false;
+        await refreshRoleAccessRef.current?.(shouldReloadMembers);
+      }, 200);
     };
-    const channel = supabase
-      .channel(`community-role-state:${community.id}:${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_roles", filter: `community_id=eq.${community.id}` }, refreshRoleState)
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_member_roles", filter: `community_id=eq.${community.id}` }, refreshRoleState)
-      .subscribe();
+    const channel = supabase.channel(`community-role-access:${community.id}:${userId}`);
+    const roleIds = roleIdsForRealtimeKey ? roleIdsForRealtimeKey.split(",") : [];
+    roleIds.forEach((roleId) => {
+      channel.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "community_roles", filter: `id=eq.${roleId}` },
+        () => scheduleRefresh(),
+      );
+    });
+    ["INSERT", "UPDATE"].forEach((event) => {
+      channel.on(
+        "postgres_changes",
+        { event, schema: "public", table: "community_member_roles", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          if (String(payload.new?.community_id) === String(community.id)) scheduleRefresh(true);
+        },
+      );
+    });
+    channel.subscribe((status, error) => {
+      if (["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) {
+        console.error("[CommunityRoles] Role updates subscription failed:", error || status);
+      }
+    });
 
     return () => {
       window.clearTimeout(refreshTimer);
@@ -264,7 +295,7 @@ const ChatTab = ({
         console.error("[CommunityRoles] Failed to stop role updates:", error);
       });
     };
-  }, [community?.id, userId]);
+  }, [community?.id, userId, roleIdsForRealtimeKey]);
 
   useEffect(() => {
     setReactionError("");
@@ -276,8 +307,13 @@ const ChatTab = ({
       setChannelPermissions({});
       return undefined;
     }
-    Promise.all(["sendMessages", "addReactions", "attachFiles", "mentionEveryone", "manageMessages"].map(async (permission) => [permission, await roleService.getChannelPermission(community.id, userId, selectedChannel, permission)]))
-      .then((entries) => { if (active) setChannelPermissions(Object.fromEntries(entries)); })
+    roleService.getChannelPermissions(
+      community.id,
+      userId,
+      selectedChannel,
+      ["sendMessages", "addReactions", "attachFiles", "mentionEveryone", "manageMessages"],
+    )
+      .then((permissions) => { if (active) setChannelPermissions(permissions); })
       .catch(() => { if (active) setChannelPermissions({}); });
     return () => { active = false; };
   }, [community?.id, selectedChannel?.id, userId, channelPermissionRefresh]);
@@ -288,7 +324,10 @@ const ChatTab = ({
       setEditingChannel(event.detail);
       setShowEditChannel(true);
     };
-    const handleChannelsChanged = () => loadChannels();
+    const handleChannelsChanged = () => {
+      setChannelPermissionRefresh((current) => current + 1);
+      loadChannels({ preserveSelection: true });
+    };
     window.addEventListener("community:edit-channel", handleEditChannel);
     window.addEventListener("community:channels-changed", handleChannelsChanged);
     return () => {
@@ -297,14 +336,14 @@ const ChatTab = ({
     };
   }, []);
 
-  const loadChannels = async () => {
+  const loadChannels = async ({ preserveSelection = false } = {}) => {
     const requestId = ++channelsRequestRef.current;
     const communityId = community?.id;
     if (!communityId) return;
     const storedLocations = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
     const savedLocation = storedLocations.locations?.[communityId] || (storedLocations.communityId === communityId ? storedLocations : null);
     const savedChannelId = savedLocation?.channelId || null;
-    if (!isOwner) setSelectedChannel(null);
+    if (!isOwner && !preserveSelection) setSelectedChannel(null);
     const categoriesPromise = supabase
       .from("community_channel_categories")
       .select("name,position")
@@ -312,7 +351,7 @@ const ChatTab = ({
       .order("position", { ascending: true });
     const cachedChannels = communityCache.getChannels(communityId) || community?.channels || [];
     const hasCachedChannels = Boolean(communityCache.getChannels(communityId) || community?.channels?.length);
-    if (hasCachedChannels) {
+    if (hasCachedChannels && !preserveSelection) {
       const cachedVisiblePromise = isOwner
         ? Promise.resolve(cachedChannels)
         : roleService.getVisibleChannels(communityId, userId, cachedChannels);
@@ -395,6 +434,15 @@ const ChatTab = ({
       console.error("Error loading community members:", error);
     }
   };
+
+  const refreshRoleAccess = async (refreshMembers = false) => {
+    const requests = [loadPermissions()];
+    if (refreshMembers) requests.push(loadMembers());
+    await Promise.all(requests);
+    setChannelPermissionRefresh((current) => current + 1);
+    await loadChannels({ preserveSelection: true });
+  };
+  refreshRoleAccessRef.current = refreshRoleAccess;
 
   const handleCommunityMenuUpdate = async (payload) => {
     if (!payload) return;

@@ -72,4 +72,50 @@ describe("RoleService.reorderRoles", () => {
     await expect(roleService.removeMemberRole("community-1", "user-1", "protected-role"))
       .rejects.toThrow("The role assignment is protected.");
   });
+
+  it("resolves all channel permissions using one shared role and access lookup", async () => {
+    jest.spyOn(roleService, "getUserRole").mockResolvedValue({
+      id: "member-role",
+      name: "Member",
+      permissions: {
+        viewChannels: true,
+        sendMessages: true,
+        addReactions: true,
+        attachFiles: true,
+        mentionEveryone: false,
+        manageMessages: false,
+      },
+    });
+    jest.spyOn(roleService, "getAccessRulesForCommunity").mockResolvedValue([]);
+
+    const queryFor = (data) => {
+      const query = {
+        select: jest.fn(() => query),
+        eq: jest.fn(() => query),
+        in: jest.fn(() => query),
+        then: (resolve, reject) => Promise.resolve({ data, error: null }).then(resolve, reject),
+      };
+      return query;
+    };
+    supabase.from.mockImplementation((table) => queryFor(
+      table === "channel_permission_overrides"
+        ? [{ permission: "sendMessages", state: "deny" }]
+        : [{ permission: "attachFiles", state: "deny" }, { permission: "mentionEveryone", state: "allow" }],
+    ));
+
+    await expect(roleService.getChannelPermissions(
+      "community-1",
+      "user-1",
+      { id: "channel-1", category_id: "category-1", is_private: false },
+      ["sendMessages", "addReactions", "attachFiles", "mentionEveryone", "manageMessages"],
+    )).resolves.toEqual({
+      sendMessages: false,
+      addReactions: true,
+      attachFiles: false,
+      mentionEveryone: true,
+      manageMessages: false,
+    });
+
+    expect(supabase.from).toHaveBeenCalledTimes(2);
+  });
 });

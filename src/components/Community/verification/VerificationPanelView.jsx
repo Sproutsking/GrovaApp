@@ -208,7 +208,7 @@ export default function VerificationPanelView({ panel, state = {}, busy = false,
     <section className={`vp vp-${cfg.corners} vp-${cfg.cardStyle} vp-${cfg.density} vp-theme-${cfg.theme}`} style={{ "--a": accent }}>
       <header className="vp-head">
         <div className="vp-icon"><Icon size={22} /></div>
-        <div><div className="vp-kicker">SECURE COMMUNITY ACCESS{cfg.badgeText && <em>{cfg.badgeText}</em>}</div><h1>{panel?.name}</h1><p>{panel?.message}</p></div>
+        <div><p>{panel?.message}</p></div>
       </header>
 
       {!ready.length ? <p className="vp-empty">{published

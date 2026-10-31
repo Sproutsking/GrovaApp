@@ -2,8 +2,6 @@
 import { supabase } from "../config/supabase";
 
 export const COMMUNITY_ONLINE_WINDOW_MS = 90_000;
-const PRESENCE_HEARTBEAT_MS = 60_000;
-const STATUS_REFRESH_MS = 60_000;
 export const isCommunityMemberOnline = (member, now = Date.now()) => {
   if (!member?.last_seen) return Boolean(member?.is_online);
 
@@ -17,31 +15,18 @@ class CommunityOnlineStatusService {
   constructor() {
     this.userId = null;
     this.communityId = null;
-    this.heartbeat = null;
-    this.statusRefresh = null;
     this.channel = null;
     this.cache = new Map();
     this.listeners = new Set();
-    this.memberIds = [];
-    this.beforeUnloadHandler = null;
   }
 
   start(userId, communityId) {
-    const key = `${userId}_${communityId}`;
     if (this.userId === userId && this.communityId === communityId) return;
 
     this.stop();
 
     this.userId = userId;
     this.communityId = communityId;
-    this.updatePresence(!document.hidden);
-
-    this.heartbeat = setInterval(() => {
-      if (!document.hidden) this.updatePresence(true);
-    }, PRESENCE_HEARTBEAT_MS);
-    this.statusRefresh = setInterval(() => {
-      if (!document.hidden && this.memberIds.length) this.fetchMemberStatuses(this.memberIds);
-    }, STATUS_REFRESH_MS);
 
     // Subscribe to presence channel for this community
     this.channel = supabase
@@ -67,70 +52,18 @@ class CommunityOnlineStatusService {
           });
         }
       });
-
-    this.beforeUnloadHandler = () => this.stop();
-    window.addEventListener("beforeunload", this.beforeUnloadHandler);
-    this.visibilityHandler = () => this.updatePresence(!document.hidden);
-    document.addEventListener("visibilitychange", this.visibilityHandler);
   }
 
   stop() {
-    if (this.heartbeat) {
-      clearInterval(this.heartbeat);
-      this.heartbeat = null;
-    }
-    if (this.statusRefresh) {
-      clearInterval(this.statusRefresh);
-      this.statusRefresh = null;
-    }
-
-    const userId = this.userId;
-    const communityId = this.communityId;
-
-    if (this.visibilityHandler) {
-      document.removeEventListener("visibilitychange", this.visibilityHandler);
-      this.visibilityHandler = null;
-    }
-    if (this.beforeUnloadHandler) {
-      window.removeEventListener("beforeunload", this.beforeUnloadHandler);
-      this.beforeUnloadHandler = null;
-    }
-
     if (this.channel) {
-      supabase.removeChannel(this.channel);
+      Promise.resolve(supabase.removeChannel(this.channel)).catch((error) => {
+        console.error("Stop presence channel error:", error);
+      });
       this.channel = null;
     }
 
-    if (userId && communityId) {
-      supabase
-        .from("community_members")
-        .update({ is_online: false, last_seen: new Date().toISOString() })
-        .eq("user_id", userId)
-        .eq("community_id", communityId)
-        .then(({ error }) => {
-          if (error) console.error("Clear presence error:", error);
-        });
-    }
     this.userId = null;
     this.communityId = null;
-    this.memberIds = [];
-  }
-
-  async updatePresence(isOnline = true) {
-    if (!this.userId || !this.communityId) return;
-
-    try {
-      await supabase
-        .from("community_members")
-        .update({
-          is_online: isOnline,
-          last_seen: new Date().toISOString(),
-        })
-        .eq("user_id", this.userId)
-        .eq("community_id", this.communityId);
-    } catch (error) {
-      console.error("Update presence error:", error);
-    }
   }
 
   async fetchStatus(userId) {
@@ -162,7 +95,6 @@ class CommunityOnlineStatusService {
 
   async fetchMemberStatuses(memberIds) {
     if (!this.communityId || !memberIds.length) return {};
-    this.memberIds = memberIds;
 
     try {
       const { data } = await supabase
