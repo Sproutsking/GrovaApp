@@ -23,7 +23,7 @@
 //     Now we listen to ALL changes on live_sessions and re-fetch (the fetch
 //     itself still filters for status=live), so the strip updates instantly
 //     when any stream goes live, ends, or changes viewer counts.
-//   - Added 15-second polling interval as belt-and-suspenders fallback.
+//   - Uses a five-minute polling fallback if realtime silently stops updating.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -204,6 +204,18 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
     };
 
     load();
+    let refreshTimer = null;
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(async () => {
+        try {
+          const data = await fetchLiveSessions();
+          if (mounted) setSessions(data);
+        } catch {
+          /* Non-critical widget; the next realtime update retries. */
+        }
+      }, 300);
+    };
 
     // ── REALTIME FIX ──────────────────────────────────────────────────────
     // Do NOT use filter: "status=eq.live" here.
@@ -222,31 +234,26 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
           table: "live_sessions",
           // NO filter here — we catch every change and re-fetch
         },
-        async () => {
-          try {
-            const data = await fetchLiveSessions();
-            if (mounted) setSessions(data);
-          } catch {
-            /* silent */
-          }
-        },
+        scheduleRefresh,
       )
       .subscribe();
 
     rtRef.current = () => supabase.removeChannel(channel);
 
-    // ── Belt-and-suspenders: 15s poll so we never stay stale ─────────────
+    // Keep an infrequent fallback in case realtime silently stops updating.
     pollRef.current = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const data = await fetchLiveSessions();
         if (mounted) setSessions(data);
       } catch {
         /* silent */
       }
-    }, 15_000);
+    }, 5 * 60_000);
 
     return () => {
       mounted = false;
+      clearTimeout(refreshTimer);
       rtRef.current?.();
       clearInterval(pollRef.current);
     };

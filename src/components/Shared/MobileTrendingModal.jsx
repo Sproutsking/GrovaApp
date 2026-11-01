@@ -13,7 +13,7 @@
 //   - Removed filter:"status=eq.live" from postgres_changes listener.
 //     Listen to ALL live_sessions changes and re-fetch. This catches the
 //     "pending" → "live" UPDATE that the filtered listener would miss.
-//   - Added 15s polling interval as belt-and-suspenders fallback.
+//   - Uses a five-minute polling fallback if realtime silently stops updating.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -398,6 +398,17 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
   useEffect(() => {
     if (!isOpen) return;
     let alive = true;
+    let refreshTimer = null;
+    const refreshLive = async () => {
+      try {
+        const d = await fetchLiveSessions();
+        if (alive) setLiveSessions(d);
+      } catch { /* silent */ }
+    };
+    const scheduleLiveRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(refreshLive, 300);
+    };
 
     // ── REALTIME FIX ──────────────────────────────────────────────────────
     // No column filter — listen to ALL live_sessions changes and re-fetch.
@@ -411,12 +422,7 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
           schema: "public",
           table: "live_sessions",
         },
-        async () => {
-          try {
-            const d = await fetchLiveSessions();
-            if (alive) setLiveSessions(d);
-          } catch { /* silent */ }
-        },
+        scheduleLiveRefresh,
       )
       .subscribe();
 
@@ -429,10 +435,11 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
         const d = await fetchLiveSessions();
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
-    }, 60_000);
+    }, 5 * 60_000);
 
     return () => {
       alive = false;
+      clearTimeout(refreshTimer);
       supabase.removeChannel(ch);
       clearInterval(livePollRef.current);
     };

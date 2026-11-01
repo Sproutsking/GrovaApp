@@ -11,7 +11,7 @@
 //           - enforceAccountStatus() calls get_session_profile() RPC
 //             (SECURITY DEFINER function in admin-enforcement-SAFE.sql)
 //           - Called once after every successful profile load
-//           - Called every 60s while app is open (setInterval)
+//           - Called every 5 minutes while app is open, plus on focus
 //           - Called on window focus (catches bans while tab was backgrounded)
 //           - On ACCOUNT_SUSPENDED → signs out, sets kickReason state
 //           - On ACCOUNT_DELETED   → signs out, sets kickReason state
@@ -57,7 +57,7 @@ export function useAuth() {
 const PROFILE_TIMEOUT_MS = 15_000;
 const PROFILE_RETRY_DELAYS = [2000, 5000, 15000, 30000, 60000, 120000];
 const SESSION_GUARD_MS = 90_000;
-const ENFORCEMENT_INTERVAL_MS = 60_000; // Check account status every 60s
+const ENFORCEMENT_INTERVAL_MS = 5 * 60_000;
 
 // ── Dual paid cache ───────────────────────────────────────────────────────────
 const PAID_SS_KEY = "xv_paid";
@@ -402,7 +402,7 @@ export default function AuthProvider({ children }) {
 
   // ── [NEW] Start enforcement loop ──────────────────────────────────────────
   // Called once after a successful profile load. Sets up:
-  //   - setInterval every 60s
+  //   - setInterval every 5 minutes
   //   - window focus listener
   const startEnforcement = useCallback(
     (userId) => {
@@ -419,7 +419,7 @@ export default function AuthProvider({ children }) {
         }
       };
 
-      // Interval check every 60s
+      // Check periodically while open; focus checks cover returning users.
       enforcementInterval.current = setInterval(() => {
         if (isMounted.current && !explicitSignOutRef.current) {
           enforceAccountStatus(userId);

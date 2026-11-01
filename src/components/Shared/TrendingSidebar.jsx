@@ -13,7 +13,7 @@
 //     live_sessions and re-fetch. The fetch itself filters for status=live.
 //     This ensures streams that insert as "pending" then update to "live"
 //     are caught immediately.
-//   - Added 15s polling interval as belt-and-suspenders fallback.
+//   - Uses a five-minute polling fallback if realtime silently stops updating.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -690,12 +690,17 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
   useEffect(() => {
     let alive = true;
 
+    let refreshTimer = null;
     const loadLive = async () => {
       try {
         const d = await fetchLiveSessions(activeTrinityLens);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
       finally { if (alive) setLiveLoading(false); }
+    };
+    const scheduleLiveRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadLive, 300);
     };
 
     loadLive();
@@ -712,12 +717,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           schema: "public",
           table: "live_sessions",
         },
-        async () => {
-          try {
-            const d = await fetchLiveSessions(activeTrinityLens);
-            if (alive) setLiveSessions(d);
-          } catch { /* silent */ }
-        },
+        scheduleLiveRefresh,
       )
       .subscribe();
 
@@ -728,10 +728,11 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         const d = await fetchLiveSessions(activeTrinityLens);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
-    }, 60_000);
+    }, 5 * 60_000);
 
     return () => {
       alive = false;
+      clearTimeout(refreshTimer);
       supabase.removeChannel(ch);
       clearInterval(livePollRef.current);
     };
