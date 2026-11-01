@@ -40,6 +40,8 @@ import ReelCard from "./ReelCard";
 import { FeedPipeline, useFeedInjections } from "./FeedPipelines";
 import { rankItems, recordSignal } from "../../services/discovery/discoveryPersonalizationModel";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import adCampaignService from "../../services/ads/adCampaignService";
+import SponsoredAdCard from "../Ads/SponsoredAdCard";
 
 const NewsVideoStrip = lazy(() => import("./NewsVideoStrip"));
 
@@ -330,7 +332,7 @@ const ScrollFAB = () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const VirtualFeed = React.memo(({
   items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen, onProfileClick,
-  onAnchorChange, onPipelineNavigate, injections, isLoadingMore,
+  onAnchorChange, onPipelineNavigate, injections, isLoadingMore, sponsoredAds = [], onSponsoredHidden,
 }) => {
   const [anchorIndex, setAnchorIndex] = useState(0);
   const heightMap  = useRef({});
@@ -338,6 +340,10 @@ const VirtualFeed = React.memo(({
   const ioRef      = useRef(null);
   const roMap      = useRef({});
   const refCallbacks = useRef(new Map());
+  const sponsoredByIndex = useMemo(
+    () => new Map(sponsoredAds.map((ad, index) => [5 + index * 8, ad])),
+    [sponsoredAds],
+  );
 
   useEffect(() => { onAnchorChange?.(anchorIndex); }, [anchorIndex, onAnchorChange]);
 
@@ -391,7 +397,7 @@ const VirtualFeed = React.memo(({
       {items.map((item, index) => {
         const key = `${item.type}:${item.id}`;
         if (index < renderStart || index > renderEnd) {
-          const injectedHeight = injections.get(index) ? 220 : 0;
+          const injectedHeight = (injections.get(index) ? 220 : 0) + (sponsoredByIndex.has(index) ? 520 : 0);
           const height = heightMap.current[key] || estimateItemHeight(item) + injectedHeight;
           return <Placeholder key={key} index={index} item={item} height={height} placeholderRef={makeRef(index)} />;
         }
@@ -405,6 +411,11 @@ const VirtualFeed = React.memo(({
             ) : (
               <PostCard post={item} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} onComment={onComment} onOpenFullScreen={onOpenFullScreen} onProfileClick={onProfileClick} feedIndex={index} />
             )}
+            {sponsoredByIndex.has(index) && <SponsoredAdCard
+              key={sponsoredByIndex.get(index).campaign_id}
+              ad={sponsoredByIndex.get(index)}
+              onHidden={onSponsoredHidden}
+            />}
           </div>
         );
       })}
@@ -461,6 +472,7 @@ const FeedTab = React.forwardRef(function FeedTab(
   
   const [pendingCount, setPendingCount] = useState(0);
   const [anchorIndex, setAnchorIndex] = useState(0);
+  const [sponsoredAds, setSponsoredAds] = useState([]);
 
   const pendingRef   = useRef([]);
   const loadingRef   = useRef(false);
@@ -478,6 +490,21 @@ const FeedTab = React.forwardRef(function FeedTab(
   }, [initialPosts, initialReels]);
 
   const injections = useFeedInjections(localItems.length);
+
+  useEffect(() => {
+    if (!isActive || !currentUser?.id) return;
+    let active = true;
+    adCampaignService.getSponsoredAds(3).then((ads) => {
+      if (active) setSponsoredAds(ads);
+    }).catch((error) => {
+      console.error("[Ads] Sponsored feed inventory could not be loaded:", error);
+    });
+    return () => { active = false; };
+  }, [isActive, currentUser?.id]);
+
+  const handleSponsoredHidden = useCallback((campaignId) => {
+    setSponsoredAds((ads) => ads.filter((ad) => ad.campaign_id !== campaignId));
+  }, []);
 
   // [ARCH-5] Pipeline navigate with video deep linking
   const handlePipelineNavigate = useCallback((dest, entityId) => {
@@ -590,6 +617,8 @@ const FeedTab = React.forwardRef(function FeedTab(
         onPipelineNavigate={handlePipelineNavigate}
         injections={injections}
         isLoadingMore={isLoadingMore && hasMore}
+        sponsoredAds={sponsoredAds}
+        onSponsoredHidden={handleSponsoredHidden}
       />
       <VideoPreloadRunway items={localItems} anchorIndex={anchorIndex} />
       {!hasMore && <EndOfFeed />}

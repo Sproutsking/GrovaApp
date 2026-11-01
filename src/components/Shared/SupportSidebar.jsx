@@ -1,27 +1,141 @@
 import React, { useState, useEffect } from "react";
-import { X, HelpCircle, Sparkles, Download, Smartphone } from "lucide-react";
+import { X, HelpCircle, Sparkles, Download, Smartphone, RefreshCw } from "lucide-react";
 import HelpTab    from "./Support-tabs/HelpTab";
 import FAQTab     from "./Support-tabs/FAQTab";
 import ContactTab from "./Support-tabs/ContactTab";
+import { listPwaInstallReports, reportPwaInstallation } from "../../services/notifications/pwaInstallationService";
 
 const NAV_TABS = [
   { key: "help",    emoji: "🏠", label: "Help"    },
   { key: "faq",     emoji: "❓", label: "FAQ"     },
-  { key: "download", emoji: "📲", label: "Install App" },
+  { key: "download", emoji: "📲", label: "App Status" },
   { key: "contact", emoji: "🎫", label: "Contact" },
 ];
 
-function DownloadTab() {
-  const installed = typeof window !== "undefined" && typeof window.__xvIsAppInstalled === "function"
-    ? window.__xvIsAppInstalled()
-    : false;
-  const installApp = () => {
-    if (typeof window !== "undefined" && typeof window.__xvRequestInstall === "function") {
-      window.__xvRequestInstall();
-      return;
+function DownloadTab({ userId }) {
+  const [status, setStatus] = useState({ kind: "checking" });
+  const [updateMessage, setUpdateMessage] = useState("");
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadStatus = async () => {
+      const detectInstalled = window.__xvDetectInstalledApp;
+      const installedHere = typeof detectInstalled === "function"
+        ? await detectInstalled()
+        : false;
+
+      if (!userId) {
+        if (active) setStatus({ kind: installedHere ? "installed_here" : "unverified" });
+        return;
+      }
+
+      let reports;
+      try {
+        if (installedHere) await reportPwaInstallation(userId);
+        reports = await listPwaInstallReports(userId);
+      } catch (error) {
+        console.error("[Support] Could not load PWA install reports:", error);
+        if (active) {
+          setStatus({ kind: installedHere ? "installed_here" : "unverified", syncError: true });
+        }
+        return;
+      }
+
+      window.__xvAccountInstallReported = reports.length > 0;
+      if (!active) return;
+
+      const lastConfirmedAt = reports.reduce((latest, report) => (
+        !latest || new Date(report.last_confirmed_at) > new Date(latest)
+          ? report.last_confirmed_at
+          : latest
+      ), null);
+
+      if (installedHere) {
+        setStatus({ kind: "installed_here", reportCount: reports.length });
+      } else if (reports.length) {
+        setStatus({
+          kind: "reported_elsewhere",
+          reportCount: reports.length,
+          lastConfirmedAt,
+        });
+      } else {
+        setStatus({ kind: "not_detected" });
+      }
+    };
+
+    loadStatus().catch((error) => {
+      console.error("[Support] Could not detect PWA installation:", error);
+      if (active) setStatus({ kind: "unverified" });
+    });
+
+    return () => { active = false; };
+  }, [userId]);
+
+  const checkForUpdates = async () => {
+    setCheckingUpdates(true);
+    setUpdateMessage("");
+    try {
+      if (typeof window.__xvCheckForUpdates !== "function") {
+        setUpdateMessage("Update checking is not available in this browser.");
+        return;
+      }
+      const result = await window.__xvCheckForUpdates();
+      const messages = {
+        unsupported: "This browser does not support service-worker updates.",
+        not_registered: "This browser profile has no app update registration.",
+        update_ready: "An update is ready in this browser profile.",
+        updated: "This browser profile has updated to the latest app version.",
+        current: "This browser profile is up to date.",
+        checking: "An update check is still running. Check again in a moment.",
+      };
+      setUpdateMessage(messages[result.status] || "Update status is unavailable.");
+    } catch (error) {
+      console.error("[Support] Update check failed:", error);
+      setUpdateMessage("Could not check for updates. Please try again.");
+    } finally {
+      setCheckingUpdates(false);
     }
-    window.dispatchEvent(new CustomEvent("xv:show_install_prompt"));
   };
+
+  const installHere = async () => {
+    try {
+      const shown = await window.__xvRequestInstall?.();
+      if (!shown) {
+        setUpdateMessage("Use your browser’s Install or Add to Home Screen menu to install this profile.");
+      }
+    } catch (error) {
+      console.error("[Support] Install request failed:", error);
+      setUpdateMessage("Could not open the install prompt. Use your browser’s install menu.");
+    }
+  };
+
+  const installedHere = status.kind === "installed_here";
+  const reportedElsewhere = status.kind === "reported_elsewhere";
+  const canOfferInstall = status.kind === "not_detected";
+  const lastConfirmed = status.lastConfirmedAt
+    ? new Date(status.lastConfirmedAt).toLocaleString()
+    : null;
+  const title = status.kind === "checking"
+    ? "Checking app status…"
+    : installedHere
+      ? "Installed in this browser"
+      : reportedElsewhere
+        ? "Install reported on your account"
+        : canOfferInstall
+          ? "No install detected here"
+          : "App status could not be verified";
+
+  let description;
+  if (installedHere) {
+    description = "Xeevia is running as an installed app in this browser profile. Update checks below apply only to this profile.";
+  } else if (reportedElsewhere) {
+    description = "An installation was reported for this Xeevia account in another or previous browser profile. Browsers do not share install access, so this profile cannot confirm or update that installation.";
+  } else if (canOfferInstall) {
+    description = "No Xeevia installation was detected in this browser profile. This does not tell us whether another profile or browser has it installed.";
+  } else {
+    description = "The browser could not confirm installation status. You can still check updates for this browser profile.";
+  }
 
   return (
     <div style={{ padding: 18 }}>
@@ -34,30 +148,56 @@ function DownloadTab() {
             <Smartphone size={20} color="#a3e635" />
           </div>
           <div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff" }}>{installed ? "Xeevia is installed" : "Stay inside the app"}</div>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>{installed ? "Your app is ready for the latest updates" : "Smooth, native-feeling access to Xeevia"}</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fff" }}>{title}</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>Install and update status for this browser</div>
           </div>
         </div>
 
         <div style={{ color: "#d1d5db", fontSize: 14, lineHeight: 1.7, marginBottom: 18 }}>
-          {installed ? "This device already has Xeevia installed. Use the button to check the app upgrade path when a new release is available." : "Use the install flow from inside the app to add Xeevia to your home screen. It feels like a native app, keeps your sessions fast, and avoids browser chrome."}
+          {description}
         </div>
 
-        <button onClick={installApp} style={{
+        {reportedElsewhere && lastConfirmed && (
+          <div style={{ color: "#9ca3af", fontSize: 12, marginBottom: 14 }}>
+            Last confirmed in a browser profile: {lastConfirmed}
+          </div>
+        )}
+
+        {(installedHere || reportedElsewhere || status.kind === "unverified") && (
+          <div style={{ color: "#9ca3af", fontSize: 12, lineHeight: 1.5, marginBottom: 16 }}>
+            A report on your account is install history, not proof that the app is still installed on this device.
+          </div>
+        )}
+
+        <button onClick={canOfferInstall ? installHere : checkForUpdates} disabled={checkingUpdates || status.kind === "checking"} style={{
           width: "100%", border: "none", borderRadius: 12, background: "linear-gradient(135deg, #84cc16, #65a30d)",
           color: "#061400", fontSize: 15, fontWeight: 800, padding: "12px 14px", cursor: "pointer",
+          opacity: checkingUpdates || status.kind === "checking" ? 0.6 : 1,
           boxShadow: "0 10px 28px rgba(132, 204, 22, 0.28)",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <Download size={15} /> {installed ? "Check for upgrade" : "Install Xeevia"}
+            {canOfferInstall
+              ? <Download size={15} />
+              : <RefreshCw size={15} style={{ animation: checkingUpdates ? "ssSpin 1s linear infinite" : "none" }} />}
+            {canOfferInstall ? "Install in this browser" : checkingUpdates ? "Checking…" : "Check for updates"}
           </span>
         </button>
+        {updateMessage && (
+          <div role="status" aria-live="polite" style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.5, marginTop: 12 }}>
+            {updateMessage}
+          </div>
+        )}
+        {status.syncError && (
+          <div role="status" style={{ color: "#fbbf24", fontSize: 12, lineHeight: 1.5, marginTop: 12 }}>
+            Install status is shown locally, but account sync failed.
+          </div>
+        )}
 
         <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
           {[
-            "Fast launch without browser tabs",
-            "Keeps your messages, feeds, and wallet inside the app shell",
-            "Works cleanly on desktop and mobile with the same Xeevia interface",
+            "Browser install status is specific to this profile",
+            "Account install reports can help other profiles avoid duplicate prompts",
+            "An update check can only update this browser profile",
           ].map((point) => (
             <div key={point} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "#b7c1b2", fontSize: 13.5, lineHeight: 1.5 }}>
               <span style={{ color: "#a3e635", marginTop: 2 }}>✓</span>
@@ -88,7 +228,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
         : helpView === "topic" ? "Topic"
         : "Help & Support"
       : activeTab === "faq" ? "FAQ"
-      : activeTab === "download" ? "Install App"
+      : activeTab === "download" ? "App Status & Updates"
       : "Contact Support";
 
   return (
@@ -103,6 +243,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
           0%,100% { box-shadow: 0 0 20px rgba(132,204,22,.06); }
           50%      { box-shadow: 0 0 40px rgba(132,204,22,.14); }
         }
+        @keyframes ssSpin { to { transform: rotate(360deg); } }
         .ss-overlay {
           position: fixed; inset: 0;
           background: transparent;
@@ -217,7 +358,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
         <div className="ss-content">
           {activeTab === "help"     && <HelpTab    onNavigateToContact={handleNavigateToContact} onViewChange={setHelpView} />}
           {activeTab === "faq"      && <FAQTab     onNavigateToContact={handleNavigateToContact} />}
-          {activeTab === "download" && <DownloadTab />}
+          {activeTab === "download" && <DownloadTab userId={userId} />}
           {activeTab === "contact"  && <ContactTab userId={userId} />}
         </div>
       </div>

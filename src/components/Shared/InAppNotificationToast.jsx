@@ -27,6 +27,7 @@ const TYPE_EMOJI = {
   milestone_followers:   "🏆",
   payment_confirmed:     "💳",
   mention:               "@",
+  ad_campaign_offer:     "📣",
   dm:                    "💬",
   incoming_call:         "📞",
   general:               "🔔",
@@ -53,7 +54,11 @@ const ToastItem = memo(({ toast, onDismiss, onNavigate }) => {
     setVisible(false);
     setTimeout(() => {
       onDismiss(toast.id);
-      if (toast.url && onNavigate) onNavigate(toast.url);
+      if (toast.type === "ad_campaign_offer") {
+        window.dispatchEvent(new CustomEvent("xeevia:open-ad-offers"));
+      } else if (toast.url && onNavigate) {
+        onNavigate(toast.url);
+      }
     }, 200);
   }, [toast, onDismiss, onNavigate]);
 

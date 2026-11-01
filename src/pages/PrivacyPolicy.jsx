@@ -236,7 +236,7 @@ export default function PrivacyPolicy() {
             <strong>Usage & Analytics Data:</strong> Information about how you interact with Xeevia, including IP address, browser type, device type, pages visited, time spent, search queries, and click patterns
           </li>
           <li>
-            <strong>Device Data:</strong> Mobile device identifiers, push notification tokens, operating system, and device settings
+            <strong>Device Data:</strong> Mobile device identifiers, push notification tokens, operating system, and device settings. If you install Xeevia while signed in, we also store a random browser-profile installation ID and the time it was last confirmed, linked to your account to coordinate install prompts. This report does not identify a physical device or prove the app is still installed.
           </li>
           <li>
             <strong>Location Data:</strong> Approximate location data based on IP address (not precise GPS location unless you explicitly grant permission)

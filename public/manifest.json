@@ -1,5 +1,5 @@
 {
-  "id": "/",
+  "id": "https://app.xeevia.com/",
   "name": "Xeevia",
   "short_name": "Xeevia",
   "description": "Own your content. Build your network. Engage to Earn.",
@@ -64,5 +64,11 @@
     }
   ],
   "screenshots": [],
-  "related_applications": []
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "/manifest.json",
+      "id": "https://app.xeevia.com/"
+    }
+  ]
 }

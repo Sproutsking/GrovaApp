@@ -33,6 +33,80 @@ const adCampaignService = {
     if (error) throw error;
     return data;
   },
+
+  async getCreatorPreferences(userId) {
+    const { data, error } = await supabase
+      .from("ad_creator_preferences")
+      .select("enabled,topics")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || { enabled: false, topics: [] };
+  },
+
+  async saveCreatorPreferences(enabled, topics) {
+    const { error } = await supabase.rpc("save_ad_creator_preferences", {
+      p_enabled: enabled,
+      p_topics: topics,
+    });
+    if (error) throw error;
+  },
+
+  async listCreatorOffers() {
+    const { data, error } = await supabase.rpc("list_creator_ad_offers");
+    if (error) throw error;
+    return data || [];
+  },
+
+  async respondToOffer(offerId, accept) {
+    const { error } = await supabase.rpc("respond_to_ad_offer", {
+      p_offer_id: offerId,
+      p_accept: accept,
+    });
+    if (error) throw error;
+  },
+
+  async recordEvent(campaignId, creatorId, eventType) {
+    const { data, error } = await supabase.rpc("record_ad_campaign_event", {
+      p_campaign_id: campaignId,
+      p_creator_id: creatorId,
+      p_event_type: eventType,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async setViewerControl(campaignId, action, reason = null) {
+    const { error } = await supabase.rpc("set_ad_viewer_control", {
+      p_campaign_id: campaignId,
+      p_action: action,
+      p_reason: reason,
+    });
+    if (error) throw error;
+  },
+
+  async getSponsoredAds(limit = 3) {
+    const { data, error } = await supabase.rpc("get_sponsored_ads_for_feed", { p_limit: limit });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async settleCampaign(campaignId, close = false) {
+    const { data, error } = await supabase.rpc("settle_ad_campaign", {
+      p_campaign_id: campaignId,
+      p_close: close,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async getCampaignReport(campaignId) {
+    const { data, error } = await supabase.rpc("get_ad_campaign_report", {
+      p_campaign_id: campaignId,
+    });
+    if (error) throw error;
+    return data;
+  },
 };
 
 export default adCampaignService;

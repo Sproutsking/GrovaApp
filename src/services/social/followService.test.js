@@ -14,7 +14,7 @@ jest.mock("../../models/FollowModel", () => ({
 
 jest.mock("../config/supabase", () => ({
   __esModule: true,
-  supabase: { from: jest.fn() },
+  supabase: { from: jest.fn(), rpc: jest.fn().mockResolvedValue({ error: null }) },
 }));
 
 jest.mock("../notifications/pushService", () => ({

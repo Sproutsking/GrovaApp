@@ -169,3 +169,38 @@ export function unregister() {
     })
     .catch((err) => console.warn("[SWReg] unregister error:", err));
 }
+
+export async function checkForUpdates() {
+  if (!("serviceWorker" in navigator)) return { status: "unsupported" };
+
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  if (!registration) return { status: "not_registered" };
+
+  await registration.update();
+  if (registration.waiting) return { status: "update_ready" };
+
+  const worker = registration.installing;
+  if (!worker) return { status: "current" };
+
+  return new Promise((resolve) => {
+    const finish = (status) => {
+      clearTimeout(timeout);
+      worker.removeEventListener("statechange", onStateChange);
+      resolve({ status });
+    };
+
+    const onStateChange = () => {
+      if (registration.waiting) {
+        finish("update_ready");
+      } else if (worker.state === "activated") {
+        finish("updated");
+      } else if (worker.state === "redundant") {
+        finish("current");
+      }
+    };
+    const timeout = setTimeout(() => finish("checking"), 30_000);
+
+    worker.addEventListener("statechange", onStateChange);
+    onStateChange();
+  });
+}

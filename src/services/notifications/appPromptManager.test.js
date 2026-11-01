@@ -5,10 +5,10 @@ describe("appPromptManager", () => {
     window.localStorage.clear();
   });
 
-  it("suppresses install prompts when the app is marked as installed", () => {
+  it("does not treat a historical browser-profile marker as proof the app is installed", () => {
     window.localStorage.setItem("xv_pwa_installed", "1");
 
-    expect(shouldSuppressInstallPrompt(window.localStorage)).toBe(true);
+    expect(shouldSuppressInstallPrompt(window.localStorage)).toBe(false);
   });
 
   it("suppresses install prompts when the user has dismissed install prompts permanently", () => {

@@ -32,6 +32,17 @@ async function recordFollowEvent(event, followerId, followingId) {
   }
 }
 
+async function recordAdFollowConversion(creatorId) {
+  try {
+    const result = await supabase.rpc("record_creator_ad_follow_conversion", {
+      p_creator_id: creatorId,
+    });
+    if (result?.error) console.warn("[Ads] Follow conversion attribution failed:", result.error.message);
+  } catch (error) {
+    console.warn("[Ads] Follow conversion attribution failed:", error);
+  }
+}
+
 function reportFollowFailure(message) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("xeevia:follow-error", { detail: { message } }));
@@ -107,6 +118,7 @@ class FollowService {
       notifyFollowState(followerId, followingId, true);
       if (!result.already_following && !result.alreadyFollowing) {
         await recordFollowEvent("follow_added", followerId, followingId);
+        recordAdFollowConversion(followingId);
         // [PUSH-1] Fire push after confirmed success — never awaited
         _sendFollowPush(followerId, followingId);
       }

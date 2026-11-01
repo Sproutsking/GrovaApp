@@ -51,6 +51,7 @@ import { supabase }               from "./services/config/supabase";
 import { isOAuthCallbackUrl, cleanOAuthCallbackParams } from "./services/auth/oauthUrl";
 import mediaUrlService             from "./services/shared/mediaUrlService";
 import { pushService }             from "./services/notifications/pushService";
+import { listPwaInstallReports }   from "./services/notifications/pwaInstallationService";
 import notificationService         from "./services/notifications/notificationService";
 import communityUnreadService      from "./services/community/communityUnreadService";
 import { getVisibleUnreadNotifications } from "./services/unread/unreadModel";
@@ -114,7 +115,7 @@ const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView")
 const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
 const AmbassadorView = lazy(() => import("./components/Ambassador/AmbassadorView"));
 const XRCOracleExplorer = lazy(() => import("./components/Oracle/XRCOracleExplorer"));
-const AdsCentre = lazy(() => import("./components/Ads/AdsCentre"));
+const AdsCentre = lazy(() => import("./components/Ads/AdsMarketplace"));
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set([
@@ -260,6 +261,27 @@ const MainApp = memo(() => {
   useEffect(() => {
     let active = true;
     if (!user?.id) {
+      window.__xvAccountInstallReported = null;
+      return () => { active = false; };
+    }
+
+    window.__xvAccountInstallReported = null;
+    const syncPwaInstallStatus = async () => {
+      await window.__xvRecordPwaInstall?.(user.id);
+      const reports = await listPwaInstallReports(user.id);
+      if (active) window.__xvAccountInstallReported = reports.length > 0;
+    };
+
+    syncPwaInstallStatus().catch((error) => {
+      console.error("[PWA] Could not sync account install status:", error);
+    });
+
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
       setLiveAdminRole(null);
       return undefined;
     }
@@ -310,6 +332,7 @@ const MainApp = memo(() => {
   const [lastRefreshTime,    setLastRefreshTime]    = useState(Date.now());
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showAdsCentre, setShowAdsCentre] = useState(false);
+  const [adsCentreInitialView, setAdsCentreInitialView] = useState("overview");
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(() => new Set(["home"]));
@@ -925,6 +948,15 @@ const MainApp = memo(() => {
   }, [handleTabChange]);
 
   useEffect(() => {
+    const openCreatorOffers = () => {
+      setAdsCentreInitialView("offers");
+      setShowAdsCentre(true);
+    };
+    window.addEventListener("xeevia:open-ad-offers", openCreatorOffers);
+    return () => window.removeEventListener("xeevia:open-ad-offers", openCreatorOffers);
+  }, []);
+
+  useEffect(() => {
     const handleProfileAppNavigation = (event) => {
       const tab = event.detail?.tab;
       if (["home", "search", "create", "community", "wallet", "account"].includes(tab)) {
@@ -1292,7 +1324,14 @@ const MainApp = memo(() => {
 
       {showAdsCentre && (
         <Suspense fallback={<AdsCentreLoader />}>
-          <AdsCentre userId={user.id} onClose={() => setShowAdsCentre(false)} />
+          <AdsCentre
+            userId={user.id}
+            initialView={adsCentreInitialView}
+            onClose={() => {
+              setShowAdsCentre(false);
+              setAdsCentreInitialView("overview");
+            }}
+          />
         </Suspense>
       )}
 
@@ -1427,6 +1466,7 @@ const MainApp = memo(() => {
           isOpen={showSupport}
           onClose={() => setShowSupport(false)}
           isMobile={isMobile}
+          userId={user?.id}
         />
       </Suspense>
 

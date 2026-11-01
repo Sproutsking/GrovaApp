@@ -137,6 +137,11 @@ class CommunityService {
   async joinCommunity(communityId, userId) {
     const { data, error } = await supabase.rpc("join_public_community", { p_community_id: communityId, p_user_id: userId });
     if (error) throw error;
+    supabase.rpc("record_creator_ad_community_conversion", { p_community_id: communityId })
+      .then(({ error: attributionError }) => {
+        if (attributionError) console.warn("[Ads] Community join attribution failed:", attributionError.message);
+      })
+      .catch((attributionError) => console.warn("[Ads] Community join attribution failed:", attributionError));
     this.cache.delete(`community:${communityId}`);
     this.lastFetch.delete(`community:${communityId}`);
     this.invalidateUserCache(userId);
@@ -146,6 +151,13 @@ class CommunityService {
   async joinCommunityViaInvite(code, userId) {
     const { data, error } = await supabase.rpc("join_community_via_invite", { p_code: code, p_user_id: userId });
     if (error) throw error;
+    if (data?.id) {
+      supabase.rpc("record_creator_ad_community_conversion", { p_community_id: data.id })
+        .then(({ error: attributionError }) => {
+          if (attributionError) console.warn("[Ads] Community join attribution failed:", attributionError.message);
+        })
+        .catch((attributionError) => console.warn("[Ads] Community join attribution failed:", attributionError));
+    }
     this.cache.delete(`community:${data?.id || ""}`);
     this.lastFetch.delete(`community:${data?.id || ""}`);
     this.invalidateUserCache(userId);

@@ -32,6 +32,7 @@ import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt, setPromptNever, shouldSuppressInstallPrompt } from "./services/notifications/appPromptManager";
 import { initializeHoverCapability } from "./utils/hoverCapability";
+import { listCurrentAccountPwaInstallReports, reportPwaInstallation } from "./services/notifications/pwaInstallationService";
 
 initializeHoverCapability();
 
@@ -390,40 +391,63 @@ function ensurePromptStyles() {
 
 function isPwaInstalled() {
   const displayMode = (mode) => window.matchMedia(`(display-mode: ${mode})`).matches;
-  let storedInstall = false;
-  try { storedInstall = localStorage.getItem("xv_pwa_installed") === "1"; } catch (e) {}
   return displayMode("standalone")
     || displayMode("fullscreen")
     || displayMode("minimal-ui")
-    || window.navigator.standalone === true
-    || storedInstall;
+    || window.navigator.standalone === true;
 }
 
-function rememberPwaInstalled() {
-  try { localStorage.setItem("xv_pwa_installed", "1"); } catch (e) {}
-}
-
-// Chromium can expose installed related applications, while Safari and
-// Firefox rely on display-mode/appinstalled. This is intentionally additive:
-// no browser-specific check should make an installed app prompt again.
 async function detectInstalledApp() {
   if (isPwaInstalled()) return true;
   if (typeof navigator.getInstalledRelatedApps !== "function") return false;
   try {
     const relatedApps = await navigator.getInstalledRelatedApps();
-    const installed = Array.isArray(relatedApps) && relatedApps.length > 0;
-    if (installed) rememberPwaInstalled();
-    return installed;
-  } catch (e) {
+    const appId = new URL("/", window.location.origin).href;
+    const manifestUrl = new URL("/manifest.json", window.location.origin).href;
+    return Array.isArray(relatedApps) && relatedApps.some((app) => (
+      app.platform === "webapp"
+      && (!app.id || app.id === appId)
+      && (!app.url || new URL(app.url, window.location.origin).href === manifestUrl)
+    ));
+  } catch (error) {
+    console.warn("[PWA] Related-app detection failed:", error);
     return false;
   }
 }
 
 window.__xvIsAppInstalled = isPwaInstalled;
+window.__xvDetectInstalledApp = detectInstalledApp;
+window.__xvCheckForUpdates = () => serviceWorkerRegistration.checkForUpdates();
+window.__xvRecordPwaInstall = async (userId) => {
+  let pendingInstall = false;
+  try {
+    pendingInstall = localStorage.getItem("xv_pwa_install_pending") === "1";
+  } catch (error) {
+    console.warn("[PWA] Could not read pending install report:", error);
+  }
+
+  if (!pendingInstall && !(await detectInstalledApp())) return false;
+
+  let accountId = userId;
+  if (!accountId) {
+    const account = await listCurrentAccountPwaInstallReports();
+    accountId = account?.userId;
+  }
+  if (!accountId) return false;
+
+  await reportPwaInstallation(accountId);
+  try {
+    localStorage.removeItem("xv_pwa_install_pending");
+  } catch (error) {
+    console.warn("[PWA] Could not clear pending install report:", error);
+  }
+  window.__xvAccountInstallReported = true;
+  return true;
+};
 
 function canShowPrompt(type) {
   if (type === "install") {
-    if (isPwaInstalled() || shouldSuppressInstallPrompt()) return false;
+    if (isPwaInstalled() || shouldSuppressInstallPrompt() || window.__xvAccountInstallReported === true) return false;
   }
   const now = Date.now();
   if (now < promptCooldownUntil) return false;
@@ -649,27 +673,40 @@ function queuePrompt(type, detail) {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallEvent = event;
-  detectInstalledApp().then((installed) => {
-    if (installed || shouldSuppressInstallPrompt() || installPromptShown || !isPromptDue("install")) return;
-    queuePrompt("install", "Install Xeevia to keep it fast and always available.");
-  });
+  Promise.all([detectInstalledApp(), listCurrentAccountPwaInstallReports()])
+    .then(([installed, account]) => {
+      const accountReported = Boolean(account?.reports.length);
+      if (accountReported) window.__xvAccountInstallReported = true;
+      if (installed || accountReported || shouldSuppressInstallPrompt() || installPromptShown || !isPromptDue("install")) return;
+      queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+    })
+    .catch((error) => {
+      console.error("[PWA] Could not check account install history:", error);
+      if (!shouldSuppressInstallPrompt() && !installPromptShown && isPromptDue("install")) {
+        queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+      }
+    });
 });
 
 window.addEventListener("appinstalled", () => {
   installPromptShown = true;
   deferredInstallEvent = null;
-  rememberPwaInstalled();
-  setPromptNever("install");
+  try {
+    localStorage.setItem("xv_pwa_install_pending", "1");
+  } catch (error) {
+    console.warn("[PWA] Could not save pending install report:", error);
+  }
   clearPromptSchedule("install");
+  window.__xvRecordPwaInstall?.().catch((error) => {
+    console.error("[PWA] Could not report installed app:", error);
+  });
 });
 
 window.__xvRequestInstall = async () => {
-  if (isPwaInstalled() || shouldSuppressInstallPrompt() || (await detectInstalledApp())) {
-    showAppPrompt({
-      type: "update",
-      message: "Xeevia is already installed on this device.",
-      detail: "You are using the app version. Updates will be applied when a new release is ready.",
-    });
+  if (isPwaInstalled() || shouldSuppressInstallPrompt() || (await detectInstalledApp())) return false;
+  const account = await listCurrentAccountPwaInstallReports();
+  if (account?.reports.length) {
+    window.__xvAccountInstallReported = true;
     return false;
   }
   if (!deferredInstallEvent) return false;

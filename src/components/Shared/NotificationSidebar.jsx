@@ -261,6 +261,10 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
 
   const handleBodyClick = useCallback(() => {
     if (!notif.is_read) onRead(notif.id);
+    if (notif.type === "ad_campaign_offer") {
+      window.dispatchEvent(new CustomEvent("xeevia:open-ad-offers"));
+      return;
+    }
     const url = resolveUrl(notif);
     if (!isPW && url && onNavigate) onNavigate(url);
   }, [notif, onRead, onNavigate, isPW]);

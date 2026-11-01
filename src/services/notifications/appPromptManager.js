@@ -23,10 +23,6 @@ export function shouldSuppressInstallPrompt(storage = window.localStorage, insta
   } catch {}
 
   if (!storage) return false;
-  try {
-    if (storage.getItem("xv_pwa_installed") === "1") return true;
-  } catch {}
-
   const state = readPromptState(storage);
   return !!state?.never?.install;
 }
