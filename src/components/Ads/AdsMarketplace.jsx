@@ -209,7 +209,7 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
     <div className="am-shell" role="dialog" aria-modal="true" aria-label="Ads Centre">
       <header className="am-header">
         <button className="am-icon" onClick={onClose} aria-label="Close Ads Centre"><ArrowLeft size={18} /></button>
-        <div className="am-brand"><div><Megaphone size={18} /></div><span><b>Ads Centre</b><small>Creator-controlled campaigns</small></span></div>
+        <div className="am-brand"><div><Megaphone size={18} /></div><span><b>Ads Centre</b><small>Creator economy</small></span></div>
         <span className="am-balance"><CircleDollarSign size={16} /> {balance.toLocaleString()} EP</span>
         <button className="am-icon am-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </header>
@@ -225,35 +225,35 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
 
         {view === "overview" && !loading && <section>
           <div className="am-hero">
-            <div className="am-eyebrow"><Sparkles size={14} /> A fairer way to grow</div>
-            <h1>Creators choose<br />what they carry.</h1>
-            <p>Advertisers fund a campaign. Eligible creators review it privately, choose whether to participate, and earn from measured delivery.</p>
+            <div className="am-eyebrow"><Sparkles size={14} /> CREATOR-LED CAMPAIGNS</div>
+            <h1>Growth on<br /><em>your terms.</em></h1>
+            <p>Brands fund. Creators choose. Every outcome is accountable.</p>
             <div className="am-hero-actions">
-              <button className="am-primary" onClick={() => setView("create")}>Build a campaign <ArrowUpRight size={16} /></button>
-              <button className="am-secondary" onClick={() => setView("offers")}>Review creator offers</button>
+              <button className="am-primary" onClick={() => setView("create")}>New campaign <ArrowUpRight size={16} /></button>
+              <button className="am-secondary" onClick={() => setView("offers")}>Creator offers</button>
             </div>
           </div>
           <div className="am-metrics">
-            <article><span>Your campaigns</span><strong>{campaigns.length}</strong><small>EP reserves are held securely</small></article>
-            <article><span>Creator invitations</span><strong>{offers.length}</strong><small>Creators decide; invitation is not delivery</small></article>
-            <article><span>Creator pool</span><strong>70 / 30</strong><small>Reach allocation · qualified outcomes</small></article>
+            <article><span>Campaigns</span><strong>{campaigns.length}</strong><small>Funded by EP</small></article>
+            <article><span>Creator offers</span><strong>{offers.length}</strong><small>Acceptance is always theirs</small></article>
+            <article><span>Creator pool</span><strong>70 / 30</strong><small>Reach · outcomes</small></article>
           </div>
           <div className="am-grid">
-            <article className="am-panel"><ShieldCheck size={19} /><h2>Transparent economics</h2><p>Campaigns use EP escrow. A 10% commission is explicit; the creator pool is split 70% by viewable reach and 30% by attributed outcomes.</p></article>
-            <article className="am-panel"><Users size={19} /><h2>Relevance without sensitive profiling</h2><p>Match opted-in creators by declared topics and follower minimums. Viewer delivery uses creator-follow relationships—not age, inferred identity, or private-message data.</p></article>
-            <article className="am-panel"><BadgeCheck size={19} /><h2>Control stays with people</h2><p>Creators accept each offer. Viewers can hide or report campaigns. Placements are clearly labeled and frequency-capped.</p></article>
+            <article className="am-panel"><ShieldCheck size={19} /><h2>Clear economics</h2><p>10% commission. The creator pool rewards reach and outcomes.</p></article>
+            <article className="am-panel"><Users size={19} /><h2>Relevance by choice</h2><p>Creators opt in by topic. Ads reach their followers—not private messages.</p></article>
+            <article className="am-panel"><BadgeCheck size={19} /><h2>People stay in control</h2><p>Creators accept. Viewers can hide or report. Every placement is labeled.</p></article>
           </div>
-          <div className="am-note"><ShieldCheck size={16} /> Age targeting is intentionally unavailable until a trusted age-verification system exists.</div>
+          <div className="am-note"><ShieldCheck size={16} /> Age targeting is off until age assurance is reliable.</div>
         </section>}
 
         {view === "create" && <section className="am-form-layout">
           <form className="am-panel am-form" onSubmit={createCampaign}>
-            <div className="am-heading"><span className="am-eyebrow">CAMPAIGN BRIEF</span><h1>Start with intent.</h1><p>Every campaign is reviewed by its creator before appearing in a feed.</p></div>
+            <div className="am-heading"><span className="am-eyebrow">01 / CAMPAIGN</span><h1>Set the direction.</h1><p>Creators review before anything goes live.</p></div>
             <label>Campaign name<input required minLength={3} maxLength={120} value={form.name} onChange={(event) => updateForm("name", event.target.value)} placeholder="What are you building?" /></label>
             <label>Campaign goal<select value={form.objective} onChange={(event) => updateForm("objective", event.target.value)}>{OBJECTIVES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
-            <fieldset><legend>Who should create this with you?</legend><p className="am-help">Match opted-in creators by their declared topics.</p><div className="am-topics">{TOPICS.map((topic) => <button type="button" className={form.topics.includes(topic) ? "selected" : ""} key={topic} onClick={() => updateForm("topics", toggleTopic(form.topics, topic))}>{topic}</button>)}</div></fieldset>
+            <fieldset><legend>Creator topics</legend><p className="am-help">Match with opted-in creators.</p><div className="am-topics">{TOPICS.map((topic) => <button type="button" className={form.topics.includes(topic) ? "selected" : ""} key={topic} onClick={() => updateForm("topics", toggleTopic(form.topics, topic))}>{topic}</button>)}</div></fieldset>
             <div className="am-two">
-              <label>Creator invitations<input type="number" min="1" max="50" step="1" value={form.creatorCount} onChange={(event) => updateForm("creatorCount", event.target.value)} /><small>Up to 50 matches; creators still choose.</small></label>
+              <label>Invite creators<input type="number" min="1" max="50" step="1" value={form.creatorCount} onChange={(event) => updateForm("creatorCount", event.target.value)} /><small>Each creator chooses.</small></label>
               <label>Minimum followers<input type="number" min="0" max="10000000" step="1" value={form.minFollowers} onChange={(event) => updateForm("minFollowers", event.target.value)} /></label>
             </div>
             <div className="am-two">
@@ -267,7 +267,7 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
               </label>
               {uploading && <progress max="100" value={uploadProgress} />}
               {form.creativeUrl && <video src={form.creativeUrl} controls playsInline preload="metadata" aria-label="Campaign video preview" />}
-              <small>Advertisers provide the campaign video. Uploads use the existing authenticated video service.</small>
+              <small>Upload your campaign video.</small>
             </div>
             <label>Campaign budget (EP)<input required type="number" min="100" step="1" value={form.budget} onChange={(event) => updateForm("budget", event.target.value)} placeholder={`Available: ${balance} EP`} /></label>
             <fieldset><legend>How should the 10% commission be charged?</legend>
@@ -278,28 +278,28 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
               <div><span>Creator pool</span><b>{pool.toLocaleString()} EP</b></div>
               <div><span>Platform commission</span><b>{estimatedFee.toLocaleString()} EP</b></div>
               <div><span>Total reserved</span><b>{economics.totalEscrow.toLocaleString()} EP</b></div>
-              <small>Creator pool: 70% shared by viewable reach and 30% by qualified outcomes. Unused value is returned at settlement.</small>
+              <small>70% reach · 30% outcomes. Unused EP returns after settlement.</small>
             </div>
             <button className="am-primary am-submit" disabled={saving || uploading}>{saving ? "Reserving campaign EP…" : "Fund campaign and invite creators"}</button>
           </form>
-          <aside className="am-aside"><div className="am-panel"><Target size={19} /><h2>What happens next</h2><ol><li>Your EP is reserved atomically.</li><li>Matching creators receive a private invitation.</li><li>Only accepted campaigns can enter eligible followers’ feeds.</li><li>Viewable reach and qualified actions are recorded for settlement.</li></ol></div><div className="am-panel am-caution"><Clock3 size={18} /><h2>No age targeting yet</h2><p>We do not use date of birth or profile badges as proof of age. Age-based campaigns stay unavailable until age assurance is trustworthy.</p></div></aside>
+          <aside className="am-aside"><div className="am-panel"><Target size={19} /><h2>How it works</h2><ol><li>EP is reserved.</li><li>Creators review your offer.</li><li>Accepted campaigns reach their followers.</li><li>Results determine settlement.</li></ol></div><div className="am-panel am-caution"><Clock3 size={18} /><h2>Age targeting off</h2><p>We don’t have reliable age assurance yet.</p></div></aside>
         </section>}
 
         {view === "offers" && !loading && <section>
-          <div className="am-heading"><span className="am-eyebrow">CREATOR CONTROL</span><h1>Your campaign inbox.</h1><p>Choose the kinds of paid partnerships you want to review. Offers never auto-publish.</p></div>
+          <div className="am-heading"><span className="am-eyebrow">CREATOR CONTROL</span><h1>Your offers.</h1><p>You choose what belongs in your feed.</p></div>
           <article className="am-panel am-preferences">
             <div className="am-preferences-title"><div><Handshake size={18} /><strong>Creator opportunities</strong></div><label className="am-toggle"><input type="checkbox" checked={preferences.enabled} onChange={(event) => setPreferences((p) => ({ ...p, enabled: event.target.checked }))} /><span />{preferences.enabled ? "Opted in" : "Paused"}</label></div>
-            <p className="am-help">Your topics help advertisers find a fit. Your email, age, private messages, and private audience data are not shared.</p>
+            <p className="am-help">Choose topics. Pause offers whenever you like.</p>
             <div className="am-topics">{TOPICS.map((topic) => <button type="button" className={preferences.topics.includes(topic) ? "selected" : ""} key={topic} onClick={() => setPreferences((p) => ({ ...p, topics: toggleTopic(p.topics, topic) }))}>{topic}</button>)}</div>
-            <button className="am-secondary" disabled={saving} onClick={savePreferences}>Save creator preferences</button>
+            <button className="am-secondary" disabled={saving} onClick={savePreferences}>Save preferences</button>
           </article>
           <div className="am-offers">
-            {offers.length === 0 ? <div className="am-empty"><Handshake size={22} /><strong>No offers yet</strong><p>Campaigns that match your topics will appear here. You stay in control of every acceptance.</p></div> : offers.map((offer) => (
+            {offers.length === 0 ? <div className="am-empty"><Handshake size={22} /><strong>No offers yet</strong><p>Matching campaigns will show up here.</p></div> : offers.map((offer) => (
               <article className="am-offer" key={offer.offer_id}>
                 <div className="am-offer-head"><div><span className="am-eyebrow">{offer.objective?.replaceAll("_", " ")}</span><h2>{offer.campaign_name}</h2><p>From {offer.owner_name || "Xeevia advertiser"}</p></div><span className={`am-status ${offer.status}`}>{offer.status}</span></div>
                 <video src={offer.creative_url} controls playsInline preload="metadata" aria-label={`${offer.campaign_name} campaign creative`} />
                 <div className="am-offer-facts"><span><CircleDollarSign size={15} /> Campaign pool: {Number(offer.creator_pool_ep || 0).toLocaleString()} EP</span><span>10% commission: {Number(offer.commission_ep || 0).toLocaleString()} EP ({offer.fee_mode === "on_top" ? "on top" : "included"})</span><span><Clock3 size={15} /> {new Date(offer.starts_at).toLocaleDateString()} – {new Date(offer.ends_at).toLocaleDateString()}</span></div>
-                <p className="am-help">The campaign-wide creator pool is allocated among participating creators by measured reach and qualified outcomes. Your actual share depends on delivery.</p>
+                <p className="am-help">Your share depends on measured reach and outcomes.</p>
                 {offer.status === "pending" && <div className="am-offer-actions"><button className="am-secondary" disabled={saving} onClick={() => respond(offer, false)}>Decline</button><button className="am-primary" disabled={saving} onClick={() => respond(offer, true)}><Check size={15} /> Accept campaign</button></div>}
               </article>
             ))}
@@ -307,8 +307,8 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
         </section>}
 
         {view === "campaigns" && !loading && <section>
-          <div className="am-heading"><span className="am-eyebrow">ACCOUNTABILITY</span><h1>Your campaigns.</h1><p>Review status, escrow, and close completed campaigns for auditable settlement.</p></div>
-          {!campaigns.length ? <div className="am-empty"><BarChart3 size={22} /><strong>No campaigns yet</strong><p>Your campaigns and creator invitations will be tracked here.</p><button className="am-primary" onClick={() => setView("create")}>Create a campaign</button></div> : <div className="am-campaigns">{campaigns.map((campaign) => (
+          <div className="am-heading"><span className="am-eyebrow">CAMPAIGN LEDGER</span><h1>Campaigns.</h1><p>Budgets, outcomes, settlement.</p></div>
+          {!campaigns.length ? <div className="am-empty"><BarChart3 size={22} /><strong>No campaigns yet</strong><p>Your campaigns will appear here.</p><button className="am-primary" onClick={() => setView("create")}>Create campaign</button></div> : <div className="am-campaigns">{campaigns.map((campaign) => (
             <article className="am-campaign" key={campaign.id}>
               <div><span className="am-eyebrow">{campaign.objective?.replaceAll("_", " ")}</span><h2>{campaign.name}</h2><p>{new Date(campaign.starts_at).toLocaleDateString()} – {new Date(campaign.ends_at).toLocaleDateString()}</p><small className="am-help">Creator pool {Number(campaign.audience_definition?.creator_pool_ep || 0).toLocaleString()} EP · commission {Number(campaign.audience_definition?.commission_ep || 0).toLocaleString()} EP ({campaign.audience_definition?.fee_mode === "on_top" ? "on top" : "included"})</small></div>
               <div className="am-campaign-meta"><strong>{Number(campaign.escrow_ep || 0).toLocaleString()} EP</strong><span className={`am-status ${campaign.status}`}>{campaign.status}</span></div>
@@ -347,6 +347,57 @@ export default function AdsMarketplace({ onClose, userId, initialView = "overvie
         .am-report{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;padding:14px;border:1px solid #ffffff13;border-radius:12px;background:#070e09}.am-report div{display:grid;gap:5px}.am-report span,.am-report small{color:#89988d;font-size:10px}.am-report b{font-size:12px}.am-report small{grid-column:1/-1;line-height:1.5;margin-top:4px}
         @media(max-width:760px){.am-grid{grid-template-columns:1fr}.am-form-layout{grid-template-columns:1fr}.am-aside{grid-template-columns:1fr 1fr}.am-metrics{grid-template-columns:1fr}.am-metrics article{grid-template-columns:1fr auto}.am-metrics small{grid-column:1/-1}.am-main{padding-top:20px}}
         @media(max-width:520px){.am-brand small{display:none}.am-header{gap:9px}.am-balance{font-size:11px}.am-nav{top:68px}.am-aside{grid-template-columns:1fr}.am-two{grid-template-columns:1fr}.am-offer-actions{justify-content:stretch}.am-offer-actions button{flex:1}}
+        .am-shell{isolation:isolate;background:#060b09;scrollbar-color:#344539 #080e0b}
+        .am-shell:before,.am-shell:after{position:fixed;inset:0;content:"";pointer-events:none}
+        .am-shell:before{z-index:-2;background:radial-gradient(ellipse at 12% 8%,rgba(116,210,61,.16),transparent 30%),radial-gradient(ellipse at 88% 26%,rgba(67,160,139,.12),transparent 33%),radial-gradient(ellipse at 48% 100%,rgba(109,82,186,.12),transparent 38%),linear-gradient(145deg,#07100c 0%,#080d0c 54%,#070a0f 100%)}
+        .am-shell:after{z-index:-1;opacity:.23;background-image:linear-gradient(rgba(196,255,200,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(196,255,200,.055) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,black,transparent 88%)}
+        .am-header{background:rgba(7,13,10,.78);border-color:rgba(216,255,220,.1);box-shadow:0 12px 40px rgba(0,0,0,.16)}
+        .am-icon{transition:background .2s ease,border-color .2s ease,transform .2s ease}.am-icon:hover{background:#ffffff13;border-color:#c5f58f55;transform:translateY(-1px)}
+        .am-brand>div{box-shadow:0 0 24px rgba(159,233,88,.19);border:1px solid rgba(184,250,105,.18)}
+        .am-brand b{letter-spacing:-.02em}
+        .am-balance{padding:9px 12px;border:1px solid rgba(193,245,143,.16);border-radius:999px;background:rgba(151,215,84,.07)}
+        .am-nav{background:rgba(7,13,10,.72);backdrop-filter:blur(18px);border-color:rgba(216,255,220,.08)}
+        .am-nav button{transition:color .2s ease,background .2s ease,border-color .2s ease}.am-nav button:hover{color:#eaf8e3;background:#ffffff08}
+        .am-nav button.active{background:linear-gradient(120deg,rgba(177,239,113,.16),rgba(75,172,140,.1));box-shadow:inset 0 0 0 1px rgba(186,239,135,.06)}
+        .am-main>section{animation:am-enter .38s cubic-bezier(.2,.7,.25,1) both}
+        .am-hero{min-height:320px;display:flex;flex-direction:column;justify-content:center;border-color:rgba(196,255,149,.17);background:radial-gradient(ellipse at 80% 6%,rgba(173,239,105,.18),transparent 34%),radial-gradient(ellipse at 100% 100%,rgba(78,180,158,.14),transparent 43%),linear-gradient(125deg,rgba(19,34,25,.92),rgba(10,18,14,.86) 55%,rgba(10,17,19,.9));box-shadow:0 30px 90px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.06)}
+        .am-hero:after{position:absolute;content:"";width:min(38vw,400px);aspect-ratio:1;right:4%;top:50%;border:1px solid rgba(193,255,145,.13);border-radius:50%;transform:translateY(-50%);box-shadow:0 0 0 34px rgba(177,239,113,.025),0 0 0 78px rgba(177,239,113,.018),inset 0 0 70px rgba(177,239,113,.05);pointer-events:none}
+        .am-hero:before{position:absolute;content:"";width:min(23vw,245px);aspect-ratio:1;right:calc(4% + min(7.5vw,78px));top:50%;border-radius:50%;transform:translateY(-50%);background:radial-gradient(circle at 35% 32%,rgba(213,255,177,.15),rgba(115,188,85,.045) 42%,transparent 70%);filter:blur(1px);pointer-events:none}
+        .am-hero>*{position:relative;z-index:1}
+        .am-hero h1{max-width:680px;font-size:clamp(42px,7vw,78px);font-weight:750;letter-spacing:-.065em}.am-hero h1 em{font-style:normal;color:#c5f58f;text-shadow:0 0 34px rgba(180,237,120,.2)}
+        .am-hero p{max-width:420px;color:#b1beb3;font-size:14px}
+        .am-eyebrow{letter-spacing:.16em}
+        .am-primary,.am-secondary{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease}
+        .am-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 9px 28px rgba(177,239,113,.18);background:#c9f693}
+        .am-secondary:hover:not(:disabled){transform:translateY(-1px);border-color:#b9ed7755;background:#b9ed7710}
+        .am-metrics article,.am-panel,.am-offer,.am-campaign{position:relative;overflow:hidden;border-color:rgba(211,255,222,.1);background:linear-gradient(145deg,rgba(20,31,24,.82),rgba(10,17,13,.83));box-shadow:0 15px 44px rgba(0,0,0,.12),inset 0 1px rgba(255,255,255,.035);backdrop-filter:blur(14px)}
+        .am-metrics article:before,.am-panel:before,.am-offer:before,.am-campaign:before{position:absolute;inset:0 0 auto;height:1px;content:"";background:linear-gradient(90deg,transparent,rgba(196,255,160,.28),transparent);opacity:.6;pointer-events:none}
+        .am-metrics article{min-height:112px;align-content:center;transition:transform .22s ease,border-color .22s ease}
+        .am-metrics article:hover,.am-grid .am-panel:hover{transform:translateY(-3px);border-color:rgba(193,245,143,.24)}
+        .am-metrics strong{color:#f3f8ef;font-size:28px}
+        .am-panel{transition:transform .22s ease,border-color .22s ease}
+        .am-grid .am-panel{min-height:158px}
+        .am-grid .am-panel>svg{filter:drop-shadow(0 0 8px rgba(183,239,125,.3))}
+        .am-form,.am-preferences{border-color:rgba(211,255,222,.12)}
+        .am-form input:not([type=radio]),.am-form select{background:rgba(4,10,7,.78);border-color:rgba(214,255,220,.14);transition:border-color .2s ease,box-shadow .2s ease}
+        .am-form input:focus,.am-form select:focus{border-color:#b4e881;box-shadow:0 0 0 3px rgba(180,232,129,.1)}
+        .am-form fieldset{border-color:rgba(214,255,220,.13);background:rgba(3,10,7,.2)}
+        .am-topics button{transition:all .18s ease}.am-topics button:hover{border-color:rgba(194,242,151,.42);color:#e4f7d8;transform:translateY(-1px)}
+        .am-topics button.selected{box-shadow:0 0 18px rgba(164,232,75,.09)}
+        .am-economics{background:linear-gradient(120deg,rgba(145,207,69,.09),rgba(70,165,143,.06));border-color:rgba(184,237,115,.25)}
+        .am-upload-button{transition:background .2s ease,border-color .2s ease}.am-upload-button:hover{background:#a4e84616;border-color:#bbeb7b99}
+        .am-offer,.am-campaign{transition:border-color .2s ease,transform .2s ease}.am-offer:hover,.am-campaign:hover{border-color:rgba(193,245,143,.2)}
+        .am-status{border:1px solid rgba(255,255,255,.08)}
+        .am-status.active,.am-status.pending{border-color:rgba(177,239,113,.2)}
+        .am-empty{border-color:rgba(214,255,220,.2);background:rgba(12,21,15,.36)}
+        .am-alert{backdrop-filter:blur(14px)}
+        .am-report{border-color:rgba(214,255,220,.1);background:rgba(4,10,7,.58)}
+        .am-campaign .am-help{display:block}
+        .am-note{background:rgba(186,152,69,.06);border-color:rgba(230,189,101,.22)}
+        @keyframes am-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @media(max-width:760px){.am-hero{min-height:290px}.am-hero:after{right:-16%;opacity:.55}.am-hero:before{right:-3%;opacity:.55}.am-grid .am-panel{min-height:0}}
+        @media(max-width:520px){.am-hero{min-height:280px;padding:26px 22px}.am-hero h1{font-size:46px}.am-hero:after{width:230px;right:-110px}.am-hero:before{width:140px;right:-62px}.am-main{padding-bottom:40px}.am-metrics{gap:8px}.am-metrics article{min-height:82px;padding:14px 16px}.am-nav{gap:4px;padding-top:9px;padding-bottom:9px}.am-nav button{padding:9px 11px;font-size:11px}.am-report{grid-template-columns:repeat(2,1fr)}}
+        @media(prefers-reduced-motion:reduce){.am-main>section{animation:none}.am-icon,.am-primary,.am-secondary,.am-panel,.am-metrics article,.am-topics button{transition:none}}
       `}</style>
     </div>
   );
