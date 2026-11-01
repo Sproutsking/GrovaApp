@@ -1528,12 +1528,14 @@ const ChatTab = ({
 
         .channels-container {
           width: 232px; min-width: 232px; max-width: 232px; height: 100%; position: relative;
-          background: radial-gradient(120% 70% at 0% 0%, rgba(156,255,0,0.12), transparent 48%), radial-gradient(110% 80% at 100% 100%, rgba(91,129,255,0.14), transparent 56%), linear-gradient(180deg, rgba(11,13,18,0.98) 0%, rgba(9,11,16,0.98) 42%, rgba(8,9,13,0.99) 100%);
-          border-right: 1.5px solid rgba(156,255,0,0.12); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+          background-color: #000;
+          background-image: linear-gradient(rgba(156,255,0,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(156,255,0,0.035) 1px, transparent 1px), radial-gradient(ellipse at 50% 0%, rgba(156,255,0,0.045), transparent 62%);
+          background-size: 32px 32px, 32px 32px, auto;
+          border-right: 1px solid #2f3336; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
           box-shadow: inset -1px 0 0 rgba(255,255,255,0.03), 22px 0 40px -30px rgba(0,0,0,0.7);
         }
 
-        .channels-header { display: flex; align-items: center; gap: 8px; padding: 14px 12px 12px; border-bottom: 1px solid rgba(156,255,0,0.12); background: linear-gradient(180deg, rgba(156,255,0,0.06) 0%, rgba(20,23,29,0.18) 100%); flex-shrink: 0; backdrop-filter: blur(8px); }
+        .channels-header { display: flex; align-items: center; gap: 8px; padding: 14px 12px 12px; border-bottom: 1px solid #2f3336; background: #000; flex-shrink: 0; }
         .channels-header.has-manage { justify-content: space-between; }
         .channels-header.no-manage { justify-content: center; }
 
@@ -1546,10 +1548,18 @@ const ChatTab = ({
         .channels-menu-btn:hover { background: linear-gradient(180deg, rgba(156,255,0,0.18), rgba(156,255,0,0.1)); border-color: rgba(156,255,0,0.35); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(156,255,0,0.18); }
         .channels-menu-btn:active { transform: translateY(0) scale(0.97); }
 
-        .channels-list { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 8px 12px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, rgba(17,20,24,0.2), rgba(17,20,24,0.02)); }
+        .channels-list { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 8px 12px; display: flex; flex-direction: column; gap: 4px; background: transparent; }
         .channels-list::-webkit-scrollbar { width: 4px; }
         .channels-list::-webkit-scrollbar-track { background: transparent; }
         .channels-list::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.22); border-radius: 2px; }
+        .channels-container .chb.active {
+          background: #050805;
+          border-color: rgba(156,255,0,.68);
+          color: #f3ffe8;
+          box-shadow: inset 3px 0 0 #9cff00, inset 0 1px 0 rgba(255,255,255,.07), 0 0 0 1px rgba(156,255,0,.12), 0 5px 14px rgba(0,0,0,.3);
+          transform: none;
+        }
+        .channels-container .chb.active .chb-icon { color: #baff75; opacity: 1; }
 
         .channels-eyebrow { display: flex; align-items: center; gap: 6px; padding: 2px 8px 10px; font-size: calc((10px) + 1px); font-weight: 800; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.8px; }
         .channels-refresh-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: chRefreshPulse 1.1s ease-in-out infinite; }

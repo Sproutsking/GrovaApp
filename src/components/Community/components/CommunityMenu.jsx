@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import {
   X, Users, Link2, Settings, LogOut, Crown, ChevronRight,
-  ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette, Wrench,
+  ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette, Wrench, Hash,
 } from "lucide-react";
 import permissionService from "../../../services/community/permissionService";
 import { isCommunityMemberOnline } from "../../../services/community/communityOnlineStatusService";
@@ -277,6 +277,13 @@ const CommunityMenu = ({
                         <div className="cm-stat-lbl">Online Now</div>
                       </div>
                     </div>
+                    <div className="cm-stat cm-channels-stat">
+                      <Hash size={18} color="#9cff00" />
+                      <div>
+                        <div className="cm-stat-val">{channels.length.toLocaleString()}</div>
+                        <div className="cm-stat-lbl">Channels</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -461,6 +468,7 @@ const CommunityMenu = ({
         .cm-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px;align-content:start}
         .cm-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
         .cm-stat{padding:14px;background:var(--surface);border:1px solid var(--surface-border);border-radius:11px;display:flex;align-items:center;gap:10px;transition:all .25s}
+        .cm-channels-stat{grid-column:1/-1;padding-top:10px;padding-bottom:10px}
         .cm-stat:hover{border-color:var(--accent-border);transform:translateY(-1px)}
         .cm-stat-val{font-size:calc((18px) + 1px);font-weight:900;color:var(--accent)}
         .cm-stat-lbl{font-size:calc((10px) + 1px);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px}

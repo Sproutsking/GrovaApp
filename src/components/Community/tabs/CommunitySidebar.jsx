@@ -44,7 +44,7 @@ const CommunitySidebar = ({
           <Home size={20} />
         </div>
 
-        <div className="community-divider"></div>
+        <div className="community-divider" role="separator" aria-orientation="horizontal" />
 
         <div className="community-list">
           {myCommunities.map((community) => (
@@ -78,13 +78,15 @@ const CommunitySidebar = ({
           ))}
         </div>
 
-        <div
+        <button
+          type="button"
           className="community-icon create"
           onClick={handleCreate}
           title="Create Community"
+          aria-label="Create Community"
         >
-          <Plus size={20} />
-        </div>
+          <Plus size={22} />
+        </button>
       </div>
 
       {contextMenu && (
@@ -115,15 +117,16 @@ const CommunitySidebar = ({
 
       <style jsx>{`
         .community-sidebar {
-          width: 72px;
+          box-sizing: border-box;
+          width: 77px;
           position: relative;
           isolation: isolate;
-          background: linear-gradient(180deg, #11131a 0%, #0b0d12 48%, #080a0f 100%);
-          border-right: 1px solid rgba(255,255,255,0.08);
+          background: #000;
+          border-right: 1px solid #2f3336;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 16px 0 12px 0;
+          padding: 16px 1px 12px 2px;
           gap: 10px;
           overflow-y: auto;
           overflow-x: hidden;
@@ -134,9 +137,7 @@ const CommunitySidebar = ({
           content: "";
           position: absolute;
           inset: 0;
-          background:
-            radial-gradient(ellipse at 50% 8%, rgba(159,132,255,0.13), transparent 42%),
-            radial-gradient(ellipse at 50% 92%, rgba(132,204,22,0.07), transparent 38%);
+          background: #000;
           z-index: 0;
           pointer-events: none;
         }
@@ -148,7 +149,7 @@ const CommunitySidebar = ({
           right: 0;
           bottom: 0;
           width: 1px;
-          background: linear-gradient(180deg, transparent, rgba(255,255,255,0.12) 24%, rgba(255,255,255,0.04) 76%, transparent);
+          background: #2f3336;
           z-index: 0;
           pointer-events: none;
         }
@@ -224,6 +225,8 @@ const CommunitySidebar = ({
           background-position: center;
           background-repeat: no-repeat;
           z-index: 1;
+          padding: 0;
+          font-family: inherit;
         }
 
         .community-icon:hover {
@@ -328,26 +331,35 @@ const CommunitySidebar = ({
         }
 
         .community-icon.create {
-          background: rgba(255,255,255,0.035);
-          border: 1.5px dashed rgba(255,255,255,0.22);
-          color: var(--accent);
+          background: linear-gradient(145deg, #d9f99d 0%, #9cff00 55%, #65a30d 100%);
+          border: 1.5px solid rgba(236,252,203,.9);
+          color: #172307;
           font-weight: 700;
+          box-shadow: inset 0 1px 1px rgba(255,255,255,.72), 0 4px 12px rgba(132,204,22,.24);
         }
 
         .community-icon.create:hover {
-          background: rgba(132,204,22,0.1);
-          border-color: rgba(132,204,22,0.45);
-          box-shadow: 0 8px 22px rgba(132,204,22,0.08);
+          background: linear-gradient(145deg, #ecfccb 0%, #b4f54b 55%, #84cc16 100%);
+          border-color: #ecfccb;
+          color: #101a05;
+          box-shadow: inset 0 1px 1px rgba(255,255,255,.82), 0 6px 16px rgba(132,204,22,.34);
           transform: scale(1.08);
         }
 
         .community-divider {
-          width: 32px;
-          height: 2px;
-          background: var(--accent-bg-strong);
-          border-radius: 1px;
-          margin: 4px 0;
+          display: block;
+          position: relative;
+          z-index: 2;
+          width: 42px;
+          min-width: 42px;
+          height: 3px;
+          min-height: 3px;
+          background: linear-gradient(90deg, transparent 0%, rgba(156,255,0,.78) 18%, #e4ffb5 50%, rgba(156,255,0,.78) 82%, transparent 100%);
+          border-radius: 999px;
+          margin: 2px 0 6px;
           flex-shrink: 0;
+          opacity: 1;
+          box-shadow: 0 0 5px rgba(156,255,0,.8), 0 0 12px rgba(156,255,0,.42);
         }
 
         .context-menu {
@@ -397,10 +409,11 @@ const CommunitySidebar = ({
 
         @media (max-width: 768px) {
           .community-sidebar {
-            width: 56px;
-            border-right: 1px solid var(--surface-border);
+            box-sizing: border-box;
+            width: 61px;
+            border-right: 1px solid #2f3336;
             border-top: 1px solid var(--surface-border);
-            padding: 12px 0px 15px;
+            padding: 12px 1px 15px 2px;
           }
 
           .sidebar-top { height: 40px; min-height: 40px; margin-bottom: 6px; }

@@ -379,7 +379,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           position: relative; overflow: hidden;
           border-radius: 14px;
           background: #000;
-          border: 1.5px solid var(--surface-border);
+          border: 1.5px solid rgba(255,255,255,.2);
           transition: border-color .28s, transform .28s, box-shadow .28s;
           animation: cardIn .36s ease backwards;
           isolation: isolate;
@@ -442,18 +442,18 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
 
         .disc-card-info { flex: 1; min-width: 0; }
         .disc-card-name {
-          font-size: calc((13.5px) + 1px); font-weight: 800; color: var(--text);
+          font-size: calc((13.5px) + 1px); font-weight: 800; color: #fff;
           margin-bottom: 3px; display: flex; align-items: center; gap: 4px;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .disc-card-meta { display: flex; align-items: center; gap: 4px; }
-        .disc-cs { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: calc((10.5px) + 1px); font-weight: 600; }
+        .disc-cs { display: flex; align-items: center; gap: 3px; color: #cbd5e1; font-size: calc((10.5px) + 1px); font-weight: 600; }
         .disc-cs.online { color: var(--brand-success); }
         .disc-cs-dot { color: var(--text-muted); font-size: calc((10px) + 1px); }
         .disc-pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-success); box-shadow: 0 0 5px var(--brand-success); }
 
         .disc-card-desc {
-          color: var(--text-secondary); font-size: calc((11.5px) + 1px); line-height: 1.45; margin-bottom: 8px;
+          color: #e2e8f0; font-size: calc((11.5px) + 1px); line-height: 1.45; margin-bottom: 8px;
           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .disc-card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -474,12 +474,12 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .dca-btn.join { background:linear-gradient(135deg,#d9f99d 0%,#a3e635 54%,#84cc16 100%);color:#172307;border-color:rgba(190,242,100,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.36); }
         .dca-btn.join:hover { filter:brightness(1.06);border-color:rgba(217,249,157,.9);transform:translateY(-1px); }
         .dca-btn.join:active { transform:scale(.98);filter:brightness(.98); }
-        .dca-btn.joined { background:rgba(132,204,22,.1);border-color:rgba(132,204,22,.32);color:#bef264; }
+        .dca-btn.joined { background:rgba(132,204,22,.09);border-color:rgba(163,230,53,.48);color:#e5f7c9;cursor:default; }
         .dca-btn.details { background:linear-gradient(135deg,rgba(71,85,105,.34),rgba(30,41,59,.42));border-color:rgba(148,163,184,.34);color:#dce6f2;box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
         .dca-btn.details:hover { background:linear-gradient(135deg,rgba(71,85,105,.48),rgba(30,41,59,.56));border-color:rgba(191,219,254,.5);color:#fff;transform:translateY(-1px); }
         .dca-btn.details:active,.dca-btn.view:active { transform:scale(.98); }
-        .dca-btn.view { background:rgba(132,204,22,.07);border-color:rgba(132,204,22,.22);color:#d9f99d; }
-        .dca-btn.view:hover { background:rgba(132,204,22,.13);border-color:rgba(163,230,53,.42);color:#ecfccb;transform:translateY(-1px); }
+        .dca-btn.view { background:linear-gradient(135deg,#bae6fd 0%,#38bdf8 55%,#0284c7 100%);border-color:rgba(186,230,253,.8);color:#082f49;box-shadow:inset 0 1px 0 rgba(255,255,255,.55); }
+        .dca-btn.view:hover { background:linear-gradient(135deg,#e0f2fe 0%,#7dd3fc 55%,#0ea5e9 100%);border-color:#e0f2fe;color:#082f49;transform:translateY(-1px); }
 
         /* Empty state */
         .disc-empty {

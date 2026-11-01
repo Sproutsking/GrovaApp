@@ -86,8 +86,8 @@ export default function ChannelButton({
 }
 
 const CHANNEL_BUTTON_CSS = `
-.chb{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;min-width:0;height:40px;min-height:40px;padding:0 10px;border:1px solid rgba(156,255,0,.12);background:linear-gradient(180deg, rgba(20,27,23,.92), rgba(10,13,12,.96));color:rgba(255,255,255,.76);font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;position:relative;transition:all .18s cubic-bezier(.34,1.56,.64,1);text-align:left;font-family:inherit;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 8px 20px rgba(0,0,0,.08)}
-.chb:hover{color:rgba(255,255,255,.94);transform:translateY(-1px);border-color:rgba(156,255,0,.22)}
+.chb{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;min-width:0;height:40px;min-height:40px;padding:0 10px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg, rgba(20,27,23,.92), rgba(10,13,12,.96));color:rgba(255,255,255,.76);font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;position:relative;transition:all .18s cubic-bezier(.34,1.56,.64,1);text-align:left;font-family:inherit;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 8px 20px rgba(0,0,0,.08)}
+.chb:hover{color:rgba(255,255,255,.94);transform:translateY(-1px);border-color:rgba(156,255,0,.48);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px rgba(156,255,0,.08),0 8px 20px rgba(0,0,0,.18)}
 .chb-icon{display:flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;opacity:.85}
 .chb-icon-img{width:16px;height:16px;border-radius:4px;object-fit:cover}
 .chb-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
@@ -101,23 +101,23 @@ const CHANNEL_BUTTON_CSS = `
 .chb-div--bracket{font-size:calc((10px) + 1px);opacity:.4;flex-shrink:0}
 .chb-div--bracket::before{content:"›"}
 
-.chb--fill-rounded{border-radius:12px;background:linear-gradient(180deg,rgba(156,255,0,.04),rgba(255,255,255,.015));border-color:rgba(156,255,0,.16)}
+.chb--fill-rounded{border-radius:12px;background:linear-gradient(180deg,rgba(156,255,0,.04),rgba(255,255,255,.015));border-color:rgba(255,255,255,.2)}
 .chb--fill-rounded:hover{background:linear-gradient(180deg,rgba(156,255,0,.08),rgba(92,105,255,.05));border-color:rgba(156,255,0,.28);box-shadow:0 12px 24px rgba(156,255,0,.08)}
 .chb--fill-rounded.active{background:linear-gradient(135deg,rgba(156,255,0,.15),rgba(92,105,255,.09));border-color:rgba(156,255,0,.42);color:var(--accent);box-shadow:0 0 0 1px rgba(156,255,0,.1),0 12px 22px rgba(156,255,0,.12)}
 
-.chb--pill{border-radius:999px;background:rgba(255,255,255,.02);padding:0 14px}
+.chb--pill{border-radius:999px;background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.2);padding:0 14px}
 .chb--pill:hover{background:rgba(156,255,0,.08)}
 .chb--pill.active{background:rgba(156,255,0,.14);color:var(--accent)}
 
-.chb--border-bottom{border-radius:0;border-bottom:2px solid transparent;padding-left:6px}
+.chb--border-bottom{border-radius:0;border:1px solid rgba(255,255,255,.12);border-bottom:2px solid rgba(255,255,255,.2);padding-left:6px}
 .chb--border-bottom:hover{border-bottom-color:rgba(156,255,0,.3)}
 .chb--border-bottom.active{border-bottom-color:var(--accent);color:var(--accent)}
 
-.chb--no-radius{border-radius:0;border:1px solid rgba(255,255,255,.05)}
+.chb--no-radius{border-radius:0;border:1px solid rgba(255,255,255,.2)}
 .chb--no-radius:hover{border-color:rgba(156,255,0,.2)}
 .chb--no-radius.active{border-color:rgba(156,255,0,.35);background:rgba(156,255,0,.06);color:var(--accent)}
 
-.chb--dashed-outline{border-radius:10px;border:1px dashed rgba(255,255,255,.14);background:transparent}
+.chb--dashed-outline{border-radius:10px;border:1px dashed rgba(255,255,255,.28);background:transparent}
 .chb--dashed-outline:hover{border-color:rgba(156,255,0,.4)}
 .chb--dashed-outline.active{border-color:var(--accent);color:var(--accent)}
 
@@ -130,7 +130,7 @@ const CHANNEL_BUTTON_CSS = `
 .chb--left-accent.active::before{height:60%}
 .chb--left-accent.active{color:var(--accent);background:rgba(156,255,0,.05)}
 
-.chb--glass{border-radius:12px;background:rgba(255,255,255,.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.06)}
+.chb--glass{border-radius:12px;background:rgba(255,255,255,.03);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18)}
 .chb--glass:hover{background:rgba(255,255,255,.06)}
 .chb--glass.active{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.25);color:var(--accent)}
 

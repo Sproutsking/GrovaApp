@@ -121,7 +121,6 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         </button>
         <div className="cv-title">
           <h2>{community?.name}</h2>
-          <p className="cv-member-count">{channels.length} channels</p>
         </div>
         <button className="cv-menu-btn" onClick={() => setShowMenu(true)} aria-label="Menu">
           <Menu size={18} />
@@ -219,10 +218,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           flex-direction: column;
           height: 100%;
           width: 100%;
-          background:
-            radial-gradient(120% 60% at 0% 0%, rgba(156,255,0,0.06), transparent 55%),
-            radial-gradient(140% 70% at 100% 100%, rgba(102,126,234,0.07), transparent 55%),
-            linear-gradient(180deg, rgba(10, 12, 16, 0.98) 0%, rgba(8, 10, 14, 0.96) 100%);
+          background: #000;
+          border-left: 1px solid #2f3336;
           overflow: hidden;
         }
 
@@ -233,9 +230,9 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           gap: 12px;
           height: 64px;
           padding: 0 12px;
-          border-bottom: 1.5px solid rgba(156, 255, 0, 0.14);
+          border-bottom: 1px solid #2f3336;
           flex-shrink: 0;
-          background: linear-gradient(180deg, rgba(156,255,0,0.045) 0%, rgba(8, 10, 14, 0) 100%);
+          background: #000;
         }
 
         .cv-back-btn,
@@ -255,7 +252,21 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           font-family: inherit;
         }
 
-        .cv-back-btn:hover,
+        .cv-back-btn {
+          background: linear-gradient(145deg, #d9f99d 0%, #9cff00 55%, #65a30d 100%);
+          border-color: rgba(236,252,203,.9);
+          color: #172307;
+          box-shadow: inset 0 1px 1px rgba(255,255,255,.65), 0 4px 12px rgba(132,204,22,.2);
+        }
+
+        .cv-back-btn:hover {
+          background: linear-gradient(145deg, #ecfccb 0%, #b4f54b 55%, #84cc16 100%);
+          border-color: #ecfccb;
+          color: #101a05;
+          transform: translateY(-1px);
+          box-shadow: inset 0 1px 1px rgba(255,255,255,.75), 0 6px 14px rgba(132,204,22,.3);
+        }
+
         .cv-menu-btn:hover {
           background: rgba(156, 255, 0, 0.12);
           border-color: rgba(156, 255, 0, 0.25);
@@ -280,21 +291,24 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           letter-spacing: 0.3px;
         }
 
-        .cv-member-count {
-          font-size: calc((11px) + 1px);
-          color: rgba(156, 255, 0, 0.6);
-          margin: 2px 0 0 0;
-          font-weight: 600;
-        }
-
         .channels-view-list {
           flex: 1;
           overflow-y: auto;
           overflow-x: hidden;
           padding: 12px 10px;
+          background: #000;
           display: flex;
           flex-direction: column;
           gap: 8px;
+        }
+
+        .channels-view-list {
+          background-color: #000;
+          background-image:
+            radial-gradient(ellipse at 50% 0%, rgba(156, 255, 0, .045), transparent 58%),
+            linear-gradient(rgba(156, 255, 0, .035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(156, 255, 0, .035) 1px, transparent 1px);
+          background-size: auto, 32px 32px, 32px 32px;
         }
 
         .channels-view-list::-webkit-scrollbar { width: 4px; }
@@ -330,9 +344,9 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
           min-height: 42px;
           padding: 0 12px;
           border-radius: 12px;
-          border: 1px solid rgba(156, 255, 0, 0.14);
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
-          color: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(156, 255, 0, 0.26);
+          background: #000;
+          color: #fff;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
           position: relative;
@@ -340,10 +354,10 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         }
 
         .cv-channel-item:not(.create):hover {
-          background: linear-gradient(135deg, rgba(156, 255, 0, 0.1), rgba(156, 255, 0, 0.06));
-          border-color: rgba(156, 255, 0, 0.24);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(156, 255, 0, 0.1);
+          background: #090909;
+          border-color: rgba(156, 255, 0, 0.42);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(156, 255, 0, 0.08);
         }
 
         .cv-channel-item.create {
@@ -382,7 +396,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
         .cv-channel-name {
           font-size: calc((13px) + 1px);
           font-weight: 800;
-          color: rgba(255, 255, 255, 0.95);
+          color: #fff;
           display: block;
           overflow: hidden;
           text-overflow: ellipsis;

@@ -216,6 +216,8 @@ const MessageList = ({
       {!loading && allMessages.map((msg, idx) => {
           const isMe = String(msg.user_id) === String(userId);
           const prev = allMessages[idx - 1];
+          const next = allMessages[idx + 1];
+          const sameAuthorAsNext = next && String(next.user_id) === String(msg.user_id);
           const isAnnouncement = channelType === "announcement";
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
@@ -268,7 +270,7 @@ const MessageList = ({
             {welcomeMemberId ? <WelcomeMemberCard communityId={communityId} memberId={welcomeMemberId} viewerId={userId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
             <div
               data-message-id={msg.id || msg.tempId || msg._tempId}
-              className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${sameAuthorAsNext ? "same-author-next" : "different-author-next"} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onClick={(event) => onMessageClick?.(event, msg)}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
               onTouchStart={(e) => { beginSwipe(e, msg); startLongPress(e, msg); }}
@@ -394,7 +396,7 @@ const MessageList = ({
           width: 100%;
           box-sizing: border-box;
           align-items: stretch;
-          padding: 6px 10px 8px;
+          padding: 6px 8px 8px;
           display: flex;
           flex-direction: column;
           gap: 0;
@@ -433,13 +435,15 @@ const MessageList = ({
           box-sizing: border-box;
           align-items: flex-start;
           gap: 4px;
-          margin: 0 0 4px;
+          margin: 0 0 8px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
         .msg-item.clustered { margin-bottom: 2px; }
+        .msg-item.same-author-next:not(.clustered) { margin-bottom: 4px; }
+        .msg-item.different-author-next { margin-bottom: 8px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
@@ -685,8 +689,8 @@ const MessageList = ({
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         @media (max-width: 768px) {
-          .msg-list-wrapper.text-channel { padding-left: 4px; padding-right: 4px; }
-          .msg-list-wrapper.announcement-channel { padding-left: 4px; padding-right: 4px; }
+          .msg-list-wrapper.text-channel { padding-left: 2px; padding-right: 2px; }
+          .msg-list-wrapper.announcement-channel { padding-left: 2px; padding-right: 2px; }
           .msg-item.announcement .mra-wrapper { max-width: 80%; }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel .msg-item.them { padding-left: 4px; padding-right: 10px; }
