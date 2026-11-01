@@ -326,10 +326,10 @@ const MobileHeader = ({
 
           <div className="mh-actions">
             <button className="mh-btn trending" onClick={() => setShowTrendingModal(true)} aria-label="Trending">
-              <TrendingUp size={17} />
+              <TrendingUp size={18} strokeWidth={2.6} />
             </button>
             <button className="mh-btn messages" onClick={handleMessagesClick} aria-label="Messages">
-              <MessengerIcon size={17} color="#a3e635" />
+              <MessengerIcon size={18} color="#a3e635" />
               {unreadMessages > 0 && (
                 <span className="mh-badge mh-badge--msg">
                   {unreadMessages > 99 ? "99+" : unreadMessages}
@@ -337,7 +337,7 @@ const MobileHeader = ({
               )}
             </button>
             <button className="mh-btn notification" onClick={handleNotificationClick} aria-label="Notifications">
-              <Bell size={17} />
+              <Bell size={18} strokeWidth={2.6} />
               {badgeCount > 0 && (
                 <span className="mh-badge mh-badge--notif">
                   {badgeCount > 99 ? "99+" : badgeCount}
@@ -345,7 +345,7 @@ const MobileHeader = ({
               )}
             </button>
             <button className="mh-btn support" onClick={onSupportClick} aria-label="Support">
-              <HeadsetIcon size={17} />
+              <HeadsetIcon size={18} strokeWidth={2.6} />
             </button>
           </div>
         </div>
@@ -416,12 +416,13 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
     @keyframes mhBlink { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
 
     .mh-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-    .mh-btn { position: relative; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s cubic-bezier(0.34,1.56,0.64,1); border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.045); color: #e5e7eb; willChange: "transform, opacity"; }
-    .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
-    .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.03); }
-    .mh-btn.notification { border-color: rgba(132,204,22,0.14); color: #84cc16; }
-    .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.14); }
+    .mh-btn { position: relative; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s cubic-bezier(0.34,1.56,0.64,1); border: 1px solid color-mix(in srgb, var(--text) 25%, var(--bg-strong)); background: color-mix(in srgb, var(--text) 8%, var(--bg-strong)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent), 0 2px 5px rgba(0,0,0,0.18); color: #e5e7eb; willChange: "transform, opacity"; }
+    .mh-btn.trending     { border-color: color-mix(in srgb, #84cc16 48%, var(--bg-strong)); background: color-mix(in srgb, #84cc16 14%, var(--bg-strong)); color: #84cc16; }
+    .mh-btn.messages     { border-color: color-mix(in srgb, #a3e635 46%, var(--bg-strong)); background: color-mix(in srgb, #a3e635 13%, var(--bg-strong)); }
+    .mh-btn.notification { border-color: color-mix(in srgb, #84cc16 40%, var(--bg-strong)); background: color-mix(in srgb, #84cc16 10%, var(--bg-strong)); color: #84cc16; }
+    .mh-btn.support      { color: #60a5fa; border-color: color-mix(in srgb, #60a5fa 48%, var(--bg-strong)); background: color-mix(in srgb, #60a5fa 13%, var(--bg-strong)); }
     .mh-btn:active       { transform: scale(0.94); }
+    .mh-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
     .mh-badge { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; font-size: calc((9.5px) + 1px); font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-strong); line-height: 1; z-index: 2; letter-spacing: -0.2px; animation: mhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1), mhBadgePulse 2.5s ease-in-out 0.35s infinite; }
     .mh-badge--msg   { background: #ff3b30; color: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6); }
