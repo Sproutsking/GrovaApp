@@ -41,9 +41,11 @@ const FullScreenReels = ({
   const scrollTimeoutRef = useRef(null);
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
+  const touchStartTime = useRef(0);
   const touchTrackingRef = useRef(false);
   const progressBarRef = useRef(null);
   const isTransitioningRef = useRef(false);
+  const transitionTimeoutRef = useRef(null);
 
   const currentReel = reels[currentIndex];
 
@@ -67,6 +69,14 @@ const FullScreenReels = ({
   const thumbnailUrl = currentReel?.thumbnail_id
     ? mediaUrlService.getVideoThumbnail(currentReel.thumbnail_id, { width: 640, height: 1138 })
     : null;
+  const previousReel = currentIndex > 0 ? reels[currentIndex - 1] : null;
+  const nextReel = currentIndex < reels.length - 1 ? reels[currentIndex + 1] : null;
+
+  const getNeighborThumbnail = (reel) => reel?.thumbnail_id
+    ? mediaUrlService.getVideoThumbnail(reel.thumbnail_id, { width: 640, height: 1138 })
+    : null;
+  const previousThumbnailUrl = getNeighborThumbnail(previousReel);
+  const nextThumbnailUrl = getNeighborThumbnail(nextReel);
 
   useEffect(() => {
     if (thumbnailUrl) {
@@ -76,6 +86,12 @@ const FullScreenReels = ({
       mediaUrlService.preloadMediaUrl(videoUrl, { type: "video", priority: "high" });
     }
   }, [thumbnailUrl, videoUrl]);
+
+  useEffect(() => {
+    [previousThumbnailUrl, nextThumbnailUrl].forEach((url) => {
+      if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
+    });
+  }, [previousThumbnailUrl, nextThumbnailUrl]);
 
   useEffect(() => {
     const unsubscribe = GlobalVideoState.subscribe(() => {
@@ -156,6 +172,77 @@ const FullScreenReels = ({
     if (newPlayState) playVideo(); else pauseVideo();
   }, [playing, videoError, playVideo, pauseVideo]);
 
+  const updateSwipeOffset = useCallback((offset, duration = 0, easing = "cubic-bezier(0.22, 1, 0.36, 1)") => {
+    const container = containerRef.current;
+    if (!container) return;
+    const transition = duration
+      ? `transform ${duration}ms ${easing}`
+      : "none";
+    const slide = container.querySelector(".reel-slide");
+    if (slide) {
+      slide.style.transition = transition;
+      slide.style.transform = `translate3d(0, ${offset}px, 0)`;
+    }
+    container.querySelectorAll("[data-reel-neighbor]").forEach((neighbor) => {
+      const direction = Number(neighbor.dataset.direction);
+      neighbor.style.transition = transition;
+      neighbor.style.transform = `translate3d(-50%, ${direction * container.clientHeight + offset}px, 0)`;
+    });
+  }, []);
+
+  const finishSwipe = useCallback((direction, shouldAdvance) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const slide = container.querySelector(".reel-slide");
+    const neighbor = container.querySelector(`[data-reel-neighbor="${direction}"]`);
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduceMotion ? 140 : 360;
+    const easing = shouldAdvance
+      ? "cubic-bezier(0.22, 1, 0.36, 1)"
+      : "cubic-bezier(0.2, 1.35, 0.35, 1)";
+
+    isTransitioningRef.current = true;
+    if (shouldAdvance) {
+      if (videoRef.current) videoRef.current.pause();
+      setPlaying(false);
+      setVideoError(false);
+      setIsLoading(true);
+      setBuffering(true);
+      setCurrentTime(0);
+      setDuration(0);
+      setBufferedProgress(0);
+      setCaptionExpanded(false);
+
+      const targetOffset = -direction * container.clientHeight;
+      if (slide) {
+        slide.style.transition = `transform ${duration}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+        slide.style.transform = `translate3d(0, ${targetOffset}px, 0)`;
+      }
+      if (neighbor) {
+        neighbor.style.transition = `transform ${duration}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+        neighbor.style.transform = "translate3d(-50%, 0, 0)";
+      }
+    } else {
+      updateSwipeOffset(0, duration, easing);
+    }
+
+    if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+    transitionTimeoutRef.current = setTimeout(() => {
+      if (shouldAdvance) setCurrentIndex((index) => index + direction);
+      updateSwipeOffset(0);
+      isTransitioningRef.current = false;
+    }, duration);
+  }, [updateSwipeOffset]);
+
+  const transitionToReel = useCallback((direction) => {
+    if (isTransitioningRef.current) return;
+    const canAdvance = direction > 0 ? currentIndex < reels.length - 1 : currentIndex > 0;
+    if (canAdvance) finishSwipe(direction, true);
+  }, [currentIndex, reels.length, finishSwipe]);
+
+  const goToNext = useCallback(() => transitionToReel(1), [transitionToReel]);
+  const goToPrevious = useCallback(() => transitionToReel(-1), [transitionToReel]);
+
   const handleKeyDown = useCallback((e) => {
     if (showComments || showShare) return;
     if (e.key === "Escape") onClose();
@@ -166,29 +253,7 @@ const FullScreenReels = ({
       GlobalVideoState.setGlobalMuteState(newMuted);
     } else if (e.key === "ArrowUp") { e.preventDefault(); goToPrevious(); }
     else if (e.key === "ArrowDown") { e.preventDefault(); goToNext(); }
-  }, [onClose, togglePlay, showComments, showShare, muted]);
-
-  const goToNext = useCallback(() => {
-    if (currentIndex < reels.length - 1 && !isTransitioningRef.current) {
-      isTransitioningRef.current = true;
-      if (videoRef.current) videoRef.current.pause();
-      setPlaying(false); setCurrentIndex((prev) => prev + 1); setVideoError(false);
-      setIsLoading(true); setBuffering(true); setCurrentTime(0);
-      setDuration(0); setBufferedProgress(0); setCaptionExpanded(false);
-      setTimeout(() => { isTransitioningRef.current = false; }, 100);
-    }
-  }, [currentIndex, reels.length]);
-
-  const goToPrevious = useCallback(() => {
-    if (currentIndex > 0 && !isTransitioningRef.current) {
-      isTransitioningRef.current = true;
-      if (videoRef.current) videoRef.current.pause();
-      setPlaying(false); setCurrentIndex((prev) => prev - 1); setVideoError(false);
-      setIsLoading(true); setBuffering(true); setCurrentTime(0);
-      setDuration(0); setBufferedProgress(0); setCaptionExpanded(false);
-      setTimeout(() => { isTransitioningRef.current = false; }, 100);
-    }
-  }, [currentIndex]);
+  }, [onClose, togglePlay, showComments, showShare, muted, goToNext, goToPrevious]);
 
   const handleWheel = useCallback((e) => {
     e.preventDefault();
@@ -200,23 +265,59 @@ const FullScreenReels = ({
   }, [isScrolling, goToNext, goToPrevious]);
 
   const handleTouchStart = (e) => {
-    if (e.target.closest("button") || e.target.closest(".reel-left-info") || e.target.closest(".reel-right-actions")) {
+    if (showComments || showShare || e.target.closest("button") || e.target.closest(".reel-left-info")
+      || e.target.closest(".reel-right-actions") || e.target.closest(".video-progress-container")) {
       touchTrackingRef.current = false;
       return;
     }
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
+    touchStartTime.current = Date.now();
     touchTrackingRef.current = true;
+    updateSwipeOffset(0);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!touchTrackingRef.current || isTransitioningRef.current) return;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 1.15) return;
+
+    const direction = deltaY < 0 ? 1 : -1;
+    const canNavigate = direction > 0 ? Boolean(nextReel) : Boolean(previousReel);
+    const height = containerRef.current?.clientHeight || window.innerHeight;
+    const distance = Math.abs(deltaY);
+    const resistedDelta = canNavigate
+      ? deltaY
+      : Math.sign(deltaY) * height * 0.42 * (1 - 1 / (distance * 0.55 / height + 1));
+    updateSwipeOffset(resistedDelta);
   };
 
   const handleTouchEnd = (e) => {
-    if (!touchTrackingRef.current || e.target.closest("button") || e.target.closest(".reel-left-info") || e.target.closest(".reel-right-actions")) return;
-    const diff = touchStartY.current - e.changedTouches[0].clientY;
-    const horizontalDiff = Math.abs(touchStartX.current - e.changedTouches[0].clientX);
-    touchTrackingRef.current = false;
-    if (Math.abs(diff) > 56 && Math.abs(diff) > horizontalDiff * 1.15) {
-      if (diff > 0) goToNext(); else goToPrevious();
+    if (!touchTrackingRef.current) return;
+    if (e.target.closest("button") || e.target.closest(".reel-left-info") || e.target.closest(".reel-right-actions")) {
+      touchTrackingRef.current = false;
+      updateSwipeOffset(0, 320);
+      return;
     }
+
+    const endY = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - endY;
+    const horizontalDiff = Math.abs(touchStartX.current - e.changedTouches[0].clientX);
+    const elapsed = Math.max(1, Date.now() - touchStartTime.current);
+    const velocity = Math.abs(diff) / elapsed;
+    touchTrackingRef.current = false;
+    if (Math.abs(diff) < 4 || Math.abs(diff) < horizontalDiff * 1.15) {
+      updateSwipeOffset(0);
+      return;
+    }
+
+    const direction = diff > 0 ? 1 : -1;
+    const canAdvance = direction > 0 ? Boolean(nextReel) : Boolean(previousReel);
+    const height = containerRef.current?.clientHeight || window.innerHeight;
+    const shouldAdvance = canAdvance
+      && (Math.abs(diff) > Math.min(140, height * 0.18) || (velocity > 0.62 && Math.abs(diff) > 36));
+    finishSwipe(direction, shouldAdvance);
   };
 
   const handleProgressBarClick = (e) => {
@@ -228,14 +329,14 @@ const FullScreenReels = ({
     setCurrentTime(pct * duration);
   };
 
-  const handleProgressBarDrag = (e) => {
+  const handleProgressBarDrag = useCallback((e) => {
     e.stopPropagation();
     if (!isDragging || !videoRef.current || !progressBarRef.current || !duration) return;
     const rect = progressBarRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     videoRef.current.currentTime = pct * duration;
     setCurrentTime(pct * duration);
-  };
+  }, [duration, isDragging]);
 
   const handleProgressBarMouseDown = (e) => {
     e.stopPropagation(); setIsDragging(true); handleProgressBarClick(e);
@@ -298,7 +399,7 @@ const FullScreenReels = ({
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
-  }, [isDragging]);
+  }, [isDragging, handleProgressBarDrag]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -307,10 +408,15 @@ const FullScreenReels = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       if (container) container.removeEventListener("wheel", handleWheel);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-      if (scrollTimeoutRef.current)   clearTimeout(scrollTimeoutRef.current);
     };
   }, [handleKeyDown, handleWheel]);
+
+  useEffect(() => () => {
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+    isTransitioningRef.current = false;
+  }, []);
 
   const playedPercentage      = duration > 0 ? (currentTime / duration) * 100 : 0;
   const reelWithType          = { ...currentReel, type: "reel" };
@@ -328,11 +434,45 @@ const FullScreenReels = ({
         className={`fullscreen-reels-container${showComments ? " with-comments" : ""}`}
         onMouseMove={() => resetControlsTimer()}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => {
+          if (!touchTrackingRef.current) return;
+          touchTrackingRef.current = false;
+          finishSwipe(0, false);
+        }}
       >
         <button className={`fullscreen-close-btn ${showControls ? "visible" : ""}`} onClick={onClose}>
           <X size={24} />
         </button>
+
+        {[previousReel && { reel: previousReel, direction: -1 }, nextReel && { reel: nextReel, direction: 1 }]
+          .filter(Boolean)
+          .map(({ reel, direction }) => {
+            const previewUrl = direction > 0 ? nextThumbnailUrl : previousThumbnailUrl;
+            const author = reel.profiles?.full_name || reel.author || "Creator";
+            return (
+              <div
+                key={`${reel.id || direction}-preview`}
+                className={`reel-neighbor ${direction > 0 ? "reel-neighbor-next" : "reel-neighbor-previous"}`}
+                data-reel-neighbor={direction}
+                data-direction={direction}
+                aria-hidden="true"
+              >
+                {previewUrl ? (
+                  <img className="reel-neighbor-image" src={previewUrl} alt="" />
+                ) : (
+                  <div className="reel-neighbor-fallback">{author.charAt(0).toUpperCase()}</div>
+                )}
+                <div className="reel-neighbor-shade" />
+                <div className="reel-neighbor-label">
+                  <span>{direction > 0 ? "UP NEXT" : "PREVIOUS REEL"}</span>
+                  <strong>{author}</strong>
+                  {reel.caption && <p>{reel.caption}</p>}
+                </div>
+              </div>
+            );
+          })}
 
         <div className="reel-slide">
           {videoUrl && !videoError ? (
@@ -477,6 +617,7 @@ const FullScreenReels = ({
           justify-content: center;
           overflow: hidden;
           overscroll-behavior: contain;
+          touch-action: none;
           top: 0 !important;
           left: 0 !important;
           width: 100vw;
@@ -581,6 +722,79 @@ const FullScreenReels = ({
           background: #000;
           max-width: 100vw;
           max-height: 100vh;
+          transform: translate3d(0, 0, 0);
+          will-change: transform;
+          z-index: 1;
+        }
+
+        .reel-neighbor {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          width: min(100%, 1100px);
+          height: 100%;
+          overflow: hidden;
+          background: #080808;
+          pointer-events: none;
+          will-change: transform;
+          z-index: 0;
+        }
+
+        .reel-neighbor-next { transform: translate3d(-50%, 100%, 0); }
+        .reel-neighbor-previous { transform: translate3d(-50%, -100%, 0); }
+
+        .reel-neighbor-image,
+        .reel-neighbor-fallback {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .reel-neighbor-fallback {
+          display: grid;
+          place-items: center;
+          background: radial-gradient(circle at 50% 42%, rgba(132,204,22,.24), #080808 58%);
+          color: #a3e635;
+          font-size: 64px;
+          font-weight: 800;
+        }
+
+        .reel-neighbor-shade {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(0,0,0,.2), transparent 30%, rgba(0,0,0,.78));
+        }
+
+        .reel-neighbor-label {
+          position: absolute;
+          left: 20px;
+          right: 20px;
+          bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px));
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          color: #fff;
+          text-shadow: 0 1px 12px rgba(0,0,0,.65);
+        }
+
+        .reel-neighbor-label span {
+          color: #c4f277;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .14em;
+        }
+
+        .reel-neighbor-label strong { font-size: 19px; font-weight: 750; }
+        .reel-neighbor-label p {
+          max-width: 420px;
+          margin: 0;
+          color: rgba(255,255,255,.82);
+          font-size: 14px;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
         .reel-video {

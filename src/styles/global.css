@@ -430,11 +430,17 @@ img, video {
     --deck-border: rgba(148,163,184,0.14);
   }
 
-  .main-content-mobile .gvp-card,
   .main-content-mobile .xv-reel-card,
   .main-content-mobile .content-card,
   .main-content-mobile .nc-card {
-    border-color: #2f3336 !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: none !important;
+    margin-bottom: 2px;
+  }
+
+  .main-content-mobile .gvp-card {
+    border-color: rgba(255, 255, 255, 0.12) !important;
     box-shadow: none !important;
   }
 }
@@ -852,7 +858,7 @@ img, video {
    ========================================================================== */
 
 @media (max-width: 768px) {
-  .content-card { margin-bottom: 0; border-radius: 0; border-left: 1px solid #2f3336; border-right: 1px solid #2f3336; }
+  .content-card { margin-bottom: 2px; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; border-top: 1px solid rgba(255,255,255,0.12); }
   .card-header  { padding: 10px 12px; }
   .post-content { padding: 0 12px; }
   .post-text    { font-size: calc((14px) + 1px); margin-bottom: 12px; }

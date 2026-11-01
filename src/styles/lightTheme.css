@@ -17,8 +17,8 @@
   html.theme-light .main-content-mobile .nc-card,
   [data-theme="light"] .main-content-mobile .nc-card,
   [data-light-theme="true"] .main-content-mobile .nc-card {
-    border-width: 1px !important;
-    border-color: rgba(71, 85, 105, 0.2) !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(71, 85, 105, 0.2) !important;
     box-shadow: none !important;
   }
 }

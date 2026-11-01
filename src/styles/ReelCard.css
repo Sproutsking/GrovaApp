@@ -532,10 +532,9 @@
 @media (max-width: 768px) {
   .xv-reel-card {
     border-radius: 0;
-    border-left: 1px solid #2f3336;
-    border-right: 1px solid #2f3336;
-    border-top: none;
-    border-bottom: 1px solid #2f3336;
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 2px;
     max-height: 98vh;
     box-shadow: none;
   }
