@@ -44,6 +44,7 @@ const FullScreenReels = ({
   const touchStartTime = useRef(0);
   const touchTrackingRef = useRef(false);
   const progressBarRef = useRef(null);
+  const warmVideoIdsRef = useRef(new Set());
   const isTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
 
@@ -71,6 +72,11 @@ const FullScreenReels = ({
     : null;
   const previousReel = currentIndex > 0 ? reels[currentIndex - 1] : null;
   const nextReel = currentIndex < reels.length - 1 ? reels[currentIndex + 1] : null;
+  const getReelVideoUrl = (reel) => reel?.video_id
+    ? mediaUrlService.getVideoUrl(reel.video_id, { quality: "auto", format: "mp4" })
+    : null;
+  const previousVideoUrl = getReelVideoUrl(previousReel);
+  const nextVideoUrl = getReelVideoUrl(nextReel);
 
   const getNeighborThumbnail = (reel) => reel?.thumbnail_id
     ? mediaUrlService.getVideoThumbnail(reel.thumbnail_id, { width: 640, height: 1138 })
@@ -92,6 +98,12 @@ const FullScreenReels = ({
       if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
     });
   }, [previousThumbnailUrl, nextThumbnailUrl]);
+
+  useEffect(() => {
+    [previousVideoUrl, nextVideoUrl].forEach((url) => {
+      if (url) mediaUrlService.preloadMediaUrl(url, { type: "video", priority: "high" });
+    });
+  }, [previousVideoUrl, nextVideoUrl]);
 
   useEffect(() => {
     const unsubscribe = GlobalVideoState.subscribe(() => {
@@ -151,7 +163,7 @@ const FullScreenReels = ({
       .then(() => { setPlaying(true); setBuffering(false); resetControlsTimer(); })
       .catch((err) => {
         console.error("Play error:", err);
-        if (err.name !== "AbortError") setVideoError(true);
+        if (err.name !== "AbortError" && err.name !== "NotAllowedError") setVideoError(true);
         setBuffering(false);
       });
   }, [videoError, resetControlsTimer]);
@@ -203,11 +215,14 @@ const FullScreenReels = ({
 
     isTransitioningRef.current = true;
     if (shouldAdvance) {
+      const targetReel = reels[currentIndex + direction];
+      const targetIsWarm = !targetReel?.video_id
+        || (targetReel.id != null && warmVideoIdsRef.current.has(String(targetReel.id)));
       if (videoRef.current) videoRef.current.pause();
       setPlaying(false);
       setVideoError(false);
-      setIsLoading(true);
-      setBuffering(true);
+      setIsLoading(!targetIsWarm);
+      setBuffering(!targetIsWarm);
       setCurrentTime(0);
       setDuration(0);
       setBufferedProgress(0);
@@ -232,7 +247,7 @@ const FullScreenReels = ({
       updateSwipeOffset(0);
       isTransitioningRef.current = false;
     }, duration);
-  }, [updateSwipeOffset]);
+  }, [currentIndex, reels, updateSwipeOffset]);
 
   const transitionToReel = useCallback((direction) => {
     if (isTransitioningRef.current) return;
@@ -349,8 +364,18 @@ const FullScreenReels = ({
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
-      setIsLoading(false); setBuffering(false); setVideoError(false);
+      setVideoError(false);
       if (GlobalVideoState.globalPlayState) playVideo();
+    }
+  };
+
+  const markVideoReady = (reelId, videoElement) => {
+    if (reelId != null) warmVideoIdsRef.current.add(String(reelId));
+    if (videoElement && videoElement !== videoRef.current) videoElement.pause();
+    if (videoElement === videoRef.current) {
+      setIsLoading(false);
+      setBuffering(false);
+      setVideoError(false);
     }
   };
 
@@ -363,8 +388,9 @@ const FullScreenReels = ({
   };
 
   const handleWaiting = () => setBuffering(true);
-  const handleCanPlay  = () => setBuffering(false);
+  const handleCanPlay  = (e) => markVideoReady(e.currentTarget.dataset.reelId, e.currentTarget);
   const handleError    = (e) => {
+    if (e.currentTarget.error?.code === 1) return;
     console.error("Video error:", e);
     setVideoError(true); setIsLoading(false); setBuffering(false);
   };
@@ -450,6 +476,7 @@ const FullScreenReels = ({
           .filter(Boolean)
           .map(({ reel, direction }) => {
             const previewUrl = direction > 0 ? nextThumbnailUrl : previousThumbnailUrl;
+            const previewVideoUrl = direction > 0 ? nextVideoUrl : previousVideoUrl;
             const author = reel.profiles?.full_name || reel.author || "Creator";
             return (
               <div
@@ -464,6 +491,18 @@ const FullScreenReels = ({
                 ) : (
                   <div className="reel-neighbor-fallback">{author.charAt(0).toUpperCase()}</div>
                 )}
+                {previewVideoUrl && (
+                  <video
+                    className="reel-neighbor-video"
+                    src={previewVideoUrl}
+                    poster={previewUrl || undefined}
+                    muted
+                    playsInline
+                    preload="auto"
+                    onLoadedData={(e) => markVideoReady(reel.id, e.currentTarget)}
+                    onCanPlay={(e) => markVideoReady(reel.id, e.currentTarget)}
+                  />
+                )}
                 <div className="reel-neighbor-shade" />
                 <div className="reel-neighbor-label">
                   <span>{direction > 0 ? "UP NEXT" : "PREVIOUS REEL"}</span>
@@ -475,24 +514,32 @@ const FullScreenReels = ({
           })}
 
         <div className="reel-slide">
-          {videoUrl && !videoError ? (
+          {videoUrl ? (
             <>
-                  <video
+              <video
                 ref={videoRef}
-                    key={currentReel.id || videoUrl}
+                key={currentReel.id || videoUrl}
+                data-reel-id={currentReel.id}
                 className="reel-video"
                 src={videoUrl}
                 poster={thumbnailUrl}
                 loop playsInline muted={muted} preload="auto"
                 onClick={togglePlay}
-                onLoadStart={() => setIsLoading(true)}
+                onLoadStart={() => {
+                  const isWarm = currentReel.id != null
+                    && warmVideoIdsRef.current.has(String(currentReel.id));
+                  setIsLoading(!isWarm);
+                  setBuffering(!isWarm);
+                }}
                 onWaiting={handleWaiting}
                 onCanPlay={handleCanPlay}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onLoadedData={(e) => markVideoReady(currentReel.id, e.currentTarget)}
                 onProgress={handleProgress}
                 onError={handleError}
               />
+              {videoError && <div className="reel-video-error">Video unavailable</div>}
               {isLoading && (
                 <div className="reel-loading"><div className="spinner" /></div>
               )}
@@ -510,7 +557,7 @@ const FullScreenReels = ({
           ) : (
             <div className="reel-fallback">
               <div className="reel-fallback-letter">{profile.author?.charAt(0) || "R"}</div>
-              {videoError && <div className="error-message">Video unavailable</div>}
+              {currentReel.video_id && <div className="error-message">Video unavailable</div>}
             </div>
           )}
 
@@ -747,7 +794,24 @@ const FullScreenReels = ({
         .reel-neighbor-fallback {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
+          background: #000;
+        }
+
+        .reel-neighbor-image {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+
+        .reel-neighbor-video {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          background: #000;
+          z-index: 2;
         }
 
         .reel-neighbor-fallback {
@@ -763,6 +827,7 @@ const FullScreenReels = ({
           position: absolute;
           inset: 0;
           background: linear-gradient(180deg, rgba(0,0,0,.2), transparent 30%, rgba(0,0,0,.78));
+          z-index: 3;
         }
 
         .reel-neighbor-label {
@@ -775,6 +840,7 @@ const FullScreenReels = ({
           gap: 5px;
           color: #fff;
           text-shadow: 0 1px 12px rgba(0,0,0,.65);
+          z-index: 4;
         }
 
         .reel-neighbor-label span {
@@ -831,6 +897,20 @@ const FullScreenReels = ({
         }
 
         .error-message { color: rgba(255,255,255,0.7); font-size: calc((16px) + 1px); }
+
+        .reel-video-error {
+          position: absolute;
+          inset: 0;
+          z-index: 12;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background: rgba(0,0,0,.42);
+          color: rgba(255,255,255,.82);
+          font-size: 15px;
+          font-weight: 600;
+          text-align: center;
+        }
 
         .reel-loading {
           position: absolute;

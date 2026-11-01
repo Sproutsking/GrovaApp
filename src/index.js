@@ -31,6 +31,9 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt, setPromptNever, shouldSuppressInstallPrompt } from "./services/notifications/appPromptManager";
+import { initializeHoverCapability } from "./utils/hoverCapability";
+
+initializeHoverCapability();
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
