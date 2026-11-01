@@ -3,6 +3,32 @@ import { supabase } from "../config/supabase";
 import communityState from "./CommunityStateManager";
 import roleService from "./roleService";
 
+const COMMUNITY_MESSAGE_PAGE_SIZE = 50;
+
+const normalizeMessages = (messages) => messages.map((message) => ({
+  ...message,
+  user: message.user || {
+    id: message.user_id,
+    username: "Unknown",
+    full_name: "Unknown User",
+    avatar_id: null,
+    avatar_metadata: null,
+    verified: false,
+  },
+}));
+
+const mergeMessages = (existing, incoming) => {
+  const messagesById = new Map();
+  [...existing, ...incoming].forEach((message) => {
+    const key = message.id || message._tempId || message.tempId;
+    if (key) messagesById.set(String(key), message);
+  });
+  return [...messagesById.values()].sort((first, second) => {
+    const timeDifference = new Date(first.created_at).getTime() - new Date(second.created_at).getTime();
+    return timeDifference || String(first.id || first.tempId).localeCompare(String(second.id || second.tempId));
+  });
+};
+
 class CommunityMessageService {
   constructor() {
     this.channelSubscriptions = new Map();
@@ -18,7 +44,6 @@ class CommunityMessageService {
 
   async loadMessages(channelId) {
     try {
-      console.log(`📥 Loading messages for channel ${channelId}`);
       const { data, error } = await supabase
         .from("community_messages")
         .select(`
@@ -36,28 +61,59 @@ class CommunityMessageService {
         `)
         .eq("channel_id", channelId)
         .is("deleted_at", null)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(COMMUNITY_MESSAGE_PAGE_SIZE);
 
       if (error) throw error;
 
-      const messages = (data || []).map(msg => ({
-        ...msg,
-        user: msg.user || {
-          id: msg.user_id,
-          username: "Unknown",
-          full_name: "Unknown User",
-          avatar_id: null,
-          avatar_metadata: null,
-          verified: false
-        }
-      }));
-
-      console.log(`✅ Loaded ${messages.length} messages`);
+      const page = normalizeMessages(data || []).reverse();
+      const messages = mergeMessages(communityState.getMessages(channelId), page);
       communityState.initMessages(channelId, messages);
-      return messages;
+      return { messages, hasMore: page.length === COMMUNITY_MESSAGE_PAGE_SIZE };
     } catch (error) {
       console.error("❌ Load messages error:", error);
-      return [];
+      throw error;
+    }
+  }
+
+  async loadOlderMessages(channelId, oldestMessage) {
+    if (!channelId || !oldestMessage?.created_at || !oldestMessage?.id) {
+      throw new Error("A channel and oldest message cursor are required to load older messages.");
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("community_messages")
+        .select(`
+          *,
+          user:user_id(
+            id,
+            username,
+            full_name,
+            avatar_id,
+            avatar_metadata,
+            verified,
+            subscription_tier,
+            boost_selections
+          )
+        `)
+        .eq("channel_id", channelId)
+        .is("deleted_at", null)
+        .or(`created_at.lt.${oldestMessage.created_at},and(created_at.eq.${oldestMessage.created_at},id.lt.${oldestMessage.id})`)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(COMMUNITY_MESSAGE_PAGE_SIZE);
+
+      if (error) throw error;
+
+      const page = normalizeMessages(data || []).reverse();
+      const messages = mergeMessages(communityState.getMessages(channelId), page);
+      communityState.initMessages(channelId, messages);
+      return { messages, hasMore: page.length === COMMUNITY_MESSAGE_PAGE_SIZE };
+    } catch (error) {
+      console.error("❌ Load older messages error:", error);
+      throw error;
     }
   }
 

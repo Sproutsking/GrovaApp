@@ -97,6 +97,10 @@ const MessageList = ({
   onWelcomeIntroduce,
   onWelcomeBrowse,
   newMessageId,
+  hasOlderMessages = false,
+  loadingOlderMessages = false,
+  olderMessagesError = "",
+  onLoadOlderMessages,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -210,6 +214,15 @@ const MessageList = ({
       {loading && (
         <div className="msg-loading">
           <div className="msg-spinner" />
+        </div>
+      )}
+
+      {hasOlderMessages && (
+        <div className="msg-history-controls">
+          <button type="button" onClick={onLoadOlderMessages} disabled={loadingOlderMessages}>
+            {loadingOlderMessages ? "Loading older messages…" : "Load older messages"}
+          </button>
+          {olderMessagesError && <span role="alert">{olderMessagesError}</span>}
         </div>
       )}
 
@@ -413,6 +426,29 @@ const MessageList = ({
           justify-content: center;
           padding: 20px;
         }
+
+        .msg-history-controls {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 0 12px;
+        }
+        .msg-history-controls button {
+          padding: 6px 11px;
+          border: 1px solid rgba(156,255,0,.24);
+          border-radius: 999px;
+          background: rgba(156,255,0,.06);
+          color: #d9f99d;
+          font: 700 11px inherit;
+          cursor: pointer;
+        }
+        .msg-history-controls button:hover:not(:disabled) {
+          border-color: rgba(156,255,0,.48);
+          background: rgba(156,255,0,.1);
+        }
+        .msg-history-controls button:disabled { cursor: wait; opacity: .7; }
+        .msg-history-controls span { color: #fca5a5; font-size: 11px; }
 
         .msg-spinner {
           width: 20px;

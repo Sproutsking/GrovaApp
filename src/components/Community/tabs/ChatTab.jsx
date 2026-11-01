@@ -1,5 +1,5 @@
 // components/Community/tabs/ChatTab.jsx
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import {
   Menu, ChevronLeft, ChevronRight, Plus, Lock, Palette,
   ChevronDown, ArrowLeft, Settings2, Hash, Megaphone, Volume2,
@@ -61,6 +61,9 @@ const ChatTab = ({
   const [messages, setMessages] = useState(() =>
     selectedChannel ? [...(communityState.getMessages(selectedChannel.id) || [])] : []
   );
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [olderMessagesError, setOlderMessagesError] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [sending, setSending] = useState(false);
@@ -90,6 +93,9 @@ const ChatTab = ({
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
   const currentUserBoost = useUserBoostTier(userId);
+  const loadingOlderMessagesRef = useRef(false);
+  const olderMessagesRequestRef = useRef(0);
+  const pendingMessageScrollRestoreRef = useRef(null);
   const currentMemberRoleIds = members
     .find((member) => String(member.user_id) === String(userId))
     ?.roles?.map((role) => String(role.id))
@@ -229,6 +235,14 @@ const ChatTab = ({
   const scrollToBottom = (behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
+
+  useLayoutEffect(() => {
+    const restore = pendingMessageScrollRestoreRef.current;
+    const container = containerRef.current;
+    if (!restore || restore.channelId !== selectedChannel?.id || !container) return;
+    container.scrollTop = restore.scrollTop + container.scrollHeight - restore.scrollHeight;
+    pendingMessageScrollRestoreRef.current = null;
+  }, [messages, selectedChannel?.id]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -505,6 +519,12 @@ const ChatTab = ({
 
   useEffect(() => {
     if (selectedChannel) {
+      olderMessagesRequestRef.current += 1;
+      loadingOlderMessagesRef.current = false;
+      setLoadingOlderMessages(false);
+      setOlderMessagesError("");
+      setHasOlderMessages(false);
+      pendingMessageScrollRestoreRef.current = null;
       isAtBottom.current = true;
       clearTimeout(readMarkTimer.current);
       const unreadCount = Math.max(
@@ -578,12 +598,49 @@ const ChatTab = ({
     const requestId = ++messagesRequestRef.current;
     const channelId = selectedChannel.id;
     try {
-      const loaded = await communityMessageService.loadMessages(channelId);
+      const result = await communityMessageService.loadMessages(channelId);
       if (requestId !== messagesRequestRef.current || selectedChannel?.id !== channelId) return null;
-      return Array.isArray(loaded) ? loaded.length : null;
+      setHasOlderMessages(result.hasMore);
+      return result.messages.length;
     } catch (error) {
       console.error("Error loading messages:", error);
       return null;
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    const channelId = selectedChannel?.id;
+    const oldestMessage = messages[0];
+    if (!channelId || !oldestMessage || !hasOlderMessages || loadingOlderMessagesRef.current) return;
+
+    const container = containerRef.current;
+    if (container) {
+      pendingMessageScrollRestoreRef.current = {
+        channelId,
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+      };
+    }
+
+    const requestId = ++olderMessagesRequestRef.current;
+    loadingOlderMessagesRef.current = true;
+    setLoadingOlderMessages(true);
+    setOlderMessagesError("");
+
+    try {
+      const result = await communityMessageService.loadOlderMessages(channelId, oldestMessage);
+      if (requestId !== olderMessagesRequestRef.current || selectedChannel?.id !== channelId) return;
+      setHasOlderMessages(result.hasMore);
+    } catch (error) {
+      if (requestId !== olderMessagesRequestRef.current || selectedChannel?.id !== channelId) return;
+      console.error("Error loading older community messages:", error);
+      pendingMessageScrollRestoreRef.current = null;
+      setOlderMessagesError("Could not load older messages. Please try again.");
+    } finally {
+      if (requestId === olderMessagesRequestRef.current) {
+        loadingOlderMessagesRef.current = false;
+        setLoadingOlderMessages(false);
+      }
     }
   };
 
@@ -1083,6 +1140,10 @@ const ChatTab = ({
           />
           <MessageList
             messages={messages}
+            hasOlderMessages={hasOlderMessages}
+            loadingOlderMessages={loadingOlderMessages}
+            olderMessagesError={olderMessagesError}
+            onLoadOlderMessages={loadOlderMessages}
             pendingMessages={[]}
             loading={false}
             userId={userId}
