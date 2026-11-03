@@ -8,6 +8,7 @@ export const BackNavigationContext = createContext({
 
 export const BackNavigationProvider = ({ children }) => {
   const handlersRef = useRef([]);
+  const restorePopRef = useRef(false);
 
   const register = useCallback((handler) => {
     handlersRef.current = [...handlersRef.current, handler];
@@ -18,14 +19,21 @@ export const BackNavigationProvider = ({ children }) => {
 
   const hasHandlers = useCallback(() => handlersRef.current.length > 0, []);
 
-  const triggerBack = useCallback(async () => {
+  const triggerBack = useCallback(() => {
     const handlers = handlersRef.current;
     if (handlers.length === 0) return false;
     const handler = handlers[handlers.length - 1];
     try {
-      const result = await Promise.resolve(handler());
+      const result = handler();
+      if (result && typeof result.then === "function") {
+        return result.then((value) => value !== false).catch((error) => {
+          console.error("[BackNavigation] Back handler failed:", error);
+          return true;
+        });
+      }
       return result !== false;
-    } catch (e) {
+    } catch (error) {
+      console.error("[BackNavigation] Back handler failed:", error);
       return true;
     }
   }, []);
@@ -35,22 +43,40 @@ export const BackNavigationProvider = ({ children }) => {
 
     const ensureSeed = () => {
       const state = window.history.state || {};
-      if (!state.__back_navigation && !state.__app_route) {
+      if (!state.__back_navigation && !state.__app_route && state.type !== "app-route") {
         window.history.replaceState({ __back_navigation: true }, "");
       }
     };
 
     ensureSeed();
 
-    const onPop = async (e) => {
+    const restoreCurrentEntry = (event) => {
       try {
-        const handled = await triggerBack();
-        if (handled) {
-          try { e.stopImmediatePropagation(); } catch {}
-          try { window.history.pushState({ __back_navigation: true }, ""); } catch {}
-          return;
-        }
-      } catch {}
+        window.history.forward();
+      } catch (error) {
+        console.error("[BackNavigation] Could not restore the current history entry:", error);
+        return;
+      }
+
+      restorePopRef.current = true;
+      event.stopImmediatePropagation();
+      window.setTimeout(() => { restorePopRef.current = false; }, 500);
+    };
+
+    const onPop = (e) => {
+      if (restorePopRef.current) {
+        restorePopRef.current = false;
+        return;
+      }
+
+      const handled = triggerBack();
+      if (handled && typeof handled.then === "function") {
+        handled.then((shouldRestore) => {
+          if (shouldRestore) restoreCurrentEntry(e);
+        });
+      } else if (handled) {
+        restoreCurrentEntry(e);
+      }
     };
 
     window.addEventListener("popstate", onPop);

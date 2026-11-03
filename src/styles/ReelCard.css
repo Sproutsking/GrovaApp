@@ -107,6 +107,7 @@
 
 /* ── Placeholder ─────────────────────────────────────────────────────────────── */
 .xv-reel-placeholder {
+  position: relative;
   width: 100%;
   height: 100%;
   background:
@@ -123,7 +124,18 @@
   gap: 14px;
 }
 
+.xv-reel-error-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+}
+
 .xv-placeholder-letter {
+  position: relative;
+  z-index: 1;
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -138,6 +150,8 @@
 }
 
 .xv-error-msg {
+  position: relative;
+  z-index: 1;
   color: rgba(255, 255, 255, 0.4);
   font-size: calc((12px) + 1px);
   font-weight: 500;

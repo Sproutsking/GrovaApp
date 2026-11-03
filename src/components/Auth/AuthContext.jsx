@@ -607,12 +607,12 @@ export default function AuthProvider({ children }) {
         fetchInFlight.current = false;
         if (!isMounted.current) return;
 
-        if (isAbortError(err)) return;
-
-        console.warn(
-          `[AuthContext] Profile fetch error (retry ${retryIndex}):`,
-          err?.message,
-        );
+        if (!isAbortError(err)) {
+          console.warn(
+            `[AuthContext] Profile fetch error (retry ${retryIndex}):`,
+            err?.message,
+          );
+        }
 
         if (lastGoodProfile.current) {
           setProfile(lastGoodProfile.current);

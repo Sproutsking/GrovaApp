@@ -536,7 +536,7 @@ const MessageList = ({
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:20px; padding-top:3px; margin-bottom:2px; box-sizing:border-box; gap:6px; }
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:20px; padding-top:3px; margin-bottom:2px; box-sizing:border-box; gap:6px; }
         .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
         .msg-card-header.incoming .msg-user-name { order:1; }
         .msg-card-header.incoming .msg-card-menu-btn { order:2; }
@@ -545,7 +545,7 @@ const MessageList = ({
         .msg-card-header.outgoing,
         .msg-card-header.incoming { justify-content:space-between; }
         .msg-card-header.outgoing .msg-user-name { flex-direction:row-reverse; }
-        .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
+        .msg-card-header .msg-user-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
         .msg-item.reply-navigation-target .msg-bubble{animation:replyTargetPulse 1.5s ease-out;}
@@ -727,6 +727,8 @@ const MessageList = ({
         @media (max-width: 768px) {
           .msg-list-wrapper.text-channel { padding-left: 2px; padding-right: 2px; }
           .msg-list-wrapper.announcement-channel { padding-left: 2px; padding-right: 2px; }
+          .msg-item .mra-wrapper { flex: 1 1 auto; width: fit-content; max-width: calc(100% - 48px); }
+          .msg-item .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
           .msg-item.announcement .mra-wrapper { max-width: 80%; }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel .msg-item.them { padding-left: 4px; padding-right: 10px; }

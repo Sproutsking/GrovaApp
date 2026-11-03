@@ -13,8 +13,9 @@ export const useBackButton = (isAtRoot) => {
 
       const now = Date.now();
       if (now - lastBackPressRef.current < DOUBLE_BACK_DELAY) {
-        window.history.back();
-        return false;
+        lastBackPressRef.current = 0;
+        setShowExitPrompt(false);
+        return true;
       }
 
       lastBackPressRef.current = now;
@@ -30,7 +31,7 @@ export const useBackButton = (isAtRoot) => {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const current = window.history.state || {};
-    if (!current.__back_navigation && !current.__app_route) {
+    if (!current.__back_navigation && !current.__app_route && current.type !== "app-route") {
       window.history.replaceState({ __back_navigation: true }, "");
     }
   }, []);

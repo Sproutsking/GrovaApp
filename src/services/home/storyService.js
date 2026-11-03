@@ -156,20 +156,9 @@ class StoryService {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("You must be logged in");
-
-      const { data: story, error: fetchError } = await supabase
-        .from("stories").select("id, user_id, deleted_at").eq("id", storyId).single();
-      if (fetchError) throw new Error("Story not found");
-      if (story.deleted_at) {
-        cacheService.invalidate(`story:${storyId}`);
-        cacheService.invalidatePattern("stories");
-        return { success: true };
-      }
-      if (story.user_id !== user.id) throw new Error("You can only delete your own stories");
-
-      const { error } = await supabase
-        .from("stories").update({ deleted_at: new Date().toISOString() }).eq("id", storyId);
+      const { data, error } = await supabase.rpc("delete_own_story", { p_story_id: storyId });
       if (error) throw error;
+      if (!data) throw new Error("You do not have permission to delete this story");
 
       xrcService.writeRecord(
         STREAM_TYPES.XCRC,

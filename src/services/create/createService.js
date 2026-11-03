@@ -378,18 +378,17 @@ class CreateService {
     }
   }
 
-  async deleteStory(storyId, userId) {
+  async deleteStory(storyId) {
     try {
-      const { error } = await supabase
-        .from("stories")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", storyId)
-        .eq("user_id", userId);
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("You must be logged in");
+      const { data, error } = await supabase.rpc("delete_own_story", { p_story_id: storyId });
       if (error) throw error;
+      if (!data) throw new Error("You do not have permission to delete this story");
       xrcService.writeRecord(
         STREAM_TYPES.XCRC,
-        XRC_EVENTS.storyDeleted(storyId, userId),
-        userId,
+        XRC_EVENTS.storyDeleted(storyId, user.id),
+        user.id,
       ).catch((err) => console.error("[XRC] storyDeleted record failed:", err));
       cacheService.invalidate("stories");
       return { success: true };

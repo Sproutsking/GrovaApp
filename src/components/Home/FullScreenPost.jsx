@@ -86,27 +86,6 @@ function buildPostVideoPoster(post) {
     : null;
 }
 
-// Preload the main full-screen media when the viewer opens.
-function useFullScreenMediaPreload(post) {
-  useEffect(() => {
-    if (!post) return;
-    const imageId = post.image_ids?.[0];
-    const videoId = post.video_ids?.[0];
-    try {
-      if (videoId) {
-        const url = buildPostVideoSources(videoId)[0];
-        if (url) mediaUrlService.preloadMediaUrl(url, { type: "video", priority: "high" });
-      }
-    } catch {}
-    try {
-      if (imageId) {
-        const url = mediaUrlService.getImageUrl(imageId, { width: 1200, quality: "auto:best", format: "auto" });
-        if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
-      }
-    } catch {}
-  }, [post]);
-}
-
 const FullScreenPost = ({
   post,
   allPosts = [],
@@ -118,7 +97,6 @@ const FullScreenPost = ({
   onActionMenu,
   onProfileClick,
 }) => {
-  useFullScreenMediaPreload(post);
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(false);
   const [comments, setComments] = useState([]);
@@ -349,7 +327,7 @@ const FullScreenPost = ({
               ref={videoRef}
               src={videoSources[videoSourceIndex] || undefined}
               poster={videoPoster || undefined}
-              preload="metadata"
+              preload="auto"
               muted={muted}
               loop
               playsInline

@@ -583,7 +583,8 @@ const ActionMenu = ({
         .am-panel--mobile {
           bottom:0;left:0;right:0;width:100%;
           max-height:85vh;
-          border-radius:18px 18px 0 0;border-bottom:none;
+          border-radius:18px 18px 0 0;border-left:0;border-right:0;border-bottom:0;
+          border-top:1px solid var(--surface-border);
           box-shadow:0 -8px 50px rgba(0,0,0,0.7);
           animation:amUp 0.28s cubic-bezier(0.16,1,0.3,1);
           padding-bottom:env(safe-area-inset-bottom,0px);

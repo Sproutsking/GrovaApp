@@ -718,7 +718,9 @@ const CommentModal = ({
         }
         @media (max-width: 768px) {
           .comment-fullscreen-btn { display: flex; }
-          .comment-modal-header { gap: 8px; }
+          .comment-modal-header { gap: 8px; min-width: 0; }
+          .comment-modal-title { flex: 1 1 auto; min-width: 0; gap: 7px; }
+          .comment-header-actions { flex: 0 0 auto; gap: 5px; }
         }
 
         /* ── SORT BAR ── */
@@ -1013,6 +1015,16 @@ const CommentModal = ({
           .comment-sort-bar .sort-btn{display:none}
           .comments-list{padding:12px 14px}
           .comment-input-area{padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px))}
+        }
+        @media(max-width:420px) {
+          .comment-modal-header { padding: 8px 10px; gap: 6px; }
+          .comment-modal-title h3 { font-size: 16px; }
+          .comment-count { padding: 2px 7px; font-size: 11px; }
+          .comment-sort-trigger { width: 36px; min-width: 36px; max-width: 36px; height: 36px; padding: 0; }
+          .comment-sort-trigger > span,
+          .comment-sort-trigger > svg:last-child { display: none; }
+          .comment-fullscreen-btn,
+          .comment-close-btn { width: 34px; height: 34px; padding: 5px; }
         }
       `}</style>
     </>

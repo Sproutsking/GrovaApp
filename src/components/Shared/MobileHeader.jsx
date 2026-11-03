@@ -406,7 +406,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
   const boxBg       = hasBoosted && tierColor ? `${tierColor}07` : "rgba(255,255,255,0.02)";
 
   return `
-    .mh-header { position: sticky; top: 0; z-index: 100; background: var(--bg-strong); border-bottom: 1px solid rgba(148,163,184,0.12); margin: 0; padding-top: env(safe-area-inset-top, 0px); }
+    .mh-header { position: sticky; top: 0; z-index: 100; background: #000; border-bottom: 1px solid rgba(148,163,184,0.12); margin: 0; padding-top: env(safe-area-inset-top, 0px); }
     .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; gap: 8px; margin: 0; min-height: 44px; }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
     .mh-greeting-box { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; padding: 3px 9px; background: ${boxBg}; border: 1px solid color-mix(in srgb, ${boxBorder} 60%, var(--surface-border)); border-radius: 9px; overflow: hidden; transition: background 0.12s, border-color 0.12s; }
@@ -431,7 +431,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
     @keyframes mhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
 
     /* [4-TAB] Tab bar */
-    .mh-tab-bar { display: flex; border-top: 0; background: var(--bg-strong); }
+    .mh-tab-bar { display: flex; border-top: 0; background: #000; }
     .mh-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; background: transparent; border: none; color: var(--text-muted); font-size: calc((11px) + 1px); font-weight: 700; cursor: pointer; transition: color 0.06s cubic-bezier(0.34,1.56,0.64,1), background 0.06s cubic-bezier(0.34,1.56,0.64,1), border-bottom-color 0.06s cubic-bezier(0.34,1.56,0.64,1); border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; willChange: "color, transform"; }
     .mh-tab:hover { color: var(--text-secondary); }
     .mh-tab--active { color: #84cc16; border-bottom-color: #84cc16; background: rgba(132,204,22,0.04); }

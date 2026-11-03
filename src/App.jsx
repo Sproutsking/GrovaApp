@@ -341,7 +341,7 @@ const MainApp = memo(() => {
     if (typeof window === "undefined") return "dark";
     const stored = window.localStorage.getItem("xv_theme_mode");
     if (stored === "light" || stored === "dark") return stored;
-    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+    return "dark";
   });
 
   // DM panel state
@@ -415,6 +415,7 @@ const MainApp = memo(() => {
     const root = document.documentElement;
     root.classList.toggle("theme-light", themeMode === "light");
     root.classList.toggle("theme-dark", themeMode === "dark");
+    root.style.colorScheme = themeMode;
     window.localStorage.setItem("xv_theme_mode", themeMode);
   }, [themeMode]);
 
@@ -1448,7 +1449,7 @@ const MainApp = memo(() => {
             animation:  "xSlideUp .3s ease-out",
           }}
         >
-          Press back again to exit
+          Use your browser controls to leave the app
         </div>
       )}
 
@@ -1561,13 +1562,14 @@ MainApp.displayName = "MainApp";
 function AppRouter() {
   const {
     user, profile,
-    loading, profileLoading,
+    loading,
     refreshProfile,
     signOut,
   } = useAuth();
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
+  const [profileRetryAttempt, setProfileRetryAttempt] = useState(0);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
@@ -1583,11 +1585,11 @@ function AppRouter() {
   useEffect(() => {
     if (!user || profile) return;
     const timer = setTimeout(() => {
-      console.warn("[AppRouter] Profile load timeout (15s)");
+      console.warn("[AppRouter] Profile load timeout (60s)");
       setProfileTimedOut(true);
-    }, 15_000);
+    }, 60_000);
     return () => clearTimeout(timer);
-  }, [user, profile]);
+  }, [user, profile, profileRetryAttempt]);
 
   useEffect(() => {
     if (profile) setProfileTimedOut(false);
@@ -1613,20 +1615,67 @@ function AppRouter() {
 
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;
-  if (!profileTimedOut && profileLoading && !profile) return <Splash />;
+  if (!profileTimedOut && !profile) return <Splash />;
   if (!profile) {
     return (
-      <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, background: "var(--bg, #000)", color: "var(--text, #fff)" }}>
+      <div
+        role="alert"
+        style={{
+          minHeight: "100dvh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+          background: "#000",
+          color: "#f5f5f5",
+          fontFamily: "Inter, system-ui, sans-serif",
+        }}
+      >
         <div style={{ width: "min(100%, 420px)", textAlign: "center" }}>
-          <h2 style={{ margin: "0 0 10px" }}>We could not load your profile</h2>
-          <p style={{ margin: "0 0 20px", color: "var(--muted, #999)", lineHeight: 1.5 }}>
+          <h2 style={{ margin: "0 0 10px", fontSize: 22, lineHeight: 1.25, letterSpacing: "-0.02em" }}>
+            We could not load your profile
+          </h2>
+          <p style={{ margin: "0 0 22px", color: "#a3a3a3", lineHeight: 1.55 }}>
             Your session is still active, but the profile request did not finish.
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-            <button type="button" onClick={() => { setProfileTimedOut(false); refreshProfile(); }}>
+            <button
+              type="button"
+              onClick={() => {
+                setProfileTimedOut(false);
+                setProfileRetryAttempt((attempt) => attempt + 1);
+                refreshProfile();
+              }}
+              style={{
+                minHeight: 44,
+                padding: "0 18px",
+                border: "1px solid rgba(163, 230, 53, 0.55)",
+                borderRadius: 12,
+                background: "#a3e635",
+                color: "#101500",
+                font: "inherit",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
               Try again
             </button>
-            <button type="button" onClick={() => signOut()}>Sign out</button>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              style={{
+                minHeight: 44,
+                padding: "0 18px",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 12,
+                background: "#161616",
+                color: "#f5f5f5",
+                font: "inherit",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </div>

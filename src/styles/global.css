@@ -385,7 +385,7 @@ img, video {
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: var(--bg-strong);
+  background: #000;
   border-top: 1px solid var(--deck-border);
   border-right: none;
   border-bottom: none;
@@ -425,6 +425,27 @@ img, video {
 }
 
 @media (max-width: 768px) {
+  [role="dialog"],
+  .comment-modal-mobile,
+  .fullscreen-reels-comments,
+  .am-panel--mobile,
+  .modal-content,
+  .modal-panel {
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .comment-modal-mobile,
+  .fullscreen-reels-comments,
+  .am-panel--mobile {
+    border-top: 1px solid var(--surface-border, rgba(148,163,184,0.22)) !important;
+  }
+
+  .mobile-header {
+    background: #000;
+  }
+
   .main-content-mobile {
     --surface-border: rgba(148,163,184,0.16);
     --deck-border: rgba(148,163,184,0.14);

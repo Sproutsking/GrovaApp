@@ -55,8 +55,8 @@ const IS_FAST = !IS_SLOW && !IS_MID;
 const IS_MOBILE = window.innerWidth <= 768;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_MOBILE ? (IS_SLOW ? 3 : 5) : IS_SLOW ? 4 : IS_MID ? 6 : 8;
-const PRELOAD_WINDOW = IS_MOBILE ? (IS_SLOW ? 2 : 4) : IS_SLOW ? 12 : IS_MID ? 20 : 30;
+const RENDER_RADIUS  = IS_MOBILE ? 1 : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const PRELOAD_WINDOW = IS_MOBILE ? 1 : IS_SLOW ? 12 : IS_MID ? 20 : 30;
 const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 2 : IS_MID ? 3 : 4;
 
 // Image quality
@@ -517,8 +517,8 @@ const FeedTab = React.forwardRef(function FeedTab(
   useLayoutEffect(() => {
     if (!localItems.length) return;
     preloadPreview(localItems[0], TIER.CRITICAL);
-    for (let i = 1; i < Math.min(PRELOAD_WINDOW, localItems.length); i++) {
-      preloadPreview(localItems[i], i < 8 ? TIER.CRITICAL : TIER.URGENT);
+    for (let i = 1; i <= Math.min(PRELOAD_WINDOW, localItems.length - 1); i++) {
+      preloadPreview(localItems[i], i === 1 ? TIER.CRITICAL : TIER.URGENT);
     }
     lastBatchLen.current = localItems.length;
   }, []);
@@ -527,7 +527,8 @@ const FeedTab = React.forwardRef(function FeedTab(
   useEffect(() => {
     const prev = lastBatchLen.current;
     if (localItems.length <= prev) return;
-    for (let i = prev; i < localItems.length && i < prev + 24; i++) {
+    const batchLimit = IS_MOBILE ? 2 : 24;
+    for (let i = prev; i < localItems.length && i < prev + batchLimit; i++) {
       const tier = i - prev < 8 ? TIER.URGENT : TIER.BATCH;
       preloadPreview(localItems[i], tier);
     }
@@ -548,11 +549,11 @@ const FeedTab = React.forwardRef(function FeedTab(
         if (!item) continue;
         if (item.type === "post" && item.image_ids?.length) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
+          preloadPreview(item, dist <= 1 ? TIER.CRITICAL : dist <= 2 ? TIER.URGENT : TIER.BATCH);
         }
         if (item.type === "reel" && item.thumbnail_id) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
+          preloadPreview(item, dist <= 1 ? TIER.CRITICAL : dist <= 2 ? TIER.URGENT : TIER.BATCH);
         }
       }
       const visible = localItems[anchorIndex];

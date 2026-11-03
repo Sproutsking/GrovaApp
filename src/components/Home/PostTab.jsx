@@ -57,8 +57,8 @@ const IS_FAST = !IS_SLOW && !IS_MID;
 const IS_MOBILE = window.innerWidth <= 768;
 
 // [VBF-1] Expanded render radius
-const RENDER_RADIUS  = IS_MOBILE ? (IS_SLOW ? 3 : 5) : IS_SLOW ? 8 : IS_MID ? 12 : 18;
-const PRELOAD_WINDOW = IS_MOBILE ? (IS_SLOW ? 2 : 4) : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const RENDER_RADIUS  = IS_MOBILE ? 1 : IS_SLOW ? 8 : IS_MID ? 12 : 18;
+const PRELOAD_WINDOW = IS_MOBILE ? 1 : IS_SLOW ? 4 : IS_MID ? 6 : 8;
 const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 1 : IS_MID ? 2 : 3;
 
 // Image quality
@@ -195,9 +195,10 @@ function schedulePreload(url, tier = TIER.BATCH) {
 
 function preloadPost(post, tier = TIER.BATCH) {
   if (!post) return;
-  (post.image_ids || []).filter(Boolean).forEach(id =>
-    buildAllCandidates(id).forEach(url => schedulePreload(url, tier))
-  );
+  const firstImage = post.image_ids?.find(Boolean);
+  if (!firstImage) return;
+  const [url] = buildAllCandidates(firstImage);
+  if (url) schedulePreload(url, tier);
 }
 
 function preloadBatch(posts, anchorIndex = 0) {
@@ -211,13 +212,8 @@ function preloadBatch(posts, anchorIndex = 0) {
 
 function preloadFirstPaintImages(posts) {
   if (!posts?.length) return;
-  const cld = getCld();
-  posts.slice(0, 10).forEach(post => {
+  posts.slice(0, IS_MOBILE ? 2 : 10).forEach(post => {
     (post.image_ids || []).slice(0, 1).filter(Boolean).forEach(id => {
-      if (cld) schedulePreload(
-        `https://res.cloudinary.com/${cld}/image/upload/w_${IMG_W},q_${IMG_Q},f_auto,c_limit/${id.trim()}`,
-        TIER.CRITICAL,
-      );
       try {
         const u = mediaUrlService.getImageUrl(id, { width: IMG_W, quality: IMG_Q, format: "auto" });
         if (u?.startsWith("http")) schedulePreload(u, TIER.CRITICAL);
@@ -541,7 +537,7 @@ const PostTab = React.forwardRef(function PostTab(
   useLayoutEffect(() => {
     if (!localPosts.length) return;
     preloadFirstPaintImages(localPosts);
-    preloadBatch(localPosts.slice(0, 26), 0);
+    preloadBatch(localPosts.slice(0, IS_MOBILE ? 2 : 26), 0);
     lastBatchLen.current = localPosts.length;
   }, []); // eslint-disable-line
 
@@ -549,7 +545,7 @@ const PostTab = React.forwardRef(function PostTab(
   useEffect(() => {
     const prev = lastBatchLen.current;
     if (localPosts.length <= prev) return;
-    preloadBatch(localPosts.slice(prev), -999);
+    preloadBatch(localPosts.slice(prev, IS_MOBILE ? prev + 2 : undefined), -999);
     lastBatchLen.current = localPosts.length;
     fortyFired.current   = false;
     seventyFired.current = false;
@@ -560,13 +556,13 @@ const PostTab = React.forwardRef(function PostTab(
     if (!localPosts.length) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      const start = Math.max(0, anchorIndex - 6);
+      const start = Math.max(0, anchorIndex);
       const end   = Math.min(localPosts.length - 1, anchorIndex + PRELOAD_WINDOW);
       for (let i = start; i <= end; i++) {
         const post = localPosts[i];
         if (!post?.image_ids?.length) continue;
         const dist = Math.abs(i - anchorIndex);
-        preloadPost(post, dist <= 6 ? TIER.CRITICAL : dist <= 16 ? TIER.URGENT : TIER.BATCH);
+        preloadPost(post, dist <= 1 ? TIER.CRITICAL : dist <= 2 ? TIER.URGENT : TIER.BATCH);
       }
       const visible = localPosts[anchorIndex];
       if (visible && !visible.aiInjected) recordSignal(visible, "CLICK_THROUGH");

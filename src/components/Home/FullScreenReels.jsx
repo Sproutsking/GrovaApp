@@ -44,7 +44,7 @@ const FullScreenReels = ({
   const touchStartTime = useRef(0);
   const touchTrackingRef = useRef(false);
   const progressBarRef = useRef(null);
-  const warmVideoIdsRef = useRef(new Set());
+  const videoRetryRef = useRef({ reelId: null, attempts: 0, timer: null });
   const isTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
 
@@ -72,10 +72,12 @@ const FullScreenReels = ({
     : null;
   const previousReel = currentIndex > 0 ? reels[currentIndex - 1] : null;
   const nextReel = currentIndex < reels.length - 1 ? reels[currentIndex + 1] : null;
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const allowNextVideoPreload = !connection?.saveData
+    && !["slow-2g", "2g"].includes(connection?.effectiveType);
   const getReelVideoUrl = (reel) => reel?.video_id
     ? mediaUrlService.getVideoUrl(reel.video_id, { quality: "auto", format: "mp4" })
     : null;
-  const previousVideoUrl = getReelVideoUrl(previousReel);
   const nextVideoUrl = getReelVideoUrl(nextReel);
 
   const getNeighborThumbnail = (reel) => reel?.thumbnail_id
@@ -88,22 +90,13 @@ const FullScreenReels = ({
     if (thumbnailUrl) {
       mediaUrlService.preloadMediaUrl(thumbnailUrl, { type: "image", priority: "high" });
     }
-    if (videoUrl) {
-      mediaUrlService.preloadMediaUrl(videoUrl, { type: "video", priority: "high" });
-    }
-  }, [thumbnailUrl, videoUrl]);
+  }, [thumbnailUrl]);
 
   useEffect(() => {
     [previousThumbnailUrl, nextThumbnailUrl].forEach((url) => {
       if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
     });
   }, [previousThumbnailUrl, nextThumbnailUrl]);
-
-  useEffect(() => {
-    [previousVideoUrl, nextVideoUrl].forEach((url) => {
-      if (url) mediaUrlService.preloadMediaUrl(url, { type: "video", priority: "high" });
-    });
-  }, [previousVideoUrl, nextVideoUrl]);
 
   useEffect(() => {
     const unsubscribe = GlobalVideoState.subscribe(() => {
@@ -215,14 +208,11 @@ const FullScreenReels = ({
 
     isTransitioningRef.current = true;
     if (shouldAdvance) {
-      const targetReel = reels[currentIndex + direction];
-      const targetIsWarm = !targetReel?.video_id
-        || (targetReel.id != null && warmVideoIdsRef.current.has(String(targetReel.id)));
       if (videoRef.current) videoRef.current.pause();
       setPlaying(false);
       setVideoError(false);
-      setIsLoading(!targetIsWarm);
-      setBuffering(!targetIsWarm);
+      setIsLoading(true);
+      setBuffering(true);
       setCurrentTime(0);
       setDuration(0);
       setBufferedProgress(0);
@@ -365,12 +355,12 @@ const FullScreenReels = ({
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
       setVideoError(false);
+      videoRetryRef.current.attempts = 0;
       if (GlobalVideoState.globalPlayState) playVideo();
     }
   };
 
-  const markVideoReady = (reelId, videoElement) => {
-    if (reelId != null) warmVideoIdsRef.current.add(String(reelId));
+  const markVideoReady = (videoElement) => {
     if (videoElement && videoElement !== videoRef.current) videoElement.pause();
     if (videoElement === videoRef.current) {
       setIsLoading(false);
@@ -388,9 +378,16 @@ const FullScreenReels = ({
   };
 
   const handleWaiting = () => setBuffering(true);
-  const handleCanPlay  = (e) => markVideoReady(e.currentTarget.dataset.reelId, e.currentTarget);
+  const handleCanPlay  = (e) => markVideoReady(e.currentTarget);
   const handleError    = (e) => {
     if (e.currentTarget.error?.code === 1) return;
+    if (e.currentTarget.error?.code === 2 && videoRetryRef.current.attempts < 1) {
+      videoRetryRef.current.attempts += 1;
+      setIsLoading(true);
+      setBuffering(true);
+      videoRetryRef.current.timer = setTimeout(() => videoRef.current?.load(), 900);
+      return;
+    }
     console.error("Video error:", e);
     setVideoError(true); setIsLoading(false); setBuffering(false);
   };
@@ -405,10 +402,12 @@ const FullScreenReels = ({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = 0; video.muted = muted;
+    clearTimeout(videoRetryRef.current.timer);
+    videoRetryRef.current = { reelId: currentReel?.id, attempts: 0, timer: null };
+    video.currentTime = 0;
     setCurrentTime(0); setShowControls(true);
     video.load();
-  }, [currentIndex, videoUrl, muted]);
+  }, [currentIndex, videoUrl, currentReel?.id]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
@@ -441,6 +440,7 @@ const FullScreenReels = ({
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+    if (videoRetryRef.current.timer) clearTimeout(videoRetryRef.current.timer);
     isTransitioningRef.current = false;
   }, []);
 
@@ -476,7 +476,7 @@ const FullScreenReels = ({
           .filter(Boolean)
           .map(({ reel, direction }) => {
             const previewUrl = direction > 0 ? nextThumbnailUrl : previousThumbnailUrl;
-            const previewVideoUrl = direction > 0 ? nextVideoUrl : previousVideoUrl;
+            const previewVideoUrl = direction > 0 && allowNextVideoPreload ? nextVideoUrl : null;
             const author = reel.profiles?.full_name || reel.author || "Creator";
             return (
               <div
@@ -499,8 +499,8 @@ const FullScreenReels = ({
                     muted
                     playsInline
                     preload="auto"
-                    onLoadedData={(e) => markVideoReady(reel.id, e.currentTarget)}
-                    onCanPlay={(e) => markVideoReady(reel.id, e.currentTarget)}
+                    onLoadedData={(e) => markVideoReady(e.currentTarget)}
+                    onCanPlay={(e) => markVideoReady(e.currentTarget)}
                   />
                 )}
                 <div className="reel-neighbor-shade" />
@@ -518,7 +518,6 @@ const FullScreenReels = ({
             <>
               <video
                 ref={videoRef}
-                key={currentReel.id || videoUrl}
                 data-reel-id={currentReel.id}
                 className="reel-video"
                 src={videoUrl}
@@ -526,16 +525,15 @@ const FullScreenReels = ({
                 loop playsInline muted={muted} preload="auto"
                 onClick={togglePlay}
                 onLoadStart={() => {
-                  const isWarm = currentReel.id != null
-                    && warmVideoIdsRef.current.has(String(currentReel.id));
-                  setIsLoading(!isWarm);
-                  setBuffering(!isWarm);
+                  setIsLoading(true);
+                  setBuffering(true);
+                  setVideoError(false);
                 }}
                 onWaiting={handleWaiting}
                 onCanPlay={handleCanPlay}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
-                onLoadedData={(e) => markVideoReady(currentReel.id, e.currentTarget)}
+                onLoadedData={(e) => markVideoReady(e.currentTarget)}
                 onProgress={handleProgress}
                 onError={handleError}
               />
@@ -619,15 +617,14 @@ const FullScreenReels = ({
               onComment={() => setShowComments(true)}
               onShare={() => setShowShare(true)}
             />
+            <button
+              className="action-menu-btn"
+              onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
+              aria-label="More actions"
+            >
+              <MoreVertical size={22} color="#ffffff" />
+            </button>
           </div>
-
-          <button
-            className={`action-menu-btn ${showControls ? "visible" : ""}`}
-            onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
-            aria-label="More actions"
-          >
-            <MoreVertical size={28} color="#ffffff" />
-          </button>
 
           <button
             className={`fullscreen-mute-btn ${showControls ? "visible" : ""}`}
@@ -1047,16 +1044,14 @@ const FullScreenReels = ({
         .reel-right-actions.visible { opacity: 1; pointer-events: all; }
 
         .action-menu-btn {
-          position: absolute; right: 16px; bottom: max(8px, env(safe-area-inset-bottom));
+          position: relative; right: auto; bottom: auto; align-self: center;
           background: rgba(0,0,0,0.6);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255,255,255,0.1);
           color: white; width: 36px; height: 36px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.2s; opacity: 0; pointer-events: none;
+          cursor: pointer; transition: all 0.2s;
         }
-
-        .action-menu-btn.visible { opacity: 1; pointer-events: all; }
 
         .action-menu-btn svg { transform: rotate(90deg); }
 
@@ -1104,7 +1099,6 @@ const FullScreenReels = ({
           .reel-caption-text { font-size: calc((11px) + 1px); padding: 4px 6px; }
           .action-menu-btn { width: 40px; height: 40px; }
           .reel-right-actions { right: 10px; bottom: 96px; gap: 6px; }
-          .action-menu-btn { right: 10px; }
           .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: calc((18px) + 1px); }
           .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: calc((16px) + 1px); }
         }

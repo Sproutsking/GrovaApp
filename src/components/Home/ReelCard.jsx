@@ -147,6 +147,7 @@ const ReelCard = ({
 
   const videoRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const videoRetryRef = useRef({ attempts: 0, timer: null });
   const containerRef = useRef(null);
   const progressBarRef = useRef(null);
   const observerRef = useRef(null);
@@ -314,8 +315,11 @@ const ReelCard = ({
     const next = !playing;
     GlobalVideoState.setGlobalPlayState(next);
     if (next) {
-      videoRef.current.play().catch(() => {
-        setVideoError(true);
+      videoRef.current.play().catch((error) => {
+        setPlaying(false);
+        if (error?.name !== "NotAllowedError") {
+          console.warn("[ReelCard] Playback could not start:", error?.message);
+        }
       });
       setPlaying(true);
       resetControlsTimer();
@@ -425,6 +429,8 @@ const ReelCard = ({
   };
 
   useEffect(() => {
+    clearTimeout(videoRetryRef.current.timer);
+    videoRetryRef.current = { attempts: 0, timer: null };
     setPlaying(false);
     setVideoError(false);
     setIsLoading(true);
@@ -435,6 +441,7 @@ const ReelCard = ({
       videoRef.current.muted = muted;
       videoRef.current.currentTime = 0;
     }
+    return () => clearTimeout(videoRetryRef.current.timer);
   }, [reel.video_id, muted]);
 
   useEffect(() => {
@@ -518,11 +525,20 @@ const ReelCard = ({
                 onCanPlay={() => {
                   setIsLoading(false);
                   setVideoError(false);
+                  videoRetryRef.current.attempts = 0;
+                  clearTimeout(videoRetryRef.current.timer);
                 }}
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
                 onProgress={handleProgress}
                 onError={() => {
+                  const errorCode = videoRef.current?.error?.code;
+                  if (errorCode === 2 && videoRetryRef.current.attempts < 1) {
+                    videoRetryRef.current.attempts += 1;
+                    setIsLoading(true);
+                    videoRetryRef.current.timer = setTimeout(() => videoRef.current?.load(), 900);
+                    return;
+                  }
                   setVideoError(true);
                   setIsLoading(false);
                 }}
@@ -538,6 +554,9 @@ const ReelCard = ({
             </>
           ) : (
             <div className="xv-reel-placeholder">
+              {thumbnailUrl && videoError && (
+                <img className="xv-reel-error-poster" src={thumbnailUrl} alt="" />
+              )}
               <div className="xv-placeholder-letter">
                 {profile.author?.charAt(0) || "R"}
               </div>
