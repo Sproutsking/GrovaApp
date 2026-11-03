@@ -1833,7 +1833,7 @@ function LoginView() {
 
 // ─── SPLASH ───────────────────────────────────────────────────────────────────
 export function Splash({ message = "Initializing Xeevia..." }) {
-  return <AppLoader message={message} />;
+  return <AppLoader message={message} showOfflineDetection={false} />;
 }
 
 // ─── AUTH WALL — root export ──────────────────────────────────────────────────

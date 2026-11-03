@@ -1559,41 +1559,167 @@ const MainApp = memo(() => {
 MainApp.displayName = "MainApp";
 
 // ── AppRouter ─────────────────────────────────────────────────────────────────
+function StartupRecovery({
+  title,
+  message,
+  retryLabel = "Try again",
+  onRetry,
+  onSignOut,
+}) {
+  return (
+    <main className="startup-recovery" role="alert">
+      <section className="startup-recovery-card" aria-labelledby="startup-recovery-title">
+        <div className="startup-recovery-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 8v4m0 4h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z" />
+          </svg>
+        </div>
+        <p className="startup-recovery-eyebrow">Connection recovery</p>
+        <h1 id="startup-recovery-title">{title}</h1>
+        <p className="startup-recovery-message">{message}</p>
+        <div className="startup-recovery-actions">
+          <button type="button" className="startup-recovery-primary" onClick={onRetry}>
+            {retryLabel}
+          </button>
+          {onSignOut && (
+            <button type="button" className="startup-recovery-secondary" onClick={onSignOut}>
+              Sign out
+            </button>
+          )}
+        </div>
+      </section>
+      <style>{`
+        .startup-recovery {
+          min-height: 100dvh;
+          display: grid;
+          place-items: center;
+          padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+          color: #f5f7f2;
+          background:
+            radial-gradient(ellipse at 50% 35%, rgba(132,204,22,.11), transparent 58%),
+            #050605;
+          font-family: Inter, system-ui, sans-serif;
+        }
+        .startup-recovery-card {
+          width: min(100%, 440px);
+          padding: clamp(26px, 7vw, 40px);
+          text-align: center;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 24px;
+          background: linear-gradient(160deg, rgba(22,25,20,.96), rgba(11,12,11,.98));
+          box-shadow: 0 24px 80px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.04);
+        }
+        .startup-recovery-mark {
+          width: 52px;
+          height: 52px;
+          margin: 0 auto 20px;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(163,230,53,.28);
+          border-radius: 16px;
+          color: #b7ed68;
+          background: rgba(132,204,22,.09);
+        }
+        .startup-recovery-mark svg {
+          width: 25px;
+          height: 25px;
+          stroke: currentColor;
+          stroke-width: 1.7;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .startup-recovery-eyebrow {
+          margin: 0 0 10px;
+          color: #a3e635;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+        }
+        .startup-recovery-card h1 {
+          margin: 0;
+          font-size: clamp(22px, 6vw, 28px);
+          line-height: 1.2;
+          letter-spacing: -.035em;
+        }
+        .startup-recovery-message {
+          margin: 12px auto 26px;
+          max-width: 340px;
+          color: #a6aaa1;
+          font-size: 14px;
+          line-height: 1.65;
+        }
+        .startup-recovery-actions {
+          display: flex;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .startup-recovery-actions button {
+          min-height: 46px;
+          padding: 0 20px;
+          border-radius: 12px;
+          font: inherit;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+        }
+        .startup-recovery-primary {
+          border: 1px solid #b7ed68;
+          color: #11170a;
+          background: #a3e635;
+        }
+        .startup-recovery-primary:hover { background: #b7ed68; transform: translateY(-1px); }
+        .startup-recovery-secondary {
+          border: 1px solid rgba(255,255,255,.14);
+          color: #e5e7eb;
+          background: rgba(255,255,255,.045);
+        }
+        .startup-recovery-secondary:hover {
+          border-color: rgba(255,255,255,.28);
+          background: rgba(255,255,255,.08);
+        }
+        .startup-recovery-actions button:focus-visible {
+          outline: 2px solid #d9f99d;
+          outline-offset: 3px;
+        }
+        @media (max-width: 420px) {
+          .startup-recovery-actions { flex-direction: column; }
+          .startup-recovery-actions button { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .startup-recovery-actions button { transition: none; }
+          .startup-recovery-primary:hover { transform: none; }
+        }
+      `}</style>
+    </main>
+  );
+}
+
 function AppRouter() {
   const {
     user, profile,
     loading,
+    profileLoadError,
     refreshProfile,
     signOut,
   } = useAuth();
 
-  const [forceResolve,    setForceResolve]    = useState(false);
-  const [profileTimedOut, setProfileTimedOut] = useState(false);
-  const [profileRetryAttempt, setProfileRetryAttempt] = useState(0);
+  const [authLoadStalled, setAuthLoadStalled] = useState(false);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
   useEffect(() => {
-    if (!loading) return;
+    if (!loading) {
+      setAuthLoadStalled(false);
+      return undefined;
+    }
     const timer = setTimeout(() => {
-      console.warn("[AppRouter] Auth loading timeout (10s) — forcing resolution");
-      setForceResolve(true);
-    }, 10_000);
+      setAuthLoadStalled(true);
+    }, 30_000);
     return () => clearTimeout(timer);
   }, [loading]);
-
-  useEffect(() => {
-    if (!user || profile) return;
-    const timer = setTimeout(() => {
-      console.warn("[AppRouter] Profile load timeout (60s)");
-      setProfileTimedOut(true);
-    }, 60_000);
-    return () => clearTimeout(timer);
-  }, [user, profile, profileRetryAttempt]);
-
-  useEffect(() => {
-    if (profile) setProfileTimedOut(false);
-  }, [profile]);
 
   // ── Handle public pages (no auth required) ────────────────────────────────
   if (pathname === "/terms") {
@@ -1613,72 +1739,28 @@ function AppRouter() {
 
   if (pathname === "/auth/link-callback") return <LinkIdentityCallback />;
 
-  if (!forceResolve && loading) return <Splash />;
-  if (!user)                     return <AuthWall />;
-  if (!profileTimedOut && !profile) return <Splash />;
+  if (loading) {
+    return authLoadStalled
+      ? (
+        <StartupRecovery
+          title="Xeevia is taking longer to start"
+          message="Your secure session is still being checked. Check your connection, then reload to try again."
+          retryLabel="Reload Xeevia"
+          onRetry={() => window.location.reload()}
+        />
+      )
+      : <Splash />;
+  }
+  if (!user) return <AuthWall />;
+  if (!profile && !profileLoadError) return <Splash />;
   if (!profile) {
     return (
-      <div
-        role="alert"
-        style={{
-          minHeight: "100dvh",
-          display: "grid",
-          placeItems: "center",
-          padding: 24,
-          background: "#000",
-          color: "#f5f5f5",
-          fontFamily: "Inter, system-ui, sans-serif",
-        }}
-      >
-        <div style={{ width: "min(100%, 420px)", textAlign: "center" }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: 22, lineHeight: 1.25, letterSpacing: "-0.02em" }}>
-            We could not load your profile
-          </h2>
-          <p style={{ margin: "0 0 22px", color: "#a3a3a3", lineHeight: 1.55 }}>
-            Your session is still active, but the profile request did not finish.
-          </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setProfileTimedOut(false);
-                setProfileRetryAttempt((attempt) => attempt + 1);
-                refreshProfile();
-              }}
-              style={{
-                minHeight: 44,
-                padding: "0 18px",
-                border: "1px solid rgba(163, 230, 53, 0.55)",
-                borderRadius: 12,
-                background: "#a3e635",
-                color: "#101500",
-                font: "inherit",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Try again
-            </button>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              style={{
-                minHeight: 44,
-                padding: "0 18px",
-                border: "1px solid rgba(255,255,255,0.16)",
-                borderRadius: 12,
-                background: "#161616",
-                color: "#f5f5f5",
-                font: "inherit",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </div>
+      <StartupRecovery
+        title="We couldn’t load your profile"
+        message="Xeevia tried several times but could not reach your profile. Your session is still active. Check your connection and try again."
+        onRetry={refreshProfile}
+        onSignOut={signOut}
+      />
     );
   }
   return <MainApp />;

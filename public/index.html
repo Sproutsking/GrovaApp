@@ -102,14 +102,8 @@
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
 
     <!--
       CRITICAL: Pure black on html + body so Android Chrome edge-to-edge
@@ -147,7 +141,8 @@
         background: #000000;
         color: #e6ebe6;
         font-family:
-          "DM Sans",
+          Inter,
+          system-ui,
           -apple-system,
           sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -168,59 +163,100 @@
         background: #000000;
       }
 
-      .xv-shell {
+      .xv-boot {
         width: 100%;
         min-height: 100dvh;
-        background: #050706;
-        color: #f4f8f2;
+        background: #050605;
+        color: #f7faef;
         display: flex;
         flex-direction: column;
-        gap: 14px;
-        padding: 20px;
+        align-items: center;
+        justify-content: center;
+        contain: layout paint;
+        animation: xvBootArrive .5s cubic-bezier(.2,.7,.25,1) both;
       }
-      .xv-shell-header {
-        height: 62px;
-        border-radius: 18px;
-        background: rgba(255,255,255,0.04);
-      }
-      .xv-shell-body {
+      .xv-boot-stage {
+        position: relative;
+        isolation: isolate;
+        width: 104px;
+        height: 104px;
         display: grid;
-        grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(220px, 280px);
-        gap: 14px;
-        flex: 1;
+        place-items: center;
+        margin-bottom: 26px;
       }
-      .xv-shell-sidebar,
-      .xv-shell-trending {
-        border-radius: 20px;
-        background: rgba(255,255,255,0.04);
-        min-height: 420px;
+      .xv-boot-stage::before {
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(163,230,53,.17);
+        border-top-color: #b7ed68;
+        border-right-color: rgba(163,230,53,.52);
+        border-radius: 50%;
+        content: "";
+        animation: xvBootOrbit 2.4s linear infinite;
+        will-change: transform;
       }
-      .xv-shell-main {
-        display: grid;
-        gap: 14px;
+      .xv-boot-stage::after {
+        position: absolute;
+        inset: 9px;
+        border: 1px solid rgba(255,255,255,.055);
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(132,204,22,.1), transparent 70%);
+        content: "";
       }
-      .xv-shell-row {
-        height: 160px;
-        border-radius: 20px;
-        background: rgba(255,255,255,0.03);
+      .xv-boot-orbit {
+        position: absolute;
+        z-index: 1;
+        top: 50%;
+        left: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #d9f99d;
+        box-shadow: 0 0 10px rgba(190,242,100,.55);
+        transform: translate(-50%,-50%) rotate(0deg) translateX(48px);
+        animation: xvBootDotOrbit 2.4s linear infinite;
+        will-change: transform;
       }
-      .xv-shell-grid {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .xv-boot-stage img {
+        position: relative;
+        z-index: 1;
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+        animation: xvBootBreath 2.8s ease-in-out infinite;
+        will-change: transform;
       }
-      .xv-shell-card {
-        height: 120px;
-        border-radius: 18px;
-        background: rgba(255,255,255,0.04);
+      .xv-boot-word {
+        color: #f7faef;
+        font-size: 19px;
+        font-weight: 750;
+        letter-spacing: .24em;
+        line-height: 1;
+        text-indent: .24em;
       }
-      @media (max-width: 960px) {
-        .xv-shell-body {
-          grid-template-columns: 1fr;
-        }
-        .xv-shell-trending {
-          display: none;
-        }
+      .xv-boot-word span { color: #d4af37; }
+      .xv-boot-caption {
+        margin: 11px 0 0;
+        color: rgba(228,236,218,.48);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: .075em;
+      }
+      @keyframes xvBootArrive {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes xvBootOrbit { to { transform: rotate(360deg); } }
+      @keyframes xvBootDotOrbit {
+        from { transform: translate(-50%,-50%) rotate(0deg) translateX(48px); }
+        to { transform: translate(-50%,-50%) rotate(360deg) translateX(48px); }
+      }
+      @keyframes xvBootBreath {
+        0%, 100% { transform: scale(.96); }
+        50% { transform: scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .xv-boot, .xv-boot-stage::before, .xv-boot-orbit, .xv-boot-stage img { animation: none; }
       }
     </style>
 
@@ -427,20 +463,13 @@
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
     <div id="root">
-      <div class="xv-shell" aria-hidden="true">
-        <div class="xv-shell-header"></div>
-        <div class="xv-shell-body">
-          <div class="xv-shell-sidebar"></div>
-          <div class="xv-shell-main">
-            <div class="xv-shell-row"></div>
-            <div class="xv-shell-grid">
-              <div class="xv-shell-card"></div>
-              <div class="xv-shell-card"></div>
-            </div>
-            <div class="xv-shell-row"></div>
-          </div>
-          <div class="xv-shell-trending"></div>
+      <div class="xv-boot" role="status" aria-label="Loading Xeevia">
+        <div class="xv-boot-stage" aria-hidden="true">
+          <span class="xv-boot-orbit"></span>
+          <img src="/logo192.png" alt="" fetchpriority="high" />
         </div>
+        <div class="xv-boot-word">XEEVI<span>A</span></div>
+        <p class="xv-boot-caption">Your world, in motion</p>
       </div>
     </div>
 

@@ -55,7 +55,8 @@ export function useAuth() {
 }
 
 const PROFILE_TIMEOUT_MS = 15_000;
-const PROFILE_RETRY_DELAYS = [2000, 5000, 15000, 30000, 60000, 120000];
+const PROFILE_RETRY_DELAYS = [2000, 5000, 10000, 20000];
+const PROFILE_MAX_RETRIES = PROFILE_RETRY_DELAYS.length;
 const SESSION_GUARD_MS = 90_000;
 const ENFORCEMENT_INTERVAL_MS = 5 * 60_000;
 
@@ -240,6 +241,7 @@ export default function AuthProvider({ children }) {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState(null);
   // [NEW] Populated when admin bans/deletes this user while they're logged in
   const [kickReason, setKickReason] = useState(null); // { reason, message } | null
 
@@ -505,6 +507,7 @@ export default function AuthProvider({ children }) {
   const loadProfile = useCallback(
     async (userId, { force = false, retryIndex = 0 } = {}) => {
       if (!userId || !isMounted.current) return;
+      if (retryIndex === 0) setProfileLoadError(null);
       if (
         !force &&
         lastFetchedUserId.current === userId &&
@@ -598,9 +601,13 @@ export default function AuthProvider({ children }) {
             setProfile(bootstrappedProfile);
             writeProfileCache(bootstrappedProfile);
             lastFetchedUserId.current = userId;
+          } else {
+            throw new Error("The profile record could not be created.");
           }
         } else if (lastGoodProfile.current) {
           setProfile(lastGoodProfile.current);
+        } else {
+          throw new Error("The profile record could not be found.");
         }
       } catch (err) {
         clearTimeout(timer);
@@ -617,6 +624,13 @@ export default function AuthProvider({ children }) {
         if (lastGoodProfile.current) {
           setProfile(lastGoodProfile.current);
           lastFetchedUserId.current = userId;
+        }
+
+        if (retryIndex >= PROFILE_MAX_RETRIES) {
+          if (!lastGoodProfile.current) {
+            setProfileLoadError(err?.message || "The profile service could not be reached.");
+          }
+          return;
         }
 
         const delay =
@@ -859,6 +873,7 @@ export default function AuthProvider({ children }) {
         window.removeEventListener("focus", handleWindowFocus.current);
         setUser(null);
         setProfile(null);
+        setProfileLoadError(null);
         setIsAdmin(false);
         setAdminData(null);
         setPaid(false);
@@ -920,6 +935,7 @@ export default function AuthProvider({ children }) {
     if (isMounted.current) {
       setUser(null);
       setProfile(null);
+      setProfileLoadError(null);
       setIsAdmin(false);
       setAdminData(null);
       setPaid(false);
@@ -978,6 +994,7 @@ export default function AuthProvider({ children }) {
     clearTimeout(profileRetryTimer.current);
     profileRetryCount.current = 0;
     lastFetchedUserId.current = null;
+    setProfileLoadError(null);
     await loadProfile(userId, { force: true });
   }, [profile?.id, loadProfile]);
 
@@ -996,6 +1013,7 @@ export default function AuthProvider({ children }) {
         adminData,
         loading,
         profileLoading,
+        profileLoadError,
         signOut,
         signOutAllDevices,
         refreshProfile,
