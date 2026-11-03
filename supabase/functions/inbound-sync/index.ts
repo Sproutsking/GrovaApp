@@ -214,8 +214,19 @@ serve(async (req) => {
     const { data: routes, error: routeError } = await query;
     if (routeError) throw routeError;
 
+    const communityIds = [...new Set((routes || []).map((route) => route.community_id))];
+    let entitledCommunities = new Set<string>();
+    if (communityIds.length) {
+      const { data: entitledIds, error: entitlementError } = await supabase.rpc(
+        "get_social_updates_entitled_communities",
+        { p_community_ids: communityIds },
+      );
+      if (entitlementError) throw entitlementError;
+      entitledCommunities = new Set((entitledIds || []).map(String));
+    }
+
     const results = [];
-    for (const route of routes || []) {
+    for (const route of (routes || []).filter((item) => entitledCommunities.has(String(item.community_id)))) {
       const connection = { ...(route.connection || {}) };
       const { data: run, error: runError } = await supabase.from("community_sync_runs").insert({ community_id: route.community_id, connection_id: route.connection_id, status: "running" }).select().single();
       if (runError) throw runError;

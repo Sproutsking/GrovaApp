@@ -76,14 +76,18 @@ class ChannelService {
 
   async createChannel(channelData, communityId) {
     try {
-      const { count, error: countError } = await supabase
-        .from("community_channels")
-        .select("id", { count: "exact", head: true })
-        .eq("community_id", communityId)
-        .eq("is_default", false)
-        .is("deleted_at", null);
-      if (countError) throw countError;
-      if ((count || 0) >= 9) throw new Error("This community has reached the 9 custom channel limit.");
+      const { data: capacity, error: capacityError } = await supabase.rpc(
+        "get_community_custom_channel_capacity",
+        { p_community_id: communityId },
+      );
+      if (capacityError) throw capacityError;
+      if (!capacity || typeof capacity.remaining !== "number") {
+        throw new Error("Could not verify this community's channel limit.");
+      }
+      if (capacity.remaining <= 0) {
+        throw new Error(`This community has reached its ${capacity.tier} plan limit of ${capacity.limit} custom channels.`);
+      }
+
       let icon = channelData.icon || "💬";
       if (channelData.iconFile) {
         const ext = channelData.iconFile.name.split(".").pop()?.toLowerCase() || "png";

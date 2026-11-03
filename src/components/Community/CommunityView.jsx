@@ -44,6 +44,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [trialReminder, setTrialReminder] = useState(null);
   const lastLocationKey = `xeevia:last-community-location:${userId}`;
   const readLocations = () => {
     try {
@@ -63,6 +64,28 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const switchTimeoutRef    = useRef(null);
   const sidebarRef          = useRef(null);
   const communityViewRef    = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTrialReminder(null);
+    if (!selectedCommunity?.id || selectedCommunity.owner_id !== userId) return undefined;
+
+    supabase.rpc("get_community_premium_access", { p_community_id: selectedCommunity.id })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (cancelled || !data?.is_trial || !data.trial_expires_at) return;
+        const remainingDays = Math.ceil((new Date(data.trial_expires_at).getTime() - Date.now()) / 86_400_000);
+        const reminderDays = Number(data.trial_reminder_days) || 7;
+        if (remainingDays > 0 && remainingDays <= reminderDays) {
+          setTrialReminder({ communityId: selectedCommunity.id, remainingDays });
+        }
+      })
+      .catch((error) => {
+        console.error("Could not check the community Premium trial reminder:", error);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedCommunity?.id, selectedCommunity?.owner_id, userId]);
 
   // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -487,6 +510,12 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       </div>
 
       <div className="community-content">
+        {trialReminder?.communityId === selectedCommunity?.id && (
+          <div role="status" style={{ flex: "0 0 auto", padding: "9px 14px", color: "#fef3c7", background: "linear-gradient(90deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))", borderBottom: "1px solid rgba(245,158,11,0.2)", fontSize: 12, lineHeight: 1.5 }}>
+            <strong>Community Premium trial ends in {trialReminder.remainingDays} {trialReminder.remainingDays === 1 ? "day" : "days"}.</strong>{" "}
+            When it expires, Free limits will apply. Existing members and community data will remain untouched.
+          </div>
+        )}
         {view === "discover" && !myCommunities.length && !allCommunities.length && (isCommunitiesLoading || communitiesLoadError) ? (
           <UnifiedLoader
             type="section"

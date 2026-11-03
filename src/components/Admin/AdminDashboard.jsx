@@ -48,6 +48,7 @@ import ComingSoonModal from "../Shared/ComingSoonModal";
 import FounderBriefingSection from "./sections/FounderBriefingSection.jsx";
 import SecurityCenterSection from "./sections/SecurityCenterSection.jsx";
 import PlatformModelsSection from "./sections/PlatformModelsSection.jsx";
+import CommunityPremiumSection from "./sections/CommunityPremiumSection.jsx";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -67,6 +68,7 @@ const NAV_ITEMS = [
   { id: "ceo",         label: "CEO Panel",      icon: Crown },
   { id: "founder",     label: "Founder Briefing", icon: BookOpen },
   { id: "models",      label: "Platform Models",  icon: Activity },
+  { id: "premium",     label: "Community Premium", icon: Crown },
 ];
 
 // Groups shown above nav items when sidebar is expanded
@@ -87,6 +89,7 @@ const NAV_GROUPS = {
   ceo:           null,
   founder:       "Founder",
   models:        "Founder",
+  premium:       "Platform",
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────
@@ -558,13 +561,14 @@ export default function AdminDashboard({ adminData, onClose }) {
 
   const navigate = useCallback((section) => {
     if (["founder", "models"].includes(section) && adminData?.role !== "ceo_owner") return;
+    if (section === "premium" && adminData?.role !== "ceo_owner") return;
     if (section === "ambassador" && !["ceo_owner", "super_admin"].includes(adminData?.role)) {
       setShowAmbassadorComingSoon(true);
       return;
     }
     setActiveSection(section);
     window.scrollTo(0, 0);
-  }, []);
+  }, [adminData?.role]);
 
   const openSecurityAlerts = (securityCenterHook.alerts || []).filter(
     (alert) => alert.status !== "resolved",
@@ -702,6 +706,9 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "models":
         return adminData?.role === "ceo_owner" ? <PlatformModelsSection /> : null;
+
+      case "premium":
+        return adminData?.role === "ceo_owner" ? <CommunityPremiumSection /> : null;
 
       default:
         return <div style={{ padding: 40, color: C.muted, textAlign: "center" }}>Section not found</div>;
