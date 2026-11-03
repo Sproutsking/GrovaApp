@@ -10,7 +10,7 @@
 // FourStatRow, TriStatPill, modals — completely unchanged.
 // ============================================================================
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
@@ -28,10 +28,11 @@ import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
-import XRDProfileDashboard from "../Modals/XRDProfileDashboard";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
+import xrcService from "../../services/xrc";
+import socialConnectService from "../../services/distribution/socialConnectService";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
@@ -41,6 +42,8 @@ import BoostProfileCard from "../Boost/BoostProfileCard";
 import BoostAvatarRing  from "../Shared/BoostAvatarRing";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import BoostThemePicker from "../Boost/BoostThemePicker";
+
+const XRCOracleExplorer = lazy(() => import("../Oracle/XRCOracleExplorer"));
 
 const fmt = (value) => {
   if (value == null) return "0";
@@ -280,6 +283,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [showLogoutConfirm,     setShowLogoutConfirm]     = useState(false);
   const [showVerificationDashboard, setShowVerificationDashboard] = useState(false);
   const [showXRC,               setShowXRC]               = useState(false);
+  const [xrcNotice,             setXrcNotice]             = useState("");
   const [liveStats,             setLiveStats]             = useState({
     totalViews:0, totalComments:0, totalLikes:0,
     followers:0, following:0, communities:0,
@@ -297,6 +301,22 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
 
   const { isAdmin: authIsAdmin, user: authUser } = useAuth() || {};
+
+  const openXRC = async () => {
+    setXrcNotice("");
+    setShowXRC(true);
+    try {
+      const result = await socialConnectService.ensurePlatformConnectionHistory(userId);
+      if (result.skipped) {
+        setXrcNotice("Existing platform links could not be added because XRC recording is disabled in this environment.");
+      } else if (result.observed) {
+        setXrcNotice(`${result.observed} existing platform connection${result.observed === 1 ? "" : "s"} recorded as observed now. This does not backdate the connection.`);
+      }
+    } catch (error) {
+      console.error("[XRC] Could not reconcile linked platform history:", error);
+      setXrcNotice(error?.message || "Linked platform history could not be reconciled.");
+    }
+  };
 
   const isMobile = window.innerWidth <= 768;
 
@@ -685,21 +705,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         }
       },
     },
-    {
-      id:"logout",
-      icon:<LogOut size={20}/>,
-      label:"Sign Out",
-      sub:"Log out of account",
-      accent:"#ef4444",
-      bg:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))",
-      border:"rgba(239,68,68,0.35)",
-      onClick:()=>setShowLogoutConfirm(true),
-    },
   ];
 
-  // Admin quick-access button (mobile-friendly) — inserted before Sign Out
+  // Admin quick-access button (mobile-friendly)
   if (isAdmin) {
-    actionButtons.splice(actionButtons.length - 1, 0, {
+    actionButtons.push({
       id: "admin",
       icon: <LayoutDashboard size={20} />,
       label: "Admin Dashboard",
@@ -730,7 +740,17 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       accent:"#60a5fa",
       bg:"linear-gradient(135deg,rgba(96,165,250,0.14),rgba(59,130,246,0.07))",
       border:"rgba(96,165,250,0.35)",
-      onClick:()=>setShowXRC(true),
+      onClick:openXRC,
+    },
+    {
+      id:"logout",
+      icon:<LogOut size={20}/>,
+      label:"Sign Out",
+      sub:"Log out of account",
+      accent:"#ef4444",
+      bg:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))",
+      border:"rgba(239,68,68,0.35)",
+      onClick:()=>setShowLogoutConfirm(true),
     },
   );
 
@@ -995,10 +1015,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             verificationItems={verificationItems}
             loading={verificationLoading}
             title="Xeevia Record Dashboard (XRD)"
-            onOpenXRC={() => {
-              setShowVerificationDashboard(false);
-              setShowXRC(true);
-            }}
             onBack={() => setShowVerificationDashboard(false)}
             onClose={() => setShowVerificationDashboard(false)}
           />
@@ -1052,14 +1068,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       </div>
 
       {showXRC && (
-        <XRDProfileDashboard
-          profile={{ ...profile, avatarUrl: profile.avatar }}
-          currentUser={currentUser || authUser || { id: userId }}
-          targetId={userId}
-          verificationItems={verificationItems}
-          initialSection="Overview"
-          onClose={() => setShowXRC(false)}
-        />
+        <Suspense fallback={<div role="status" style={{ position: "fixed", inset: 0, zIndex: 100051, display: "grid", placeItems: "center", background: "#020406", color: "#a3e635", fontSize: 14 }}>Loading XRC…</div>}>
+          <XRCOracleExplorer
+            currentUser={currentUser || authUser || { id: userId }}
+            xrcService={xrcService}
+            notice={xrcNotice}
+            onClose={() => setShowXRC(false)}
+          />
+        </Suspense>
       )}
       {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, profileTags:profile.profileTags, avatar:profile.avatar, avatarId:profile.avatarId, avatarMetadata:profile.avatarMetadata, bannerImageUrl:profile.bannerImageUrl, bannerImageId:profile.bannerImageId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
       {showSavedModal       && <SavedContentModal currentUser={{id:userId}} onClose={()=>setShowSavedModal(false)} isMobile={isMobile} />}

@@ -660,7 +660,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         verificationItems={verificationItems}
         loading={verificationLoading}
         title="Xeevia Record Dashboard (XRD)"
-        onOpenXRC={openXRC}
         onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
         onClose={onClose}
       />
@@ -878,6 +877,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       }
 
       // Parallel counts + follow status
+      const evidenceTable = isOwn ? "evidence_items" : "xrd_public_evidence_items";
+      const evidenceFields = isOwn
+        ? "*"
+        : "id,provider,evidence_type,entity_type,title,summary,description,url,source,verified,confidence,metadata,created_at,updated_at";
       const [postsR, reelsR, storiesR, followersR, followingR, evidenceR, evidenceSummaryR, verifiedEvidenceR, xrdRecordsR, identityBindingsR] =
         await Promise.allSettled([
           supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
@@ -885,9 +888,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           supabase.from("stories").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetId),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id",  targetId),
-          supabase.from("evidence_items").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }).limit(50),
-          supabase.from("evidence_items").select("provider,entity_type,title,metadata", { count: "exact" }).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(1000),
-          supabase.from("evidence_items").select("id", { count: "exact", head: true }).eq("profile_id", targetId).eq("verified", true),
+          supabase.from(evidenceTable).select(evidenceFields).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(50),
+          supabase.from(evidenceTable).select("provider,entity_type,title,metadata", { count: "exact" }).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(1000),
+          supabase.from(evidenceTable).select("id", { count: "exact", head: true }).eq("profile_id", targetId).eq("verified", true),
           supabase.from("xrd_records").select("id,lifecycle_status", { count: "exact" }).eq("profile_id", targetId).order("created_at", { ascending: false }).limit(1000),
           supabase.from("xrd_identity_bindings").select("provider,status,visibility,revoked_at").eq("profile_id", targetId).in("status", ["claimed", "pending", "bound", "verified"]).limit(1000),
         ]);
@@ -1505,7 +1508,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 targetId={targetId}
                 verificationItems={verificationItems}
                 initialSection={initialXRDSection}
-                onOpenXRC={openXRC}
                 onClose={() => setShowXRD(false)}
               />
             )}

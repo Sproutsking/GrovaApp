@@ -121,3 +121,63 @@ test("validateChain flags a broken first link instead of trusting it", async () 
     expect.objectContaining({ recordId: record.record_id, status: "broken_chain" }),
   ]));
 });
+
+test("validateChain verifies mixed v3 and sequenced v4 records in chain order", async () => {
+  const legacyRecord = {
+    record_id: "legacy-record",
+    stream_type: "XCRC",
+    previous_hash: await computeGenesisHash("XCRC"),
+    actor_id: "user-1",
+    payload: { event: "post_created" },
+    timestamp: 1720000000000,
+    version: 3,
+    created_at: "2026-10-21T12:00:00.000Z",
+  };
+  legacyRecord.record_hash = await computeRecordHash(legacyRecord);
+
+  const v4Record = {
+    record_id: "sequenced-record",
+    stream_type: "XCRC",
+    previous_hash: legacyRecord.record_hash,
+    actor_id: "user-1",
+    payload: { event: "post_edited" },
+    timestamp: 1720000001000,
+    version: 4,
+    created_at: "2026-10-21T12:00:01.000Z",
+    event_schema_version: 1,
+    idempotency_key: "db:posts:post-1:edit-1",
+    source_operation: "posts.update",
+    stream_sequence: 2,
+  };
+  v4Record.record_hash = await computeRecordHash(v4Record);
+  const service = createVerificationService(makeChainSupabase([v4Record, legacyRecord]));
+
+  await expect(service.validateChain("XCRC")).resolves.toMatchObject({
+    valid: true,
+    complete: true,
+    recordCount: 2,
+    invalidRecords: [],
+    checkedUpTo: v4Record.record_id,
+  });
+});
+
+test("validateChain does not call a limit-sized page a complete verification", async () => {
+  const record = {
+    record_id: "limited-record",
+    stream_type: "XCRC",
+    previous_hash: await computeGenesisHash("XCRC"),
+    actor_id: "user-1",
+    payload: { event: "post_created" },
+    timestamp: 1720000000000,
+    version: 3,
+    created_at: "2026-10-21T12:00:00.000Z",
+  };
+  record.record_hash = await computeRecordHash(record);
+  const service = createVerificationService(makeChainSupabase([record]));
+
+  await expect(service.validateChain("XCRC", 1)).resolves.toMatchObject({
+    valid: false,
+    complete: false,
+    recordCount: 1,
+  });
+});

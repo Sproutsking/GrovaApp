@@ -16,6 +16,35 @@ describe("XRD source snapshot comparison", () => {
     });
   });
 
+  describe("XRD identity-binding reads", () => {
+    const createService = () => {
+      const query = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      const supabase = { from: jest.fn(() => query) };
+      return { query, service: createXrdRecordService(supabase, {}) };
+    };
+
+    it("selects only public binding details for public viewers", async () => {
+      const { query, service } = createService();
+      await service.listIdentityBindings("profile-1");
+
+      expect(query.select).toHaveBeenCalledWith(
+        "id,provider,binding_method,assurance_scope,status,visibility,evidence_id,created_at,updated_at,revoked_at",
+      );
+    });
+
+    it("includes private binding details only for the owner view", async () => {
+      const { query, service } = createService();
+      await service.listIdentityBindings("profile-1", { includePrivateDetails: true });
+
+      expect(query.select).toHaveBeenCalledWith("*");
+    });
+  });
+
   it("reports changed fields without upgrading the evidence status", () => {
     expect(compareEvidenceSnapshot(previous, { ...previous, summary: "Updated pagination support" })).toEqual({
       resultStatus: "changed",

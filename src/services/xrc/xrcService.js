@@ -26,7 +26,6 @@
 //   ✓ Returns original callback result unchanged
 // ============================================================================
 
-import { computeRecordHash, computeGenesisHash } from "./hashing.js";
 import { createRootChainService } from "./rootChainService.js";
 import { createVerificationService } from "./verificationService.js";
 import { shouldRecord, logSkip, logWrite, getEnvironment } from "./xrcGuard.js";
@@ -39,6 +38,28 @@ import {
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const STRICT_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATABASE_CAPTURED_EVENTS = new Set([
+  "account_created",
+  "account_security_changed",
+  "account_subscription_changed",
+  "account_visibility_changed",
+  "profile_updated",
+  "post_created",
+  "post_edited",
+  "post_deleted",
+  "reel_created",
+  "reel_edited",
+  "reel_deleted",
+  "story_created",
+  "story_edited",
+  "story_deleted",
+  "transaction_created",
+  "transaction_settled",
+  "transaction_refunded",
+  "transaction_failed",
+  "transaction_cancelled",
+  "transaction_status_changed",
+]);
 
 function generateUUID() {
   if (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -83,10 +104,15 @@ export function createXRCService(supabase) {
   // ──────────────────────────────────────────────────────────────────────────
   // CORE WRITE PATH
   // ──────────────────────────────────────────────────────────────────────────
-  async function writeRecord(streamType, payload, actorId) {
+  async function writeRecord(streamType, payload, actorId, options = {}) {
     if (!shouldRecord(actorId)) {
       logSkip(streamType, payload?.event, "dev mode or invalid actor");
       return { success: false, skipped: true, reason: "dev-mode" };
+    }
+
+    if (DATABASE_CAPTURED_EVENTS.has(payload?.event)) {
+      logSkip(streamType, payload.event, "captured transactionally by the database");
+      return { success: false, skipped: true, reason: "database-trigger-captured" };
     }
 
     if (streamType === STREAM_TYPES.XWRC) {
@@ -98,48 +124,30 @@ export function createXRCService(supabase) {
     }
 
     try {
-      const timestampMs = Date.now();
       const recordId = generateUUID();
-      const createdAt = new Date().toISOString();
-      const genesisHash = await computeGenesisHash(streamType);
-      let lastError = null;
+      const sourceOperation = options.sourceOperation || `client.${payload?.event || "event"}`;
+      const idempotencyKey = options.idempotencyKey || `client:${recordId}`;
+      const { data, error } = await supabase.rpc("append_xrc_record_v4", {
+        p_record_id: recordId,
+        p_stream_type: streamType,
+        p_actor_id: actorId,
+        p_payload: payload || {},
+        p_idempotency_key: idempotencyKey,
+        p_source_operation: sourceOperation,
+      });
+      if (error) throw error;
 
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        const head = await rootChain.getStreamHead(streamType);
-        const record = {
-          record_id: recordId,
-          stream_type: streamType,
-          previous_hash: head.hash,
-          actor_id: actorId,
-          payload,
-          timestamp: timestampMs,
-          version: 3,
-          created_at: createdAt,
-        };
-        const recordHash = await computeRecordHash(record);
-        const { error } = await supabase.rpc("append_xrc_record", {
-          p_record_id: recordId,
-          p_stream_type: streamType,
-          p_previous_hash: record.previous_hash,
-          p_record_hash: recordHash,
-          p_actor_id: actorId,
-          p_payload: payload || {},
-          p_timestamp: timestampMs,
-          p_version: 3,
-          p_created_at: createdAt,
-          p_genesis_hash: genesisHash,
-        });
+      const record = Array.isArray(data) ? data[0] : data;
+      if (!record?.record_hash) throw new Error("XRC append returned no persisted record hash.");
 
-        if (!error) {
-          logWrite(streamType, payload?.event, recordId);
-          return { success: true, recordId, hash: recordHash, skipped: false };
-        }
-
-        lastError = error;
-        if (!String(error.message || "").includes("XRC chain head changed")) throw error;
-      }
-
-      throw lastError || new Error("XRC append failed after retrying a concurrent stream update.");
+      logWrite(streamType, payload?.event, record.record_id || recordId);
+      return {
+        success: true,
+        recordId: record.record_id || recordId,
+        hash: record.record_hash,
+        version: record.version,
+        skipped: false,
+      };
     } catch (err) {
       console.error("[XRC] writeRecord error:", err);
       return { success: false, error: err.message, skipped: false };

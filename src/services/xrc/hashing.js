@@ -43,22 +43,48 @@ function canonicalize(value) {
  */
 export async function computeRecordHash(record) {
   if (!record) throw new Error("Record is required for hash computation");
-  const required = ["record_id", "stream_type", "previous_hash", "actor_id", "timestamp", "created_at"];
+  const required = ["record_id", "stream_type", "previous_hash", "timestamp", "created_at"];
+  if (record.version === 3) required.push("actor_id");
+  if (record.version === 4) required.push("event_schema_version", "idempotency_key", "source_operation", "stream_sequence");
   const missing = required.filter((key) => record[key] == null);
-  if (missing.length || record.version !== 3) {
-    throw new Error(`A complete v3 XRC record is required to compute its hash${missing.length ? `; missing ${missing.join(", ")}` : ""}`);
+  if (missing.length || ![3, 4].includes(record.version)) {
+    throw new Error(`A complete supported XRC record is required to compute its hash${missing.length ? `; missing ${missing.join(", ")}` : ""}`);
   }
 
-  return computeHash({
+  if (record.version === 3) {
+    return computeHash({
+      record_id: record.record_id,
+      stream_type: record.stream_type,
+      previous_hash: record.previous_hash,
+      actor_id: record.actor_id,
+      payload: canonicalize(record.payload ?? {}),
+      timestamp: record.timestamp,
+      version: record.version,
+      created_at: record.created_at,
+    });
+  }
+
+  const hashInput = {
     record_id: record.record_id,
     stream_type: record.stream_type,
     previous_hash: record.previous_hash,
-    actor_id: record.actor_id,
+    actor_id: record.actor_id ?? null,
     payload: canonicalize(record.payload ?? {}),
-    timestamp: record.timestamp,
+    timestamp: Number(record.timestamp),
     version: record.version,
-    created_at: record.created_at,
-  });
+    created_at: new Date(record.created_at).toISOString(),
+  };
+
+  if (record.version === 4) {
+    Object.assign(hashInput, {
+      event_schema_version: Number(record.event_schema_version),
+      idempotency_key: record.idempotency_key,
+      source_operation: record.source_operation,
+      stream_sequence: Number(record.stream_sequence),
+    });
+  }
+
+  return computeHash(canonicalize(hashInput));
 }
 
 /**
@@ -66,7 +92,7 @@ export async function computeRecordHash(record) {
  */
 export async function verifyRecordHash(record) {
   if (!record) return false;
-  if (record.version !== 3 || !record.record_hash) return false;
+  if (![3, 4].includes(record.version) || !record.record_hash) return false;
 
   try {
     const computed = await computeRecordHash(record);

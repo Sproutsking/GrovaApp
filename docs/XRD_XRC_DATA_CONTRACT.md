@@ -10,6 +10,64 @@ XRD is the human-readable interface to a person's permissioned identity and cont
 
 The contract prevents a connected account, a stored edge, a hash, or a platform-generated badge from being presented as stronger proof than it is.
 
+## Product Surface Boundaries
+
+The product has three distinct surfaces over a shared evidence and event model:
+
+| Surface | Primary user question | Responsibilities | Must not imply |
+|---|---|---|---|
+| **XRD** | “What does this person present, and what supports it?” | Owner record management; a public, permission-filtered profile of claims, evidence, bindings, and verification history; an owner preview of that public projection. | That an owner assertion, connection, graph edge, or hash proves a claim. |
+| **XRC protocol** | “What happened, in what order, and can the recorded history be checked?” | Append-only event envelopes, typed streams, cross-stream commitments, attribution, and integrity proofs. | That an event is public by default, or that its content is true merely because it is chained. |
+| **XRC Oracle** | “What authorized XRC history is relevant, and how does its integrity check?” | Search and explain authorized XRC events, stream relationships, and verification results. It is a read/query surface over XRC, not another ledger. | That search visibility grants access, that a hash check verifies a source claim, or that an Oracle answer is an issuer attestation. |
+
+Evidence connectors and the XRD evidence graph supply source observations and typed relationships to XRD. The XRC protocol may record important changes to those entities, but an XRC event does not replace the entity or its source evidence. XRD’s Evidence Q&A is likewise distinct from XRC Oracle: it searches XRD evidence, not the integrity ledger.
+
+The prototype in `public/xrd.jsx` is a valuable interaction reference: it makes Owner/Public mode explicit, keeps visibility on individual records, gives verification outcomes provenance, and lets a viewer follow a record through evidence and authority. Its sample records, source attestations, Oracle results, and activity are fixtures; they are not live verifications. Its embedded “XRC Oracle” destination is a prototype-era shortcut, not the current product boundary.
+
+### Published product direction
+
+The [Xeevia documentation page](https://www.xeevia.com/#docs), checked 2026-11-01, describes the product direction as follows. Its maturity labels are part of the contract: do not present planned or in-development capabilities as shipped.
+
+| Component | Published responsibility | Published status |
+|---|---|---|
+| Xeevia | User-facing profiles, social interaction, discovery, relationships, and community participation; where people begin building their presence. | Early access |
+| XRC | Record and provenance infrastructure: organize records from relevant sources, associate them with the right people and entities, preserve origins, connect related information, and distinguish user-supplied information from external-source support. | Early access |
+| XRC Oracle | Query and verification layer to examine available records, trace sources, understand relationships, and present evidence and verification results; it is not an all-knowing truth authority. | In development |
+| Identity Graph | Connect identities and records across platforms, professional networks, institutions, employers, domains, wallets, projects, and communities only on a valid basis, with the basis inspectable. | Planned |
+| XRD | Dashboard to inspect and manage records, sources, connections, verification outcomes, and what the owner chooses to present. | Planned |
+
+The website's “six chains, one connected record” is explicitly a **planned architecture whose details are still being specified**: XTRC (transactions), XERC (engagement), XARC (account), XCRC (content), XPRC (permissions), and XSRC (system). The repository currently also has an XDRC stream for XRD lifecycle events; that is an implementation addition, not one of the six chains listed in the published description. The six-chain concept must not be conflated with a completed global chain-of-chains commitment.
+
+The published identity model distinguishes user-declared connection, proof of account control, institution-issued records, and authorized confirmation. The published evidence ladder is **Claimed → Supported → Retrieved → Confirmed**. These are provenance/assurance distinctions, not interchangeable labels: in particular, retrieving data from a connected provider is not the same as an authorized source confirming a record.
+
+The Oracle's published query areas are Trust, Identity, Business, Reputation, Knowledge, Community, and Verification. These are intended query domains, not proof that the current Oracle implements all seven or has access to all such records. Every response should identify its available sources, permissions, method, and limits, and say when a source or verification method is unavailable.
+
+### Owner and Public XRD views
+
+An owner view is the management surface for claims, evidence, bindings, grants, and settings. Public view is a projection of only the records and fields the server authorizes for that audience. An owner-facing “Preview public view” control is useful, but it must render the same projection as an actual public viewer; it must not merely hide owner controls while leaving private data in the displayed graph, counts, search results, or Oracle context.
+
+Visibility is per entity and relationship. Publishing a claim does not publish its evidence, identity binding, source connection, raw payload, or XRC event. A public graph must omit an edge if either endpoint or the edge itself is not visible. Aggregate counts and empty-state messages must also avoid revealing hidden records. Server-side authorization is authoritative; a UI preview is not an access-control boundary.
+
+The current XRD owner preview and non-owner rendering share the same public projection. Non-owner evidence is loaded through the security-invoker `xrd_public_evidence_items` view, which limits rows and fields; public identity bindings use an allowlisted selection; evidence-edge reads require both endpoints to be visible and honor `metadata.visibility` when present. Edge visibility is not yet a first-class column, so an edge without an explicit metadata visibility follows its endpoints. This remains an implementation step, not a substitute for reviewing every deployed RLS policy.
+
+### XRC publication model
+
+The protocol should preserve a private canonical event and expose a separate, minimal public integrity receipt only when policy and the relevant subject’s consent permit it. The receipt may support integrity verification without revealing the event payload, private actor/subject identifiers, provider account IDs, tokens, private scopes, or low-entropy values. Public search must operate on this authorized receipt projection, never on a client-side filter over the full event table.
+
+Recommended audience choices are `private` (owner and explicitly authorized parties), `approved_viewers` (a scoped, revocable grant), and `public_receipt` (a redacted receipt, not the canonical payload). Publication is an event-class policy plus explicit subject consent where needed—not one global “make my XRC public” switch. Revocation prevents future reads but cannot recall a receipt already copied by another party. Corrections and visibility changes append protocol events; they do not rewrite history.
+
+**Current implementation boundary:** the deployed schema must be checked separately, but repository migrations define `xrc_records` reads for the authenticated actor only, while stream-head rows are readable to authenticated users. XRC writes append to one hash chain per stream. The current schema does not define a public receipt projection or a root-of-roots checkpoint that commits the set of stream heads. Therefore, “chain of chains” and public verification are product goals, not capabilities to claim as complete today.
+
+### Progression and acceptance gates
+
+1. Keep XRD claims, evidence, bindings, and verification results inspectable as separate entities with per-entity visibility.
+2. Make the actual server-authorized public XRD projection and its owner preview identical; test private-data non-disclosure in records, graphs, counts, and search.
+3. Define versioned XRC event envelopes and event-class privacy policy before widening record reads.
+4. Add a global checkpoint that commits stream heads, with an independently verifiable inclusion proof and documented trust/anchoring model.
+5. Add a redacted public receipt/query path for XRC Oracle. Test that private payloads and identifiers are not returned, even through search, graph expansion, counts, or errors.
+
+Each gate must state what it proves and what it does not. A hash proves only that bytes match a commitment under the stated hash rules; a chain proves ordering/continuity under its implementation; an external source check supports only the fields and time checked; neither alone proves a person's claim.
+
 ## Canonical Vocabulary
 
 | Term | Contract meaning | Does not mean |
@@ -156,12 +214,26 @@ Access is evaluated by the server, not only hidden in the UI. A graph node or ed
 
 ## XRC Integrity Contract
 
-- Append events only after the domain action has a durable outcome, or use an outbox/transactional RPC so the action and audit intent cannot silently diverge.
+- Capture domain events in the same database transaction as the durable business-row mutation. A failed audit append must roll back that mutation rather than silently diverge.
 - Serialize stream-head advancement. Reading a head, inserting a record, and asynchronously updating the head is not sufficient under concurrent writes.
-- Verify record hash, previous-hash linkage, supported payload version, actor/authority, and stream type separately.
-- Use idempotency keys for retried writes. A failed XRC append must be observable and repairable; silently dropping it is not an audit guarantee.
+- Verify record hash, previous-hash linkage, supported payload version, actor/authority, stream sequence, and stream type separately. A limited page is not a complete-chain verification.
+- Compute hashes on the server from the persisted record envelope. Bind event schema version, idempotency key, source operation, and sequence into the version-4 hash.
+- Use idempotency keys for retried writes. Reusing a key for a different event is an error.
 - Keep XRC verification separate from source verification and claim truth. A valid chain means integrity under the implemented threat model, not external notarization or truth.
 - Define retention, privacy, correction, deletion, and redaction rules before putting sensitive profile or payment data in event payloads.
+
+### Transactional event coverage
+
+Migration `106_xrc_transactional_event_capture.sql` introduces version-4 XRC records and database triggers for profile/account changes, EP ledger entries, wallet history, transaction lifecycle changes, profile boosts, ad campaign changes, and post/reel/story creation, edits, deletion, and restoration. Trigger appends share the source mutation's transaction. Account values and content bodies are not copied into the event payload; content events include changed-field names and hashes of tracked versions. Events include schema version, actor/subject references, source operation, server timestamp, outcome, idempotency key, and per-stream sequence.
+
+The migration disables the legacy client-hash append RPC. The client append path uses the server-computed v4 RPC for events not captured from a business table, and skips events already covered by triggers to avoid duplicate client/server records. Version-3 records remain verifiable; their order is recovered by chain links because they have no sequence values.
+
+Coverage limits remain material:
+
+- The campaign schema currently provides creation, status, budget, and escrow state. No authoritative impression, click, conversion, settlement, or unused-budget-refund source tables were identified, so campaign performance and settlement events are not covered.
+- Content version hashes are commitments, not saved snapshots; they can detect a mismatch when the original version is available, but cannot restore or replay deleted content.
+- Trigger coverage is only effective after the migration is applied to the deployed database. Repository presence, tests, and a successful build do not prove deployment.
+- XRC has no public receipt projection, global checkpoint, external blockchain anchor, or proof of event truth/completeness. Do not describe it as on-chain or independently notarized.
 
 The app records XRD identity-detail edits in XARC using changed field names and visibility only; it does not copy biography or other field values into the chain. Platform link, unlink, and imported-identity lifecycle events are recorded in XARC with provider, connection method, and an explicit assurance scope; access tokens and external platform account identifiers are excluded. Xeevia follow and unfollow actions are recorded in XERC with the two Xeevia profile IDs. These events attest to app-recorded state changes, not to the truth of profile claims or external platform data.
 
@@ -177,7 +249,7 @@ XRC intentionally skips writes in test and development builds (including hosted 
 | `xrd_identity_details` | Owner-supplied profile detail | These values are self-asserted profile fields, not external identity bindings. |
 | `xrd_remarks` | Remark | Current target is a title and optional evidence item, not a first-class XRD record; authority relationship is not a required FK. |
 | `xrd_access_requests`, `xrd_evidence_grants` | Access workflow | Useful foundation; grants currently target evidence items. Apply and test the privacy migrations in the deployed database. |
-| `xrc_records`, `xrc_root_chain` | XRC events and stream heads | Definitions were found in the schema reference, but not in an active migration. The reference schema's default version also differs from the current v3 hashing requirement. Confirm deployed schema before relying on it. |
+| `xrc_records`, `xrc_root_chain` | XRC events and stream heads | Migrations 097 and 106 define v3/v4 append behavior and transactional event triggers. Confirm both migrations are applied to the deployed database before relying on coverage. |
 | Verification UI/service state | Verification run | No durable verification-run table was identified in the active migrations inspected for this contract. UI-computed or transient results are not an audit history. |
 | Eligibility/reputation surfaces | Decision | No general purpose-bound decision entity was identified. Do not represent a universal score as a substitute. |
 

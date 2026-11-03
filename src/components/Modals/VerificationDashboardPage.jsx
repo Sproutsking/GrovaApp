@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom";
-import { ArrowLeft, GitBranch, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, ShieldCheck, X } from "lucide-react";
 
 const SOCIAL_PROVIDERS = new Set([
   "x", "twitter", "facebook", "instagram", "linkedin", "tiktok", "threads",
@@ -13,7 +13,6 @@ const VerificationDashboardPage = ({
   verificationItems = [],
   loading,
   title = "Xeevia Record Dashboard (XRD)",
-  onOpenXRC,
   onBack,
   onClose,
 }) => {
@@ -42,8 +41,6 @@ const VerificationDashboardPage = ({
 
   const mainAvatar = profile?.avatarUrl || profile?.avatar_url || null;
   const profileName = dashboard?.profileSummary?.displayName || profile?.fullName || "This profile";
-  const initials = profileName.charAt(0).toUpperCase();
-
   const renderAvatar = (avatar, label, className = "") => avatar
     ? <img className={className} src={avatar} alt={`${label} profile`} />
     : <span className={`${className} vdp-platform-fallback`}>{label.charAt(0).toUpperCase()}</span>;
@@ -52,7 +49,6 @@ const VerificationDashboardPage = ({
     <div className={`vdp-section-page vdp-section-${selected.id}`} style={{ "--section-accent": selected.accent || "#84cc16" }}>
       <div className="vdp-nav">
         <button type="button" onClick={() => setSelectedSection(null)}><ArrowLeft size={15}/> Back to evidence map</button>
-        {onOpenXRC && <button type="button" onClick={onOpenXRC}><GitBranch size={15}/> Open XRC</button>}
         <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
       </div>
       <div className="vdp-section-hero" style={{ "--section-accent": selected.accent || "#84cc16" }}>
@@ -117,7 +113,6 @@ const VerificationDashboardPage = ({
       <main className="vdp-shell">
         {!selected && <div className="vdp-nav">
           <button type="button" onClick={onBack}><ArrowLeft size={15}/> Back to profile</button>
-          {onOpenXRC && <button type="button" onClick={onOpenXRC}><GitBranch size={15}/> Open XRC</button>}
           <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
         </div>}
         {selected ? renderSectionPage() : <>

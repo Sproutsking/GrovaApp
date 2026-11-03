@@ -139,9 +139,12 @@ export function createXrdRecordService(supabase, recordService = xrcService) {
     return { ...data, audit };
   };
 
-  const listIdentityBindings = async (profileId) => {
+  const listIdentityBindings = async (profileId, { includePrivateDetails = false } = {}) => {
     const { data, error } = await supabase.from("xrd_identity_bindings")
-      .select("*").eq("profile_id", profileId).order("created_at", { ascending: false }).limit(100);
+      .select(includePrivateDetails
+        ? "*"
+        : "id,provider,binding_method,assurance_scope,status,visibility,evidence_id,created_at,updated_at,revoked_at")
+      .eq("profile_id", profileId).order("created_at", { ascending: false }).limit(100);
     if (error) throw error;
     return data || [];
   };

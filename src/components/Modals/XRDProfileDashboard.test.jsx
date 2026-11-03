@@ -1,6 +1,64 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { buildXrdIdentityDetailRows, getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrcRecordSummary, getXrdPhotoSources, getXrdProfileAvatarCandidates, resolveXrdInitialSection, SOURCE_PLATFORMS, XrdEvidenceGraph } from "./XRDProfileDashboard";
+import XRDProfileDashboard from "./XRDProfileDashboard";
+
+jest.mock("../../services/config/supabase", () => {
+  const createQuery = () => {
+    const result = { data: [], error: null };
+    const query = {
+      select: () => query,
+      eq: () => query,
+      order: () => query,
+      limit: () => query,
+      in: () => query,
+      upsert: () => query,
+      insert: () => query,
+      update: () => query,
+      delete: () => query,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+    };
+    return query;
+  };
+  return {
+    supabase: {
+      auth: { getUser: () => Promise.resolve({ data: { user: { id: "owner-1", user_metadata: {} } }, error: null }) },
+      from: () => createQuery(),
+    },
+  };
+});
+
+jest.mock("../../services/xrc", () => ({
+  __esModule: true,
+  default: {},
+  STREAM_TYPES: {},
+  XRC_EVENTS: {},
+}));
+
+jest.mock("../../services/evidence/evidenceService", () => ({
+  __esModule: true,
+  default: { getEvidenceEdgesForItemIds: () => Promise.resolve([]) },
+}));
+
+jest.mock("../../services/evidence/xrdRecordService", () => ({
+  __esModule: true,
+  default: {
+    listClaims: jest.fn(() => Promise.resolve([])),
+    listIdentityBindings: jest.fn(() => Promise.resolve([])),
+  },
+  compareEvidenceSnapshot: jest.fn(),
+}));
+
+jest.mock("../../services/distribution/socialConnectService", () => ({
+  __esModule: true,
+  default: { getConnections: jest.fn(() => Promise.resolve({})) },
+}));
+
+jest.mock("../../contexts/AccountLinkingContext", () => ({
+  useAccountLinking: () => ({ openAccountLink: jest.fn() }),
+}));
 
 jest.mock("../../services/shared/mediaUrlService", () => ({
   __esModule: true,
@@ -157,6 +215,50 @@ it("lists Apple as an XRD source supported by the connection service", () => {
   expect(SOURCE_PLATFORMS).toContainEqual(["apple", "Apple"]);
 });
 
+it("previews the public projection without losing private owner records", async () => {
+  render(
+    <XRDProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "owner-1" }}
+      targetId="owner-1"
+      verificationItems={[
+        { id: "public-proof", profile_id: "owner-1", title: "Public contribution", verified: true, metadata: { visibility: "PUBLIC" } },
+        { id: "private-proof", profile_id: "owner-1", title: "Private contribution", verified: true, metadata: { visibility: "PRIVATE" } },
+      ]}
+      onClose={jest.fn()}
+    />,
+  );
+
+  expect(await screen.findByText("Private contribution")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Preview public XRD" }));
+  expect(await screen.findByText("Public contribution")).not.toBeNull();
+  await waitFor(() => expect(screen.queryByText("Private contribution")).toBeNull());
+  expect(screen.getByText("PUBLIC PREVIEW")).not.toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Return to owner view" }));
+  expect(await screen.findByText("Private contribution")).not.toBeNull();
+});
+
+it("applies the same public projection to non-owner profile visits", async () => {
+  render(
+    <XRDProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "viewer-1" }}
+      targetId="owner-1"
+      verificationItems={[
+        { id: "public-proof", profile_id: "owner-1", title: "Public contribution", verified: true, metadata: { visibility: "PUBLIC" } },
+        { id: "private-proof", profile_id: "owner-1", title: "Private contribution", verified: true, metadata: { visibility: "PRIVATE" } },
+      ]}
+      onClose={jest.fn()}
+    />,
+  );
+
+  expect(await screen.findByText("Public contribution")).not.toBeNull();
+  expect(screen.queryByText("Private contribution")).toBeNull();
+  expect(screen.getByText("PUBLIC")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: /preview public xrd/i })).toBeNull();
+});
+
 it("renders and inspects real XRD claim, evidence, and identity-binding nodes", () => {
   const claim = {
     id: "claim-1",
@@ -181,7 +283,7 @@ it("renders and inspects real XRD claim, evidence, and identity-binding nodes", 
     status: "bound",
   };
 
-  const { container } = render(
+  render(
     <XrdEvidenceGraph
       items={[evidence]}
       edges={[]}
@@ -199,9 +301,9 @@ it("renders and inspects real XRD claim, evidence, and identity-binding nodes", 
     />,
   );
 
-  expect(container.querySelector(".xrd-graph-claim-link.is-support")).not.toBeNull();
-  expect(container.querySelector(".xrd-graph-binding-link")).not.toBeNull();
-  expect(container.querySelector(".xrd-graph-binding-evidence-link")).not.toBeNull();
+  expect(screen.getByText("Owner linked evidence as supporting this claim; this relation is not independent verification")).toBeTruthy();
+  expect(screen.getByText("Identity binding link; assurance is limited to account control")).toBeTruthy();
+  expect(screen.getByText("This observation was collected through the linked account connection; it does not prove authorship.")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /XRD claim Maintains Atlas/ }));
   expect(screen.getByText("I maintain the Atlas open-source library.")).not.toBeNull();
   expect(screen.getByText(/1 visible evidence relationship attached/)).not.toBeNull();

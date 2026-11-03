@@ -241,7 +241,7 @@ const XRDClaimsSection = ({
         <div className="xrd-claim-form-actions"><button type="button" className="cancel" onClick={() => setComposerOpen(false)}>Cancel</button><button type="submit" className="xrd-claim-submit" disabled={saving || title.trim().length < 2 || claimText.trim().length < 5}>{saving ? <><LoaderCircle size={13} />Saving…</> : <><Check size={13} />Save self-authored claim</>}</button></div>
       </form>}
 
-      {loading ? <div className="xrd-claim-loading" role="status"><LoaderCircle size={19} /><strong>Loading XRD claims</strong><p>Reading claim records, visible evidence links, and recent source checks.</p></div>
+      {loading ? <div className="xrd-claim-loading" role="status"><LoaderCircle size={19} /><strong>Loading XRD claims</strong><p>Reading published claims and visible evidence links.</p></div>
         : !error && !claims.length ? <div className="xrd-claim-empty"><FileText size={20} /><strong>No XRD claims yet</strong><p>Connect GitHub and add a claim to create the first traceable path. Example fixtures above are synthetic and are not saved to your profile.</p></div>
           : <div className="xrd-claim-list">{claims.map((claim) => {
             const expanded = expandedId === claim.id;
@@ -269,7 +269,7 @@ const XRDClaimsSection = ({
               </div>
               {expanded && <div className="xrd-claim-detail">
                 <div className="xrd-claim-path">
-                  <div className="xrd-claim-path-row"><i /><span>Xeevia profile · {claim.profile_id}</span></div>
+                  <div className="xrd-claim-path-row"><i /><span>Xeevia profile{claim.profile_id ? ` · ${claim.profile_id}` : ""}</span></div>
                   <div className="xrd-claim-path-row"><i /><span>Self-authored XRD claim · {statusLabel(claim)}</span></div>
                   {linkedEvidence.map((link) => <div className="xrd-claim-path-row is-evidence" key={link.id}><i /><span>{link.relation.replaceAll("_", " ")} · {link.item.provider} · {link.item.title || link.item.evidence_type}</span></div>)}
                   {latestCheck && <div className="xrd-claim-path-row is-check"><i /><span>Source observation · {latestCheck.provider} · {latestCheck.result_status}</span></div>}

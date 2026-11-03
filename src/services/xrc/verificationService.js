@@ -37,7 +37,7 @@ export function createVerificationService(supabase) {
 
       if (error) throw error;
       if (!record) return { status: VERIFICATION_STATUS.MISSING, record: null };
-      if (record.version !== 3) return { status: VERIFICATION_STATUS.UNVERIFIABLE, record };
+      if (![3, 4].includes(record.version)) return { status: VERIFICATION_STATUS.UNVERIFIABLE, record };
 
       const hashOk = await verifyRecordHash(record);
 
@@ -66,6 +66,7 @@ export function createVerificationService(supabase) {
         .from("xrc_records")
         .select("*")
         .eq("stream_type", streamType)
+        .order("stream_sequence", { ascending: true, nullsFirst: true })
         .order("timestamp", { ascending: true })
         .limit(limit);
 
@@ -80,11 +81,36 @@ export function createVerificationService(supabase) {
         };
       }
 
-      const invalidRecords = [];
-      let previousHash = await computeGenesisHash(streamType);
+      const genesisHash = await computeGenesisHash(streamType);
+      const legacyRecords = records.filter((record) => record.stream_sequence == null);
+      const sequencedRecords = records
+        .filter((record) => record.stream_sequence != null)
+        .sort((a, b) => Number(a.stream_sequence) - Number(b.stream_sequence));
+      const orderedLegacyRecords = [];
+      const remainingLegacyRecords = [...legacyRecords];
+      let legacyHead = genesisHash;
 
-      for (const record of records) {
-        if (record.version !== 3) {
+      while (remainingLegacyRecords.length > 0) {
+        const nextIndex = remainingLegacyRecords.findIndex(
+          (record) => record.previous_hash === legacyHead,
+        );
+        if (nextIndex < 0) break;
+        const [nextRecord] = remainingLegacyRecords.splice(nextIndex, 1);
+        orderedLegacyRecords.push(nextRecord);
+        legacyHead = nextRecord.record_hash;
+      }
+
+      const orderedRecords = [
+        ...orderedLegacyRecords,
+        ...remainingLegacyRecords,
+        ...sequencedRecords,
+      ];
+      const invalidRecords = [];
+      let previousHash = genesisHash;
+      let expectedSequence = legacyRecords.length + 1;
+
+      for (const record of orderedRecords) {
+        if (![3, 4].includes(record.version)) {
           invalidRecords.push({
             recordId: record.record_id,
             status: VERIFICATION_STATUS.UNVERIFIABLE,
@@ -98,6 +124,19 @@ export function createVerificationService(supabase) {
             timestamp: record.timestamp,
             event: record.payload?.event,
           });
+        }
+
+        if (record.stream_sequence != null) {
+          if (Number(record.stream_sequence) !== expectedSequence) {
+            invalidRecords.push({
+              recordId: record.record_id,
+              status: VERIFICATION_STATUS.BROKEN_CHAIN,
+              timestamp: record.timestamp,
+              expectedSequence,
+              gotSequence: Number(record.stream_sequence),
+            });
+          }
+          expectedSequence = Number(record.stream_sequence) + 1;
         }
 
         // Check chain linkage
@@ -114,14 +153,19 @@ export function createVerificationService(supabase) {
         previousHash = record.record_hash;
       }
 
+      const complete = records.length < limit;
+      const valid = invalidRecords.length === 0 && complete;
       return {
         streamType,
-        valid: invalidRecords.length === 0,
-        recordCount: records.length,
+        valid,
+        complete,
+        recordCount: orderedRecords.length,
         invalidRecords,
-        checkedUpTo: records[records.length - 1]?.record_id,
-        message: invalidRecords.length === 0
-          ? `Chain is intact — ${records.length} records verified`
+        checkedUpTo: orderedRecords[orderedRecords.length - 1]?.record_id,
+        message: !complete
+          ? `Only the first ${records.length} records were checked; increase the limit to verify the complete stream`
+          : invalidRecords.length === 0
+          ? `Chain is intact — ${orderedRecords.length} records verified`
           : invalidRecords.every((record) => record.status === VERIFICATION_STATUS.UNVERIFIABLE)
             ? `${invalidRecords.length} legacy records cannot be verified by this client`
             : `${invalidRecords.length} integrity issues found`,
@@ -154,7 +198,7 @@ export function createVerificationService(supabase) {
         if (error) throw error;
         if (!record) break;
 
-        const hashOk = record.version === 3 ? await verifyRecordHash(record) : null;
+        const hashOk = [3, 4].includes(record.version) ? await verifyRecordHash(record) : null;
         chain.push({ ...record, _hashValid: hashOk, _depth: i });
 
         if (record.previous_hash === await computeGenesisHash(record.stream_type)) {

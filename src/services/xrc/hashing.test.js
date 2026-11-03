@@ -38,6 +38,33 @@ test("changed persisted data fails v3 record verification", async () => {
   await expect(verifyRecordHash({ ...record, payload: { ...record.payload, content: "changed" } })).resolves.toBe(false);
 });
 
+test("v4 record hashes bind event schema, idempotency, source, and stream sequence", async () => {
+  const record = {
+    record_id: "record-4",
+    stream_type: "XWRC",
+    previous_hash: "parent-hash",
+    actor_id: "user-1",
+    payload: {
+      event: "ep_spent",
+      event_schema_version: 1,
+      actor_id: "user-1",
+      amount: 25,
+    },
+    timestamp: 1720000000000,
+    version: 4,
+    created_at: "2026-10-21T12:00:00.000Z",
+    event_schema_version: 1,
+    idempotency_key: "ep-ledger:entry-1",
+    source_operation: "ep_transactions.insert",
+    stream_sequence: "12",
+  };
+  record.record_hash = await computeRecordHash(record);
+
+  await expect(verifyRecordHash(record)).resolves.toBe(true);
+  await expect(verifyRecordHash({ ...record, stream_sequence: "13" })).resolves.toBe(false);
+  await expect(verifyRecordHash({ ...record, source_operation: "client.changed" })).resolves.toBe(false);
+});
+
 test("legacy records are not treated as verifiable v3 records", async () => {
   await expect(verifyRecordHash({ ...makeRecord(), version: 2, record_hash: "legacy-hash" })).resolves.toBe(false);
 });
