@@ -36,12 +36,30 @@ describe("UpdatesChannelPanel media", () => {
       },
     ]);
 
-    const { container } = render(<UpdatesChannelPanel channelId="updates" />);
+    render(<UpdatesChannelPanel channelId="updates" />);
 
     await screen.findByText("An image update");
-    expect(container.querySelector('[data-post-id="image-post"] img').getAttribute("src"))
+    expect(screen.getByRole("img", { name: "Social media update" }).getAttribute("src"))
       .toBe("https://cdn.example/image.jpg");
-    expect(container.querySelector('[data-post-id="video-post"] video').getAttribute("src"))
+    expect(screen.getByLabelText("Update video").getAttribute("src"))
       .toBe("https://cdn.example/video.mp4");
+  });
+
+  it("uses a dark provider-accented card for Facebook updates", async () => {
+    socialUpdatesService.listPosts.mockResolvedValue([
+      {
+        id: "facebook-post",
+        provider: "facebook",
+        content: "A Facebook update",
+        activity_type: "post",
+      },
+    ]);
+
+    render(<UpdatesChannelPanel channelId="updates" />);
+
+    const post = await screen.findByRole("article", { name: "Update from Facebook" });
+    expect(post.getAttribute("data-provider")).toBe("facebook");
+    expect(post.getAttribute("style")).toContain("#1877f2");
+    expect(screen.getByText("Facebook")).not.toBeNull();
   });
 });

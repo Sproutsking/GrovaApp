@@ -36,6 +36,7 @@ import TicketToolPanel from "../tools/TicketToolPanel";
 import CommunityToolPanelPosts from "../tools/CommunityToolPanelPosts";
 import verificationService from "../../../services/community/verificationService";
 import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
+import OfficialLinksPanel from "../links/OfficialLinksPanel";
 import { supabase } from "../../../services/config/supabase";
 import { useUserBoostTier } from "../../../hooks/useUserBoostTier";
 
@@ -865,6 +866,7 @@ const ChatTab = ({
     }
   };
   const isOwner = community?.owner_id === userId;
+  const isOfficialLinksChannel = selectedChannel?.name?.trim().toLowerCase() === "official-links";
   const hasAdminOverride = Boolean(userPermissions.administrator);
   const canManageChannels = userPermissions.manageChannels || hasAdminOverride || isOwner;
   const canManageRoles = userPermissions.manageRoles || hasAdminOverride || isOwner;
@@ -1124,7 +1126,15 @@ const ChatTab = ({
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={communityBackgroundStyle}>
           {selectedChannel?.integrations?.ticket
             ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} />
-            : selectedChannel?.tool_type === "social_updates"
+            : isOfficialLinksChannel
+              ? <OfficialLinksPanel
+                channel={selectedChannel}
+                canManage={canManageChannels}
+                onSave={(officialLinks) => applyChannelUpdate(selectedChannel.id, {
+                  integrations: { ...(selectedChannel.integrations || {}), officialLinks },
+                })}
+              />
+              : selectedChannel?.tool_type === "social_updates"
               ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} />
               : <>
           <CommunityToolPanelPosts
@@ -1249,7 +1259,7 @@ const ChatTab = ({
           </div>
         )}
 
-        <div className="chat-input-area">
+        {!isOfficialLinksChannel && <div className="chat-input-area">
           <BackgroundDropdown
             currentTheme={backgroundId}
             onThemeChange={handleBackgroundChange}
@@ -1277,7 +1287,7 @@ const ChatTab = ({
             canManageAnnouncement={canManageChannels}
             canAttachFiles={canAttachFiles}
           />
-        </div>
+        </div>}
       </div>
 
       <CommunityMenu
