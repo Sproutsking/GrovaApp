@@ -6,8 +6,55 @@ function normalizeVerificationData(invoice) {
   return result;
 }
 
+const PANEL_CACHE_TTL_MS = 90_000;
+const MAX_CACHED_PANELS = 100;
+const panelCache = new Map();
+const panelRequests = new Map();
+const panelRevisions = new Map();
+const panelCacheKey = (communityId, userId) => JSON.stringify([String(communityId), String(userId)]);
+
 const verificationService = {
-  async getPanel(communityId) {
+  getPanel(communityId, { userId, force = false } = {}) {
+    if (!userId) return this.loadPanel(communityId);
+
+    const key = panelCacheKey(communityId, userId);
+    const cached = panelCache.get(key);
+    if (!force && cached && Date.now() - cached.cachedAt < PANEL_CACHE_TTL_MS) {
+      return Promise.resolve(cached.panel);
+    }
+    if (!force && panelRequests.has(key)) return panelRequests.get(key);
+
+    const revision = panelRevisions.get(String(communityId)) || 0;
+    const request = this.loadPanel(communityId)
+      .then((panel) => {
+        if ((panelRevisions.get(String(communityId)) || 0) === revision) {
+          if (!panelCache.has(key) && panelCache.size >= MAX_CACHED_PANELS) {
+            panelCache.delete(panelCache.keys().next().value);
+          }
+          panelCache.set(key, { panel, cachedAt: Date.now() });
+        }
+        return panel;
+      })
+      .finally(() => {
+        if (panelRequests.get(key) === request) panelRequests.delete(key);
+      });
+    panelRequests.set(key, request);
+    return request;
+  },
+
+  invalidatePanel(communityId, userId) {
+    const communityKey = String(communityId);
+    panelRevisions.set(communityKey, (panelRevisions.get(communityKey) || 0) + 1);
+    const keys = userId
+      ? [panelCacheKey(communityId, userId)]
+      : [...new Set([...panelCache.keys(), ...panelRequests.keys()])].filter((key) => JSON.parse(key)[0] === communityKey);
+    keys.forEach((key) => {
+      panelCache.delete(key);
+      panelRequests.delete(key);
+    });
+  },
+
+  async loadPanel(communityId) {
     try {
       const [panelResult, settingsResult] = await Promise.all([
         supabase.rpc("get_verification_panel", { p_community_id: communityId }),

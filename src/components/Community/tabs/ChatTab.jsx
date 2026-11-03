@@ -409,7 +409,7 @@ const ChatTab = ({
 
   const loadVerificationRouting = async () => {
     try {
-      const panel = await verificationService.getPanel(community.id);
+      const panel = await verificationService.getPanel(community.id, { userId });
       setVerificationRouting(panel.configured ? panel : null);
     } catch (error) {
       console.error("Error loading verification routing:", error);

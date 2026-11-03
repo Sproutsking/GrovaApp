@@ -123,6 +123,27 @@ describe("RulesVerificationDashboard previews", () => {
     expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onPublish.mock.invocationCallOrder[0]);
   });
 
+  it("previews and saves the selected rules card appearance", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(
+      <RulesVerificationDashboard
+        standalone
+        value={{ rulesChannelId: "rules-channel" }}
+        rulesMethod={{ title: "Community rules", items: [{ id: "one", title: "Be kind", body: "" }] }}
+        channels={[{ id: "rules-channel", name: "rules", type: "text" }]}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Midnight" }));
+    expect(screen.getByRole("article", { name: "Community rules card, midnight style" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save rules" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      rulesPanel: expect.objectContaining({ style: "midnight" }),
+    })));
+  });
+
   it("opens role actions for each community role and routes Manage role to role settings", () => {
     const onManageRole = jest.fn();
     render(

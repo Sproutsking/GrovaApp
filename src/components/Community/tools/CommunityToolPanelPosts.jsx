@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../../../services/config/supabase";
+import verificationService from "../../../services/community/verificationService";
 import TicketToolPanel from "./TicketToolPanel";
 import VerificationPanel from "../verification/VerificationPanel";
+
+const POST_CACHE_TTL_MS = 120_000;
+const MAX_CACHED_CHANNELS = 80;
+const postCache = new Map();
+const postCacheKey = (communityId, channelId, userId) => JSON.stringify([String(communityId), String(channelId), String(userId || "")]);
 
 export default function CommunityToolPanelPosts({
   communityId,
@@ -16,35 +22,71 @@ export default function CommunityToolPanelPosts({
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
   const requestIdRef = useRef(0);
+  const pendingRequestRef = useRef(null);
 
-  const loadPosts = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
+  const loadPosts = useCallback(async ({ force = false } = {}) => {
     if (!communityId || !channelId) {
       setPosts([]);
       return;
     }
-    setError("");
-    const { data, error: loadError } = await supabase
-      .from("community_tool_panel_posts")
-      .select("id,tool_type,channel_id,created_at,updated_at")
-      .eq("community_id", communityId)
-      .eq("channel_id", channelId)
-      .order("created_at", { ascending: true });
-    if (requestId !== requestIdRef.current) return;
-    if (loadError) {
-      setError(loadError.message || "Could not load published tool panels.");
+    const key = postCacheKey(communityId, channelId, userId);
+    const cached = postCache.get(key);
+    if (!force && cached && Date.now() - cached.cachedAt < POST_CACHE_TTL_MS) {
+      setPosts(cached.posts);
+      setError("");
       return;
     }
-    setPosts(data || []);
+    if (pendingRequestRef.current?.key === key) {
+      if (force) pendingRequestRef.current.forceAfter = true;
+      return pendingRequestRef.current.promise;
+    }
+
+    const requestId = ++requestIdRef.current;
     setError("");
-  }, [communityId, channelId]);
+    const promise = (async () => {
+      const { data, error: loadError } = await supabase
+        .from("community_tool_panel_posts")
+        .select("id,tool_type,channel_id,created_at,updated_at")
+        .eq("community_id", communityId)
+        .eq("channel_id", channelId)
+        .order("created_at", { ascending: true });
+      if (requestId !== requestIdRef.current) return;
+      if (loadError) {
+        setError(loadError.message || "Could not load published tool panels.");
+        return;
+      }
+      const loadedPosts = data || [];
+      if (!postCache.has(key) && postCache.size >= MAX_CACHED_CHANNELS) {
+        postCache.delete(postCache.keys().next().value);
+      }
+      postCache.set(key, { posts: loadedPosts, cachedAt: Date.now() });
+      setPosts(loadedPosts);
+      setError("");
+    })();
+    const pendingRequest = { key, promise, forceAfter: false };
+    pendingRequestRef.current = pendingRequest;
+    try {
+      await promise;
+    } finally {
+      if (pendingRequestRef.current === pendingRequest) {
+        pendingRequestRef.current = null;
+        if (pendingRequest.forceAfter && requestId === requestIdRef.current) {
+          await loadPosts({ force: true });
+        }
+      }
+    }
+  }, [communityId, channelId, userId]);
 
   useEffect(() => {
     if (!channelId) return undefined;
     loadPosts();
+    const reloadPosts = () => {
+      verificationService.invalidatePanel(communityId, userId);
+      return loadPosts({ force: true });
+    };
     const handlePanelUpdate = (event) => {
       if (event.detail?.communityId === communityId && event.detail?.channelIds?.map(String).includes(String(channelId))) {
-        loadPosts();
+        reloadPosts();
       }
     };
     window.addEventListener("community:tool-panels-updated", handlePanelUpdate);
@@ -55,14 +97,14 @@ export default function CommunityToolPanelPosts({
         schema: "public",
         table: "community_tool_panel_posts",
         filter: `channel_id=eq.${channelId}`,
-      }, loadPosts)
+      }, reloadPosts)
       .subscribe();
     return () => {
       requestIdRef.current += 1;
       window.removeEventListener("community:tool-panels-updated", handlePanelUpdate);
       supabase.removeChannel(subscription);
     };
-  }, [channelId, communityId, loadPosts]);
+  }, [channelId, communityId, loadPosts, userId]);
 
   if (!posts.length && !error) {
     return (

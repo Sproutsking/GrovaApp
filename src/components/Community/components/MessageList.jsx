@@ -320,7 +320,7 @@ const MessageList = ({
                 </div>
               ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} profile-${profileTier} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} profile-${profileTier} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
@@ -801,8 +801,14 @@ const MessageList = ({
           word-break: break-word;
           margin-inline: 1px;
         }
-        .msg-item.me .msg-content { text-align: right; }
-        .msg-item.me .msg-reply-quote { text-align: right; }
+        .msg-item.me:not(.announcement) .msg-content { text-align: right; }
+        .msg-item.me:not(.announcement) .msg-reply-quote { text-align: right; }
+        .msg-item.announcement .mra-wrapper { margin-left: 0 !important; margin-right: auto !important; align-items: flex-start !important; }
+        .msg-item.announcement .msg-bubble,
+        .msg-item.announcement .msg-content,
+        .msg-item.announcement .msg-reply-quote { margin-left: 0; margin-right: auto; text-align: left; }
+        .msg-item.announcement .msg-card-header { justify-content: flex-start; }
+        .msg-item.announcement .announcement-reply-button { align-self: flex-start; }
         .msg-mention{display:inline-flex;align-items:center;vertical-align:baseline;border:1px solid transparent;border-radius:6px;padding:1px 5px;font:inherit;font-weight:650;line-height:1.35;cursor:pointer;transition:background .16s,border-color .16s,color .16s,transform .16s}.msg-mention:hover{transform:translateY(-1px);filter:brightness(1.18)}.msg-mention:focus-visible{outline:2px solid currentColor;outline-offset:2px}.msg-mention.channel{color:#9bd4ff;background:rgba(79,157,255,.13);border-color:rgba(79,157,255,.12)}.msg-mention.user{color:#c5f7a4;background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.1)}.msg-mention.role{color:var(--mention-color,#c7a7ff);background:color-mix(in srgb,var(--mention-color,#9b75df) 15%,transparent);border-color:color-mix(in srgb,var(--mention-color,#9b75df) 23%,transparent)}.msg-mention.everyone{color:#ffc979;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.12)}
 
         .msg-footer {

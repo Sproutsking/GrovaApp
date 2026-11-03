@@ -5,7 +5,7 @@ import VerificationPanel from "./VerificationPanel";
 
 jest.mock("../../../services/community/verificationService", () => ({
   __esModule: true,
-  default: { getPanel: jest.fn(), complete: jest.fn() },
+  default: { getPanel: jest.fn(), complete: jest.fn(), invalidatePanel: jest.fn() },
 }));
 
 describe("VerificationPanel", () => {

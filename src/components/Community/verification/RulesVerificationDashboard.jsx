@@ -6,6 +6,7 @@ import VerificationPanelView from "./VerificationPanelView";
 import CreateVerificationRoleControl from "./CreateVerificationRoleControl";
 import VerificationRoleActions from "./VerificationRoleActions";
 import VerificationExperienceSettings from "./VerificationExperienceSettings";
+import CommunityRulesCard, { RULES_CARD_STYLES } from "./CommunityRulesCard";
 
 export default function RulesVerificationDashboard({ communityId, value = {}, experienceConfig = {}, rulesMethod = {}, methods = {}, roleGrant = {}, roles = [], pictureReady = false, channels = [], categories = [], accessRules = [], onSave, onPublish, publishStatus = "", publishing = false, onCreateRole, onUpdateRole, onPromoteRole, onManageRole, onDeleteRole, canManageRoles = false, disabled = false, standalone = false }) {
   const [experience, setExperience] = useState(() => normalizeVerificationConfig(experienceConfig));
@@ -19,6 +20,7 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
   });
   const [method, setMethod] = useState({
     ...rulesMethod,
+    style: RULES_CARD_STYLES.some((style) => style.id === rulesMethod.style) ? rulesMethod.style : "aurora",
     title: rulesMethod.title || "Read and accept the community rules",
     description: rulesMethod.description || "Please read these rules before requesting access.",
     requireScroll: true,
@@ -91,14 +93,7 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
       </div>
       <div className="rules-preview-canvas">
         {standalone ? (
-          <section className="rules-announcement-preview">
-            <span>COMMUNITY RULES</span>
-            <h2>{method.title}</h2>
-            <p>{method.description}</p>
-            <ol>{method.items.filter((rule) => rule.title.trim()).map((rule) => (
-              <li key={rule.id}><strong>{rule.title}</strong>{rule.body && <p>{rule.body}</p>}</li>
-            ))}</ol>
-          </section>
+          <CommunityRulesCard title={method.title} description={method.description} items={method.items.filter((rule) => rule.title.trim())} appearance={method.style} />
         ) : (
           <VerificationPanelView
             key={`${label}-${method.items.map((rule) => `${rule.id}:${rule.title}:${rule.body}`).join("|")}`}
@@ -192,7 +187,7 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
     try {
       await onSave?.({
         rulesPanelChannelId: config.rulesChannelId,
-        rulesPanel: { title: method.title, description: method.description, items },
+        rulesPanel: { title: method.title, description: method.description, items, style: method.style },
       });
       if (publish) await onPublish?.(config.rulesChannelId);
     } catch (saveError) {
@@ -227,6 +222,33 @@ export default function RulesVerificationDashboard({ communityId, value = {}, ex
             <label>Send rules to<select value={config.rulesChannelId} disabled={disabled} onChange={(event) => patch({ rulesChannelId: event.target.value })}><option value="">Choose a channel</option>{textChannels.map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select></label>
             <label>Heading<input value={method.title} disabled={disabled} onChange={(event) => patchMethod({ title: event.target.value })} /></label>
             <label>Message<textarea value={method.description} disabled={disabled} onChange={(event) => patchMethod({ description: event.target.value })} /></label>
+            <fieldset disabled={disabled} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
+              <legend style={{ marginBottom: 5, color: "var(--text-secondary)", fontSize: 12 }}>Card appearance</legend>
+              <div role="group" aria-label="Rules card appearance" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+                {RULES_CARD_STYLES.map((style) => {
+                  const selected = method.style === style.id;
+                  return (
+                    <button
+                      type="button"
+                      key={style.id}
+                      aria-pressed={selected}
+                      onClick={() => patchMethod({ style: style.id })}
+                      style={{
+                        padding: "8px 6px",
+                        border: `1px solid ${selected ? "var(--accent)" : "var(--surface-border)"}`,
+                        borderRadius: 8,
+                        background: selected ? "var(--accent-bg)" : "var(--surface)",
+                        color: selected ? "var(--accent)" : "var(--text-secondary)",
+                        font: "700 11px inherit",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {style.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <label>Rules<textarea className="rules-text" aria-label="Community rules" value={rulesText} disabled={disabled} onChange={(event) => patchMethod({ items: event.target.value.split("\n").map((title, index) => ({ id: method.items[index]?.id || `rule-${index + 1}`, title, body: method.items[index]?.body || "" })) })} placeholder="Write one rule per line" /></label>
           </section>
           {error && <p className="rules-error" role="alert">{error}</p>}

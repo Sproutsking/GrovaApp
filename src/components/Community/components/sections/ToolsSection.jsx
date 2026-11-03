@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 import { Bot, Check, ChevronRight, Crown, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
+import verificationService from "../../../../services/community/verificationService";
 
 import { X } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
@@ -286,6 +287,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
     if (saveError) throw saveError;
     setRows((current) => [...current.filter((item) => item.tool_type !== "verification"), nextRow]);
+    verificationService.invalidatePanel(communityId);
   };
 
   const publishToolPanels = async (toolType, channelIds, { preserveStatus = false } = {}) => {
@@ -318,6 +320,7 @@ export default function ToolsSection({ communityId, communityName = "your commun
         `#${channels.find((channel) => String(channel.id) === channelId)?.name || "channel"}`,
       );
       setPublishStatus((current) => `${preserveStatus && current ? `${current} ` : ""}${toolType === "rules" ? "Rules panel" : toolType === "tickets" ? "Ticket panel" : "Verification panel"} published to ${channelNames.join(", ")}.`);
+      verificationService.invalidatePanel(communityId);
       window.dispatchEvent(new CustomEvent("community:tool-panels-updated", {
         detail: { communityId, channelIds: publishedChannels, toolType },
       }));

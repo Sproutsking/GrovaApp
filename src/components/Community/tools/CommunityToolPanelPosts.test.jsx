@@ -22,6 +22,10 @@ jest.mock("../verification/VerificationPanel", () => ({
 }));
 
 describe("CommunityToolPanelPosts", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("loads and displays the saved panels in their selected channel", async () => {
     const subscription = { on: jest.fn(), subscribe: jest.fn() };
     subscription.on.mockReturnValue(subscription);
@@ -55,5 +59,34 @@ describe("CommunityToolPanelPosts", () => {
     expect(screen.getByTestId("verification-panel").getAttribute("data-published")).toBe("true");
     expect(screen.getByTestId("ticket-panel").getAttribute("data-channel-id")).toBe("rules-channel");
     await waitFor(() => expect(query.eq).toHaveBeenCalledWith("channel_id", "rules-channel"));
+  });
+
+  it("reuses recently loaded posts when a member returns to the channel", async () => {
+    const subscription = { on: jest.fn(), subscribe: jest.fn() };
+    subscription.on.mockReturnValue(subscription);
+    subscription.subscribe.mockReturnValue(subscription);
+    supabase.channel.mockReturnValue(subscription);
+
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    supabase.from.mockReturnValue(query);
+
+    const props = {
+      communityId: "posts-cache-community",
+      userId: "posts-cache-member",
+      channelId: "posts-cache-channel",
+    };
+    const view = render(<CommunityToolPanelPosts {...props} />);
+    await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(1));
+    view.unmount();
+
+    render(<CommunityToolPanelPosts {...props} />);
+    await waitFor(() => expect(supabase.channel).toHaveBeenCalledTimes(2));
+    expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 });

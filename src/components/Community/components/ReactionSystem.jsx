@@ -439,10 +439,10 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           right: 12px;
           bottom: 42px;
         }
-        .mra-ann-outgoing { align-items: flex-end; }
-        .mra-ann-outgoing .mra-reaction-row { justify-content: flex-end; }
-        .mra-ann-outgoing .mra-reaction-row .rb-bar { justify-content: flex-end; }
-        .mra-ann-outgoing .mra-reaction-row .rb-add-trigger { order: -1; }
+        .mra-ann-outgoing { align-items: flex-start; }
+        .mra-ann-outgoing .mra-reaction-row { justify-content: flex-start; }
+        .mra-ann-outgoing .mra-reaction-row .rb-bar { justify-content: flex-start; }
+        .mra-ann-outgoing .mra-reaction-row .rb-add-trigger { order: 0; }
         .mra-reaction-row {
           position: relative;
           display: flex;

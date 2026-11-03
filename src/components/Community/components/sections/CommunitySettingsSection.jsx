@@ -271,8 +271,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     <>
       <div className="settings-section">
         <div className="settings-header">
+          <span className="settings-eyebrow">COMMUNITY CONTROL ROOM</span>
           <h2>Community Settings</h2>
-          <p>Customize your community appearance and privacy</p>
+          <p>Shape the look, access, and day-to-day experience of your community.</p>
         </div>
 
         <div className="setting-group ownership-transfer">
@@ -540,7 +541,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
       <style>{`
         .settings-section {
-          padding: 0;
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 8px;
           animation: fadeIn 0.3s ease;
         }
         .ownership-transfer{padding:12px;border:1px solid rgba(255,190,80,.25);border-radius:10px;background:rgba(255,190,80,.04)}
@@ -578,33 +581,55 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         .settings-header {
-          padding: 14px 18px;
-          border-bottom: 2px solid rgba(156, 255, 0, 0.1);
-          background: linear-gradient(
-            180deg,
-            rgba(26, 26, 26, 0.6) 0%,
-            transparent 100%
-          );
+          position: relative;
+          overflow: hidden;
+          margin-bottom: 14px;
+          padding: 18px 20px;
+          border: 1px solid rgba(156, 255, 0, 0.16);
+          border-radius: 16px;
+          background: radial-gradient(ellipse at 92% 0%, rgba(156, 255, 0, 0.1), transparent 38%), linear-gradient(145deg, rgba(20, 25, 20, 0.94), rgba(11, 14, 12, 0.94));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 14px 34px rgba(0,0,0,.14);
+        }
+
+        .settings-eyebrow {
+          display: block;
+          margin-bottom: 6px;
+          color: #a7d783;
+          font-size: 10px;
+          font-weight: 850;
+          letter-spacing: .16em;
         }
 
         .settings-header h2 {
-          font-size: calc((20px) + 1px);
+          font-size: 22px;
           font-weight: 800;
           color: #fff;
-          margin-bottom: 4px;
+          margin: 0 0 5px;
         }
 
         .settings-header p {
-          font-size: calc((13px) + 1px);
-          color: #999;
+          margin: 0;
+          font-size: 13px;
+          color: #a4aaa2;
         }
 
         .settings-form {
-          padding: 16px 18px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 0 4px 18px;
         }
 
         .setting-group {
-          margin-bottom: 28px;
+          margin-bottom: 0;
+        }
+
+        .settings-form > .setting-group {
+          padding: 15px 16px;
+          border: 1px solid rgba(255, 255, 255, .075);
+          border-radius: 14px;
+          background: linear-gradient(145deg, rgba(20, 23, 21, .76), rgba(12, 14, 13, .78));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
         }
 
         .tools-group {
@@ -1075,9 +1100,15 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         }
 
         @media (max-width: 768px) {
-          .settings-header { padding: 10px 12px; }
-          .settings-form { padding: 12px 10px 18px; }
-          .setting-group { margin-bottom: 20px; }
+          .settings-section { padding: 4px; }
+          .settings-header { margin-bottom: 9px; padding: 13px 14px; border-radius: 12px; }
+          .settings-header h2 { font-size: 19px; }
+          .settings-header p { font-size: 12px; line-height: 1.4; }
+          .settings-form { gap: 8px; padding: 0 2px 12px; }
+          .settings-form > .setting-group { padding: 11px 12px; border-radius: 11px; }
+          .setting-group { margin-bottom: 0; }
+          .ownership-transfer { padding: 10px; }
+          .ownership-transfer-row { gap: 6px; }
           .theme-grid {
             grid-template-columns: 1fr;
           }
