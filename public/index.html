@@ -65,13 +65,10 @@
     <!-- PWA standalone flags — these are what make it look like a native app -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!--
-      black-translucent: extends iOS viewport under the status bar.
-      env(safe-area-inset-top/bottom) return real values only with this.
-    -->
+    <!-- Keep the iOS status area opaque and separate from app content. -->
     <meta
       name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
+      content="black"
     />
     <!--
       THIS IS THE KEY TAG that sets the app name in the iOS/Android task

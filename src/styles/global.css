@@ -386,7 +386,7 @@ img, video {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   background: #000;
-  border-top: 1px solid var(--deck-border);
+  border-top: 0;
   border-right: none;
   border-bottom: none;
   border-left: none;
@@ -425,6 +425,13 @@ img, video {
 }
 
 @media (max-width: 768px) {
+  .mobile-header,
+  .main-content-mobile,
+  .mobile-bottom-nav {
+    border: 0 !important;
+    outline: 0 !important;
+  }
+
   [role="dialog"],
   .comment-modal-mobile,
   .fullscreen-reels-comments,
