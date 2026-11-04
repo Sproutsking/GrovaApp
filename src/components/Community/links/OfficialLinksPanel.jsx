@@ -126,7 +126,7 @@ export default function OfficialLinksPanel({ channel, canManage = false, onSave 
       {!editing && error && <p className="official-links-error" role="alert">{error}</p>}
 
       <style>{`
-        .official-links-panel{width:min(70%,760px);box-sizing:border-box;margin:24px auto;padding:20px;border:1px solid rgba(156,255,0,.2);border-radius:17px;background:linear-gradient(145deg,#131713,#080b09);color:#eff7ed;box-shadow:0 14px 36px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.04)}
+        .official-links-panel{width:min(96%,760px);max-width:760px;box-sizing:border-box;margin:16px auto;padding:16px;border:1px solid rgba(156,255,0,.2);border-radius:16px;background:linear-gradient(145deg,#131713,#080b09);color:#eff7ed;box-shadow:0 14px 36px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.04)}
         .official-links-header{display:flex;align-items:flex-start;gap:12px;padding-bottom:15px;border-bottom:1px solid rgba(255,255,255,.08)}
         .official-links-icon{display:grid;place-items:center;width:40px;height:40px;flex:0 0 auto;border:1px solid rgba(156,255,0,.22);border-radius:12px;background:rgba(156,255,0,.08);color:#b6ed7e}
         .official-links-heading{min-width:0;flex:1}
@@ -160,7 +160,7 @@ export default function OfficialLinksPanel({ channel, canManage = false, onSave 
         .official-links-add{display:inline-flex;align-items:center;justify-content:center;gap:6px;justify-self:start;padding:8px 11px;border:0;border-radius:8px;background:#9cff00;color:#111;font:800 11px inherit;cursor:pointer}
         .official-links-add:disabled{opacity:.55;cursor:wait}
         .official-links-error{margin:0;color:#ffaaa3;font-size:11px}
-        @media(max-width:768px){.official-links-panel{width:80%;margin:12px auto;padding:13px;border-radius:13px}.official-links-header{gap:9px;padding-bottom:11px}.official-links-icon{width:34px;height:34px;border-radius:10px}.official-links-heading h1{font-size:17px}.official-links-heading p{font-size:11px}.official-links-manage{padding:6px 8px;font-size:10px}.official-links-grid{grid-template-columns:minmax(0,1fr);gap:7px;padding-top:10px}.official-link-button{min-height:56px;padding:8px 9px}.official-links-form{gap:8px;margin-top:10px;padding:10px}}
+        @media(max-width:768px){.official-links-panel{width:calc(100% - 24px);margin:10px auto;padding:12px;border-radius:13px}.official-links-header{gap:9px;padding-bottom:11px}.official-links-icon{width:34px;height:34px;border-radius:10px}.official-links-heading h1{font-size:17px}.official-links-heading p{font-size:11px}.official-links-manage{padding:6px 8px;font-size:10px}.official-links-grid{grid-template-columns:minmax(0,1fr);gap:7px;padding-top:10px}.official-link-button{min-height:56px;padding:8px 9px}.official-links-form{gap:8px;margin-top:10px;padding:10px}}
       `}</style>
     </section>
   );

@@ -64,6 +64,8 @@ class ChannelService {
       { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", position: 4, is_default: true },
       { name: "general", icon: "💬", description: "General discussion", type: "text", position: 5, is_default: true },
       { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", tool_type: "social_updates", position: 6, is_default: true },
+      { name: "about-us", icon: "ℹ️", description: "About this community", type: "announcement", position: 7, is_default: true },
+      { name: "official-links", icon: "🔗", description: "Official community links", type: "announcement", position: 8, is_default: true },
     ].map((channel) => ({ ...channel, community_id: communityId, category: "Start here" }));
     let result = await supabase.from("community_channels").insert(defaults).select("*");
     if (result.error?.code === "42703") {

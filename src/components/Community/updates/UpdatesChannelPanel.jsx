@@ -129,17 +129,17 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
       {error && <div className="updates-error">{error}</div>}
 
       <style>{`
-        .updates-panel { width: min(70%, 760px); box-sizing: border-box; margin: 26px auto; padding: 24px; border: 1px solid rgba(156,255,0,.18); border-radius: 20px; background: linear-gradient(145deg, #121612, #080b09); color: #eef6eb; box-shadow: 0 14px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.035); }
-        .updates-head { display: flex; align-items: flex-start; gap: 14px; }
-        .updates-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #b6ed7e; background: rgba(156,255,0,.08); border: 1px solid rgba(156,255,0,.22); flex-shrink: 0; }
+        .updates-panel { width: min(96%, 760px); box-sizing: border-box; margin: 14px auto; padding: 15px; border: 1px solid rgba(156,255,0,.18); border-radius: 16px; background: linear-gradient(145deg, #121612, #080b09); color: #eef6eb; box-shadow: 0 14px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.035); }
+        .updates-head { display: flex; align-items: flex-start; gap: 10px; }
+        .updates-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: #b6ed7e; background: rgba(156,255,0,.08); border: 1px solid rgba(156,255,0,.22); flex-shrink: 0; }
         .updates-head span { font-size: calc((10px) + 1px); color: #b6ed7e; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
-        .updates-panel h1 { margin: 4px 0; font-size: calc((22px) + 1px); }
+        .updates-panel h1 { margin: 3px 0; font-size: calc((18px) + 1px); }
         .updates-panel p { margin: 0; color: #9da99c; font-size: calc((12px) + 1px); }
         .updates-refresh { margin-left: auto; border: 0; background: transparent; color: #8e9a8b; cursor: pointer; }
-        .updates-feed { margin-top: 20px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 14px; }
-        .updates-empty { padding: 20px 0; color: #8a9588; font-size: calc((12px) + 1px); }
-        .updates-post { margin-top: 8px; padding: 13px; border-radius: 11px; background: linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.018)); border: 1px solid color-mix(in srgb,var(--updates-provider-color,#9cff00) 32%,rgba(255,255,255,.08)); border-left: 3px solid var(--updates-provider-color,#9cff00); box-shadow: inset 0 1px 0 color-mix(in srgb,var(--updates-provider-color,#9cff00) 8%,transparent); }
-        .updates-post>img,.updates-post>video { display:block; width:100%; max-height:420px; margin-top:10px; border-radius:9px; object-fit:contain; background:#050708; }
+        .updates-feed { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 10px; }
+        .updates-empty { padding: 14px 0; color: #8a9588; font-size: calc((12px) + 1px); }
+        .updates-post { margin-top: 7px; padding: 10px; border-radius: 10px; background: linear-gradient(145deg,rgba(255,255,255,.04),rgba(255,255,255,.018)); border: 1px solid color-mix(in srgb,var(--updates-provider-color,#9cff00) 32%,rgba(255,255,255,.08)); border-left: 3px solid var(--updates-provider-color,#9cff00); box-shadow: inset 0 1px 0 color-mix(in srgb,var(--updates-provider-color,#9cff00) 8%,transparent); }
+        .updates-post>img,.updates-post>video { display:block; width:100%; max-height:340px; margin-top:8px; border-radius:8px; object-fit:contain; background:#050708; }
         .updates-post.post-navigation-target { border-color: var(--updates-provider-color,#9cff00); animation: updatesTargetPulse 2.2s cubic-bezier(.22,.61,.36,1); }
         @keyframes updatesTargetPulse { 0% { box-shadow: 0 0 0 0 rgba(156,255,0,0), 0 0 0 rgba(156,255,0,0); } 35% { box-shadow: 0 0 0 4px rgba(156,255,0,.24), 0 0 30px rgba(156,255,0,.3); } 100% { box-shadow: 0 0 0 2px rgba(156,255,0,.1), 0 0 18px rgba(156,255,0,.16); } }
         .updates-post-source { display:flex;align-items:center;gap:6px;color:var(--updates-provider-color,#9cff00);font-size:calc((9px) + 1px);text-transform:uppercase;font-weight:800;letter-spacing:.06em }
@@ -147,7 +147,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
         .updates-post h2 { margin: 5px 0; font-size: calc((14px) + 1px); }
         .updates-post-meta { display: flex; gap: 8px; color: #899487; font-size: calc((10px) + 1px); }
         .updates-post-meta a { color: var(--updates-provider-color,#b6ed7e); margin-left: auto; }
-        .updates-post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); }
+        .updates-post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07); }
         .updates-action { display: inline-flex; align-items: center; gap: 6px; color: #bac5b7; background: transparent; border: 0; padding: 5px 7px; border-radius: 7px; font: 700 10px inherit; cursor: pointer; }
         .updates-action:hover:not(:disabled) { color: #9cff00; background: rgba(156,255,0,.08); }
         .updates-action:disabled { opacity: .45; cursor: not-allowed; }
@@ -158,7 +158,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
         .updates-reaction-list { display: flex; gap: 5px; margin-top: 8px; }
         .updates-reaction-list span { padding: 3px 7px; color: #d8e6d1; background: rgba(156,255,0,.07); border: 1px solid rgba(156,255,0,.17); border-radius: 12px; font-size: calc((11px) + 1px); }
         .updates-error { margin-top: 12px; color: #ffaaa3; font-size: calc((11px) + 1px); }
-        @media (max-width: 768px) { .updates-panel { width: 80%; margin: 14px auto; padding: 16px; } }
+        @media (max-width: 768px) { .updates-panel { width: calc(100% - 24px); margin: 10px auto; padding: 12px; border-radius: 13px; } .updates-head { gap: 8px; } .updates-icon { width: 34px; height: 34px; border-radius: 10px; } .updates-panel h1 { font-size: 16px; } .updates-feed { margin-top: 10px; padding-top: 8px; } .updates-post { padding: 9px; } }
       `}</style>
     </section>
   );

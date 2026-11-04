@@ -1643,6 +1643,7 @@ const ChatTab = ({
         .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 2px; box-sizing: border-box; background: #000; background-image: none; }
         .chat-msgs > section { box-sizing: border-box; width: 100%; }
         .chat-msgs > .vp, .chat-msgs > .community-ticket-tool, .chat-msgs > .updates-panel { box-sizing: border-box; width: 96% !important; max-width: 96% !important; margin-left: auto !important; margin-right: auto !important; }
+        .chat-msgs > .official-links-panel { box-sizing: border-box; width: min(calc(100% - 24px), 760px) !important; max-width: min(calc(100% - 24px), 760px) !important; margin-left: auto !important; margin-right: auto !important; }
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
         .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }

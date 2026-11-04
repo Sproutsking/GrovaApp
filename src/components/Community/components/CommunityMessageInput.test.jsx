@@ -14,4 +14,21 @@ describe("CommunityMessageInput keyboard submission", () => {
     fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true });
     expect(onSend).toHaveBeenCalledTimes(1);
   });
+
+  it("shows announcement styling and preview controls for announcement channels", () => {
+    render(
+      <CommunityMessageInput
+        value="Community details"
+        onChange={jest.fn()}
+        onSend={jest.fn()}
+        channelType="announcement"
+        canManageAnnouncement
+      />,
+    );
+
+    expect(screen.getByText("Border")).not.toBeNull();
+    expect(screen.getByPlaceholderText("Announcement title (optional)")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+    expect(screen.getByText("How your post will appear")).not.toBeNull();
+  });
 });
