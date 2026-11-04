@@ -269,12 +269,12 @@ begin
     foreach numeric_key in array array['members', 'custom_channels', 'open_tickets', 'social_connections'] loop
       numeric_value := plan_data ->> numeric_key;
       if numeric_value is null or numeric_value !~ '^[0-9]+$'
-        or numeric_value::bigint > case numeric_key
+        or numeric_value::bigint > (case numeric_key
           when 'members' then 10000000
           when 'custom_channels' then 1000
           when 'open_tickets' then 10000
           else 1000
-        end
+        end)
         or (numeric_key = 'members' and numeric_value::bigint < 1) then
         raise exception 'Invalid % limit for the % plan', numeric_key, plan_name;
       end if;

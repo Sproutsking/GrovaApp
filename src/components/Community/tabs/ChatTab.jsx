@@ -1144,6 +1144,7 @@ const ChatTab = ({
             channelId={selectedChannel?.id}
             legacyTicketPanel={selectedChannel?.tool_type === "tickets"}
             legacyVerificationPanel={isVerificationChannel}
+            canManage={canManageChannels || canManageCommunity}
             onVerified={refreshAfterVerification}
             onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }}
             onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }}

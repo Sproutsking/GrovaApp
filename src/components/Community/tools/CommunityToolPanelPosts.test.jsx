@@ -89,4 +89,60 @@ describe("CommunityToolPanelPosts", () => {
     await waitFor(() => expect(supabase.channel).toHaveBeenCalledTimes(2));
     expect(supabase.from).toHaveBeenCalledTimes(1);
   });
+
+  it("shows setup status to managers while a legacy panel is unpublished", async () => {
+    const subscription = { on: jest.fn(), subscribe: jest.fn() };
+    subscription.on.mockReturnValue(subscription);
+    subscription.subscribe.mockReturnValue(subscription);
+    supabase.channel.mockReturnValue(subscription);
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    supabase.from.mockReturnValue(query);
+
+    render(
+      <CommunityToolPanelPosts
+        communityId="setup-status-community"
+        userId="setup-status-owner"
+        channelId="setup-status-channel"
+        legacyTicketPanel
+        canManage
+      />,
+    );
+
+    expect(await screen.findByText("Setup in progress")).not.toBeNull();
+    expect(screen.queryByTestId("ticket-panel")).toBeNull();
+  });
+
+  it("hides an unpublished legacy panel from members", async () => {
+    const subscription = { on: jest.fn(), subscribe: jest.fn() };
+    subscription.on.mockReturnValue(subscription);
+    subscription.subscribe.mockReturnValue(subscription);
+    supabase.channel.mockReturnValue(subscription);
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    supabase.from.mockReturnValue(query);
+
+    render(
+      <CommunityToolPanelPosts
+        communityId="unpublished-member-community"
+        userId="unpublished-member"
+        channelId="unpublished-channel"
+        legacyVerificationPanel
+      />,
+    );
+
+    await waitFor(() => expect(query.order).toHaveBeenCalled());
+    expect(screen.queryByText("Setup in progress")).toBeNull();
+    expect(screen.queryByTestId("verification-panel")).toBeNull();
+  });
 });

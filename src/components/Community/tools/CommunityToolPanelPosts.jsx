@@ -15,6 +15,7 @@ export default function CommunityToolPanelPosts({
   channelId,
   legacyTicketPanel = false,
   legacyVerificationPanel = false,
+  canManage = false,
   onVerified,
   onTicketCreated,
   onTicketDeleted,
@@ -106,18 +107,39 @@ export default function CommunityToolPanelPosts({
     };
   }, [channelId, communityId, loadPosts, userId]);
 
+  const needsSetup = legacyTicketPanel || legacyVerificationPanel;
+
   if (!posts.length && !error) {
+    if (!needsSetup || !canManage) return null;
     return (
-      <>
-        {legacyTicketPanel && <TicketToolPanel communityId={communityId} userId={userId} channelId={channelId} onTicketCreated={onTicketCreated} />}
-        {legacyVerificationPanel && <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} published={false} onVerified={onVerified} />}
-      </>
+      <section
+        className="community-tool-panel-setup"
+        role="status"
+        style={{
+          display: "grid",
+          gap: 5,
+          width: "min(calc(100% - 32px), 560px)",
+          boxSizing: "border-box",
+          margin: "24px auto",
+          padding: 16,
+          border: "1px solid rgba(156,255,0,.18)",
+          borderRadius: 12,
+          background: "rgba(156,255,0,.04)",
+          color: "#e8f4e3",
+          textAlign: "center",
+        }}
+      >
+        <strong>Setup in progress</strong>
+        <span style={{ color: "#9da99c", fontSize: 11, lineHeight: 1.5 }}>
+          This panel is visible to members after you publish it from Community Tools.
+        </span>
+      </section>
     );
   }
 
   return (
     <>
-      {error && <p className="community-tool-panel-error" role="alert">{error}</p>}
+      {error && canManage && <p className="community-tool-panel-error" role="alert">{error}</p>}
       {posts.map((post) => (
         <section className="community-tool-panel-post" key={`${post.id}:${post.updated_at}`} data-tool-panel-type={post.tool_type}>
           {post.tool_type === "tickets"
