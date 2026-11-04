@@ -510,7 +510,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       </div>
 
       <div className="community-content">
-        {trialReminder?.communityId === selectedCommunity?.id && (
+        {trialReminder && trialReminder.communityId === selectedCommunity?.id && (
           <div role="status" style={{ flex: "0 0 auto", padding: "9px 14px", color: "#fef3c7", background: "linear-gradient(90deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))", borderBottom: "1px solid rgba(245,158,11,0.2)", fontSize: 12, lineHeight: 1.5 }}>
             <strong>Community Premium trial ends in {trialReminder.remainingDays} {trialReminder.remainingDays === 1 ? "day" : "days"}.</strong>{" "}
             When it expires, Free limits will apply. Existing members and community data will remain untouched.
