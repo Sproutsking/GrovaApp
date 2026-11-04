@@ -23,8 +23,8 @@
 //                no layout shift, no broken-image icon.
 //
 // Key rules that guarantee cache coherence with the PostTab preloader:
-//   • loading="eager"     — never delay a request the preloader has primed
-//   • fetchPriority based on feed position — first card gets "high"
+//   • Native lazy loading avoids downloading media for offscreen mounted cards
+//   • Only the first card's active image receives high fetch priority
 //   • buildImageUrl Strategy 2 URL = PostTab buildPreloadImgUrl URL
 //     (same cld · w · q · f · c · id → guaranteed HTTP cache hit)
 //
@@ -262,7 +262,7 @@ const SmartImage = ({ candidates = [], alt = "", className, style, fetchPriority
           // the image is visible instantly, not after a 160ms delay.
           transition: revealed ? "none" : "opacity 0.16s ease",
         }}
-        loading="eager"                        // never delay a pre-warmed request
+        loading={fetchPriority === "high" ? "eager" : "lazy"}
         fetchPriority={fetchPriority || "auto"}
         decoding="async"                       // keep compositor thread free
         onLoad={() => { setRevealed(true); onLoad?.(); }}
@@ -579,6 +579,7 @@ const PostCard = ({
       setFollowing(false);
       return undefined;
     }
+    if (!inVP) return undefined;
     let active = true;
     let changedAfterCheck = false;
     const handleFollowsChanged = (event) => {
@@ -598,7 +599,7 @@ const PostCard = ({
       active = false;
       window.removeEventListener("xeevia:follows-changed", handleFollowsChanged);
     };
-  }, [post.user_id, currentUser?.id, isOwn]); // eslint-disable-line
+  }, [post.user_id, currentUser?.id, isOwn, inVP]);
 
   const toggleFollow = async (e) => {
     e.stopPropagation();
@@ -755,7 +756,6 @@ const PostCard = ({
   };
 
   // fetchPriority based on feed position
-  const imgPriority = feedIndex === 0 ? "high" : feedIndex <= 3 ? "high" : "auto";
   const mediaPreviewUrls = hasMedia && (linkDisplayMode === "embed") ? getExternalUrls(post.content || "") : [];
 
   const renderMediaCaption = () => (
@@ -873,7 +873,7 @@ const PostCard = ({
                             candidates={item.candidates}
                             alt=""
                             className="gvp-img"
-                            fetchPriority={imgPriority}
+                            fetchPriority={feedIndex === 0 && idx === active ? "high" : "auto"}
                             onClick={() => item.fullCandidates?.[0] && setLightbox(item.fullCandidates[0])}
                           />
                         </div>

@@ -7,8 +7,8 @@
 //           Every pipeline injection (Discovery, Follows, Reels, News)
 //           seamlessly mixed into the unified stream.
 //
-// [ARCH-2]  Three-tier preload engine: CRITICAL (12 slots), URGENT (8),
-//           BATCH (4). Connection-aware RENDER_RADIUS (40/24/14).
+// [ARCH-2]  Three-tier media preload engine with a small mobile runway.
+//           Nearby cards render ahead, but offscreen images/videos stay lazy.
 //           Deterministic placeholder gradients (never black).
 //
 // [ARCH-3]  Smart height estimation per item type. ResizeObserver tracks
@@ -55,9 +55,12 @@ const IS_FAST = !IS_SLOW && !IS_MID;
 const IS_MOBILE = window.innerWidth <= 768;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_MOBILE ? 1 : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const RENDER_RADIUS  = IS_MOBILE ? 3 : IS_SLOW ? 4 : IS_MID ? 6 : 8;
 const PRELOAD_WINDOW = IS_MOBILE ? 1 : IS_SLOW ? 12 : IS_MID ? 20 : 30;
 const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 2 : IS_MID ? 3 : 4;
+const FEED_ROOT_MARGIN = IS_SLOW ? "1000px 0px 1000px 0px"
+                       : IS_MID  ? "800px 0px 800px 0px"
+                       :           "600px 0px 600px 0px";
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
@@ -151,23 +154,6 @@ function getCld() {
   );
 }
 
-// [ARCH-2] Deterministic placeholder gradient
-const PH_GRADS = [
-  "linear-gradient(145deg,#0d1a00,#1a2e05)",
-  "linear-gradient(145deg,#0f1a2e,#1a2a45)",
-  "linear-gradient(145deg,#1a0d00,#2e1a05)",
-  "linear-gradient(145deg,#0d0020,#1a0535)",
-  "linear-gradient(145deg,#001a15,#002e25)",
-  "linear-gradient(145deg,#1a1500,#2e2500)",
-  "linear-gradient(145deg,#1a000d,#2e0015)",
-  "linear-gradient(145deg,#001020,#001830)",
-];
-function getPlaceholderGradient(item) {
-  const seed = (item?.user_id || item?.id || "x")
-    .split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  return PH_GRADS[seed % PH_GRADS.length];
-}
-
 // [ARCH-3] Smart height estimate
 function estimateItemHeight(item) {
   if (!item) return 480;
@@ -235,9 +221,6 @@ const Placeholder = React.memo(({ height, item, index, placeholderRef }) => (
     height:       Math.max(120, height || estimateItemHeight(item)),
     flexShrink:   0,
     contain:      "layout paint style",
-    background:   getPlaceholderGradient(item),
-    borderRadius: 12,
-    border:       "1px solid var(--surface-border)",
   }} />
 ));
 Placeholder.displayName = "Placeholder";
@@ -347,12 +330,9 @@ const VirtualFeed = React.memo(({
 
   useEffect(() => { onAnchorChange?.(anchorIndex); }, [anchorIndex, onAnchorChange]);
 
-  const ROOT_MARGIN = IS_SLOW ? "1000px 0px 1000px 0px"
-                    : IS_MID  ? "800px 0px 800px 0px"
-                    :           "600px 0px 600px 0px";
-
   useEffect(() => {
     ioRef.current?.disconnect();
+    const scrollRoot = document.querySelector(".main-content-mobile, .main-content-desktop");
     ioRef.current = new IntersectionObserver(entries => {
       let best = null, bestDistance = Infinity;
       for (const e of entries) {
@@ -363,7 +343,7 @@ const VirtualFeed = React.memo(({
         if (!isNaN(idx) && distance < bestDistance) { bestDistance = distance; best = idx; }
       }
       if (best !== null) setAnchorIndex(prev => Math.abs(prev - best) >= 1 ? best : prev);
-    }, { rootMargin: ROOT_MARGIN, threshold: 0 });
+    }, { root: scrollRoot, rootMargin: FEED_ROOT_MARGIN, threshold: 0 });
     Object.values(wrapperMap.current).forEach(el => { if (el) ioRef.current.observe(el); });
     return () => ioRef.current?.disconnect();
   }, [items.length]);
@@ -419,21 +399,23 @@ const VirtualFeed = React.memo(({
           </div>
         );
       })}
-      {isLoadingMore && Array.from({ length: 4 }, (_, index) => {
-        const source = items[items.length - 1] || { type: "post", id: "loading", content: "" };
-        const item = { ...source, id: `loading-${index}` };
-        return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
-      })}
+      {isLoadingMore && (
+        <div className="vf-loading-more" role="status">
+          <span aria-hidden="true" />
+          Loading more posts
+        </div>
+      )}
       <style>{`
         .vf-list{--vf-item-gap:8px;display:flex;flex-direction:column;position:relative;contain:layout paint;width:100%;min-width:0;}
         .vf-item,.vf-placeholder{width:100%;min-width:0;max-width:100%;margin-bottom:var(--vf-item-gap);}
         .vf-item{contain:layout style;}
         .vf-item .gvp-card{margin-bottom:0;}
-        .vf-placeholder{position:relative;overflow:hidden;}
-        .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}
-        @keyframes vf-placeholder-shimmer{to{background-position-x:-220%;}}
+        .vf-placeholder{position:relative;overflow:hidden;background:transparent;}
+        .vf-loading-more{display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;color:var(--text-secondary,#8b8b8b);font-size:13px;font-weight:600;}
+        .vf-loading-more span{width:14px;height:14px;border:2px solid rgba(255,255,255,.16);border-top-color:var(--accent,#84cc16);border-radius:50%;animation:vf-loading-spin .8s linear infinite;}
+        @keyframes vf-loading-spin{to{transform:rotate(360deg);}}
         @media(max-width:768px){.vf-list{--vf-item-gap:0;}}
-        @media(prefers-reduced-motion:reduce){.vf-placeholder::after{animation:none;}}
+        @media(prefers-reduced-motion:reduce){.vf-loading-more span{animation:none;}}
       `}</style>
     </div>
   );

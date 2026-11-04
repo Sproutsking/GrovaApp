@@ -206,6 +206,7 @@ const ReelCard = ({
       setIsFollowing(false);
       return undefined;
     }
+    if (!isVisible) return undefined;
     let active = true;
     let changedAfterCheck = false;
     const handleFollowsChanged = (event) => {
@@ -225,7 +226,7 @@ const ReelCard = ({
       active = false;
       window.removeEventListener("xeevia:follows-changed", handleFollowsChanged);
     };
-  }, [reel.user_id, currentUser?.id, isOwnReel]);
+  }, [reel.user_id, currentUser?.id, isOwnReel, isVisible]);
 
   const handleFollowToggle = async (e) => {
     e.stopPropagation();
@@ -512,11 +513,11 @@ const ReelCard = ({
                 ref={videoRef}
                 className="xv-reel-video"
                 src={videoUrl}
-                poster={thumbnailUrl}
+                poster={isVisible ? thumbnailUrl : undefined}
                 loop
                 playsInline
                 muted={muted}
-                preload={isVisible ? "auto" : "metadata"}
+                preload={isVisible ? "auto" : "none"}
                 style={{ objectFit: getVideoFit() }}
                 onLoadStart={() => {
                   setIsLoading(true);
