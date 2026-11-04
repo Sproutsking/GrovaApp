@@ -374,6 +374,7 @@ const HomeView = ({
   trinityLens   = "everyday",
   activeHomeTab,
   setActiveHomeTab,
+  onInitialHomeReady,
   onNavigate,
   onOpenDMUpdates,
 }) => {
@@ -415,6 +416,7 @@ const HomeView = ({
   const storyTabRef    = useRef(null);
   const cultureTabRef  = useRef(null);
   const hasLoaded      = useRef(false);
+  const hasNotifiedInitialHomeReady = useRef(false);
   const rtCleanup      = useRef([]);
   const currentUserRef = useRef(null);
   const mountedRef     = useRef(true);
@@ -448,6 +450,13 @@ const HomeView = ({
       window.removeEventListener("grova:publish", onPublish);
     };
   }, []); // eslint-disable-line
+
+  useEffect(() => {
+    if (!showSkeleton && !hasNotifiedInitialHomeReady.current) {
+      hasNotifiedInitialHomeReady.current = true;
+      onInitialHomeReady?.();
+    }
+  }, [showSkeleton, onInitialHomeReady]);
 
   useEffect(() => { if (!hasLoaded.current) return; applyFilter(feedFilter); }, [feedFilter]); // eslint-disable-line
 

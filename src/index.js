@@ -332,7 +332,12 @@ class AppErrorBoundary extends React.Component {
 }
 
 // ── 4. RENDER ─────────────────────────────────────────────────────────────────
-const root = ReactDOM.createRoot(document.getElementById("root"));
+const rootElement = document.getElementById("root");
+const bootAnimation = rootElement?.querySelector(".liquid-core")?.getAnimations?.()[0];
+if (Number.isFinite(bootAnimation?.currentTime)) {
+  window.__xvBootStartedAt = performance.now() - bootAnimation.currentTime;
+}
+const root = ReactDOM.createRoot(rootElement);
 
 const AppTree = (
   <AppErrorBoundary>

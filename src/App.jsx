@@ -254,7 +254,7 @@ const OfflineBanner = memo(({ visible }) => {
 OfflineBanner.displayName = "OfflineBanner";
 
 // ── MainApp ───────────────────────────────────────────────────────────────────
-const MainApp = memo(() => {
+const MainApp = memo(({ onInitialHomeReady }) => {
   const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line
   const [liveAdminRole, setLiveAdminRole] = useState(null);
 
@@ -1000,6 +1000,7 @@ const MainApp = memo(() => {
     userId: user.id,
     refreshTrigger,
     deepLinkTarget,
+    onInitialHomeReady,
     themeMode,
     setThemeMode,
     onNavigate: handleTabChange,
@@ -1697,6 +1698,13 @@ function StartupRecovery({
   );
 }
 
+const STARTUP_ANIMATION_CYCLE_MS = 3600;
+
+function getBootAnimationElapsedMs() {
+  const startedAt = window.__xvBootStartedAt;
+  return Number.isFinite(startedAt) ? Math.max(0, performance.now() - startedAt) : 0;
+}
+
 function AppRouter() {
   const {
     user, profile,
@@ -1707,8 +1715,44 @@ function AppRouter() {
   } = useAuth();
 
   const [authLoadStalled, setAuthLoadStalled] = useState(false);
+  const [initialHomeReady, setInitialHomeReady] = useState(false);
+  const [startupCycleComplete, setStartupCycleComplete] = useState(false);
+  const [startupFallbackElapsed, setStartupFallbackElapsed] = useState(false);
+  const [startupCurtainMounted, setStartupCurtainMounted] = useState(true);
+  const [startupCurtainVisible, setStartupCurtainVisible] = useState(true);
+  const markInitialHomeReady = useCallback(() => setInitialHomeReady(true), []);
+  const hasStartupSession = Boolean(user && profile);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+
+  useEffect(() => {
+    if (!hasStartupSession) return undefined;
+
+    const elapsedAtReady = getBootAnimationElapsedMs();
+    const nextCycleBoundary = Math.ceil(elapsedAtReady / STARTUP_ANIMATION_CYCLE_MS) * STARTUP_ANIMATION_CYCLE_MS;
+    const fallbackBoundary = Math.ceil((elapsedAtReady + 12_000) / STARTUP_ANIMATION_CYCLE_MS) * STARTUP_ANIMATION_CYCLE_MS;
+    const cycleTimer = setTimeout(
+      () => setStartupCycleComplete(true),
+      Math.max(0, nextCycleBoundary - elapsedAtReady),
+    );
+    const fallbackTimer = setTimeout(
+      () => setStartupFallbackElapsed(true),
+      Math.max(0, fallbackBoundary - elapsedAtReady),
+    );
+    return () => {
+      clearTimeout(cycleTimer);
+      clearTimeout(fallbackTimer);
+    };
+  }, [hasStartupSession, user?.id]);
+
+  useEffect(() => {
+    if (startupFallbackElapsed || (startupCycleComplete && initialHomeReady)) {
+      setStartupCurtainVisible(false);
+      const timer = setTimeout(() => setStartupCurtainMounted(false), 350);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [initialHomeReady, startupCycleComplete, startupFallbackElapsed]);
 
   useEffect(() => {
     if (!loading) {
@@ -1763,7 +1807,26 @@ function AppRouter() {
       />
     );
   }
-  return <MainApp />;
+  return (
+    <>
+      <MainApp onInitialHomeReady={markInitialHomeReady} />
+      {startupCurtainMounted && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10001,
+            opacity: startupCurtainVisible ? 1 : 0,
+            pointerEvents: startupCurtainVisible ? "auto" : "none",
+            transition: "opacity 350ms ease",
+          }}
+        >
+          <Splash />
+        </div>
+      )}
+    </>
+  );
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────

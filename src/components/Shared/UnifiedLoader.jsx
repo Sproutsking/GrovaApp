@@ -1,16 +1,38 @@
 // src/components/Shared/UnifiedLoader.jsx - SINGLE LOADER FOR ALL STATES
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 
-const BrandSplash = () => {
+const LiquidOrbitLoader = ({ scale = 1.5 }) => {
+  const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const filterId = `liquid-goo-${instanceId}`;
+  const [phase] = useState(() => {
+    if (typeof window === "undefined" || !Number.isFinite(window.__xvBootStartedAt)) return "0s";
+    return `${-Math.max(0, performance.now() - window.__xvBootStartedAt) / 1000}s`;
+  });
+
   return (
-    <div className="xv-boot" role="status" aria-label="Loading Xeevia">
-      <div className="xv-boot-stage" aria-hidden="true">
-        <span className="xv-boot-orbit" />
-        <img src="/logo192.png" alt="" fetchPriority="high" />
+    <div className="liquid-loader" style={{ "--liquid-k": scale, "--liquid-phase": phase }}>
+      <svg className="liquid-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation={8 * scale} />
+            <feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 22 -9" />
+          </filter>
+        </defs>
+      </svg>
+
+      <div className="liquid-stage">
+        <div className="liquid-goo" style={{ filter: `url(#${filterId})` }}>
+          <div className="liquid-core" />
+          <div className="liquid-dot liquid-dot-a" />
+          <div className="liquid-dot liquid-dot-b" />
+          <div className="liquid-dot liquid-dot-c" />
+        </div>
+        <div className="liquid-abs liquid-sheen" />
+        <img className="liquid-abs liquid-logo" src="/logo192.png" alt="" />
       </div>
-      <div className="xv-boot-word">XEEVI<span>A</span></div>
-      <p className="xv-boot-caption">Your world, in motion</p>
+
+      <div className="liquid-word">XEEVI<span>A</span></div>
     </div>
   );
 };
@@ -61,7 +83,9 @@ const UnifiedLoader = ({
   // Sizes for different loader types
   const config = {
     'app-init': {
-      padding: '0',
+      scale: 1.5,
+      fontSize: "calc((18px) + 1px)",
+      padding: '60px',
       showLogo: true,
       fullScreen: true
     },
@@ -138,7 +162,7 @@ const UnifiedLoader = ({
     if (current.showLogo) {
       return (
         <>
-          <BrandSplash />
+          <LiquidOrbitLoader scale={current.scale} />
         </>
       );
     }
@@ -203,102 +227,34 @@ const UnifiedLoader = ({
           z-index: 1;
         }
 
-        .xv-boot {
-          width: 100%;
-          min-height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 0;
-          background: #050605;
-          color: #f7faef;
-          contain: layout paint;
-          animation: xvBootArrive .5s cubic-bezier(.2,.7,.25,1) both;
-        }
-        .xv-boot-stage {
-          position: relative;
-          display: grid;
-          width: 104px;
-          height: 104px;
-          margin-bottom: 26px;
-          place-items: center;
-          isolation: isolate;
-        }
-        .xv-boot-stage::before {
-          position: absolute;
-          inset: 0;
-          border: 1px solid rgba(163,230,53,.17);
-          border-top-color: #b7ed68;
-          border-right-color: rgba(163,230,53,.52);
-          border-radius: 50%;
-          content: "";
-          animation: xvBootOrbit 2.4s linear infinite;
-          will-change: transform;
-        }
-        .xv-boot-stage::after {
-          position: absolute;
-          inset: 9px;
-          border: 1px solid rgba(255,255,255,.055);
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(132,204,22,.1), transparent 70%);
-          content: "";
-        }
-        .xv-boot-orbit {
-          position: absolute;
-          z-index: 1;
-          top: 50%;
-          left: 50%;
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: #d9f99d;
-          box-shadow: 0 0 10px rgba(190,242,100,.55);
-          transform: translate(-50%,-50%) rotate(0deg) translateX(48px);
-          animation: xvBootDotOrbit 2.4s linear infinite;
-          will-change: transform;
-        }
-        .xv-boot-stage img {
-          position: relative;
-          z-index: 1;
-          width: 58px;
-          height: 58px;
-          object-fit: contain;
-          animation: xvBootBreath 2.8s ease-in-out infinite;
-          will-change: transform;
-        }
-        .xv-boot-word {
-          color: #f7faef;
-          font-size: 19px;
-          font-weight: 750;
-          letter-spacing: .24em;
-          line-height: 1;
-          text-indent: .24em;
-        }
-        .xv-boot-word span { color: #d4af37; }
-        .xv-boot-caption {
-          margin: 11px 0 0;
-          color: rgba(228,236,218,.48);
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: .075em;
-        }
-        @keyframes xvBootArrive {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes xvBootOrbit { to { transform: rotate(360deg); } }
-        @keyframes xvBootDotOrbit {
-          from { transform: translate(-50%,-50%) rotate(0deg) translateX(48px); }
-          to { transform: translate(-50%,-50%) rotate(360deg) translateX(48px); }
-        }
-        @keyframes xvBootBreath {
-          0%, 100% { transform: scale(.96); }
-          50% { transform: scale(1); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .xv-boot, .xv-boot-stage::before, .xv-boot-orbit, .xv-boot-stage img { animation: none; }
-        }
+        .liquid-loader{--liquid-bg:#050505;display:grid;place-items:center;align-content:center;gap:calc(var(--liquid-k)*30px);width:100%;min-height:100%;background:var(--liquid-bg);color:#fff;position:relative;}
+        .liquid-defs{position:absolute;width:0;height:0;overflow:hidden;}
+        .liquid-stage{position:relative;width:calc(var(--liquid-k)*160px);height:calc(var(--liquid-k)*160px);}
+        .liquid-abs{position:absolute;left:50%;top:50%;border-radius:50%;}
+        .liquid-goo{position:absolute;inset:calc(var(--liquid-k)*-14px);}
+        .liquid-core,.liquid-dot{position:absolute;left:50%;top:50%;border-radius:50%;background:#c6ff00;will-change:transform;}
+        .liquid-core{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);animation:liquidCore 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-dot{width:calc(var(--liquid-k)*26px);height:calc(var(--liquid-k)*26px);margin:calc(var(--liquid-k)*-13px);animation:liquidOrbit 3.6s cubic-bezier(.45,0,.55,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-dot-b{animation-delay:calc(var(--liquid-phase,0s) - .3s);}
+        .liquid-dot-c{animation-delay:calc(var(--liquid-phase,0s) - .6s);background:#d4af37;}
+        .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),rgba(255,255,255,0) 50%),linear-gradient(170deg,rgba(255,255,255,0) 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
+        .liquid-sheen::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:50%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);transform:translateX(-140%) skewX(-12deg);animation:liquidGlint 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:multiply;will-change:transform;animation:liquidLogo 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc((calc(var(--liquid-k)*18px)) + 1px);line-height:1.2;animation:liquidFade 3.4s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-word span{color:#d4af37;}
+        @keyframes liquidOrbit{0%{transform:rotate(0) translateX(calc(var(--liquid-k)*70px))}50%{transform:rotate(360deg) translateX(0)}100%{transform:rotate(720deg) translateX(calc(var(--liquid-k)*70px))}}
+        @keyframes liquidCore{0%,100%{transform:scale(1)}50%{transform:scale(1.5);border-radius:30%}}
+        @keyframes liquidLogo{0%,100%{transform:scale(.6667)}50%{transform:scale(1)}}
+        @keyframes liquidFade{0%,100%{opacity:.68}50%{opacity:1}}
+        @keyframes liquidGlint{0%,38%{transform:translateX(-140%) skewX(-12deg)}64%,100%{transform:translateX(280%) skewX(-12deg)}}
+        .boxed-dots-loader{display:flex;align-items:center;justify-content:center;gap:5px;height:24px;}
+        .boxed-dots-loader span{width:9px;height:9px;border-radius:2px;background:var(--accent,#c6ff00);opacity:.4;animation:boxedDot 1s ease-in-out infinite;}
+        .boxed-dots-loader span:nth-child(2){animation-delay:.14s;}
+        .boxed-dots-loader span:nth-child(3){animation-delay:.28s;}
+        .boxed-dots-loader-compact{height:16px;gap:3px;}
+        .boxed-dots-loader-compact span{width:5px;height:5px;}
+        @keyframes boxedDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-5px);opacity:1}}
+        @media(prefers-reduced-motion:reduce){.liquid-core,.liquid-dot,.liquid-sheen,.liquid-sheen::after,.liquid-logo,.liquid-word,.boxed-dots-loader span{animation:none}}
         .boxed-dots-loader{display:flex;align-items:center;justify-content:center;gap:5px;height:24px;}
         .boxed-dots-loader span{width:9px;height:9px;border-radius:2px;background:var(--accent,#c6ff00);opacity:.4;animation:boxedDot 1s ease-in-out infinite;}
         .boxed-dots-loader span:nth-child(2){animation-delay:.14s;}
