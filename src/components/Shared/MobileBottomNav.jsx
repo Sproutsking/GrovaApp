@@ -120,11 +120,12 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           position: fixed;
           bottom: 0; left: 0; right: 0;
           z-index: 100;
-          background: var(--bg-strong);
-          backdrop-filter: blur(28px);
-          -webkit-backdrop-filter: blur(28px);
+          background: #000;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
           padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
-          border-top: 0;
+          border: 0;
+          box-shadow: none;
           /* Controlled by DOM: display:none or display:flex */
           display: flex;
         }

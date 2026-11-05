@@ -427,9 +427,16 @@ img, video {
 @media (max-width: 768px) {
   .mobile-header,
   .main-content-mobile,
-  .mobile-bottom-nav {
+  .mobile-bottom-nav,
+  .mbn {
     border: 0 !important;
     outline: 0 !important;
+  }
+
+  .mbn {
+    background: #000 !important;
+    background-image: none !important;
+    box-shadow: none !important;
   }
 
   [role="dialog"],
