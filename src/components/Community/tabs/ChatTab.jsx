@@ -1643,8 +1643,17 @@ const ChatTab = ({
 
         .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 2px; box-sizing: border-box; background: #000; background-image: none; }
         .chat-msgs > section { box-sizing: border-box; width: 100%; }
-        .chat-msgs > .vp, .chat-msgs > .community-ticket-tool, .chat-msgs > .updates-panel { box-sizing: border-box; width: 96% !important; max-width: 96% !important; margin-left: auto !important; margin-right: auto !important; }
-        .chat-msgs > .official-links-panel { box-sizing: border-box; width: min(calc(100% - 24px), 760px) !important; max-width: min(calc(100% - 24px), 760px) !important; margin-left: auto !important; margin-right: auto !important; }
+        .chat-msgs > .vp,
+        .chat-msgs > .community-ticket-tool,
+        .chat-msgs > .updates-panel,
+        .chat-msgs > .official-links-panel,
+        .chat-msgs > .community-tool-panel-post {
+          box-sizing: border-box;
+          width: min(calc(100% - 24px), 760px) !important;
+          max-width: min(calc(100% - 24px), 760px) !important;
+          margin: 12px auto !important;
+        }
+        .chat-msgs > .community-tool-panel-post .vp { padding: 16px; }
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
         .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }
@@ -1670,6 +1679,16 @@ const ChatTab = ({
           .mobile-chat-title { flex: 1; text-align: center; font-size: calc((13px) + 1px); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
           .channels-container { display: none; }
           .chat-msgs { padding-left: 2px; padding-right: 2px; }
+          .chat-msgs > .vp,
+          .chat-msgs > .community-ticket-tool,
+          .chat-msgs > .updates-panel,
+          .chat-msgs > .official-links-panel,
+          .chat-msgs > .community-tool-panel-post {
+            width: calc(100% - 16px) !important;
+            max-width: calc(100% - 16px) !important;
+            margin: 8px auto !important;
+          }
+          .chat-msgs > .community-tool-panel-post .vp { padding: 12px; }
           .jump-btn { bottom: 72px; right: 12px; width: 36px; height: 36px; }
         }
         .category-context-menu { position: fixed; z-index: 10001; width: 220px; padding: 7px; border: 1px solid rgba(156,255,0,.3); border-radius: 13px; background: linear-gradient(145deg,rgba(17,27,19,.99),rgba(8,13,11,.99)); box-shadow: 0 18px 50px rgba(0,0,0,.68),0 0 20px rgba(156,255,0,.08); }

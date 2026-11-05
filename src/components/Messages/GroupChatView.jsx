@@ -810,8 +810,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
               }}
               onNavigate={onNavigate}
               onReactionClick={handleReact}
-              avatarImageBleed={1}
-              avatarSize={38}
+              avatarSize={32}
             />
             {typing.length>0&&<div className="gcv-community-typing">{typing[0]} is typing…</div>}
             <div ref={endRef}/>
@@ -919,10 +918,8 @@ const CSS = `
 
 /* Root */
 .gcv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.gcv-root .msg-bubble.them{background:rgba(19,21,20,.97);border-color:rgba(255,255,255,.08);border-radius:14px 14px 14px 4px;}
-.gcv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border-color:rgba(156,255,0,.26);border-radius:14px 14px 4px 14px;}
-.gcv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(19,21,20,.97);}
-.gcv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(31,84,34,.98);}
+.gcv-root .msg-bubble.them{--message-tail-fill:#202729;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
+.gcv-root .msg-bubble.me{--message-tail-fill:#183728;--message-tail-edge:rgba(156,255,0,.2);background:var(--message-tail-fill);border-color:rgba(156,255,0,.16);box-shadow:0 4px 14px rgba(0,0,0,.16);}
 
 /* Header — 14px sides, safe-area top, exactly matches ChatView */
 .gcv-head{

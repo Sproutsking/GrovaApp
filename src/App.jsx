@@ -793,7 +793,10 @@ const MainApp = memo(({ onInitialHomeReady }) => {
         .maybeSingle();
       if (w) setUserBalance({ tokens: w.xev_tokens || 0, points: w.engagement_points || 0 });
       if (p) {
-        const avatarUrl = mediaUrlService.resolveAvatarUrl(p.avatar_id, 400);
+        const avatarUrl = [
+          ...mediaUrlService.resolveAvatarUrls(p.avatar_id, 400),
+          ...mediaUrlService.resolveAvatarUrls(p.avatar_metadata, 400),
+        ][0] || null;
         const userObj = {
           id:        p.id || userId,
           name:      p.full_name || "User",
@@ -803,6 +806,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
           fullName:  p.full_name || "User",
           avatarId:  p.avatar_id || null,
           avatar_id: p.avatar_id || null,
+          avatarMetadata: p.avatar_metadata || null,
         };
         setCurrentUser(userObj);
         setProfileData({

@@ -15,7 +15,6 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import backgroundService from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import BoostAvatarRing from "../Shared/BoostAvatarRing";
 import { getBoostNameColor } from "../Shared/profileVisuals";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
@@ -291,7 +290,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
           className="cv-avatar"
           onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))}
           aria-label={isMe ? `View ${currentUserName || "your"} profile` : `View ${otherName || "user"}'s profile`}
-          style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)`, cursor: "pointer" }}
+          style={{ cursor: "pointer" }}
         >
           {avatarUrl ? <img src={avatarUrl} alt={isMe ? (currentUserName || "You") : (otherName || "User")} loading="eager" fetchPriority="high" /> : ((isMe ? (currentUserName || "You") : (otherName || "U")).charAt(0).toUpperCase())}
         </button>
@@ -300,7 +299,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
         <button className={`cv-message-menu-btn ${isMe ? "cv-message-menu-btn-me" : "cv-message-menu-btn-them"}`} type="button" onClick={handleMenuButtonClick} aria-label="Message options">
           <Ic.More/>
         </button>
-        {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{((isMe ? currentUserVerified : otherVerified) || boostTier)&&<VerifiedBadgeCircle tier={boostTier || "silver"} size={16} />}</button>}
+        {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{(isMe ? currentUserVerified : otherVerified)&&<VerifiedBadgeCircle tier="silver" size={16} />}</button>}
         {msg.reply_to_id&&<ReplyQuote
           replyToId={msg.reply_to_id}
           messages={messages}
@@ -761,10 +760,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.cv-root .msg-bubble.them{background:rgba(29,35,31,.98);border-color:rgba(226,232,226,.1);box-shadow:0 5px 18px rgba(0,0,0,.18);}
-.cv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(38,91,42,.99),rgba(19,49,26,.99) 62%,rgba(12,31,18,1));border-color:rgba(156,255,0,.28);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
-.cv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(29,35,31,.98);}
-.cv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(38,91,42,.99);}
+.cv-root .msg-bubble.them{--message-tail-fill:#202729;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
+.cv-root .msg-bubble.me{--message-tail-fill:#183728;--message-tail-edge:rgba(156,255,0,.2);background:var(--message-tail-fill);border-color:rgba(156,255,0,.16);box-shadow:0 4px 14px rgba(0,0,0,.16);}
 .cv-root .msg-list-wrapper.direct-message-list{padding:10px 10px 12px;}
 .cv-root .direct-message-list .msg-item{gap:0;margin-bottom:0;padding:0 2px;}
 .cv-root .direct-message-list .msg-item.clustered{margin-bottom:3px;}
@@ -776,8 +773,6 @@ export const CV_CSS = `
 .cv-root .direct-message-list .msg-reply-quote-preview{align-items:flex-start;}
 .cv-root .direct-message-list .msg-time{color:#a1aaa2;}
 .cv-root .direct-message-list .msg-bubble{backdrop-filter:none;}
-.cv-root .direct-message-list .msg-bubble.them{background:rgba(29,35,31,.98);}
-.cv-root .direct-message-list .msg-bubble.me{background:linear-gradient(135deg,rgba(38,91,42,.99),rgba(19,49,26,.99) 62%,rgba(12,31,18,1));}
 .cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;padding: 0 10px;}
 .cv-back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}
@@ -821,8 +816,8 @@ export const CV_CSS = `
 .cv-bgprev-grid{background:repeating-linear-gradient(90deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),repeating-linear-gradient(0deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),#000;border:1px solid rgba(132,204,22,.3);}
 .cv-msgs{flex:1;overflow-y:auto;position:relative;-webkit-overflow-scrolling:touch;}
 .cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
-.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.28);pointer-events:none;z-index:0;}
-.cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.18);} 
+.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.2);pointer-events:none;z-index:0;}
+.cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.11);}
 .cv-msgs-content{position:relative;z-index:1;padding:0 2px 4px;display:flex;flex-direction:column;gap:0;}
 .cv-loading{display:flex;justify-content:center;padding:40px;}
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}

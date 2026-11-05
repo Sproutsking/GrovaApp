@@ -5,7 +5,6 @@ import { MoreVertical, Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, getExternalUrls, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
-import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
 import { MessageReactionArea } from "./ReactionSystem";
 import WelcomeMemberCard, { getWelcomeMemberId } from "../verification/WelcomeMemberCard";
@@ -82,8 +81,7 @@ const MessageList = ({
   onNavigate,
   getMessageStatus,
   channelType,
-  avatarImageBleed = 0,
-  avatarSize = 36,
+  avatarSize = 32,
   onMessageClick,
   onMessageLongPress,
   onPostNavigate,
@@ -232,7 +230,6 @@ const MessageList = ({
           const isMe = String(msg.user_id) === String(userId);
           const prev = allMessages[idx - 1];
           const next = allMessages[idx + 1];
-          const sameAuthorAsNext = next && String(next.user_id) === String(msg.user_id);
           const sameAuthorAsPrev = prev && String(prev.user_id) === String(msg.user_id);
           const isAnnouncement = channelType === "announcement";
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
@@ -240,8 +237,11 @@ const MessageList = ({
           const isAnnouncementMessage = isAnnouncement || Boolean(announcement);
           const prevCreatedAt = prev ? new Date(prev.created_at).getTime() : null;
           const currentCreatedAt = msg.created_at ? new Date(msg.created_at).getTime() : null;
-          const isWithinCluster = sameAuthorAsPrev && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
-          const showTail = !isAnnouncementMessage && (!sameAuthorAsPrev || !isWithinCluster);
+          const isWithinCluster = prev && String(prev.user_id) === String(msg.user_id) && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
+          const nextCreatedAt = next?.created_at ? new Date(next.created_at).getTime() : null;
+          const isWithinClusterNext = next && String(next.user_id) === String(msg.user_id) && currentCreatedAt !== null && nextCreatedAt !== null && (nextCreatedAt - currentCreatedAt) <= 10 * 60 * 1000;
+          const sameAuthorAsNext = Boolean(isWithinClusterNext);
+          const showTail = !isAnnouncementMessage && !isWithinClusterNext;
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const welcomeMemberId = getWelcomeMemberId(msg.content);
@@ -270,15 +270,13 @@ const MessageList = ({
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
           const replyTier = ["silver", "gold", "diamond"].includes(originalReply?.user?.subscription_tier) ? originalReply.user.subscription_tier : "normal";
           const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, originalReply?.user?.boost_selections?.fontId, originalReply?.user?.boost_selections?.colorId).color?.color || "#9cff00";
-          const profileTier = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier) ? msg.user.subscription_tier : "normal";
-          const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = isDirectMessage ? 0 : avatarSize + (hasBoostedProfile ? 10 : 4);
+          const avatarFootprint = isDirectMessage ? 0 : avatarSize;
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
           const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
           const communityRole = communityMembers.find((member) => String(member.user_id || member.user?.id) === String(msg.user_id))?.role;
-          const communityNameColor = communityRole?.color || nameDesign.color?.color;
+          const communityNameColor = nameDesign.color?.color || communityRole?.color;
 
           return (
             <React.Fragment key={msg.id || msg.tempId || msg._tempId}>
@@ -308,18 +306,8 @@ const MessageList = ({
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
               {!isDirectMessage && showAvatar && (
-                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint, border: "0", boxShadow: "none", overflow: "visible" }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
-                  <BoostAvatarRing
-                    tier={msg.user?.subscription_tier}
-                    themeId={msg.user?.boost_selections?.themeId}
-                    accentColor={nameDesign.color?.color}
-                    size={avatarSize}
-                    src={avatarUrl}
-                    letter={initial}
-                    showBadge={false}
-                    imageBleed={avatarImageBleed}
-                    style={{ cursor: "pointer" }}
-                  />
+                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
+                  {avatarUrl ? <img src={avatarUrl} alt="" /> : <span className="msg-avatar-fallback">{initial}</span>}
                 </div>
               )}
               {!isDirectMessage && !showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
@@ -334,12 +322,12 @@ const MessageList = ({
                 </div>
               ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} profile-${profileTier} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {!isDirectMessage && <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                         <span className="msg-user-name-text">{isMe ? (currentUser?.fullName || currentUser?.name || msg.user?.full_name || msg.user?.name || "You") : (msg.user?.full_name || msg.user?.name || msg.user?.username || "Unknown")}</span>
-                        {(msg.user?.verified || hasBoostedProfile) && <VerifiedBadgeCircle tier={hasBoostedProfile ? msg.user?.subscription_tier : "silver"} size={16} />}
+                        {msg.user?.verified && <VerifiedBadgeCircle tier="silver" size={16} />}
                       </button>
                     )}
                     <button type="button" className={`msg-card-menu-btn ${isMe ? "me" : "them"}`} onClick={(event) => {
@@ -495,17 +483,15 @@ const MessageList = ({
           transition: transform 0.18s ease-out;
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
-        .msg-item.clustered { margin-bottom: 3px; }
-        .msg-item.same-author-next:not(.clustered) { margin-bottom: 6px; }
-        .msg-item.different-author-next { margin-bottom: 10px; }
+        .msg-item.clustered { margin-bottom: 2px; }
+        .msg-item.same-author-next:not(.clustered) { margin-bottom: 2px; }
+        .msg-item.different-author-next { margin-bottom: 8px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; align-items: flex-start; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-start; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
-        .msg-item .msg-bubble { min-width: 0; padding-bottom: 3px; }
-        .msg-item.me .msg-bubble { padding-left: 3px; padding-right: 3px; }
-        .msg-item.them .msg-bubble { padding-left: 3px; padding-right: 3px; }
+        .msg-item .msg-bubble { min-width: 0; padding: 5px 9px 6px; }
         .msg-external-preview{display:block;width:100%;margin:8px 0 0;padding:0 4px;box-sizing:border-box;}
         .msg-external-preview .xeevia-link-card{width:100%;max-width:420px;}
         @media(max-width:768px){.msg-external-preview{width:90%;margin-left:5%;}.msg-external-preview .xeevia-link-card{width:100%;}}
@@ -603,11 +589,12 @@ const MessageList = ({
           width: 38px;
           height: 38px;
           border-radius: 50%;
-          border: 2px solid var(--accent-border);
-          overflow: visible;
+          border: 1px solid rgba(220,232,224,.18);
+          overflow: hidden;
           flex-shrink: 0;
           position: relative;
-          box-shadow: 0 2px 8px var(--shadow);
+          box-sizing: border-box;
+          box-shadow: none;
           padding: 0;
           cursor: pointer;
           margin-right: 4px;
@@ -697,62 +684,46 @@ const MessageList = ({
 
         /* Base bubble styles */
         .msg-bubble {
-          --bubble-bg: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
-          --bubble-border: rgba(196,214,202,.14);
-          --bubble-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
-          --message-tail-fill: rgba(19,29,23,.99);
-          --message-tail-edge: rgba(196,214,202,.22);
-          background: var(--bubble-bg);
+          --message-tail-fill: #202729;
+          --message-tail-edge: rgba(220,232,224,.18);
+          --bubble-border: rgba(220,232,224,.12);
+          background: var(--message-tail-fill);
           border: 1px solid var(--bubble-border);
-          box-shadow: var(--bubble-shadow);
-        }
-        .msg-bubble.profile-normal {
-          --bubble-bg: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
-          --bubble-border: rgba(196,214,202,.14);
-          --message-tail-fill: rgba(19,29,23,.99);
-          --message-tail-edge: rgba(196,214,202,.18);
-        }
-        .msg-bubble.profile-silver {
-          --bubble-bg: linear-gradient(145deg, rgba(23,31,39,.98), rgba(15,21,30,.98));
-          --bubble-border: rgba(148,163,184,.24);
-          --message-tail-fill: rgba(17,22,29,.99);
-          --message-tail-edge: rgba(148,163,184,.26);
-        }
-        .msg-bubble.profile-gold {
-          --bubble-bg: linear-gradient(145deg, rgba(39,29,16,.99), rgba(24,18,10,.99));
-          --bubble-border: rgba(251,191,36,.22);
-          --message-tail-fill: rgba(34,25,15,.99);
-          --message-tail-edge: rgba(251,191,36,.28);
-        }
-        .msg-bubble.profile-diamond {
-          --bubble-bg: linear-gradient(145deg, rgba(12,26,36,.99), rgba(10,16,23,.99));
-          --bubble-border: rgba(125,211,252,.26);
-          --message-tail-fill: rgba(10,18,27,.99);
-          --message-tail-edge: rgba(125,211,252,.3);
+          box-shadow: 0 4px 14px rgba(0,0,0,.16);
+          overflow: visible;
         }
         .msg-bubble.them {
           border-bottom-left-radius: 2px;
         }
+        .msg-item.clustered .msg-bubble.them { border-top-left-radius: 6px; }
 
         .msg-bubble.me {
+          --message-tail-fill: #183728;
+          --message-tail-edge: rgba(156,255,0,.2);
+          --bubble-border: rgba(156,255,0,.16);
+          background: var(--message-tail-fill);
+          border: 1px solid var(--bubble-border);
           border-bottom-right-radius: 2px;
         }
+        .msg-item.clustered .msg-bubble.me { border-top-right-radius: 6px; }
 
         .msg-list-wrapper.text-channel .msg-bubble.them,
         .msg-list-wrapper.text-channel .msg-bubble.me {
-          border-bottom-left-radius: 12px !important;
-          border-bottom-right-radius: 12px !important;
+          border-bottom-left-radius: 12px;
+          border-bottom-right-radius: 12px;
         }
 
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         @media (max-width: 768px) {
-          .msg-list-wrapper.text-channel { padding-left: 2px; padding-right: 2px; }
-          .msg-list-wrapper.announcement-channel { padding-left: 2px; padding-right: 2px; }
+          .msg-list-wrapper.text-channel { padding-left: 6px; padding-right: 6px; }
+          .msg-list-wrapper.announcement-channel { padding-left: 6px; padding-right: 6px; }
           .msg-item .mra-wrapper { flex: 1 1 auto; width: fit-content; max-width: calc(100% - 48px); }
           .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper { flex: 0 1 88%; max-width: 88%; }
           .msg-item .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
-          .msg-item.announcement .mra-wrapper { max-width: 80%; }
+          .msg-item.announcement .mra-wrapper { max-width: 84%; }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 40px); }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel .msg-item.them { padding-left: 4px; padding-right: 10px; }
           .msg-list-wrapper.announcement-channel .msg-item.announcement .msg-bubble { padding-left: 10px; padding-right: 4px; }
@@ -760,41 +731,47 @@ const MessageList = ({
         }
 
         .msg-item .mra-wrapper { overflow: visible; }
-        .msg-bubble.them.has-tail { border-top-left-radius: 0; }
-        .msg-bubble.me.has-tail { border-top-right-radius: 0; }
+        .msg-list-wrapper.text-channel .msg-bubble.them.has-tail { border-bottom-left-radius: 3px; }
+        .msg-list-wrapper.text-channel .msg-bubble.me.has-tail { border-bottom-right-radius: 3px; }
         .msg-bubble.them.has-tail::before,
         .msg-bubble.them.has-tail::after,
         .msg-bubble.me.has-tail::before,
         .msg-bubble.me.has-tail::after {
           content: "";
           position: absolute;
-          top: 1px;
-          width: 0;
-          height: 0;
-          border-style: solid;
           pointer-events: none;
         }
         .msg-bubble.them.has-tail::before {
-          left: -8px;
-          border-width: 9px 0 0 8px;
-          border-color: var(--message-tail-edge) transparent transparent transparent;
+          left: -7px;
+          bottom: 1px;
+          width: 8px;
+          height: 10px;
+          background: var(--message-tail-edge);
+          clip-path: polygon(100% 0, 100% 100%, 0 100%);
         }
         .msg-bubble.them.has-tail::after {
-          left: -6px;
-          top: 2px;
-          border-width: 7px 0 0 6px;
-          border-color: var(--message-tail-fill) transparent transparent transparent;
+          left: -5px;
+          bottom: 1px;
+          width: 6px;
+          height: 8px;
+          background: var(--message-tail-fill);
+          clip-path: polygon(100% 0, 100% 100%, 0 100%);
         }
         .msg-bubble.me.has-tail::before {
-          right: -8px;
-          border-width: 9px 8px 0 0;
-          border-color: var(--message-tail-edge) transparent transparent transparent;
+          right: -7px;
+          bottom: 1px;
+          width: 8px;
+          height: 10px;
+          background: var(--message-tail-edge);
+          clip-path: polygon(0 0, 0 100%, 100% 100%);
         }
         .msg-bubble.me.has-tail::after {
-          right: -6px;
-          top: 2px;
-          border-width: 7px 6px 0 0;
-          border-color: var(--message-tail-fill) transparent transparent transparent;
+          right: -5px;
+          bottom: 1px;
+          width: 6px;
+          height: 8px;
+          background: var(--message-tail-fill);
+          clip-path: polygon(0 0, 0 100%, 100% 100%);
         }
 
         .msg-user-name {
@@ -904,13 +881,13 @@ const MessageList = ({
 
         @media (max-width: 768px) {
           .msg-avatar {
-            width: 56px;
-            height: 56px;
+            width: 32px;
+            height: 32px;
           }
-          .mra-ann { width: min(80%, 760px); max-width: min(80%, 760px); }
+          .mra-ann { width: min(84%, 760px); max-width: min(84%, 760px); }
 
           .msg-avatar-spacer {
-            width: 56px;
+            width: 32px;
           }
 
           .msg-avatar-fallback {
@@ -918,10 +895,22 @@ const MessageList = ({
           }
 
           .msg-bubble {
-            max-width: 80%;
-            min-width: max-content;
-            padding: 0 5px 4px;
+            max-width: 100%;
+            min-width: 0;
+            padding: 5px 9px 6px;
             border-radius: 12px;
+          }
+
+          .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper {
+            flex: 0 1 auto;
+            width: fit-content;
+            max-width: calc(100% - 40px);
+          }
+
+          .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper .msg-bubble {
+            width: fit-content;
+            max-width: 100%;
+            min-width: 0;
           }
 
           .msg-user-name {
@@ -932,10 +921,7 @@ const MessageList = ({
             font-size: calc((13px) + 1px);
           }
 
-          .msg-list-wrapper {
-            padding-left: 2px;
-            padding-right: 2px;
-          }
+          .msg-list-wrapper { padding-left: 6px; padding-right: 6px; }
 
         }
       `}</style>

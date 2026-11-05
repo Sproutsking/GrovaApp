@@ -6,7 +6,7 @@ import { supabase } from "../../services/config/supabase";
 
 const formatDisplayName = (user) => {
   if (!user) return "You";
-  const name = user.full_name || user.username || "You";
+  const name = user.full_name || user.fullName || user.name || user.username || "You";
   return name.length > 10 ? `${name.slice(0, 9)}…` : name;
 };
 
@@ -41,6 +41,8 @@ const getProfileAvatarUrls = (profile) => {
     avatarIsImage ? profileAvatar : null,
     profile?.avatar_id,
     profile?.avatarId,
+    profile?.avatar_metadata,
+    profile?.avatarMetadata,
     profile?.user_metadata?.avatar_url,
     profile?.user_metadata?.picture,
   ].filter(Boolean);
@@ -59,7 +61,17 @@ export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = fa
   const profile = group.profile || status?.profile || currentUser;
   const avatarUrls = getProfileAvatarUrls(profile);
   const avatar = avatarUrls[avatarIndex] || null;
-  useEffect(() => setAvatarIndex(0), [profile?.avatar, profile?.avatar_id, profile?.avatarId, profile?.avatar_url, profile?.avatarUrl]);
+  useEffect(() => setAvatarIndex(0), [
+    profile?.avatar,
+    profile?.avatar_id,
+    profile?.avatarId,
+    profile?.avatar_metadata,
+    profile?.avatarMetadata,
+    profile?.avatar_url,
+    profile?.avatarUrl,
+    profile?.user_metadata?.avatar_url,
+    profile?.user_metadata?.picture,
+  ]);
   const videoStatus = isVideoStatus(status);
   const statusMedia = !imageError ? getStatusMediaUrl(status?.image_id, videoStatus) : null;
   const videoPoster = videoStatus && statusMedia

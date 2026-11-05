@@ -62,4 +62,22 @@ describe("StatusBubble profile avatar", () => {
     fireEvent.error(avatar);
     expect(screen.getByAltText("").getAttribute("src")).toBe("https://cdn.example/avatar");
   });
+
+  it("prefers the Xeevia profile avatar over the auth provider image", () => {
+    render(
+      <StatusBubble
+        group={{
+          profile: {
+            fullName: "Yemi",
+            avatarId: "avatar-id",
+            user_metadata: { picture: "https://google.example/provider-photo.jpg" },
+          },
+          statuses: [],
+        }}
+        isMe
+      />,
+    );
+
+    expect(screen.getByAltText("").getAttribute("src")).toBe("https://storage.example/avatar");
+  });
 });
