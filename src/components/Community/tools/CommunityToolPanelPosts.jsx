@@ -4,7 +4,6 @@ import verificationService from "../../../services/community/verificationService
 import TicketToolPanel from "./TicketToolPanel";
 import VerificationPanel from "../verification/VerificationPanel";
 
-const POST_CACHE_TTL_MS = 120_000;
 const MAX_CACHED_CHANNELS = 80;
 const postCache = new Map();
 const postCacheKey = (communityId, channelId, userId) => JSON.stringify([String(communityId), String(channelId), String(userId || "")]);
@@ -22,28 +21,27 @@ export default function CommunityToolPanelPosts({
 }) {
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
   const pendingRequestRef = useRef(null);
 
-  const loadPosts = useCallback(async ({ force = false } = {}) => {
+  const loadPosts = useCallback(async () => {
     if (!communityId || !channelId) {
       setPosts([]);
       return;
     }
     const key = postCacheKey(communityId, channelId, userId);
     const cached = postCache.get(key);
-    if (!force && cached && Date.now() - cached.cachedAt < POST_CACHE_TTL_MS) {
+    if (cached) {
       setPosts(cached.posts);
-      setError("");
-      return;
     }
     if (pendingRequestRef.current?.key === key) {
-      if (force) pendingRequestRef.current.forceAfter = true;
       return pendingRequestRef.current.promise;
     }
 
     const requestId = ++requestIdRef.current;
     setError("");
+    if (!cached) setLoading(true);
     const promise = (async () => {
       const { data, error: loadError } = await supabase
         .from("community_tool_panel_posts")
@@ -60,20 +58,18 @@ export default function CommunityToolPanelPosts({
       if (!postCache.has(key) && postCache.size >= MAX_CACHED_CHANNELS) {
         postCache.delete(postCache.keys().next().value);
       }
-      postCache.set(key, { posts: loadedPosts, cachedAt: Date.now() });
+      postCache.set(key, { posts: loadedPosts });
       setPosts(loadedPosts);
       setError("");
     })();
-    const pendingRequest = { key, promise, forceAfter: false };
+    const pendingRequest = { key, promise };
     pendingRequestRef.current = pendingRequest;
     try {
       await promise;
     } finally {
       if (pendingRequestRef.current === pendingRequest) {
         pendingRequestRef.current = null;
-        if (pendingRequest.forceAfter && requestId === requestIdRef.current) {
-          await loadPosts({ force: true });
-        }
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     }
   }, [communityId, channelId, userId]);
@@ -83,7 +79,10 @@ export default function CommunityToolPanelPosts({
     loadPosts();
     const reloadPosts = () => {
       verificationService.invalidatePanel(communityId, userId);
-      return loadPosts({ force: true });
+      return loadPosts();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") reloadPosts();
     };
     const handlePanelUpdate = (event) => {
       if (event.detail?.communityId === communityId && event.detail?.channelIds?.map(String).includes(String(channelId))) {
@@ -91,6 +90,8 @@ export default function CommunityToolPanelPosts({
       }
     };
     window.addEventListener("community:tool-panels-updated", handlePanelUpdate);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     const subscription = supabase
       .channel(`community-tool-panels:${channelId}`)
       .on("postgres_changes", {
@@ -103,6 +104,8 @@ export default function CommunityToolPanelPosts({
     return () => {
       requestIdRef.current += 1;
       window.removeEventListener("community:tool-panels-updated", handlePanelUpdate);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
       supabase.removeChannel(subscription);
     };
   }, [channelId, communityId, loadPosts, userId]);
@@ -110,7 +113,13 @@ export default function CommunityToolPanelPosts({
   const needsSetup = legacyTicketPanel || legacyVerificationPanel;
 
   if (!posts.length && !error) {
-    if (!needsSetup || !canManage) return null;
+    if (loading && needsSetup) {
+      return <p className="community-tool-panel-status" role="status">Loading community panel…</p>;
+    }
+    if (!needsSetup) return null;
+    if (!canManage) {
+      return <p className="community-tool-panel-status" role="status">No published panel is available here yet. If one was sent, ask a community manager to check its channel access and publication.</p>;
+    }
     return (
       <section
         className="community-tool-panel-setup"
@@ -139,7 +148,7 @@ export default function CommunityToolPanelPosts({
 
   return (
     <>
-      {error && canManage && <p className="community-tool-panel-error" role="alert">{error}</p>}
+      {error && <p className="community-tool-panel-error" role="alert">{canManage ? error : "Could not refresh this community panel. Check your connection and try again."}</p>}
       {posts.map((post) => (
         <section className="community-tool-panel-post" key={`${post.id}:${post.updated_at}`} data-tool-panel-type={post.tool_type}>
           {post.tool_type === "tickets"
@@ -147,7 +156,7 @@ export default function CommunityToolPanelPosts({
             : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={post.tool_type} published onVerified={onVerified} />}
         </section>
       ))}
-      <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error{margin:12px;color:#ffaaa3;font-size:calc((12px) + 1px);text-align:center}`}</style>
+      <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error,.community-tool-panel-status{margin:12px auto;width:min(calc(100% - 24px),760px);color:#ffaaa3;font-size:calc((12px) + 1px);line-height:1.5;text-align:center}.community-tool-panel-status{color:#9da99c}`}</style>
     </>
   );
 }

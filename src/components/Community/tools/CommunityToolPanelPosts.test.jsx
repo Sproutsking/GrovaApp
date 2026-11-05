@@ -61,7 +61,7 @@ describe("CommunityToolPanelPosts", () => {
     await waitFor(() => expect(query.eq).toHaveBeenCalledWith("channel_id", "rules-channel"));
   });
 
-  it("reuses recently loaded posts when a member returns to the channel", async () => {
+  it("revalidates cached empty results when a member returns to the channel", async () => {
     const subscription = { on: jest.fn(), subscribe: jest.fn() };
     subscription.on.mockReturnValue(subscription);
     subscription.subscribe.mockReturnValue(subscription);
@@ -86,8 +86,8 @@ describe("CommunityToolPanelPosts", () => {
     view.unmount();
 
     render(<CommunityToolPanelPosts {...props} />);
-    await waitFor(() => expect(supabase.channel).toHaveBeenCalledTimes(2));
-    expect(supabase.from).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(supabase.from).toHaveBeenCalledTimes(2));
+    expect(supabase.channel).toHaveBeenCalledTimes(2);
   });
 
   it("shows setup status to managers while a legacy panel is unpublished", async () => {
@@ -144,5 +144,31 @@ describe("CommunityToolPanelPosts", () => {
     await waitFor(() => expect(query.order).toHaveBeenCalled());
     expect(screen.queryByText("Setup in progress")).toBeNull();
     expect(screen.queryByTestId("verification-panel")).toBeNull();
+  });
+
+  it("explains when a configured panel is unavailable to a member", async () => {
+    const subscription = { on: jest.fn(), subscribe: jest.fn() };
+    subscription.on.mockReturnValue(subscription);
+    subscription.subscribe.mockReturnValue(subscription);
+    supabase.channel.mockReturnValue(subscription);
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    supabase.from.mockReturnValue(query);
+
+    render(
+      <CommunityToolPanelPosts
+        communityId="unavailable-panel-community"
+        userId="unavailable-panel-member"
+        channelId="unavailable-panel-channel"
+        legacyVerificationPanel
+      />,
+    );
+
+    expect(await screen.findByText(/No published panel is available here yet/)).not.toBeNull();
   });
 });
