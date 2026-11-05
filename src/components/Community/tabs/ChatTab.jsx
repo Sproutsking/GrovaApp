@@ -891,15 +891,25 @@ const ChatTab = ({
 
   const rulesChannelId = verificationRouting?.rulesGate?.rulesChannelId;
   const verificationChannelId = verificationRouting?.rulesGate?.verificationChannelId;
+  const standaloneRulesChannelId = verificationRouting?.rulesPanelEnabled
+    ? verificationRouting.rulesPanelChannelId
+    : null;
   const isVerificationChannel = Boolean(
     selectedChannel
     && (
       selectedChannel.tool_type === "verification"
+      || selectedChannel.tool_type === "rules"
       || verificationRouting?.channelIds?.some((channelId) => String(channelId) === String(selectedChannel.id))
       || (rulesChannelId && selectedChannel.id === rulesChannelId)
       || (verificationChannelId && selectedChannel.id === verificationChannelId)
+      || (standaloneRulesChannelId && String(selectedChannel.id) === String(standaloneRulesChannelId))
     ),
   );
+  const fallbackPanelType = selectedChannel?.tool_type === "rules"
+    || (rulesChannelId && String(selectedChannel?.id) === String(rulesChannelId))
+    || (standaloneRulesChannelId && String(selectedChannel?.id) === String(standaloneRulesChannelId))
+    ? "rules"
+    : isVerificationChannel ? "verification" : null;
   const showSkeleton = !channelsReady && channels.length === 0;
 
   const orderedGroups = groupVisibleChannels(channels, categoryOrder);
@@ -1144,6 +1154,7 @@ const ChatTab = ({
             channelId={selectedChannel?.id}
             legacyTicketPanel={selectedChannel?.tool_type === "tickets"}
             legacyVerificationPanel={isVerificationChannel}
+            fallbackPanelType={fallbackPanelType}
             canManage={canManageChannels || canManageCommunity}
             onVerified={refreshAfterVerification}
             onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }}

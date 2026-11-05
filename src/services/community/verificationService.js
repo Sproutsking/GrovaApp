@@ -14,6 +14,11 @@ const panelRevisions = new Map();
 const panelCacheKey = (communityId, userId) => JSON.stringify([String(communityId), String(userId)]);
 
 const verificationService = {
+  getCachedPanel(communityId, { userId } = {}) {
+    if (!userId) return null;
+    return panelCache.get(panelCacheKey(communityId, userId))?.panel || null;
+  },
+
   getPanel(communityId, { userId, force = false } = {}) {
     if (!userId) return this.loadPanel(communityId);
 
@@ -110,6 +115,8 @@ const verificationService = {
       return normalizeVerificationData({
         ...panel,
         configured: Boolean(data.configured),
+        rulesPanelEnabled: Boolean(config.rulesPanelEnabled),
+        rulesPanelChannelId: config.rulesPanelChannelId || "",
         channelIds: getVerificationChannelIds(config, settingsResult.data?.channel_id),
         state: {
           completed: completions

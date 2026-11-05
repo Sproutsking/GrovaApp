@@ -36,6 +36,7 @@ describe("verificationService panel cache", () => {
       verificationService.getPanel("cache-community", options),
     ]);
     expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(verificationService.getCachedPanel("cache-community", options)).toEqual({ configured: false });
 
     await verificationService.getPanel("cache-community", options);
     expect(supabase.rpc).toHaveBeenCalledTimes(1);

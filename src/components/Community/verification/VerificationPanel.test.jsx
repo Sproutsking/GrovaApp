@@ -5,12 +5,13 @@ import VerificationPanel from "./VerificationPanel";
 
 jest.mock("../../../services/community/verificationService", () => ({
   __esModule: true,
-  default: { getPanel: jest.fn(), complete: jest.fn(), invalidatePanel: jest.fn() },
+  default: { getCachedPanel: jest.fn(() => null), getPanel: jest.fn(), complete: jest.fn(), invalidatePanel: jest.fn() },
 }));
 
 describe("VerificationPanel", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    verificationService.getCachedPanel.mockReturnValue(null);
   });
 
   it("limits a published rules panel to the rules step", async () => {
@@ -43,6 +44,28 @@ describe("VerificationPanel", () => {
 
     expect(await screen.findByRole("heading", { name: "Community rules" })).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Quick verification" })).toBeNull();
+  });
+
+  it("renders a cached panel immediately while refreshing it", () => {
+    verificationService.getCachedPanel.mockReturnValue({
+      configured: true,
+      message: "Welcome back.",
+      methods: {
+        quick: {
+          ready: true,
+          title: "Quick verification",
+          description: "Verify your account.",
+          buttonLabel: "Verify me",
+          requires: [],
+        },
+      },
+    });
+    verificationService.getPanel.mockReturnValue(new Promise(() => {}));
+
+    render(<VerificationPanel communityId="cached-community" userId="cached-member" channelId="verify-channel" />);
+
+    expect(screen.getByRole("heading", { name: "Quick verification" })).not.toBeNull();
+    expect(screen.queryByText("Loading verification…")).toBeNull();
   });
 
   it("renders standalone rules passively when a different channel hosts the verification gate", async () => {

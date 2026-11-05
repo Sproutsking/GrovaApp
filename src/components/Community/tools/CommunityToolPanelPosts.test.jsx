@@ -90,6 +90,34 @@ describe("CommunityToolPanelPosts", () => {
     expect(supabase.channel).toHaveBeenCalledTimes(2);
   });
 
+  it("renders a configured verification panel immediately while checking publication", () => {
+    const subscription = { on: jest.fn(), subscribe: jest.fn() };
+    subscription.on.mockReturnValue(subscription);
+    subscription.subscribe.mockReturnValue(subscription);
+    supabase.channel.mockReturnValue(subscription);
+    const query = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn(() => new Promise(() => {})),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    supabase.from.mockReturnValue(query);
+
+    render(
+      <CommunityToolPanelPosts
+        communityId="instant-panel-community"
+        userId="instant-panel-member"
+        channelId="instant-panel-channel"
+        legacyVerificationPanel
+        fallbackPanelType="verification"
+      />,
+    );
+
+    expect(screen.getByTestId("verification-panel")).not.toBeNull();
+    expect(screen.queryByText("Loading community panel…")).toBeNull();
+  });
+
   it("shows setup status to managers while a legacy panel is unpublished", async () => {
     const subscription = { on: jest.fn(), subscribe: jest.fn() };
     subscription.on.mockReturnValue(subscription);

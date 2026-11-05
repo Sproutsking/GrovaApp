@@ -14,14 +14,15 @@ export default function CommunityToolPanelPosts({
   channelId,
   legacyTicketPanel = false,
   legacyVerificationPanel = false,
+  fallbackPanelType = null,
   canManage = false,
   onVerified,
   onTicketCreated,
   onTicketDeleted,
 }) {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState(() => postCache.get(postCacheKey(communityId, channelId, userId))?.posts || []);
+  const [checked, setChecked] = useState(() => postCache.has(postCacheKey(communityId, channelId, userId)));
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
   const pendingRequestRef = useRef(null);
 
@@ -41,7 +42,6 @@ export default function CommunityToolPanelPosts({
 
     const requestId = ++requestIdRef.current;
     setError("");
-    if (!cached) setLoading(true);
     const promise = (async () => {
       const { data, error: loadError } = await supabase
         .from("community_tool_panel_posts")
@@ -52,6 +52,7 @@ export default function CommunityToolPanelPosts({
       if (requestId !== requestIdRef.current) return;
       if (loadError) {
         setError(loadError.message || "Could not load published tool panels.");
+        setChecked(true);
         return;
       }
       const loadedPosts = data || [];
@@ -60,6 +61,7 @@ export default function CommunityToolPanelPosts({
       }
       postCache.set(key, { posts: loadedPosts });
       setPosts(loadedPosts);
+      setChecked(true);
       setError("");
     })();
     const pendingRequest = { key, promise };
@@ -69,7 +71,6 @@ export default function CommunityToolPanelPosts({
     } finally {
       if (pendingRequestRef.current === pendingRequest) {
         pendingRequestRef.current = null;
-        if (requestId === requestIdRef.current) setLoading(false);
       }
     }
   }, [communityId, channelId, userId]);
@@ -110,12 +111,12 @@ export default function CommunityToolPanelPosts({
     };
   }, [channelId, communityId, loadPosts, userId]);
 
+  const fallbackPanelIsPublished = fallbackPanelType
+    && !posts.some((post) => post.tool_type === fallbackPanelType);
   const needsSetup = legacyTicketPanel || legacyVerificationPanel;
 
-  if (!posts.length && !error) {
-    if (loading && needsSetup) {
-      return <p className="community-tool-panel-status" role="status">Loading community panel…</p>;
-    }
+  if (!posts.length && !error && !fallbackPanelIsPublished) {
+    if (!checked) return null;
     if (!needsSetup) return null;
     if (!canManage) {
       return <p className="community-tool-panel-status" role="status">No published panel is available here yet. If one was sent, ask a community manager to check its channel access and publication.</p>;
@@ -146,17 +147,34 @@ export default function CommunityToolPanelPosts({
     );
   }
 
+  const visiblePosts = fallbackPanelIsPublished
+    ? [...posts, { id: `fallback-${fallbackPanelType}`, tool_type: fallbackPanelType, updated_at: "" }]
+    : posts;
+
   return (
     <>
       {error && <p className="community-tool-panel-error" role="alert">{canManage ? error : "Could not refresh this community panel. Check your connection and try again."}</p>}
-      {posts.map((post) => (
-        <section className="community-tool-panel-post" key={`${post.id}:${post.updated_at}`} data-tool-panel-type={post.tool_type}>
-          {post.tool_type === "tickets"
-            ? <TicketToolPanel communityId={communityId} userId={userId} channelId={channelId} onTicketCreated={onTicketCreated} onTicketDeleted={onTicketDeleted} />
-            : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={post.tool_type} published onVerified={onVerified} />}
-        </section>
-      ))}
+      {visiblePosts.map((post) => <PanelPost
+        key={`panel:${post.tool_type}`}
+        panelType={post.tool_type}
+        communityId={communityId}
+        userId={userId}
+        channelId={channelId}
+        onVerified={onVerified}
+        onTicketCreated={onTicketCreated}
+        onTicketDeleted={onTicketDeleted}
+      />)}
       <style>{`.community-tool-panel-post{width:100%;margin:12px auto}.community-tool-panel-post .community-ticket-tool{margin:0 auto!important}.community-tool-panel-error,.community-tool-panel-status{margin:12px auto;width:min(calc(100% - 24px),760px);color:#ffaaa3;font-size:calc((12px) + 1px);line-height:1.5;text-align:center}.community-tool-panel-status{color:#9da99c}`}</style>
     </>
+  );
+}
+
+function PanelPost({ panelType, communityId, userId, channelId, onVerified, onTicketCreated, onTicketDeleted }) {
+  return (
+    <section className="community-tool-panel-post" data-tool-panel-type={panelType}>
+      {panelType === "tickets"
+        ? <TicketToolPanel communityId={communityId} userId={userId} channelId={channelId} onTicketCreated={onTicketCreated} onTicketDeleted={onTicketDeleted} />
+        : <VerificationPanel communityId={communityId} userId={userId} channelId={channelId} panelType={panelType} published onVerified={onVerified} />}
+    </section>
   );
 }

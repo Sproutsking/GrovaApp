@@ -5,8 +5,8 @@ import { getMethodsForVerificationChannel } from "./verificationConfig";
 import CommunityRulesCard from "./CommunityRulesCard";
 
 export default function VerificationPanel({ communityId, userId, channelId, panelType = "verification", published = false, onVerified }) {
-  const [panel, setPanel] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [panel, setPanel] = useState(() => verificationService.getCachedPanel(communityId, { userId }));
+  const [loading, setLoading] = useState(() => !verificationService.getCachedPanel(communityId, { userId }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,8 +38,8 @@ export default function VerificationPanel({ communityId, userId, channelId, pane
   };
 
   const note = (text) => <section style={{ maxWidth: 560, margin: "40px auto", padding: 20, color: "#98ab98", fontSize: 14, textAlign: "center" }}>{text}</section>;
-  if (loading) return note("Loading verification…");
-  if (error) return note(error);
+  if (loading && !panel) return note("Loading verification…");
+  if (error && !panel) return note(error);
   if (!panel?.configured) return note("Verification isn't configured for this community yet.");
   const isRulesGatePanel = panelType === "rules"
     && panel.rulesGate?.enabled
