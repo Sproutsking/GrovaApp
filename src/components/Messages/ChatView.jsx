@@ -707,6 +707,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
             onNavigate={onNavigate}
             getMessageStatus={getMessageState}
             newMessageId={newMessageId}
+            messageMode="direct"
             onReactionClick={toggleReaction}
           />
           {typing.isTyping && <div className="cv-community-typing">{typing.userName} is typing…</div>}
@@ -760,10 +761,23 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.cv-root .msg-bubble.them{background:rgba(19,21,20,.97);border-color:rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
-.cv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border-color:rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
-.cv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(19,21,20,.97);}
-.cv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(31,84,34,.98);}
+.cv-root .msg-bubble.them{background:rgba(29,35,31,.98);border-color:rgba(226,232,226,.1);box-shadow:0 5px 18px rgba(0,0,0,.18);}
+.cv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(38,91,42,.99),rgba(19,49,26,.99) 62%,rgba(12,31,18,1));border-color:rgba(156,255,0,.28);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
+.cv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(29,35,31,.98);}
+.cv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(38,91,42,.99);}
+.cv-root .msg-list-wrapper.direct-message-list{padding:10px 10px 12px;}
+.cv-root .direct-message-list .msg-item{gap:0;margin-bottom:0;padding:0 2px;}
+.cv-root .direct-message-list .msg-item.clustered{margin-bottom:3px;}
+.cv-root .direct-message-list .msg-item.same-author-next:not(.clustered){margin-bottom:6px;}
+.cv-root .direct-message-list .msg-item.different-author-next{margin-bottom:10px;}
+.cv-root .direct-message-list .mra-wrapper{flex:0 1 84%;max-width:84%;}
+.cv-root .direct-message-list .msg-item.me .msg-content,
+.cv-root .direct-message-list .msg-item.me .msg-reply-quote{text-align:left;}
+.cv-root .direct-message-list .msg-reply-quote-preview{align-items:flex-start;}
+.cv-root .direct-message-list .msg-time{color:#a1aaa2;}
+.cv-root .direct-message-list .msg-bubble{backdrop-filter:none;}
+.cv-root .direct-message-list .msg-bubble.them{background:rgba(29,35,31,.98);}
+.cv-root .direct-message-list .msg-bubble.me{background:linear-gradient(135deg,rgba(38,91,42,.99),rgba(19,49,26,.99) 62%,rgba(12,31,18,1));}
 .cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;padding: 0 10px;}
 .cv-back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}
@@ -776,7 +790,7 @@ export const CV_CSS = `
 .cv-head-dot.cv-dot-on{background:#22c55e;}
 .cv-head-text{flex:1;min-width:0;}
 .cv-head-name{font-size:calc((14px) + 1px);font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cv-head-status{font-size:calc((11px) + 1px);color:#555;transition:color .3s;}
+.cv-head-status{font-size:calc((11px) + 1px);color:#87918a;transition:color .3s;}
 .cv-head-status.cv-st-on{color:#22c55e;}
 .cv-typing-lbl{color:#84cc16;font-style:italic;}
 .cv-head-right{display:flex;align-items:center;gap:5px;flex-shrink:0;}
@@ -853,7 +867,7 @@ export const CV_CSS = `
 .cv-bad{font-size:calc((12px) + 1px);color:#444;font-style:italic;}
 .cv-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;}
 .cv-meta-me{justify-content:flex-start;}
-.cv-time{font-size:calc((10px) + 1px);color:#555;}
+.cv-time{font-size:calc((10px) + 1px);color:#a1aaa2;}
 .cv-st{line-height:1;}
 .cv-tk{font-size:calc((11px) + 1px);font-weight:700;display:inline-block;transition:color .25s;}
 .cv-tk-sent{color:#444;}.cv-tk-dlvr{color:#888;}.cv-tk-read{color:#22c55e;}.cv-tk-red{color:#ef4444;}
@@ -932,7 +946,7 @@ export const CV_CSS = `
 .cv-gp-item{border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px;overflow:hidden;aspect-ratio:4/3;}
 .cv-gp-img{width:100%;height:100%;object-fit:cover;border-radius:8px;transition:transform .15s;}
 
-@media(max-width:768px){.cv-dr-right,.cv-dr-left{display:none;}}
+@media(max-width:768px){.cv-dr-right,.cv-dr-left{display:none;}.cv-root .msg-list-wrapper.direct-message-list{padding:8px 8px 12px;}.cv-root .direct-message-list .mra-wrapper{flex-basis:88%;max-width:88%;}}
 `;
 
 export default ChatView;

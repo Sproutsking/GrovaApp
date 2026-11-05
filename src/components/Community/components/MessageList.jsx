@@ -97,6 +97,7 @@ const MessageList = ({
   onWelcomeIntroduce,
   onWelcomeBrowse,
   newMessageId,
+  messageMode = "community",
   hasOlderMessages = false,
   loadingOlderMessages = false,
   olderMessagesError = "",
@@ -126,6 +127,7 @@ const MessageList = ({
   };
 
   const allMessages = [...messages, ...pendingMessages];
+  const isDirectMessage = messageMode === "direct";
   const [swipe, setSwipe] = React.useState(null);
   const [viewingImage, setViewingImage] = React.useState(null);
   const touchStart = React.useRef(null);
@@ -210,7 +212,7 @@ const MessageList = ({
   ));
 
   return (
-    <div className={`msg-list-wrapper ${channelType === "announcement" ? "announcement-channel" : "text-channel"}`}>
+    <div className={`msg-list-wrapper ${channelType === "announcement" ? "announcement-channel" : "text-channel"}${isDirectMessage ? " direct-message-list" : ""}`}>
       {loading && (
         <div className="msg-loading">
           <div className="msg-spinner" />
@@ -231,14 +233,15 @@ const MessageList = ({
           const prev = allMessages[idx - 1];
           const next = allMessages[idx + 1];
           const sameAuthorAsNext = next && String(next.user_id) === String(msg.user_id);
+          const sameAuthorAsPrev = prev && String(prev.user_id) === String(msg.user_id);
           const isAnnouncement = channelType === "announcement";
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
           const isAnnouncementMessage = isAnnouncement || Boolean(announcement);
           const prevCreatedAt = prev ? new Date(prev.created_at).getTime() : null;
           const currentCreatedAt = msg.created_at ? new Date(msg.created_at).getTime() : null;
-          const isWithinCluster = prev && prev.user_id === msg.user_id && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
-          const showTail = !isAnnouncementMessage && (!prev || prev.user_id !== msg.user_id || !isWithinCluster);
+          const isWithinCluster = sameAuthorAsPrev && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
+          const showTail = !isAnnouncementMessage && (!sameAuthorAsPrev || !isWithinCluster);
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const welcomeMemberId = getWelcomeMemberId(msg.content);
@@ -246,19 +249,30 @@ const MessageList = ({
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || String(msg.content || "").replace(/^\[\[welcome-member:[^\]]+\]\]\n?/, "");
           const hasMessageMedia = (Array.isArray(msg.attachments) && msg.attachments.length > 0) || Boolean(msg.media_url);
           const showMessageBody = !(hasMessageMedia && messageBody.trim().toLowerCase() === "attachment");
-          const showAvatar = isAnnouncementMessage || showTail;
-          const showSenderHeader = isAnnouncementMessage || Boolean(msg.user);
+          const showAvatar = !isDirectMessage && (isAnnouncementMessage || showTail);
+          const showSenderHeader = isAnnouncementMessage || (!isDirectMessage && Boolean(msg.user) && !isWithinCluster);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
           const hasReactionRow = isReactionChannel || canAddReactions
             || Object.values(msg.reactions || {}).some((reaction) => Number(reaction?.count) > 0);
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
+          const originalReplyAttachments = Array.isArray(originalReply?.attachments) && originalReply.attachments.length
+            ? originalReply.attachments
+            : originalReply?.media_url
+              ? [{ url: originalReply.media_url, type: originalReply.media_type || "file" }]
+              : [];
+          const originalReplyMedia = originalReplyAttachments.find((item) => item?.url && item.type === "image")
+            || originalReplyAttachments.find((item) => item?.url);
+          const originalReplyContent = String(originalReply?.content || "").trim();
+          const originalReplyPreview = !originalReplyContent || originalReplyContent.toLowerCase() === "attachment"
+            ? originalReplyMedia?.type === "image" ? "Photo" : originalReplyMedia?.type === "video" ? "Video" : "Attachment"
+            : originalReplyContent;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
           const replyTier = ["silver", "gold", "diamond"].includes(originalReply?.user?.subscription_tier) ? originalReply.user.subscription_tier : "normal";
           const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, originalReply?.user?.boost_selections?.fontId, originalReply?.user?.boost_selections?.colorId).color?.color || "#9cff00";
           const profileTier = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier) ? msg.user.subscription_tier : "normal";
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
+          const avatarFootprint = isDirectMessage ? 0 : avatarSize + (hasBoostedProfile ? 10 : 4);
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -293,7 +307,7 @@ const MessageList = ({
               style={{ transform: swipe?.id === msg.id ? `translateX(${(msg.user_id === userId ? -1 : 1) * swipe.distance}px)` : undefined }}
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
-              {showAvatar && (
+              {!isDirectMessage && showAvatar && (
                 <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint, border: "0", boxShadow: "none", overflow: "visible" }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
                   <BoostAvatarRing
                     tier={msg.user?.subscription_tier}
@@ -308,7 +322,7 @@ const MessageList = ({
                   />
                 </div>
               )}
-              {!showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
+              {!isDirectMessage && !showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel || canAddReactions} canReact={canAddReactions} footerMeta={hasReactionRow ? (
                 <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
@@ -321,7 +335,7 @@ const MessageList = ({
               ) : null}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} profile-${profileTier} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
-                  <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
+                  {!isDirectMessage && <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                         <span className="msg-user-name-text">{isMe ? (currentUser?.fullName || currentUser?.name || msg.user?.full_name || msg.user?.name || "You") : (msg.user?.full_name || msg.user?.name || msg.user?.username || "Unknown")}</span>
@@ -334,7 +348,7 @@ const MessageList = ({
                       const rect = event.currentTarget.getBoundingClientRect();
                       onContextMenu?.({ preventDefault() {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }, msg);
                     }} aria-label="Message options"><MoreVertical size={12} /></button>
-                  </div>
+                  </div>}
                   {postReply && (
                     <button
                       type="button"
@@ -350,9 +364,13 @@ const MessageList = ({
                     </button>
                   )}
                   {msg.reply_to_id && originalReply && !postReply && (
-                    <button type="button" className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={{ "--reply-color": originalReplyAnnouncementMeta?.borderColor || replyColor }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onReplyNavigate?.(originalReply, msg.reply_to_id); }} aria-label="Jump to the message being replied to">
+                    <button type="button" className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""}${originalReplyMedia ? " msg-reply-quote-rich" : ""} reply-tier-${replyTier}`} style={{ "--reply-color": originalReplyAnnouncementMeta?.borderColor || replyColor }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onReplyNavigate?.(originalReply, msg.reply_to_id); }} aria-label="Jump to the message being replied to">
                       <span>{originalReplyAnnouncementMeta ? "Announcement" : `Replying to ${originalReply.user?.full_name || "member"}`}</span>
-                      <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
+                      <div className="msg-reply-quote-preview">
+                        <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReplyPreview || "...")}</strong>
+                        {originalReplyMedia?.type === "image" && <img className="msg-reply-quote-thumb" src={originalReplyMedia.url} alt="" loading="lazy" />}
+                        {originalReplyMedia?.type === "video" && <span className="msg-reply-quote-thumb msg-reply-quote-video" aria-hidden="true">▶</span>}
+                      </div>
                     </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
@@ -477,9 +495,9 @@ const MessageList = ({
           transition: transform 0.18s ease-out;
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
-        .msg-item.clustered { margin-bottom: 2px; }
-        .msg-item.same-author-next:not(.clustered) { margin-bottom: 4px; }
-        .msg-item.different-author-next { margin-bottom: 8px; }
+        .msg-item.clustered { margin-bottom: 3px; }
+        .msg-item.same-author-next:not(.clustered) { margin-bottom: 6px; }
+        .msg-item.different-author-next { margin-bottom: 10px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; align-items: flex-start; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
@@ -533,6 +551,10 @@ const MessageList = ({
         .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:3px solid var(--announcement-color, var(--accent));border-radius:9px;padding:7px 8px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote span{font-size:calc((10px) + 1px);font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .msg-reply-quote strong{display:block;min-width:0;max-width:100%;color:var(--text);font-size:calc((12px) + 1px);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote-preview{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+        .msg-reply-quote-preview strong{display:-webkit-box;flex:1;white-space:normal;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
+        .msg-reply-quote-thumb{display:block;width:46px;height:46px;flex:0 0 46px;object-fit:cover;border-radius:7px;background:rgba(255,255,255,.08)}
+        .msg-reply-quote-video{display:grid;place-items:center;color:#e8f4e3;font-size:16px}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -728,6 +750,7 @@ const MessageList = ({
           .msg-list-wrapper.text-channel { padding-left: 2px; padding-right: 2px; }
           .msg-list-wrapper.announcement-channel { padding-left: 2px; padding-right: 2px; }
           .msg-item .mra-wrapper { flex: 1 1 auto; width: fit-content; max-width: calc(100% - 48px); }
+          .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper { flex: 0 1 88%; max-width: 88%; }
           .msg-item .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
           .msg-item.announcement .mra-wrapper { max-width: 80%; }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
@@ -835,7 +858,7 @@ const MessageList = ({
 
         .msg-time {
           font-size: calc((10px) + 1px);
-          color: var(--text-muted);
+          color: #a4aea5;
         }
 
         .msg-edited {

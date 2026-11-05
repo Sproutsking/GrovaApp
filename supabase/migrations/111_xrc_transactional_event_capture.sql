@@ -246,7 +246,7 @@ begin
     p_payload,
     p_idempotency_key,
     p_source_operation,
-    1
+    1::smallint
   );
 end;
 $$;
@@ -534,7 +534,7 @@ begin
     ) || event_data,
     idempotency_key,
     source_operation,
-    1
+    1::smallint
   );
 
   if tg_op = 'DELETE' then return old; end if;
