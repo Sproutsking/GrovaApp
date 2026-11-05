@@ -21,18 +21,18 @@
     -->
     <meta name="color-scheme" content="dark" />
 
-    <!-- All black theme-color so Android status bar is invisible -->
+    <!-- Keep the Android status area visually distinct so system indicators remain legible. -->
     <meta
       name="theme-color"
-      content="#000000"
+      content="#f7f8fb"
       media="(prefers-color-scheme: light)"
     />
     <meta
       name="theme-color"
-      content="#000000"
+      content="#111111"
       media="(prefers-color-scheme: dark)"
     />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#111111" />
 
     <script>
       window.__xvBootStartedAt = performance.now();
@@ -253,7 +253,7 @@
         height: calc(var(--liquid-k) * 60px);
         margin: calc(var(--liquid-k) * -30px);
         object-fit: contain;
-        mix-blend-mode: multiply;
+        mix-blend-mode: normal;
         will-change: transform;
         animation: liquidLogo 3.6s cubic-bezier(.42,0,.58,1) infinite;
       }
@@ -264,7 +264,7 @@
         text-indent: .25em;
         font-size: calc((calc(var(--liquid-k) * 18px)) + 1px);
         line-height: 1.2;
-        animation: liquidFade 3.4s cubic-bezier(.42,0,.58,1) infinite;
+        animation: liquidFade 3.6s cubic-bezier(.42,0,.58,1) infinite;
       }
       .liquid-word span { color: #d4af37; }
       @keyframes liquidOrbit {
@@ -515,7 +515,7 @@
               <div class="liquid-dot liquid-dot-c"></div>
             </div>
             <div class="liquid-abs liquid-sheen"></div>
-            <img class="liquid-abs liquid-logo" src="/logo192.png" alt="" fetchpriority="high" />
+            <img class="liquid-abs liquid-logo" src="/logo192.png" alt="" fetchpriority="high" loading="eager" decoding="sync" />
           </div>
           <div class="liquid-word">XEEVI<span>A</span></div>
         </div>

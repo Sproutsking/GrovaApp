@@ -1721,7 +1721,7 @@ function AppRouter() {
   const [authLoadStalled, setAuthLoadStalled] = useState(false);
   const [initialHomeReady, setInitialHomeReady] = useState(false);
   const [startupCycleComplete, setStartupCycleComplete] = useState(false);
-  const [startupFallbackElapsed, setStartupFallbackElapsed] = useState(false);
+  const [startupTimedOut, setStartupTimedOut] = useState(false);
   const [startupCurtainMounted, setStartupCurtainMounted] = useState(true);
   const [startupCurtainVisible, setStartupCurtainVisible] = useState(true);
   const markInitialHomeReady = useCallback(() => setInitialHomeReady(true), []);
@@ -1734,29 +1734,25 @@ function AppRouter() {
 
     const elapsedAtReady = getBootAnimationElapsedMs();
     const nextCycleBoundary = Math.ceil(elapsedAtReady / STARTUP_ANIMATION_CYCLE_MS) * STARTUP_ANIMATION_CYCLE_MS;
-    const fallbackBoundary = Math.ceil((elapsedAtReady + 12_000) / STARTUP_ANIMATION_CYCLE_MS) * STARTUP_ANIMATION_CYCLE_MS;
     const cycleTimer = setTimeout(
       () => setStartupCycleComplete(true),
       Math.max(0, nextCycleBoundary - elapsedAtReady),
     );
-    const fallbackTimer = setTimeout(
-      () => setStartupFallbackElapsed(true),
-      Math.max(0, fallbackBoundary - elapsedAtReady),
-    );
+    const startupTimer = setTimeout(() => setStartupTimedOut(true), 30_000);
     return () => {
       clearTimeout(cycleTimer);
-      clearTimeout(fallbackTimer);
+      clearTimeout(startupTimer);
     };
   }, [hasStartupSession, user?.id]);
 
   useEffect(() => {
-    if (startupFallbackElapsed || (startupCycleComplete && initialHomeReady)) {
+    if (startupCycleComplete && initialHomeReady) {
       setStartupCurtainVisible(false);
       const timer = setTimeout(() => setStartupCurtainMounted(false), 350);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [initialHomeReady, startupCycleComplete, startupFallbackElapsed]);
+  }, [initialHomeReady, startupCycleComplete]);
 
   useEffect(() => {
     if (!loading) {
@@ -1808,6 +1804,16 @@ function AppRouter() {
         message="Xeevia tried several times but could not reach your profile. Your session is still active. Check your connection and try again."
         onRetry={refreshProfile}
         onSignOut={signOut}
+      />
+    );
+  }
+  if (startupTimedOut && !initialHomeReady) {
+    return (
+      <StartupRecovery
+        title="Xeevia is taking longer to start"
+        message="Your session is active, but the home feed is taking too long to prepare. Check your connection and reload to try again."
+        retryLabel="Reload Xeevia"
+        onRetry={() => window.location.reload()}
       />
     );
   }

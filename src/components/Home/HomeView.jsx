@@ -397,6 +397,7 @@ const HomeView = ({
   const [error,         setError]         = useState(null);
   const [storyUnlocking,setStoryUnlocking]= useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [statusStripReady, setStatusStripReady] = useState(false);
 
   const [hasMorePosts,  setHasMorePosts]  = useState(true);
   const [hasMoreReels,  setHasMoreReels]  = useState(true);
@@ -417,6 +418,7 @@ const HomeView = ({
   const cultureTabRef  = useRef(null);
   const hasLoaded      = useRef(false);
   const hasNotifiedInitialHomeReady = useRef(false);
+  const markStatusStripReady = useCallback(() => setStatusStripReady(true), []);
   const rtCleanup      = useRef([]);
   const currentUserRef = useRef(null);
   const mountedRef     = useRef(true);
@@ -452,11 +454,11 @@ const HomeView = ({
   }, []); // eslint-disable-line
 
   useEffect(() => {
-    if (!showSkeleton && !hasNotifiedInitialHomeReady.current) {
+    if (!showSkeleton && statusStripReady && !hasNotifiedInitialHomeReady.current) {
       hasNotifiedInitialHomeReady.current = true;
       onInitialHomeReady?.();
     }
-  }, [showSkeleton, onInitialHomeReady]);
+  }, [showSkeleton, statusStripReady, onInitialHomeReady]);
 
   useEffect(() => { if (!hasLoaded.current) return; applyFilter(feedFilter); }, [feedFilter]); // eslint-disable-line
 
@@ -1026,17 +1028,23 @@ const HomeView = ({
           </div>
         )}
 
-        <StatusUpdatesStrip currentUser={currentUserProp || resolvedUser} onOpenStatus={(item) => onOpenDMUpdates?.(item)} />
+        <StatusUpdatesStrip
+          currentUser={currentUserProp || resolvedUser}
+          onOpenStatus={(item) => onOpenDMUpdates?.(item)}
+          onReady={markStatusStripReady}
+        />
         <FilterChip filter={feedFilter} onClear={onClearFilter} />
 
         {filterLoading && (
           <div style={{ padding:"16px", opacity:0.6 }}>
-            <UnifiedLoader type="section" message={`Filtering by ${feedFilter?.value}…`} />
+            <UnifiedLoader
+              type="inline"
+              message="Updating feed…"
+            />
           </div>
         )}
 
-        {!filterLoading && (
-          <div className="feed-container">
+        <div className="feed-container">
             {/* ── FEED TAB (Posts & Reels Merged) ── */}
             <div style={{ display: currentTab==="feed" ? "block" : "none" }}>
               {showSkeleton && currentTab==="feed" ? <FeedSkeletons /> :
@@ -1152,8 +1160,7 @@ const HomeView = ({
                 isActive={currentTab === "culture"}
               />
             </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {statusOverlayOpen && (

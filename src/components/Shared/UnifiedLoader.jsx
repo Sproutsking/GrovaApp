@@ -29,7 +29,14 @@ const LiquidOrbitLoader = ({ scale = 1.5 }) => {
           <div className="liquid-dot liquid-dot-c" />
         </div>
         <div className="liquid-abs liquid-sheen" />
-        <img className="liquid-abs liquid-logo" src="/logo192.png" alt="" />
+        <img
+          className="liquid-abs liquid-logo"
+          src="/logo192.png"
+          alt=""
+          fetchPriority="high"
+          loading="eager"
+          decoding="sync"
+        />
       </div>
 
       <div className="liquid-word">XEEVI<span>A</span></div>
@@ -239,8 +246,8 @@ const UnifiedLoader = ({
         .liquid-dot-c{animation-delay:calc(var(--liquid-phase,0s) - .6s);background:#d4af37;}
         .liquid-sheen{width:calc(var(--liquid-k)*50px);height:calc(var(--liquid-k)*50px);margin:calc(var(--liquid-k)*-25px);overflow:hidden;will-change:transform;animation:liquidCore 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.44),rgba(255,255,255,0) 50%),linear-gradient(170deg,rgba(255,255,255,0) 56%,rgba(60,85,0,.2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 calc(var(--liquid-k)*-4px) calc(var(--liquid-k)*9px) rgba(70,95,0,.16);}
         .liquid-sheen::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:50%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);transform:translateX(-140%) skewX(-12deg);animation:liquidGlint 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
-        .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:multiply;will-change:transform;animation:liquidLogo 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
-        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc((calc(var(--liquid-k)*18px)) + 1px);line-height:1.2;animation:liquidFade 3.4s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-logo{width:calc(var(--liquid-k)*60px);height:calc(var(--liquid-k)*60px);margin:calc(var(--liquid-k)*-30px);object-fit:contain;mix-blend-mode:normal;will-change:transform;animation:liquidLogo 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
+        .liquid-word{color:#fff;font-weight:700;letter-spacing:.25em;text-indent:.25em;font-size:calc((calc(var(--liquid-k)*18px)) + 1px);line-height:1.2;animation:liquidFade 3.6s cubic-bezier(.42,0,.58,1) infinite;animation-delay:var(--liquid-phase,0s);}
         .liquid-word span{color:#d4af37;}
         @keyframes liquidOrbit{0%{transform:rotate(0) translateX(calc(var(--liquid-k)*70px))}50%{transform:rotate(360deg) translateX(0)}100%{transform:rotate(720deg) translateX(calc(var(--liquid-k)*70px))}}
         @keyframes liquidCore{0%,100%{transform:scale(1)}50%{transform:scale(1.5);border-radius:30%}}

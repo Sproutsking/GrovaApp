@@ -124,7 +124,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           backdrop-filter: blur(28px);
           -webkit-backdrop-filter: blur(28px);
           padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
-          border-top: 1px solid var(--deck-border);
+          border-top: 0;
           /* Controlled by DOM: display:none or display:flex */
           display: flex;
         }
@@ -197,25 +197,6 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           box-shadow:
             0 2px 12px var(--accent-glow),
             inset 0 1px 0 var(--surface-highlight);
-        }
-
-        /* Active top glow bar — sits on the nav border, not the pill */
-        .mbn-btn.is-active::before {
-          content: '';
-          position: absolute;
-          top: -7px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 24px;
-          height: 2px;
-          background: linear-gradient(90deg, transparent, var(--accent), transparent);
-          border-radius: 0 0 3px 3px;
-          box-shadow: 0 0 10px 1px var(--accent-shadow-strong);
-          animation: mbnBarPulse 2.8s ease-in-out infinite;
-        }
-        @keyframes mbnBarPulse {
-          0%,100% { width: 18px; opacity: 0.65; }
-          50%      { width: 30px; opacity: 1;    }
         }
 
         /* Press feedback */

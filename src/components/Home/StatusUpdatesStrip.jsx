@@ -245,7 +245,7 @@ export const StatusBubble = ({ group, currentUser, isMe, onClick, isCompact = fa
   );
 };
 
-export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
+export default function StatusUpdatesStrip({ currentUser, onOpenStatus, onReady }) {
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const hasLoaded = useRef(false);
@@ -330,6 +330,10 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
     return [...me, ...groups.values()];
   }, [currentUser, statuses]);
 
+  useEffect(() => {
+    if (!loading) onReady?.();
+  }, [loading, onReady]);
+
   return (
     <div style={{
       padding: "4px 12px",
@@ -347,14 +351,7 @@ export default function StatusUpdatesStrip({ currentUser, onOpenStatus }) {
           scrollbarWidth: "none",
         }}
       >
-        {loading ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.035)" }} />
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ width: 42, height: 42, borderRadius: 999, background: "rgba(255,255,255,0.035)" }} />
-            ))}
-          </div>
-        ) : (
+        {!loading && (
           items.map((item, idx) => {
             const isMe = Boolean(item.isMe);
             const onClick = () => {
