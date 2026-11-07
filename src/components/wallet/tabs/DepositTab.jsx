@@ -4,8 +4,7 @@
 //  • userId from useAuth() — never undefined
 //  • DualInput stacks on narrow screens
 //  • Rate live ticker
-//  • Wallet funding is focused on EP through Paystack card and bank flows.
-//  • Crypto import/receive options remain intentionally out of the wallet UI.
+//  • Card, bank transfer, and verified Web3 deposits are available in one flow.
 // ════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -15,6 +14,7 @@ import {
   CreditCard, Building2, Wallet, RefreshCw, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "../../Auth/AuthContext";
+import Web3DepositView from "./Web3DepositView";
 import {
   depositDetectBrowserWallets,
   depositSmartImport,
@@ -569,7 +569,7 @@ function DualInput({ rate, onNairaChange }) {
 }
 
 // ── PAY mode ──────────────────────────────────────────────────────────────────
-function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, rate }) {
+function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, onOpenWeb3, rate }) {
   const [naira,   setNaira]   = useState("");
   const [loading, setLoading] = useState(null);
   const [error,   setError]   = useState("");
@@ -634,6 +634,18 @@ function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, r
           </div>
           <span className="dt-pay-badge" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.2)",color:"#a3e635"}}>
             {loading==="bank_transfer"?"OPENING":"REAL-TIME"}
+          </span>
+        </button>
+        <button className="dt-pay-card" onClick={onOpenWeb3} disabled={!!loading}>
+          <div className="dt-pay-icon" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.18)"}}>
+            <Wallet size={18} color="#a3e635"/>
+          </div>
+          <div style={{flex:1}}>
+            <div className="dt-pay-name">Crypto / Web3</div>
+            <div className="dt-pay-sub">USDC · USDT · ADA on supported networks</div>
+          </div>
+          <span className="dt-pay-badge" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.2)",color:"#a3e635"}}>
+            ON-CHAIN
           </span>
         </button>
       </div>
@@ -878,6 +890,7 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
   const resolvedEmail  = profile?.email || user?.email || "";
   const { rate, live } = useRate();
   const epBalance = Math.floor(balance?.points ?? 0);
+  const [showWeb3Deposit, setShowWeb3Deposit] = useState(false);
 
   return (
     <div className="dt-shell">
@@ -885,12 +898,12 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
 
       {/* Header */}
       <div className="dt-header">
-        <button className="dt-back" onClick={() => setActiveTab("overview")}>
+        <button className="dt-back" onClick={() => showWeb3Deposit ? setShowWeb3Deposit(false) : setActiveTab("overview")}>
           <ArrowLeft size={15}/>
         </button>
         <div className="dt-header-info">
-          <div className="dt-header-title">Add Funds</div>
-          <div className="dt-header-sub">Add Engagement Points · Secure Deposit</div>
+          <div className="dt-header-title">{showWeb3Deposit ? "Web3 Deposit" : "Add Funds"}</div>
+          <div className="dt-header-sub">{showWeb3Deposit ? "Verified on-chain · Secure EP credit" : "Add Engagement Points · Secure Deposit"}</div>
         </div>
         <div className="dt-xev-chip">{epBalance.toLocaleString()} EP</div>
       </div>
@@ -902,24 +915,39 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
         </div>
       )}
 
-      {/* Rate ticker */}
-      <div className="dt-ticker-bar">
-        <div className={`dt-ticker-dot ${live?"live":"stale"}`}/>
-        <div className="dt-ticker-content">
-          <span>1 USD</span>
-          <span className="dt-ticker-sep">·</span>
-          <span className="dt-ticker-hl">₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
-          <span className="dt-ticker-sep">·</span>
-          <span className="dt-ticker-hl">100 EP</span>
-        </div>
-        <span className="dt-ticker-live-tag">{live?"live":"cached"}</span>
-      </div>
+      {showWeb3Deposit ? (
+        <Web3DepositView
+          onBack={() => setShowWeb3Deposit(false)}
+          onRefresh={onRefresh}
+        />
+      ) : (
+        <>
+          <div className="dt-ticker-bar">
+            <div className={`dt-ticker-dot ${live?"live":"stale"}`}/>
+            <div className="dt-ticker-content">
+              <span>1 USD</span>
+              <span className="dt-ticker-sep">·</span>
+              <span className="dt-ticker-hl">₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
+              <span className="dt-ticker-sep">·</span>
+              <span className="dt-ticker-hl">100 EP</span>
+            </div>
+            <span className="dt-ticker-live-tag">{live?"live":"cached"}</span>
+          </div>
 
-      <div className="dt-unit-note">$1 = 100 EP · ₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})} ≈ 100 EP</div>
-      <div className="dt-divider"/>
+          <div className="dt-unit-note">$1 = 100 EP · ₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})} ≈ 100 EP</div>
+          <div className="dt-divider"/>
 
-      {/* Token import/receipt is intentionally hidden to keep wallet funding focused on EP. */}
-      <PayMode resolvedUserId={resolvedUserId} resolvedEmail={resolvedEmail} currency="EP" onRefresh={onRefresh} onBack={()=>setActiveTab("overview")} rate={rate}/>
+          <PayMode
+            resolvedUserId={resolvedUserId}
+            resolvedEmail={resolvedEmail}
+            currency="EP"
+            onRefresh={onRefresh}
+            onBack={() => setActiveTab("overview")}
+            onOpenWeb3={() => setShowWeb3Deposit(true)}
+            rate={rate}
+          />
+        </>
+      )}
     </div>
   );
 }
