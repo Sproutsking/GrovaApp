@@ -340,8 +340,6 @@ export default function PhoneVerificationModal({
     setLoading(true);
     setError("");
     try {
-      // Save new phone first (unverified), then send code
-      await settingsService.updateContactInfo(userId, { phone: fullPhone() });
       await settingsService.sendVerificationCode(userId, fullPhone());
       setCountdown(60);
       setStepIndex(2);
@@ -361,7 +359,7 @@ export default function PhoneVerificationModal({
     setLoading(true);
     setError("");
     try {
-      const result = await settingsService.verifyPhoneNumber(userId, code);
+      const result = await settingsService.verifyPhoneNumber(userId, fullPhone(), code);
       if (!result.success) {
         setError(result.message || "Invalid code. Please try again.");
         setOtp(["", "", "", "", "", ""]);

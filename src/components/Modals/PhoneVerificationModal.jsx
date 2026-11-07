@@ -299,20 +299,7 @@ export default function PhoneVerificationModal({
     setLoading(true); setErr("");
     try {
       const phone = fullPhone();
-
-      // Supabase phone OTP — triggers SMS via your configured provider
-      const { error: otpErr } = await supabase.auth.signInWithOtp({ phone });
-      if (otpErr) {
-        // Common error: phone not confirmed previously — still works for new verification
-        // If it's a rate limit error, show that
-        if (otpErr.message?.includes("rate")) {
-          setErr("Too many requests. Please wait before trying again.");
-          return;
-        }
-        // For other errors, we still attempt — Supabase may still have sent the SMS
-        console.warn("[PhoneVerification] OTP send warning:", otpErr.message);
-      }
-
+      await settingsService.sendVerificationCode(userId, phone);
       setCountdown(60);
       setStepIdx(2);
     } catch (e) {
@@ -330,27 +317,21 @@ export default function PhoneVerificationModal({
     try {
       const phone = fullPhone();
 
-      // Verify OTP with Supabase
-      const { error: verifyErr } = await supabase.auth.verifyOtp({
-        phone,
-        token: code,
-        type:  "sms",
-      });
-
-      if (verifyErr) {
-        setErr("Invalid or expired code. Please request a new one.");
+      const result = await settingsService.verifyPhoneNumber(userId, phone, code);
+      if (!result.success) {
+        setErr(result.message || "Invalid or expired code. Please request a new one.");
         setOtp(["", "", "", "", "", ""]);
         otpRefs.current[0]?.focus();
         return;
       }
-
-      await settingsService.confirmPhoneVerification(userId, phone);
 
       setSuccess(true);
       setTimeout(() => {
         onSuccess?.(phone);
         onClose();
       }, 1200);
+    } catch (e) {
+      setErr(e.message || "Phone verification failed. Please try again.");
     } finally {
       if (mountRef.current) setLoading(false);
     }
@@ -360,11 +341,7 @@ export default function PhoneVerificationModal({
     if (countdown > 0) return;
     setLoading(true); setErr("");
     try {
-      const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone() });
-      if (error && error.message?.includes("rate")) {
-        setErr("Too many requests. Please wait a moment.");
-        return;
-      }
+      await settingsService.sendVerificationCode(userId, fullPhone());
       setCountdown(60);
       setOtp(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);

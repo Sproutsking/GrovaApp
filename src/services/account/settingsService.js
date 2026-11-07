@@ -135,6 +135,13 @@ class SettingsService {
     ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
   }
 
+  async _getAuthenticatedUser(userId) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!user || user.id !== userId) throw new Error("Your session is no longer valid. Sign in again.");
+    return user;
+  }
+
   // ── SAVE SETTINGS ───────────────────────────────────────────────────────────────
 
   async saveSettings(userId, privacySettings, preferences) {
@@ -177,22 +184,6 @@ class SettingsService {
 
   // ── UPDATE CONTACT INFO ────────────────────────────────────────────────────
 
-  async updateContactInfo(userId, contactInfo) {
-    try {
-      const updates = {};
-      if (contactInfo.email !== undefined) updates.email = contactInfo.email;
-      if (contactInfo.phone !== undefined) { updates.phone = contactInfo.phone; updates.phone_verified = false; }
-      updates.updated_at = new Date().toISOString();
-
-      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
-      if (error) throw error;
-      await this._logProfileUpdate(userId, Object.keys(updates));
-      return { success: true };
-    } catch (error) {
-      throw handleError(error, "Failed to update contact info");
-    }
-  }
-
   async verifyPassword(password) {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -228,11 +219,13 @@ class SettingsService {
 
   async sendEmailVerificationCode(userId, email) {
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log(`🔐 EMAIL VERIFICATION CODE for ${email}: ${code}`);
-      localStorage.setItem(`verify_code_email_${userId}`, code);
-      localStorage.setItem(`verify_email_${userId}`, email);
-      return { success: true, message: "Verification code sent" };
+      const user = await this._getAuthenticatedUser(userId);
+      if (user.email?.toLowerCase() === email.trim().toLowerCase()) {
+        return { success: false, message: "This is already your current email address" };
+      }
+      const { error } = await supabase.auth.updateUser({ email: email.trim() });
+      if (error) throw error;
+      return { success: true, message: "Verification code sent to your new email address" };
     } catch (error) {
       throw handleError(error, "Failed to send verification code");
     }
@@ -240,18 +233,33 @@ class SettingsService {
 
   async verifyAndChangeEmail(userId, email, verificationCode) {
     try {
-      const storedCode  = localStorage.getItem(`verify_code_email_${userId}`);
-      const storedEmail = localStorage.getItem(`verify_email_${userId}`);
-      if (storedCode !== verificationCode) return { success: false, message: "Invalid verification code" };
-      if (storedEmail !== email) return { success: false, message: "Email mismatch" };
+      const currentUser = await this._getAuthenticatedUser(userId);
+      const targetEmail = email.trim();
+      if (!/^\d{6}$/.test(verificationCode || "")) {
+        return { success: false, message: "Enter the 6-digit verification code" };
+      }
+      if (currentUser.new_email && currentUser.new_email.toLowerCase() !== targetEmail.toLowerCase()) {
+        return { success: false, message: "Request a new code for this email address" };
+      }
 
-      const { error } = await supabase.from("profiles")
-        .update({ email, updated_at: new Date().toISOString() })
-        .eq("id", userId);
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: targetEmail,
+        token: verificationCode,
+        type: "email_change",
+      });
+      if (verifyError) return { success: false, message: "Invalid or expired verification code" };
+      if (data?.user?.id !== userId || data.user.email?.toLowerCase() !== targetEmail.toLowerCase()) {
+        return { success: false, message: "Email verification could not be confirmed for this account" };
+      }
+
+      const { data: profile, error } = await supabase.from("profiles")
+        .update({ email: targetEmail, updated_at: new Date().toISOString() })
+        .eq("id", userId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!profile) throw new Error("Your verified email could not be saved to your profile");
 
-      localStorage.removeItem(`verify_code_email_${userId}`);
-      localStorage.removeItem(`verify_email_${userId}`);
       await this._logProfileUpdate(userId, ["email"]);
       return { success: true, message: "Email updated successfully" };
     } catch (error) {
@@ -367,10 +375,9 @@ class SettingsService {
 
   async sendVerificationCode(userId, phoneNumber) {
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log(`🔐 VERIFICATION CODE for ${phoneNumber}: ${code}`);
-      localStorage.setItem(`verify_code_${userId}`, code);
-      localStorage.setItem(`verify_phone_${userId}`, phoneNumber);
+      await this._getAuthenticatedUser(userId);
+      const { error } = await supabase.auth.updateUser({ phone: phoneNumber.trim() });
+      if (error) throw error;
       return { success: true, message: "Verification code sent" };
     } catch (error) {
       throw handleError(error, "Failed to send verification code");
@@ -379,49 +386,42 @@ class SettingsService {
 
   async verifyPhoneNumber(userId, phoneNumber, verificationCode) {
     try {
-      const storedCode  = localStorage.getItem(`verify_code_${userId}`);
-      const storedPhone = localStorage.getItem(`verify_phone_${userId}`);
-      if (storedCode  !== verificationCode) return { success: false, message: "Invalid verification code" };
-      if (storedPhone !== phoneNumber)      return { success: false, message: "Phone number mismatch" };
+      const currentUser = await this._getAuthenticatedUser(userId);
+      const targetPhone = phoneNumber.trim();
+      if (!/^\d{6}$/.test(verificationCode || "")) {
+        return { success: false, message: "Enter the 6-digit verification code" };
+      }
+      if (currentUser.new_phone && currentUser.new_phone !== targetPhone) {
+        return { success: false, message: "Request a new code for this phone number" };
+      }
 
-      const { error } = await supabase.from("profiles")
-        .update({ phone: phoneNumber, phone_verified: true, updated_at: new Date().toISOString() })
-        .eq("id", userId);
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        phone: targetPhone,
+        token: verificationCode,
+        type: "phone_change",
+      });
+      if (verifyError) return { success: false, message: "Invalid or expired verification code" };
+      const verifiedUser = data?.user;
+      if (
+        verifiedUser?.id !== userId
+        || verifiedUser.phone !== targetPhone
+        || !verifiedUser.phone_confirmed_at
+      ) {
+        return { success: false, message: "Phone verification could not be confirmed for this account" };
+      }
+
+      const { data: profile, error } = await supabase.from("profiles")
+        .update({ phone: targetPhone, phone_verified: true, updated_at: new Date().toISOString() })
+        .eq("id", userId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!profile) throw new Error("Your verified phone number could not be saved to your profile");
 
-      localStorage.removeItem(`verify_code_${userId}`);
-      localStorage.removeItem(`verify_phone_${userId}`);
       await this._logProfileUpdate(userId, ["phone", "phone_verified"]);
       return { success: true, message: "Phone number verified" };
     } catch (error) {
       throw handleError(error, "Failed to verify phone number");
-    }
-  }
-
-  async confirmPhoneVerification(userId, phoneNumber) {
-    try {
-      const updates = {
-        phone:          phoneNumber,
-        phone_verified: true,
-        updated_at:     new Date().toISOString(),
-      };
-
-      const { error } = await supabase.from("profiles")
-        .update(updates)
-        .eq("id", userId);
-      if (error) throw error;
-
-      await this._logProfileUpdate(userId, Object.keys(updates));
-      await supabase.from("security_events").insert({
-        user_id:    userId,
-        event_type: "device_trusted",
-        severity:   "info",
-        metadata:   { action: "phone_verified", phone: phoneNumber.slice(0, -4) + "****" },
-      });
-
-      return { success: true };
-    } catch (error) {
-      throw handleError(error, "Failed to confirm phone verification");
     }
   }
   async enableTwoFactor(userId, secret, backupCodes) {

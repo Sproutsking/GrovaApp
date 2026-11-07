@@ -18,10 +18,47 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import EmojiPanel from "../EmojiPanel";
-import { CHANNEL_BUTTON_STYLES, CHANNEL_DIVIDER_STYLES } from "../../utils/channelStyles";
-import { CATEGORY_FOLDER_STYLES } from "../../utils/CategoryGroup";
+import ChannelButton, { CHANNEL_BUTTON_STYLES, CHANNEL_DIVIDER_STYLES } from "../../utils/channelStyles";
+import CategoryGroup, { CATEGORY_FOLDER_STYLES } from "../../utils/CategoryGroup";
 import { CATEGORY_BLURB, CATEGORY_ORDER, getGradientById, PREMIUM_GRADIENTS } from "../../utils/communityVisuals";
 import { PLATFORM_MODES } from "../../../../hooks/useTrinitylens";
+
+const isImageReference = (value) => typeof value === "string"
+  && /^(https?:\/\/|data:image\/|blob:)/i.test(value.trim());
+const isSafeEmojiValue = (value) => typeof value === "string"
+  && Array.from(value).length <= 2
+  && !/[:/?#\\]/.test(value);
+
+function AppearanceChoiceGroup({ title, hint, options, value, onChange }) {
+  return (
+    <section className="appearance-choice-group" aria-label={title}>
+      <div className="appearance-choice-heading">
+        <h3>{title}</h3>
+        <p>{hint}</p>
+      </div>
+      <div className="appearance-choice-grid" role="group" aria-label={title}>
+        {options.map((option) => {
+          const selected = value === option.id;
+          return (
+            <button
+              type="button"
+              key={option.id}
+              className={`appearance-choice${selected ? " selected" : ""}`}
+              aria-pressed={selected}
+              onClick={() => onChange(option.id)}
+            >
+              <span className="appearance-choice-check" aria-hidden="true">{selected && <Check size={13} />}</span>
+              <span className="appearance-choice-copy">
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, onClose }) => {
   const [settings, setSettings] = useState({
@@ -142,10 +179,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
       });
       const existingBanner = PREMIUM_GRADIENTS.find((preset) => preset.css === community.banner_gradient);
       setBannerCategory(existingBanner?.category || CATEGORY_ORDER[0]);
-      setIconPreview(community.icon?.startsWith("http") ? community.icon : null);
+      setIconPreview(isImageReference(community.icon) ? community.icon : null);
       setIconFile(null);
     }
   }, [community]);
+
+  useEffect(() => () => {
+    if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+  }, [iconPreview]);
 
   useEffect(() => {
     if (!community?.id) return;
@@ -290,18 +331,55 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         </div>
 
         <div className="settings-form">
-          <div className="setting-group">
-            <label className="setting-label"><Palette size={16} /> Channel appearance</label>
-            <p className="setting-hint">Choose the visual language for channel buttons, icon dividers, and category folders.</p>
-            <div className="appearance-setting-block">
-              <strong>Channel button</strong>
-              <div className="border-options">{CHANNEL_BUTTON_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.buttonStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, buttonStyle: style.id } }))}>{style.label}</button>)}</div>
-              <strong>Icon / text divider</strong>
-              <div className="border-options">{CHANNEL_DIVIDER_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.dividerStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, dividerStyle: style.id } }))}>{style.label}</button>)}</div>
-              <strong>Category folder</strong>
-              <div className="border-options">{CATEGORY_FOLDER_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.folderStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, folderStyle: style.id } }))}>{style.label}</button>)}</div>
-            </div>
-          </div>
+              <section className="setting-group appearance-setting-group" aria-labelledby="channel-appearance-title">
+                <div className="appearance-heading">
+                  <div>
+                    <label className="setting-label" id="channel-appearance-title"><Palette size={16} /> Channel appearance</label>
+                    <p className="setting-hint">Make channel navigation feel like your community. Preview changes before saving.</p>
+                  </div>
+                  <span className="appearance-edited">SAVED WITH SETTINGS</span>
+                </div>
+                <div className="appearance-preview">
+                  <div className="appearance-preview-copy">
+                    <span className="appearance-preview-eyebrow">LIVE PREVIEW</span>
+                    <strong>Channel navigation</strong>
+                    <span>How members will see a channel and category.</span>
+                  </div>
+                  <div className="appearance-preview-folder">
+                    <CategoryGroup name="WELCOME" folderStyle={settings.channelAppearance.folderStyle} collapsible={false}>
+                      <ChannelButton
+                        channel={{ id: "appearance-preview", name: "general", type: "text" }}
+                        active
+                        buttonStyle={settings.channelAppearance.buttonStyle}
+                        dividerStyle={settings.channelAppearance.dividerStyle}
+                      />
+                    </CategoryGroup>
+                  </div>
+                </div>
+                <div className="appearance-controls">
+                  <AppearanceChoiceGroup
+                    title="Channel button"
+                    hint="Choose the shape and active-channel treatment."
+                    options={CHANNEL_BUTTON_STYLES}
+                    value={settings.channelAppearance.buttonStyle}
+                    onChange={(value) => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, buttonStyle: value } }))}
+                  />
+                  <AppearanceChoiceGroup
+                    title="Icon divider"
+                    hint="Set how the channel icon and name are separated."
+                    options={CHANNEL_DIVIDER_STYLES}
+                    value={settings.channelAppearance.dividerStyle}
+                    onChange={(value) => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, dividerStyle: value } }))}
+                  />
+                  <AppearanceChoiceGroup
+                    title="Category folder"
+                    hint="Choose how channel groups are framed."
+                    options={CATEGORY_FOLDER_STYLES}
+                    value={settings.channelAppearance.folderStyle}
+                    onChange={(value) => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, folderStyle: value } }))}
+                  />
+                </div>
+              </section>
 
           {/* Basic Info */}
           <div className="setting-group">
@@ -361,17 +439,23 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
                 <input
                   type="text"
                   className="setting-input icon-input"
-                  value={settings.icon}
-                  onChange={(e) => setSettings({ ...settings, icon: e.target.value })}
+                  value={isSafeEmojiValue(settings.icon) ? settings.icon : ""}
+                  onChange={(e) => {
+                    setSettings((current) => ({ ...current, icon: e.target.value }));
+                    setIconPreview(null);
+                    setIconFile(null);
+                  }}
                   placeholder="Or use an emoji"
                   maxLength={2}
+                  aria-label="Community emoji"
                 />
+                {iconPreview && <span className="icon-image-status">Community image set</span>}
                 <button type="button" className="pick-emoji-btn" onClick={() => setShowEmojiPicker((open) => !open)}>
                   <Sparkles size={14} /> Pick emoji
                 </button>
                 {showEmojiPicker && ReactDOM.createPortal(
                   <div className="community-emoji-picker">
-                    <EmojiPanel onSelect={(emoji) => { setSettings((current) => ({ ...current, icon: emoji })); setIconPreview(null); setShowEmojiPicker(false); }} onClose={() => setShowEmojiPicker(false)} />
+                    <EmojiPanel onSelect={(emoji) => { setSettings((current) => ({ ...current, icon: emoji })); setIconPreview(null); setIconFile(null); setShowEmojiPicker(false); }} onClose={() => setShowEmojiPicker(false)} />
                   </div>, document.body
                 )}
               </div>
@@ -630,6 +714,98 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           border-radius: 14px;
           background: linear-gradient(145deg, rgba(20, 23, 21, .76), rgba(12, 14, 13, .78));
           box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+          transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+        }
+
+        .settings-form > .setting-group:hover {
+          border-color: rgba(156,255,0,.16);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 8px 24px rgba(0,0,0,.12);
+        }
+
+        .settings-form > .appearance-setting-group {
+          margin-top: 10px;
+          padding: 18px !important;
+          border-color: rgba(156,255,0,.2);
+          background: radial-gradient(ellipse at 92% 0%, rgba(156,255,0,.065), transparent 42%), linear-gradient(145deg, rgba(17,22,18,.96), rgba(10,13,11,.96));
+        }
+
+        .appearance-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .appearance-heading .setting-label { margin-bottom: 5px; }
+        .appearance-heading .setting-hint { margin: 0; max-width: 580px; }
+
+        .appearance-edited {
+          flex: 0 0 auto;
+          padding: 5px 8px;
+          border: 1px solid rgba(156,255,0,.15);
+          border-radius: 999px;
+          background: rgba(156,255,0,.055);
+          color: #a7d783;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: .08em;
+        }
+
+        .appearance-preview {
+          display: grid;
+          grid-template-columns: minmax(150px, .75fr) minmax(220px, 1fr);
+          align-items: center;
+          gap: 18px;
+          margin-top: 16px;
+          padding: 15px;
+          border: 1px solid rgba(255,255,255,.07);
+          border-radius: 13px;
+          background: linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+        }
+
+        .appearance-preview-copy { display: grid; gap: 5px; }
+        .appearance-preview-eyebrow { color: #a7d783; font-size: 9px; font-weight: 850; letter-spacing: .14em; }
+        .appearance-preview-copy strong { color: #eff5ed; font-size: 14px; }
+        .appearance-preview-copy > span:last-child { color: #929b93; font-size: 11px; line-height: 1.45; }
+        .appearance-preview-folder { min-width: 0; max-width: 310px; width: 100%; justify-self: end; }
+        .appearance-preview-folder .cfg { margin: 0; }
+        .appearance-preview-folder .cfg-body { padding: 5px 6px 7px; }
+        .appearance-preview-folder .chb { cursor: default; }
+
+        .appearance-controls { display: grid; gap: 15px; margin-top: 17px; }
+        .appearance-choice-group { padding-top: 14px; border-top: 1px solid rgba(255,255,255,.065); }
+        .appearance-choice-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 10px; margin-bottom: 9px; }
+        .appearance-choice-heading h3 { margin: 0; color: #e8eee7; font-size: 12px; font-weight: 800; }
+        .appearance-choice-heading p { margin: 0; color: #89938b; font-size: 10px; }
+        .appearance-choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 7px; }
+        .appearance-choice {
+          display: flex;
+          align-items: flex-start;
+          gap: 9px;
+          min-width: 0;
+          padding: 9px 10px;
+          border: 1px solid rgba(255,255,255,.075);
+          border-radius: 10px;
+          background: rgba(255,255,255,.018);
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color .16s ease, background .16s ease, transform .16s ease;
+        }
+        .appearance-choice:hover { transform: translateY(-1px); border-color: rgba(156,255,0,.22); background: rgba(255,255,255,.035); }
+        .appearance-choice:focus-visible { outline: 2px solid rgba(156,255,0,.7); outline-offset: 2px; }
+        .appearance-choice.selected { border-color: rgba(156,255,0,.5); background: linear-gradient(135deg, rgba(156,255,0,.09), rgba(156,255,0,.025)); }
+        .appearance-choice-check { display: grid; place-items: center; flex: 0 0 17px; width: 17px; height: 17px; margin-top: 1px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; color: #081000; }
+        .appearance-choice.selected .appearance-choice-check { border-color: #9cff00; background: #9cff00; }
+        .appearance-choice-copy { display: grid; gap: 3px; min-width: 0; }
+        .appearance-choice-copy strong { color: #dce5dc; font-size: 11px; font-weight: 750; line-height: 1.3; }
+        .appearance-choice.selected .appearance-choice-copy strong { color: #caff9a; }
+        .appearance-choice-copy small { color: #89938b; font-size: 9px; line-height: 1.35; }
+
+        .icon-image-status { display: block; margin: 0 0 8px; color: #a7d783; font-size: 11px; }
+
+        .setting-input, .setting-textarea { border-color: rgba(255,255,255,.1); }
+        .setting-hint { color: #89938b; }
         }
 
         .tools-group {
@@ -1109,6 +1285,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           .setting-group { margin-bottom: 0; }
           .ownership-transfer { padding: 10px; }
           .ownership-transfer-row { gap: 6px; }
+          .settings-form > .appearance-setting-group { padding: 13px !important; }
+          .appearance-heading { gap: 8px; }
+          .appearance-edited { font-size: 8px; }
+          .appearance-preview { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
+          .appearance-preview-folder { max-width: none; justify-self: stretch; }
+          .appearance-choice-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+          .appearance-choice { padding: 8px; }
+          .icon-editor { align-items: flex-start; }
           .theme-grid {
             grid-template-columns: 1fr;
           }

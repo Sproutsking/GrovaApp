@@ -7,25 +7,25 @@ import React from "react";
 import { Hash, Megaphone, Volume2, Lock } from "lucide-react";
 
 export const CHANNEL_BUTTON_STYLES = [
-  { id: "fill-rounded",   label: "Filled rounded" },
-  { id: "pill",           label: "Pill" },
-  { id: "border-bottom",  label: "Underline" },
-  { id: "no-radius",      label: "Sharp corners" },
-  { id: "dashed-outline", label: "Dashed outline" },
-  { id: "ghost-hover",    label: "Ghost" },
-  { id: "left-accent",    label: "Left accent bar" },
-  { id: "glass",          label: "Glass" },
-  { id: "minimal-text",   label: "Minimal text" },
-  { id: "gradient-glow",  label: "Gradient glow" },
+  { id: "fill-rounded",   label: "Filled rounded", description: "Soft fill and rounded edges." },
+  { id: "pill",           label: "Pill", description: "A compact capsule shape." },
+  { id: "border-bottom",  label: "Underline", description: "A clean lower-edge accent." },
+  { id: "no-radius",      label: "Sharp corners", description: "Crisp, squared-off buttons." },
+  { id: "dashed-outline", label: "Dashed outline", description: "A light outlined treatment." },
+  { id: "ghost-hover",    label: "Ghost", description: "Quiet until a channel is active." },
+  { id: "left-accent",    label: "Left accent bar", description: "A slim active-channel marker." },
+  { id: "glass",          label: "Glass", description: "A translucent, layered surface." },
+  { id: "minimal-text",   label: "Minimal text", description: "A low-chrome text-first style." },
+  { id: "gradient-glow",  label: "Gradient glow", description: "A brighter, luminous highlight." },
 ];
 
 export const CHANNEL_DIVIDER_STYLES = [
-  { id: "none",           label: "None" },
-  { id: "dot-solid",      label: "Solid dot" },
-  { id: "dot-outline",    label: "Outline dot" },
-  { id: "line-thin",      label: "Thin line" },
-  { id: "line-gradient",  label: "Gradient line" },
-  { id: "bracket",        label: "Bracket ›" },
+  { id: "none",           label: "None", description: "Keep icon and label together." },
+  { id: "dot-solid",      label: "Solid dot", description: "A subtle separator dot." },
+  { id: "dot-outline",    label: "Outline dot", description: "An outlined separator dot." },
+  { id: "line-thin",      label: "Thin line", description: "A minimal vertical line." },
+  { id: "line-gradient",  label: "Gradient line", description: "A soft accent-colored line." },
+  { id: "bracket",        label: "Bracket ›", description: "A small directional marker." },
 ];
 
 const CHANNEL_TYPE_ICON = { text: Hash, announcement: Megaphone, voice: Volume2 };

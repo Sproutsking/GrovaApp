@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { ChevronRight, Folder } from "lucide-react";
 
 export const CATEGORY_FOLDER_STYLES = [
-  { id: "simple",       label: "Simple label" },
-  { id: "boxed",        label: "Boxed folder" },
-  { id: "accent-tab",   label: "Accent tab" },
-  { id: "divider-line", label: "Divider line" },
+  { id: "simple",       label: "Simple label", description: "A quiet category heading." },
+  { id: "boxed",        label: "Boxed folder", description: "A defined container for channels." },
+  { id: "accent-tab",   label: "Accent tab", description: "A small accent at the heading edge." },
+  { id: "divider-line", label: "Divider line", description: "A clear heading separator." },
 ];
 
 export default function CategoryGroup({ name, folderStyle = "simple", collapsible = true, draggable = false, onDragStart, onDragOver, onDrop, onContextMenu, children }) {
