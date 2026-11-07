@@ -51,6 +51,7 @@ html *::-webkit-scrollbar {
 
 :root {
   color-scheme: dark;
+  --app-safe-top: env(safe-area-inset-top, 0px);
   --bg: #000000;
   --bg-strong: #070707;
   --surface: rgba(255,255,255,0.04);
@@ -439,6 +440,10 @@ img, video {
     box-shadow: none !important;
   }
 
+  .main-content-mobile {
+    top: calc(47px + var(--app-safe-top));
+  }
+
   [role="dialog"],
   .comment-modal-mobile,
   .fullscreen-reels-comments,
@@ -477,6 +482,12 @@ img, video {
   .main-content-mobile .gvp-card {
     border-color: rgba(255, 255, 255, 0.12) !important;
     box-shadow: none !important;
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 768px) {
+  :root {
+    --app-safe-top: max(env(safe-area-inset-top, 0px), 24px);
   }
 }
 

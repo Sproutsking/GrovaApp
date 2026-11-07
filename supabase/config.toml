@@ -147,7 +147,12 @@ enabled = true
 # in emails.
 site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = [
+  "https://127.0.0.1:3000",
+  "https://app.xeevia.com/",
+  "http://localhost:3000/",
+  "http://127.0.0.1:3000/",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -186,6 +191,9 @@ sign_in_sign_ups = 30
 token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
+
+[auth.web3.ethereum]
+enabled = true
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
 # [auth.captcha]
@@ -314,7 +322,7 @@ email_optional = false
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
 [auth.web3.solana]
-enabled = false
+enabled = true
 
 # Use Firebase Auth as a third-party provider alongside Supabase Auth.
 [auth.third_party.firebase]
@@ -402,3 +410,9 @@ entrypoint = "./functions/generate-upload-signature/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-upload-signature/*.html" ]
+
+[functions.cardano-auth]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cardano-auth/deno.json"
+entrypoint = "./functions/cardano-auth/index.ts"

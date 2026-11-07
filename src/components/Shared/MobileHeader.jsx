@@ -406,7 +406,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
   const boxBg       = hasBoosted && tierColor ? `${tierColor}07` : "rgba(255,255,255,0.02)";
 
   return `
-    .mh-header { position: sticky; top: 0; z-index: 100; background: #000; border-bottom: 1px solid rgba(148,163,184,0.12); margin: 0; padding-top: env(safe-area-inset-top, 0px); }
+    .mh-header { position: sticky; top: 0; z-index: 100; background: #000; border: 0; margin: 0; padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px)); }
     .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; gap: 8px; margin: 0; min-height: 44px; }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
     .mh-greeting-box { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; padding: 3px 9px; background: ${boxBg}; border: 1px solid color-mix(in srgb, ${boxBorder} 60%, var(--surface-border)); border-radius: 9px; overflow: hidden; transition: background 0.12s, border-color 0.12s; }
