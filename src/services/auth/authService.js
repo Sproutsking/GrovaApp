@@ -88,6 +88,90 @@ class AuthService {
     return true;
   }
 
+  async signInWithWallet(chain, wallet) {
+    if (chain === "cardano") {
+      return this.signInWithCardano(wallet);
+    }
+
+    if (chain !== "ethereum" && chain !== "solana") {
+      throw new Error(`Unsupported wallet sign-in chain: ${chain}`);
+    }
+    if (!wallet || typeof wallet !== "object") {
+      throw new Error("A compatible wallet provider is required.");
+    }
+
+    const { error } = await supabase.auth.signInWithWeb3({
+      chain,
+      wallet,
+      statement: "Sign in to Xeevia",
+      options: { url: `${window.location.origin}/` },
+    });
+    if (error) throw error;
+    return true;
+  }
+
+  async signInWithCardano(wallet) {
+    if (!wallet || typeof wallet.enable !== "function") {
+      throw new Error("A compatible CIP-30 Cardano wallet is required.");
+    }
+
+    const api = await wallet.enable();
+    if (!api || typeof api.signData !== "function") {
+      throw new Error("This Cardano wallet does not support CIP-30 data signing.");
+    }
+
+    const usedAddresses = await api.getUsedAddresses();
+    const unusedAddresses = typeof api.getUnusedAddresses === "function"
+      ? await api.getUnusedAddresses()
+      : [];
+    const address = usedAddresses?.[0] || unusedAddresses?.[0]
+      || (typeof api.getChangeAddress === "function" ? await api.getChangeAddress() : null);
+    if (typeof address !== "string" || !/^(?:[0-9a-f]{2})+$/i.test(address)) {
+      throw new Error("The Cardano wallet did not return a valid payment address.");
+    }
+
+    const { data: challengeData, error: challengeError } = await supabase.functions.invoke(
+      "cardano-auth",
+      { body: { action: "challenge", address } },
+    );
+    if (challengeError) throw challengeError;
+    if (!challengeData?.challengeId || !challengeData?.message) {
+      throw new Error("The Cardano sign-in challenge could not be created.");
+    }
+
+    const messageHex = Array.from(new TextEncoder().encode(challengeData.message))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const signedData = await api.signData(address, messageHex);
+    if (!signedData?.signature || !signedData?.key) {
+      throw new Error("The Cardano wallet returned an invalid signature.");
+    }
+
+    const { data: verificationData, error: verificationError } = await supabase.functions.invoke(
+      "cardano-auth",
+      {
+        body: {
+          action: "verify",
+          challengeId: challengeData.challengeId,
+          address,
+          signature: signedData.signature,
+          key: signedData.key,
+        },
+      },
+    );
+    if (verificationError) throw verificationError;
+    if (!verificationData?.token_hash) {
+      throw new Error("Cardano signature verification did not return a sign-in token.");
+    }
+
+    const { error: sessionError } = await supabase.auth.verifyOtp({
+      token_hash: verificationData.token_hash,
+      type: "magiclink",
+    });
+    if (sessionError) throw sessionError;
+    return true;
+  }
+
   // ── Popup OAuth helper ───────────────────────────────────────────────
   // Opens a small popup, injects minimal HTML that uses the Supabase client
   // to run `signInWithOAuth(...)`. When the popup obtains a session it

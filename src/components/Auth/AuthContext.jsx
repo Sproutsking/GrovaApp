@@ -176,11 +176,16 @@ async function bootstrapOAuthProfile(userId, authUser) {
 
   const metadata = authUser.user_metadata || {};
   const email = authUser.email || `${userId}@users.xeevia.local`;
+  const fallbackName = authUser.email
+    ? authUser.email.split("@")[0]
+    : "Xeevia Member";
   const fullName = String(
-    metadata.full_name || metadata.name || email.split("@")[0] || "Xeevia User",
+    metadata.full_name || metadata.name || fallbackName || "Xeevia User",
   ).trim().slice(0, 120) || "Xeevia User";
   const rawUsername = String(
-    metadata.username || metadata.user_name || metadata.preferred_username || email.split("@")[0] || "user",
+    metadata.username || metadata.user_name || metadata.preferred_username
+      || (authUser.email ? authUser.email.split("@")[0] : `member_${userId.replace(/-/g, "").slice(0, 8)}`)
+      || "user",
   );
   let username = rawUsername.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24);
   if (username.length < 3) username = `user_${userId.replace(/-/g, "").slice(0, 8)}`;

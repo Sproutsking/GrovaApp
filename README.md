@@ -9,6 +9,7 @@ The product has a familiar social surface, but its deeper purpose is accountabil
 - [Documentation home](docs/README.md)
 - [Product thesis](docs/PRODUCT_THESIS.md)
 - [System architecture](docs/SYSTEM_ARCHITECTURE.md)
+- [Web3 authentication setup](docs/WEB3_AUTH_SETUP.md)
 - [Capability status](docs/CAPABILITY_STATUS.md)
 - [Evidence and trust principles](docs/EVIDENCE_AND_TRUST.md)
 - [Development roadmap](docs/ROADMAP.md)

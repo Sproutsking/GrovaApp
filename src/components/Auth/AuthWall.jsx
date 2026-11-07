@@ -20,13 +20,18 @@
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import authService from "../../services/auth/authService";
 import { fetchLiveStats } from "../../services/auth/paywallDataService";
 import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import { AppLoader } from "../Shared/UnifiedLoader";
-import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package, Globe } from "lucide-react";
+import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package, Globe, Wallet } from "lucide-react";
+import { walletConnectConfigured } from "../../services/wallet/walletConnectSettings";
+import { getDetectedWallets as discoverWallets } from "../../services/wallet/walletDiscovery";
+
+const WalletPickerWithReown = React.lazy(() => import("./WalletPickerWithReown"));
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -70,14 +75,15 @@ const CSS = `
     position: relative;
     z-index: 2;
     width: min(92vw, 720px);
-    min-height: 660px;
+    min-height: min(660px, calc(100dvh - 24px));
     background: #000;
     border: 1px solid #2f3336;
     box-shadow: 0 16px 48px rgba(0,0,0,0.45);
     border-radius: 14px;
-    overflow: hidden;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     backdrop-filter: blur(10px);
   }
@@ -89,6 +95,8 @@ const CSS = `
   .xv-auth-panel {
     position: relative;
     width: min(100%, 440px);
+    flex: 0 0 auto;
+    margin-block: auto;
     padding: 32px 24px 26px;
     display: flex;
     flex-direction: column;
@@ -178,7 +186,7 @@ const CSS = `
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .xv-auth-divider {
@@ -206,6 +214,14 @@ const CSS = `
     display: inline-block;
     background: #000;
     padding: 0 12px;
+  }
+
+  .xv-auth-wallet-note {
+    margin: 10px 0 0;
+    color: rgba(222,233,222,0.64);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
   }
 
   .xv-auth-email {
@@ -328,6 +344,249 @@ const CSS = `
   .xv-auth-legal a {
     color: #d6ff76;
     text-decoration: none;
+  }
+
+  .xv-wallet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.78);
+    backdrop-filter: blur(12px);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .xv-wallet-dialog {
+    width: min(100%, 480px);
+    max-height: min(760px, 100%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(168,230,61,.2);
+    border-radius: 20px;
+    background: linear-gradient(160deg, #111510, #050605 62%);
+    box-shadow: 0 24px 80px rgba(0,0,0,.72), 0 0 42px rgba(168,230,61,.08);
+    color: #eef4e9;
+  }
+
+  .xv-wallet-dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 22px 16px;
+  }
+
+  .xv-wallet-dialog-title {
+    margin: 0;
+    font: 800 20px/1.2 'DM Sans', sans-serif;
+    letter-spacing: -.025em;
+  }
+
+  .xv-wallet-dialog-copy {
+    margin: 7px 0 0;
+    color: #aab5a6;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .xv-wallet-close {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 11px;
+    background: rgba(255,255,255,.04);
+    color: #f2f5ef;
+    font-size: 21px;
+    cursor: pointer;
+  }
+
+  .xv-wallet-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 0 22px 14px;
+    padding: 4px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 13px;
+    background: rgba(255,255,255,.025);
+  }
+
+  .xv-wallet-tab {
+    min-height: 38px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #aab5a6;
+    font: 600 12px 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .xv-wallet-tab[aria-selected="true"] {
+    background: rgba(168,230,61,.14);
+    color: #d8f6a8;
+    box-shadow: inset 0 0 0 1px rgba(168,230,61,.22);
+  }
+
+  .xv-wallet-search {
+    width: calc(100% - 44px);
+    min-height: 42px;
+    margin: 0 22px 14px;
+    padding: 0 13px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 11px;
+    outline: none;
+    background: rgba(255,255,255,.04);
+    color: #f3f6f0;
+    font: 13px 'DM Sans', sans-serif;
+  }
+
+  .xv-wallet-search:focus {
+    border-color: rgba(168,230,61,.55);
+    box-shadow: 0 0 0 3px rgba(168,230,61,.1);
+  }
+
+  .xv-wallet-list {
+    min-height: 120px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 22px 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .xv-wallet-section-label {
+    margin: 2px 0 9px;
+    color: #81907d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+
+  .xv-wallet-choice-list {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .xv-wallet-choice {
+    width: 100%;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 13px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 13px;
+    background: rgba(255,255,255,.035);
+    color: #eff4eb;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .16s ease, background .16s ease, transform .16s ease;
+  }
+
+  .xv-wallet-choice:hover:not(:disabled),
+  .xv-wallet-choice:focus-visible {
+    border-color: rgba(168,230,61,.46);
+    background: rgba(168,230,61,.07);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .xv-wallet-choice:disabled {
+    opacity: .48;
+    cursor: wait;
+  }
+
+  .xv-wallet-choice-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(168,230,61,.2);
+    border-radius: 11px;
+    background: radial-gradient(circle at 30% 25%, rgba(168,230,61,.19), rgba(168,230,61,.035) 68%);
+    color: #d5f99a;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .xv-wallet-choice-info {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .xv-wallet-choice-name {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .xv-wallet-choice-note {
+    color: #8d9989;
+    font-size: 11px;
+  }
+
+  .xv-wallet-choice-arrow {
+    color: #a8e63d;
+    font-size: 16px;
+  }
+
+  .xv-wallet-empty,
+  .xv-wallet-config-note {
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    background: rgba(255,255,255,.025);
+    color: #aab5a6;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .xv-wallet-config-note {
+    margin-top: 12px;
+    border-color: rgba(168,230,61,.13);
+    color: #c0cdb8;
+  }
+
+  @media (max-width: 520px) {
+    .xv-wallet-backdrop {
+      align-items: flex-end;
+      padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+    }
+
+    .xv-wallet-dialog {
+      width: 100%;
+      max-height: min(82dvh, 760px);
+      border-radius: 20px 20px 14px 14px;
+    }
+
+    .xv-wallet-dialog-head {
+      padding: 18px 17px 14px;
+    }
+
+    .xv-wallet-tabs {
+      margin-right: 17px;
+      margin-left: 17px;
+    }
+
+    .xv-wallet-search {
+      width: calc(100% - 34px);
+      margin-right: 17px;
+      margin-left: 17px;
+    }
+
+    .xv-wallet-list {
+      padding-right: 17px;
+      padding-left: 17px;
+    }
   }
 
   /* ── Core keyframes ── */
@@ -509,10 +768,25 @@ const CSS = `
 
   /* ─────────────────── MOBILE ─────────────────── */
   @media (max-width:768px) {
+    .xv-auth-shell {
+      position: fixed;
+      inset: 0;
+      height: auto !important;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      align-items: flex-start;
+      flex-direction: column;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .xv-auth-card {
       width: 100%;
-      height: 100dvh;
+      height: auto;
       min-height: 100dvh;
+      max-height: none;
+      flex: 0 0 auto;
       border: 0;
       border-radius: 0;
       box-shadow: none;
@@ -521,7 +795,9 @@ const CSS = `
         linear-gradient(rgba(168,230,61,0.1) 1px, transparent 1px),
         linear-gradient(90deg, rgba(168,230,61,0.1) 1px, transparent 1px);
       background-size: 48px 48px;
-      overflow-y: auto;
+      overflow: visible;
+      align-items: stretch;
+      justify-content: flex-start;
     }
 
     .xv-auth-card::before {
@@ -530,8 +806,13 @@ const CSS = `
 
     .xv-auth-panel {
       width: 100%;
-      min-height: 100%;
-      padding: max(28px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+      min-height: 100dvh;
+      height: auto;
+      flex: 0 0 auto;
+      box-sizing: border-box;
+      margin-block: 0;
+      justify-content: flex-start;
+      padding: max(16px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
     }
 
     .xv-auth-topbar {
@@ -561,7 +842,7 @@ const CSS = `
     }
 
     .xv-auth-btn-stack {
-      gap: 8px;
+      gap: 6px;
     }
 
     .xv-auth-divider {
@@ -1616,17 +1897,340 @@ function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
   );
 }
 
+const WALLET_CATALOG = {
+  ethereum: [
+    { id: "walletConnect", name: "WalletConnect · QR or mobile app" },
+    { id: "metamask", name: "MetaMask" },
+    { id: "coinbase", name: "Coinbase Wallet" },
+    { id: "trust", name: "Trust Wallet" },
+    { id: "rainbow", name: "Rainbow" },
+    { id: "okx", name: "OKX Wallet" },
+    { id: "binance", name: "Binance Wallet" },
+    { id: "bitget", name: "Bitget Wallet" },
+    { id: "uniswap", name: "Uniswap Wallet" },
+    { id: "safepal", name: "SafePal" },
+    { id: "bybit", name: "Bybit Wallet" },
+    { id: "ledger", name: "Ledger" },
+    { id: "safe", name: "Safe" },
+    { id: "zerion", name: "Zerion" },
+    { id: "oneinch", name: "1inch Wallet" },
+    { id: "crypto-com", name: "Crypto.com" },
+    { id: "imtoken", name: "imToken" },
+    { id: "kraken", name: "Kraken Wallet" },
+    { id: "ronin", name: "Ronin" },
+    { id: "robinhood", name: "Robinhood Wallet" },
+    { id: "exodus", name: "Exodus" },
+    { id: "argent", name: "Argent" },
+    { id: "tokenpocket", name: "TokenPocket" },
+    { id: "ambire-wallet", name: "Ambire" },
+    { id: "bitpay", name: "BitPay" },
+    { id: "brave", name: "Brave Wallet" },
+    { id: "coinstats", name: "CoinStats" },
+    { id: "kresus-superapp", name: "Kresus" },
+    { id: "status", name: "Status" },
+    { id: "tomo-wallet", name: "Tomo" },
+    { id: "valora", name: "Valora" },
+    { id: "zengo-wallet", name: "Zengo" },
+  ],
+  solana: [
+    { id: "walletConnect", name: "WalletConnect · QR or mobile app" },
+    { id: "phantom", name: "Phantom" },
+    { id: "solflare", name: "Solflare" },
+    { id: "backpack", name: "Backpack" },
+    { id: "jupiter", name: "Jupiter" },
+    { id: "coin98", name: "Coin98" },
+    { id: "magic-eden", name: "Magic Eden" },
+    { id: "frontier", name: "Frontier" },
+    { id: "okx", name: "OKX Wallet" },
+    { id: "bitget", name: "Bitget Wallet" },
+  ],
+  cardano: [],
+};
+
+function WalletPicker({ wallets, error, onClose, onSelectInjected, onSelectRemote, onConnectionError }) {
+  if (walletConnectConfigured) {
+    return (
+      <React.Suspense fallback={<div className="xv-wallet-backdrop" role="status">Preparing secure wallet connections…</div>}>
+        <WalletPickerWithReown
+          wallets={wallets}
+          error={error}
+          onClose={onClose}
+          onSelectInjected={onSelectInjected}
+          onSelectRemote={onSelectRemote}
+          onConnectionError={onConnectionError}
+          renderPickerContent={WalletPickerContent}
+        />
+      </React.Suspense>
+    );
+  }
+
+  return (
+    <WalletPickerContent
+      wallets={wallets}
+      error={error}
+      onClose={onClose}
+      onSelectInjected={onSelectInjected}
+      onConnectionError={onConnectionError}
+      walletConnectEnabled={false}
+    />
+  );
+}
+
+function WalletPickerContent({
+  wallets,
+  error,
+  onClose,
+  onSelectInjected,
+  onSelectRemote,
+  onConnectionError,
+  walletConnectEnabled,
+  connectingWallet = "",
+  remoteReady = false,
+}) {
+  const [chain, setChain] = useState("ethereum");
+  const [search, setSearch] = useState("");
+  const dialogRef = useRef(null);
+  const walletList = wallets.filter((wallet) => wallet.chain === chain);
+  const catalog = WALLET_CATALOG[chain].filter((wallet) => (
+    `${wallet.name} ${wallet.id}`.toLowerCase().includes(search.trim().toLowerCase())
+  ));
+  const chainLabel = chain === "ethereum" ? "EVM" : chain === "solana" ? "Solana" : "Cardano";
+  const isPending = Boolean(connectingWallet);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const focusTimer = window.requestAnimationFrame(() => {
+      dialogRef.current?.querySelector("button, input")?.focus();
+    });
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(dialogRef.current?.querySelectorAll("button:not(:disabled), input:not(:disabled)") || [])];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusTimer);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.();
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const selectRemote = (walletId) => {
+    if (!onSelectRemote) return;
+    const pending = onSelectRemote(chain, walletId);
+    if (pending?.catch) pending.catch(onConnectionError);
+  };
+
+  return createPortal(
+    <div
+      className="xv-wallet-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isPending) onClose();
+      }}
+    >
+      <section
+        className="xv-wallet-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="xv-wallet-dialog-title"
+        ref={dialogRef}
+      >
+        <div className="xv-wallet-dialog-head">
+          <div>
+            <h2 className="xv-wallet-dialog-title" id="xv-wallet-dialog-title">Choose a wallet</h2>
+            <p className="xv-wallet-dialog-copy">Connect securely, then approve a one-time sign-in message.</p>
+          </div>
+          <button type="button" className="xv-wallet-close" onClick={onClose} aria-label="Close wallet picker">×</button>
+        </div>
+
+        <div className="xv-wallet-tabs" role="tablist" aria-label="Wallet network">
+          {[
+            ["ethereum", "EVM"],
+            ["solana", "Solana"],
+            ["cardano", "Cardano"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              className="xv-wallet-tab"
+              type="button"
+              role="tab"
+              aria-selected={chain === id}
+              onClick={() => {
+                setChain(id);
+                setSearch("");
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {chain !== "cardano" && (
+          <input
+            className="xv-wallet-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={`Search ${chainLabel} wallets`}
+            aria-label={`Search ${chainLabel} wallets`}
+          />
+        )}
+
+        <div className="xv-wallet-list">
+          {error && <div className="xv-wallet-empty" role="alert">{error}</div>}
+
+          {walletList.length > 0 && (
+            <>
+              <p className="xv-wallet-section-label">Detected in this browser</p>
+              <div className="xv-wallet-choice-list">
+                {walletList.map((wallet) => (
+                  <button
+                    className="xv-wallet-choice"
+                    type="button"
+                    key={wallet.id}
+                    disabled={isPending}
+                    onClick={() => onSelectInjected(wallet)}
+                  >
+                    <span className="xv-wallet-choice-icon" aria-hidden="true">
+                      {wallet.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="xv-wallet-choice-info">
+                      <span className="xv-wallet-choice-name">{wallet.name}</span>
+                      <span className="xv-wallet-choice-note">Available on this device</span>
+                    </span>
+                    <span className="xv-wallet-choice-arrow" aria-hidden="true">›</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {chain === "cardano" ? (
+            walletList.length === 0 && (
+              <div className="xv-wallet-empty">
+                No CIP-30 wallet was detected. For Cardano, open Xeevia inside a compatible wallet’s built-in browser, then return here. Cardano wallets do not use the EVM/Solana WalletConnect flow.
+              </div>
+            )
+          ) : (
+            <>
+              <p className="xv-wallet-section-label">
+                {walletConnectEnabled ? "Connect another wallet" : "More wallets"}
+              </p>
+              {catalog.length > 0 ? (
+                <div className="xv-wallet-choice-list">
+                  {catalog.map((wallet) => (
+                    <button
+                      className="xv-wallet-choice"
+                      type="button"
+                      key={wallet.id}
+                      disabled={
+                        !walletConnectEnabled
+                        || (!remoteReady && wallet.id !== "walletConnect")
+                        || isPending
+                      }
+                      onClick={() => selectRemote(wallet.id)}
+                    >
+                      <span className="xv-wallet-choice-icon" aria-hidden="true">
+                        {wallet.id === "walletConnect" ? <Wallet size={17} /> : wallet.name.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="xv-wallet-choice-info">
+                        <span className="xv-wallet-choice-name">{wallet.name}</span>
+                        <span className="xv-wallet-choice-note">
+                          {connectingWallet === wallet.id
+                            ? "Waiting for wallet approval…"
+                            : wallet.id === "walletConnect"
+                              ? "QR on desktop · secure app handoff on mobile"
+                              : "Use this wallet on desktop or mobile"}
+                        </span>
+                      </span>
+                      <span className="xv-wallet-choice-arrow" aria-hidden="true">›</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="xv-wallet-empty">No wallet matches “{search}”. Try another name.</div>
+              )}
+              {!walletConnectEnabled && (
+                <div className="xv-wallet-config-note">
+                  Cross-device connections need a Reown project ID. Detected browser wallets remain available above.
+                </div>
+              )}
+              {walletConnectEnabled && !remoteReady && (
+                <div className="xv-wallet-config-note" role="status">
+                  Loading the wallet directory. If it is unavailable, you can still try WalletConnect above.
+                </div>
+              )}
+            </>
+          )}
+
+          {chain === "cardano" && walletList.length > 0 && (
+            <div className="xv-wallet-config-note">
+              Cardano sign-in is available through detected CIP-30 wallets. For mobile, open this page in the wallet’s built-in browser.
+            </div>
+          )}
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 // ─── LOGIN VIEW ───────────────────────────────────────────────────────────────
 function LoginView() {
   const [status, setStatus]   = useState("idle");
   const [provider, setProvider] = useState(null);
   const [errMsg, setErrMsg]   = useState("");
   const [comingSoon, setComingSoon] = useState(false);
+  const [walletPickerOpen, setWalletPickerOpen] = useState(false);
+  const [detectedWallets, setDetectedWallets] = useState(() => (
+    typeof window === "undefined" ? [] : discoverWallets(window)
+  ));
+  const announcedWallets = useRef(new Map());
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const updateWallets = () => setDetectedWallets(discoverWallets(window, [...announcedWallets.current.values()]));
+    const handleAnnouncement = (event) => {
+      const detail = event.detail;
+      if (detail?.provider && detail?.info?.uuid) {
+        announcedWallets.current.set(detail.info.uuid, detail);
+        updateWallets();
+      }
+    };
+
+    window.addEventListener("eip6963:announceProvider", handleAnnouncement);
+    window.addEventListener("ethereum#initialized", updateWallets);
+    window.addEventListener("solana#initialized", updateWallets);
+    window.addEventListener("cardano#initialized", updateWallets);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    const detectionTimer = window.setTimeout(updateWallets, 500);
+    return () => {
+      window.clearTimeout(detectionTimer);
+      window.removeEventListener("eip6963:announceProvider", handleAnnouncement);
+      window.removeEventListener("ethereum#initialized", updateWallets);
+      window.removeEventListener("solana#initialized", updateWallets);
+      window.removeEventListener("cardano#initialized", updateWallets);
+    };
   }, []);
 
   const go = useCallback(
@@ -1652,6 +2256,69 @@ function LoginView() {
     },
     [status],
   );
+
+  const goWallet = useCallback(async (chain, selectedWallet) => {
+    if (status === "loading") return;
+    setErrMsg("");
+    setProvider(`wallet-${chain}`);
+    setStatus("loading");
+
+    try {
+      const wallet = selectedWallet
+        || detectedWallets.find((candidate) => candidate.chain === chain)?.provider;
+      if (!wallet) {
+        throw new Error(chain === "ethereum"
+          ? "No compatible EVM wallet was found. Open Xeevia in your wallet app or install an EIP-1193 wallet."
+          : chain === "solana"
+            ? "No compatible Solana wallet was found. Open Xeevia in Phantom, Solflare, or another Solana wallet."
+            : "No CIP-30 Cardano wallet was found. Open Xeevia in a Cardano wallet such as Lace, Eternl, Nami, or Vespr.");
+      }
+
+      if (
+        chain === "solana"
+        && typeof wallet.signIn !== "function"
+        && !wallet.publicKey
+      ) {
+        await wallet.connect();
+      }
+
+      await authService.signInWithWallet(chain, wallet);
+    } catch (error) {
+      if (!mounted.current) return;
+      const message = error?.message || "Wallet sign-in failed. Please try again.";
+      if (error?.code === 2 || /cancel|denied|reject|user refused/i.test(message)) {
+        setErrMsg("Wallet sign-in was cancelled.");
+        setStatus("declined");
+        return;
+      }
+      if (/unsupported_grant_type|unsupported.{0,30}web3|web3.{0,30}(disabled|not enabled|not supported)|(?:disabled|not enabled).{0,30}web3/i.test(message)) {
+        setErrMsg("Wallet sign-in is not enabled for this Xeevia authentication project yet.");
+      } else {
+        setErrMsg(message);
+      }
+      setProvider(null);
+      setStatus("idle");
+    }
+  }, [detectedWallets, status]);
+
+  const closeWalletPicker = useCallback(() => setWalletPickerOpen(false), []);
+  const selectInjectedWallet = useCallback((wallet) => {
+    setWalletPickerOpen(false);
+    void goWallet(wallet.chain, wallet.provider);
+  }, [goWallet]);
+  const selectRemoteWallet = useCallback((chain, wallet) => {
+    setWalletPickerOpen(false);
+    void goWallet(chain, wallet);
+  }, [goWallet]);
+  const handleWalletConnectionError = useCallback((error) => {
+    if (!mounted.current) return;
+    setErrMsg(error?.message || "Wallet connection failed. Please try again.");
+  }, []);
+  const openWalletPicker = useCallback(() => {
+    setErrMsg("");
+    setDetectedWallets(discoverWallets(window, [...announcedWallets.current.values()]));
+    setWalletPickerOpen(true);
+  }, []);
 
   const retry = useCallback(() => {
     setStatus("idle");
@@ -1807,6 +2474,29 @@ function LoginView() {
         ))}
       </div>
 
+      <div className="xv-auth-divider"><span>or sign in with a Web3 wallet</span></div>
+      <div className="xv-auth-btn-stack">
+        <ProviderBtn
+          icon={<Wallet size={18} aria-hidden="true" />}
+          label="Connect wallet"
+          g1="#8b92a8"
+          g2="#c5c8d1"
+          g3="#71788e"
+          delay={260}
+          state={
+            status === "loading"
+              ? provider?.startsWith("wallet-")
+                ? "selected"
+                : "other"
+              : "idle"
+          }
+          onClick={openWalletPicker}
+        />
+      </div>
+      <p className="xv-auth-wallet-note">
+        Choose EVM, Solana, or Cardano. Sign-in requests a message signature only, never a transaction.
+      </p>
+
       <div className="xv-auth-divider"><span>or</span></div>
 
       <a
@@ -1827,6 +2517,17 @@ function LoginView() {
         {' · '}
         <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
       </div>
+
+      {walletPickerOpen && status === "idle" && (
+        <WalletPicker
+          wallets={detectedWallets}
+          error={errMsg}
+          onClose={closeWalletPicker}
+          onSelectInjected={selectInjectedWallet}
+          onSelectRemote={selectRemoteWallet}
+          onConnectionError={handleWalletConnectionError}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@emurgo/cardano-message-signing": "npm:@emurgo/cardano-message-signing-asmjs@1.1.0/cardano_message_signing.js",
+    "@noble/hashes/blake2.js": "npm:@noble/hashes@1.8.0/blake2.js",
+    "@scure/base": "npm:@scure/base@1.2.6"
+  }
+}

@@ -10,6 +10,7 @@ This document is the source of truth for whether a capability is shipped, partia
 |---|---|---|
 | React application shell | Shipped | `src/App.jsx`, lazy-loaded views, service worker support |
 | Supabase authentication | Shipped with provider configuration dependency | `src/services/config/supabase.js`, Auth components |
+| EVM, Solana, and Cardano wallet authentication | EVM and Solana use Supabase-verified SIWE/SIWS; Cardano uses a server-verified CIP-8 challenge and one-time Supabase session exchange. Hosted provider settings, Edge Function secrets/deployment, and migrations `118`–`119` are required before production use | `src/services/auth/authService.js`, `src/components/Auth/AuthWall.jsx`, `supabase/functions/cardano-auth/index.ts`, `supabase/config.toml`, `supabase/migrations/118_web3_signup_bonus_guard.sql`, `supabase/migrations/119_cardano_wallet_auth_challenges.sql` |
 | Xeevia social publishing surface | Shipped | Create, feed, explore, community, messaging components |
 | Wallet and local payment workflows | Broadly implemented; provider deployment still required | Wallet services, Supabase functions, Paystack/OPay guides |
 | Identity connection records | Shipped | `connections`, `tokens`, identity and linking services |
