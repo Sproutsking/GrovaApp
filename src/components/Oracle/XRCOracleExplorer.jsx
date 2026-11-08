@@ -49,6 +49,18 @@ const EVENT_LABELS = {
   post_created:"Post Published", post_deleted:"Post Removed", reel_created:"Reel Published",
   story_created:"Story Published", story_unlocked:"Story Unlocked", post_liked:"Post Liked",
   post_unliked:"Post Unliked", comment_added:"Comment Added", comment_deleted:"Comment Deleted",
+  reel_liked:"Reel Liked", reel_unliked:"Reel Unliked", story_liked:"Story Liked", story_unliked:"Story Unliked",
+  post_view_count_changed:"Post Views Updated", reel_view_count_changed:"Reel Views Updated",
+  story_view_count_changed:"Story Views Updated",
+  comment_liked:"Comment Liked", comment_unliked:"Comment Unliked", comment_edited:"Comment Edited",
+  comment_restored:"Comment Restored", reply_added:"Reply Added", reply_deleted:"Reply Deleted",
+  content_unshared:"Content Unshared", engagement_economy_recorded:"Engagement Settlement Recorded",
+  engagement_economy_status_changed:"Engagement Settlement Status Changed",
+  ad_impression_recorded:"Ad Impression Recorded", ad_click_recorded:"Ad Click Recorded",
+  ad_follow_conversion_recorded:"Ad Follow Conversion Recorded",
+  ad_community_conversion_recorded:"Ad Community Conversion Recorded",
+  ad_campaign_settlement_recorded:"Ad Campaign Settlement Recorded",
+  ad_campaign_refund_recorded:"Ad Campaign Refund Recorded",
   content_shared:"Content Shared", token_transfer:"Token Transfer", wallet_deposit:"Wallet Deposit",
   wallet_withdrawal:"Wallet Withdrawal", account_created:"Account Created", profile_updated:"Profile Updated",
   follow_added:"User Followed", follow_removed:"Unfollowed", role_assigned:"Role Assigned",
@@ -59,7 +71,11 @@ const EVENT_LABELS = {
 };
 const EVENT_ICONS = {
   post_created:"📝", post_deleted:"🗑", reel_created:"🎬", story_created:"📖",
-  story_unlocked:"🔓", post_liked:"❤️", comment_added:"💬", content_shared:"↗️",
+  story_unlocked:"🔓", post_liked:"❤️", reel_liked:"❤️", story_liked:"❤️",
+  post_view_count_changed:"◉", reel_view_count_changed:"◉", story_view_count_changed:"◉",
+  comment_added:"💬", content_shared:"↗️", comment_liked:"❤️", reply_added:"↳",
+  ad_impression_recorded:"◉", ad_click_recorded:"↗️", ad_follow_conversion_recorded:"➕",
+  ad_community_conversion_recorded:"◈", ad_campaign_settlement_recorded:"💸", ad_campaign_refund_recorded:"↩",
   token_transfer:"💸", wallet_deposit:"⬆️", wallet_withdrawal:"⬇️", account_created:"👤",
   profile_updated:"✏️", role_assigned:"🔐", staking_started:"🔒", follow_added:"➕",
 };
@@ -1048,6 +1064,8 @@ const IdleView = ({ feed, stats, error, onEnterRecord, onQuickSearch, onClose })
   const QUICK = [
     "post_created", "token_transfer", "story_unlocked", "wallet_deposit",
     "account_created", "post_liked", "content_shared", "follow_added", "comment_added",
+    "ad_impression_recorded", "ad_click_recorded", "ad_campaign_settlement_recorded",
+    "post_view_count_changed", "story_unlocked",
   ];
   return (
     <div className="xo3-idle">

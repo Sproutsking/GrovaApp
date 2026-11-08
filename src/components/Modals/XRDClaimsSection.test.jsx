@@ -107,4 +107,24 @@ describe("XRD claims and GitHub slice", () => {
     expect(screen.getByText("Self-asserted")).not.toBeNull();
     expect(screen.getByText(/This is not a verification of the claim/i)).not.toBeNull();
   });
+
+  it("offers a deep link to authenticated XRC provenance for a claim", () => {
+    const claim = {
+      id: "claim-1",
+      title: "Maintains Atlas",
+      claim_text: "I maintain the Atlas project.",
+      record_type: "contribution",
+      visibility: "public",
+      lifecycle_status: "published",
+      created_at: "2026-10-28T12:00:00.000Z",
+      evidence_links: [],
+    };
+    const onOpenXRC = jest.fn();
+    render(<XRDClaimsSection claims={[claim]} onOpenXRC={onOpenXRC} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /trace provenance/i }));
+    fireEvent.click(screen.getByRole("button", { name: /inspect provenance in xrc/i }));
+
+    expect(onOpenXRC).toHaveBeenCalledWith(claim);
+  });
 });

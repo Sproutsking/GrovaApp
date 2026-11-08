@@ -27,6 +27,7 @@ import SavedContentModal   from "../Modals/SavedContentModal";
 import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
+import XRDProfileDashboard from "../Modals/XRDProfileDashboard";
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
@@ -281,8 +282,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [showFollowersModal,    setShowFollowersModal]    = useState(false);
   const [followersTab,          setFollowersTab]          = useState("followers");
   const [showLogoutConfirm,     setShowLogoutConfirm]     = useState(false);
-  const [showVerificationDashboard, setShowVerificationDashboard] = useState(false);
+  const [showXRD, setShowXRD] = useState(false);
   const [showXRC,               setShowXRC]               = useState(false);
+  const [showXRCOracle,         setShowXRCOracle]          = useState(false);
   const [xrcNotice,             setXrcNotice]             = useState("");
   const [liveStats,             setLiveStats]             = useState({
     totalViews:0, totalComments:0, totalLikes:0,
@@ -302,9 +304,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
   const { isAdmin: authIsAdmin, user: authUser } = useAuth() || {};
 
-  const openXRC = async () => {
+  const reconcileXRCConnections = async () => {
     setXrcNotice("");
-    setShowXRC(true);
     try {
       const result = await socialConnectService.ensurePlatformConnectionHistory(userId);
       if (result.skipped) {
@@ -316,6 +317,26 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       console.error("[XRC] Could not reconcile linked platform history:", error);
       setXrcNotice(error?.message || "Linked platform history could not be reconciled.");
     }
+  };
+
+  const openXRC = async () => {
+    setShowXRD(false);
+    setShowXRCOracle(false);
+    setShowXRC(true);
+    await reconcileXRCConnections();
+  };
+
+  const openXRD = () => {
+    setShowXRC(false);
+    setShowXRCOracle(false);
+    setShowXRD(true);
+  };
+
+  const openXRCOracle = async () => {
+    setShowXRD(false);
+    setShowXRC(false);
+    setShowXRCOracle(true);
+    await reconcileXRCConnections();
   };
 
   const isMobile = window.innerWidth <= 768;
@@ -730,7 +751,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       accent:"#a855f7",
       bg:"linear-gradient(135deg,rgba(168,85,247,0.16),rgba(124,58,237,0.08))",
       border:"rgba(168,85,247,0.35)",
-      onClick:()=>setShowVerificationDashboard(true),
+      onClick:openXRD,
     },
     {
       id:"xrc",
@@ -741,6 +762,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       bg:"linear-gradient(135deg,rgba(96,165,250,0.14),rgba(59,130,246,0.07))",
       border:"rgba(96,165,250,0.35)",
       onClick:openXRC,
+    },
+    {
+      id:"xrc-oracle",
+      icon:<Sparkles size={20}/>,
+      label:"XRC Oracle",
+      sub:"Explore the record chain",
+      accent:"#a3e635",
+      bg:"linear-gradient(135deg,rgba(163,230,53,0.14),rgba(101,163,13,0.07))",
+      border:"rgba(163,230,53,0.35)",
+      onClick:openXRCOracle,
     },
     {
       id:"logout",
@@ -1000,23 +1031,27 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           />
         )}
 
-        {showVerificationDashboard && (
+        {showXRD && (
           <VerificationDashboardPage
-            profile={
-              profile
-                ? {
-                    ...profile,
-                    avatarUrl: profile.avatar,
-                    fullName: profile.fullName,
-                  }
-                : null
-            }
+            profile={profile}
             dashboard={buildPublicProfileDashboard(profile, verificationItems)}
             verificationItems={verificationItems}
             loading={verificationLoading}
             title="Xeevia Record Dashboard (XRD)"
-            onBack={() => setShowVerificationDashboard(false)}
-            onClose={() => setShowVerificationDashboard(false)}
+            onClose={() => setShowXRD(false)}
+          />
+        )}
+
+        {showXRC && (
+          <XRDProfileDashboard
+            profile={profile ? { ...profile, avatarUrl: profile.avatar } : null}
+            currentUser={currentUser || authUser || { id: userId }}
+            targetId={userId}
+            verificationItems={verificationItems}
+            mode="xrc"
+            initialSection="Overview"
+            notice={xrcNotice}
+            onClose={() => setShowXRC(false)}
           />
         )}
 
@@ -1067,13 +1102,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         </div>
       </div>
 
-      {showXRC && (
-        <Suspense fallback={<div role="status" style={{ position: "fixed", inset: 0, zIndex: 100051, display: "grid", placeItems: "center", background: "#020406", color: "#a3e635", fontSize: 14 }}>Loading XRC…</div>}>
+      {showXRCOracle && (
+        <Suspense fallback={<div role="status" style={{ position: "fixed", inset: 0, zIndex: 100061, display: "grid", placeItems: "center", background: "#020406", color: "#a3e635", fontSize: 14 }}>Loading XRC Oracle…</div>}>
           <XRCOracleExplorer
             currentUser={currentUser || authUser || { id: userId }}
             xrcService={xrcService}
             notice={xrcNotice}
-            onClose={() => setShowXRC(false)}
+            onClose={() => setShowXRCOracle(false)}
           />
         </Suspense>
       )}

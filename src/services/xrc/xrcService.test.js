@@ -7,12 +7,20 @@ beforeEach(() => {
   jest.spyOn(xrcGuard, "shouldRecord").mockReturnValue(true);
 });
 
-test("database-triggered events do not append duplicate client records", async () => {
+test.each([
+  ["XCRC", "post_created"],
+  ["XERC", "post_liked"],
+  ["XERC", "follow_added"],
+  ["XERC", "comment_added"],
+  ["XERC", "content_shared"],
+  ["XTRC", "ad_impression_recorded"],
+  ["XTRC", "ad_campaign_refund_recorded"],
+])("%s %s events do not append duplicate client records", async (streamType, event) => {
   const rpc = jest.fn();
   const service = createXRCService({ rpc });
 
   await expect(
-    service.writeRecord("XCRC", { event: "post_created" }, ACTOR_ID),
+    service.writeRecord(streamType, { event }, ACTOR_ID),
   ).resolves.toMatchObject({
     success: false,
     skipped: true,

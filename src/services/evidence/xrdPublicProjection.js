@@ -42,11 +42,14 @@ export const projectXrdPublicView = (data = {}, isPublicView = true) => {
     bindings = [],
     edges = [],
     identityDetails = {},
-    remarks = [],
+    grantedEvidenceIds = [],
     profileId,
   } = data;
+  const authorizedIds = new Set((Array.isArray(grantedEvidenceIds) ? grantedEvidenceIds : []).map(String));
   const publicEvidence = (Array.isArray(evidenceItems) ? evidenceItems : [])
-    .filter((item) => isPublicEvidence(item, profileId))
+    .filter((item) => isPublicEvidence(item, profileId)
+      || (item?.id && authorizedIds.has(String(item.id))
+        && (!profileId || !item?.profile_id || String(item.profile_id) === String(profileId))))
     .map((item) => {
       const publicItem = { ...item, metadata: publicEvidenceMetadata(item.metadata) };
       delete publicItem.raw;
@@ -95,19 +98,7 @@ export const projectXrdPublicView = (data = {}, isPublicView = true) => {
     identityDetails: Object.fromEntries(
       Object.entries(identityDetails || {}).filter(([, value]) => typeof value === "string" && value.trim()),
     ),
-    remarks: (Array.isArray(remarks) ? remarks : [])
-      .filter((remark) => remark?.status === "published" && publicEvidenceIds.has(remark?.evidence_item_id))
-      .map((remark) => ({
-        id: remark.id,
-        record_title: remark.record_title,
-        remark_type: remark.remark_type,
-        body: remark.body,
-        evidence_item_id: remark.evidence_item_id,
-        status: remark.status,
-        owner_response: remark.owner_response,
-        owner_response_at: remark.owner_response_at,
-        created_at: remark.created_at,
-      })),
+    remarks: [],
     records: [],
     sourceConnections: [],
     photoConnections: [],

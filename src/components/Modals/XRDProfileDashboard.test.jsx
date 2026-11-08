@@ -1,7 +1,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { buildXrdIdentityDetailRows, getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrcRecordSummary, getXrdPhotoSources, getXrdProfileAvatarCandidates, resolveXrdInitialSection, SOURCE_PLATFORMS, XrdEvidenceGraph } from "./XRDProfileDashboard";
+import { buildXrdIdentityDetailRows, getXrdIdentityBindings, getXrdIdentityDetails, getXrdIdentityRowStatus, getXrcRecordSummary, getXrdPhotoSources, getXrdProfileAvatarCandidates, resolveXrdInitialSection, resolveXrcInitialSection, SOURCE_PLATFORMS, XRC_NAV_GROUPS, XrdEvidenceGraph } from "./XRDProfileDashboard";
 import XRDProfileDashboard from "./XRDProfileDashboard";
+import xrdRecordService from "../../services/evidence/xrdRecordService";
 
 jest.mock("../../services/config/supabase", () => {
   const createQuery = () => {
@@ -215,6 +216,35 @@ it("lists Apple as an XRD source supported by the connection service", () => {
   expect(SOURCE_PLATFORMS).toContainEqual(["apple", "Apple"]);
 });
 
+it("keeps the XRC navigation broad and opens at its overview", () => {
+  expect(XRC_NAV_GROUPS.flatMap(([, sections]) => sections)).toEqual([
+    "Overview", "Identity", "Records", "Evidence", "Graph", "Chains", "Activity", "Verification", "Sources",
+  ]);
+  expect(resolveXrcInitialSection()).toBe("Overview");
+  expect(resolveXrcInitialSection("Records")).toBe("Records");
+  expect(resolveXrcInitialSection("Oracle")).toBe("Overview");
+});
+
+it("renders XRC with its network overview and full desktop/mobile navigation", async () => {
+  render(
+    <XRDProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "owner-1" }}
+      targetId="owner-1"
+      mode="xrc"
+      onClose={jest.fn()}
+    />,
+  );
+
+  expect(await screen.findByRole("heading", { name: "XRC · Chain of Chains" })).not.toBeNull();
+  expect(screen.getByText("Xeevia Record Chain")).not.toBeNull();
+  expect(screen.getByRole("navigation", { name: "XRC sections" })).not.toBeNull();
+  expect(screen.getAllByRole("button", { name: "Overview" }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole("button", { name: "Records" }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole("button", { name: "Chains" }).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("button", { name: "History" })).toBeNull();
+});
+
 it("previews the public projection without losing private owner records", async () => {
   render(
     <XRDProfileDashboard
@@ -240,6 +270,15 @@ it("previews the public projection without losing private owner records", async 
 });
 
 it("applies the same public projection to non-owner profile visits", async () => {
+  xrdRecordService.listClaims.mockResolvedValueOnce([{
+    id: "public-claim",
+    title: "Data Science Certificate",
+    claim_text: "Completed a data science program.",
+    record_type: "credential",
+    lifecycle_status: "published",
+    visibility: "public",
+    evidence_links: [{ evidence_item_id: "public-proof", relation: "supports" }],
+  }]);
   render(
     <XRDProfileDashboard
       profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
@@ -254,9 +293,20 @@ it("applies the same public projection to non-owner profile visits", async () =>
   );
 
   expect(await screen.findByText("Public contribution")).not.toBeNull();
+  expect(await screen.findByText("Data Science Certificate")).not.toBeNull();
+  expect(screen.getByText("Evidence linked")).not.toBeNull();
+  expect(screen.getByText("Source-reported")).not.toBeNull();
   expect(screen.queryByText("Private contribution")).toBeNull();
   expect(screen.getByText("PUBLIC")).not.toBeNull();
   expect(screen.queryByRole("button", { name: /preview public xrd/i })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Remarks" })).toBeNull();
+  expect(screen.queryByRole("img", { name: /records verified/i })).toBeNull();
+  expect(screen.queryByText("Likes")).toBeNull();
+  expect(screen.queryByText("Comments")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Records" }));
+  expect(await screen.findByText("XRD records")).not.toBeNull();
+  expect(screen.queryByText("Record state preview")).toBeNull();
 });
 
 it("renders and inspects real XRD claim, evidence, and identity-binding nodes", () => {
@@ -309,4 +359,77 @@ it("renders and inspects real XRD claim, evidence, and identity-binding nodes", 
   expect(screen.getByText(/1 visible evidence relationship attached/)).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /github identity binding, bound, account_control/i }));
   expect(screen.getByText(/Assurance scope: account control/i)).not.toBeNull();
+});
+
+it("focuses a requested evidence item when opening the evidence graph", async () => {
+  const evidence = { id: "focus-evidence", provider: "GitHub", title: "Focus evidence", evidence_type: "activity" };
+  const { container } = render(
+    <XrdEvidenceGraph
+      items={[{ id: "other-evidence", title: "Other evidence" }, evidence]}
+      edges={[]}
+      profile={{ fullName: "Ada Lovelace", username: "ada" }}
+      focusEvidenceId="focus-evidence"
+    />,
+  );
+
+  await waitFor(() => {
+    expect(container.querySelector(".xrd-graph-evidence.selected text")?.textContent).toBe("Focus evidence");
+  });
+});
+
+it("submits a purposeful evidence access request and shows its pending state", async () => {
+  render(
+    <XRDProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "viewer-1" }}
+      targetId="owner-1"
+      verificationItems={[]}
+    />,
+  );
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Evidence" })[0]);
+  fireEvent.click(await screen.findByRole("button", { name: "Request access" }));
+  fireEvent.change(screen.getByLabelText("What evidence do you need, and why?"), {
+    target: { value: "Please share the project evidence supporting this role." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send request" }));
+
+  expect(await screen.findByText("Request pending")).not.toBeNull();
+  expect(screen.getByText(/The owner decides which specific items to share/)).not.toBeNull();
+});
+
+it("moves evidence details into focused verification and graph views", async () => {
+  const evidence = {
+    id: "public-proof",
+    profile_id: "owner-1",
+    title: "Public proof",
+    provider: "GitHub",
+    evidence_type: "profile",
+    verified: true,
+    metadata: { visibility: "PUBLIC" },
+  };
+  const { container } = render(
+    <XRDProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "viewer-1" }}
+      targetId="owner-1"
+      verificationItems={[evidence]}
+    />,
+  );
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Evidence" })[0]);
+  fireEvent.click(await screen.findByRole("button", { name: "Open evidence details for Public proof" }));
+  fireEvent.click(screen.getByRole("button", { name: /Open verification/i }));
+  expect(await screen.findByText("Verification", { selector: "h2" })).not.toBeNull();
+  expect(screen.queryByText("EVIDENCE RECORD")).toBeNull();
+  await waitFor(() => {
+    expect(container.querySelector(".xrd-verification-item")?.className).toBe("xrd-verification-item is-focused");
+  }, { timeout: 1000 });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Open evidence details for Public proof" }));
+  fireEvent.click(screen.getByRole("button", { name: /View in evidence graph/i }));
+  expect(await screen.findByText("Evidence graph", { selector: "h2" })).not.toBeNull();
+  await waitFor(() => {
+    expect(container.querySelector(".xrd-graph-evidence.selected text")?.textContent).toBe("Public proof");
+  });
 });

@@ -1,6 +1,6 @@
 # Xeevia Capability Status
 
-**Status date:** 2026-10-25
+**Status date:** 2026-11-08
 
 This document is the source of truth for whether a capability is shipped, partial, planned, or dependent on external configuration. A feature is not considered production-ready merely because a component or guide exists.
 
@@ -31,7 +31,7 @@ This document is the source of truth for whether a capability is shipped, partia
 | Community social updates | Xeevia public-post sync and several provider adapters are implemented. Sync still depends on deployed Edge Functions, account scopes/tokens, provider APIs, and a real routed-channel test. | Deploy inbound-sync, test Xeevia and each enabled provider, and confirm media, public-only filtering, route delivery, failures, and retry behavior |
 | Community bots | Discord/Telegram bot setup and delivery surfaces exist. Provider secrets, deployed Edge Function, database policies, permissions, and real destination delivery are external operational dependencies. | Apply migration `093`, configure secrets, deploy `community-bot`, and test check/discovery/delivery with a permitted manager |
 | Evidence verification | Some records are tracked rather than verified; confidence is not yet a full policy engine | Source-specific verification rules, freshness, revocation, contradiction handling, and explainable decisions |
-| XRC integrity | Hash and chain verification utilities exist, but all event writers and field names must be audited together | Consistent schema contract, append-only enforcement, integration tests, and tamper tests |
+| XRC integrity | Migrations `111` and `122` define transactional capture for account/content, wallet/EP, transactions, boosts, social engagement, and stored ad events/settlements. Production coverage still requires applying migrations and exercising each source write against the deployed database. View events reflect counter changes, not each individual render. | Apply and test migrations `111`/`116`/`122`; exercise and verify each event family; add tamper/concurrency tests. A global checkpoint, public receipt path, and external anchor remain unimplemented. |
 | Advertising engine | Foundation and campaign surface exist; delivery, attribution, fraud scoring, and settlement are not complete | Live measured campaigns and reconciliation tests |
 | Reputation | Product language describes reputation, but a complete, tested policy model is not established | Context-specific scoring, anti-gaming rules, appeals, decay, and outcome validation |
 | Recursive impact and settlement | Atomic events and direct/root allocation exist in the first slice; quality propagation, reversals, and anti-farming are not complete | Concurrency tests, reversal rules, anti-farming, reconciliation, and live measurement |

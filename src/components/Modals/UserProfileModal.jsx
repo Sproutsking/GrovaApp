@@ -40,6 +40,7 @@ import StoryCard             from "../Home/StoryCard";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { buildProfileRecordSummary, buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import { buildPublicXrdLink } from "../../services/evidence/xrdPublicShareService";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
 import ProfileEditModal from "../Account/ProfileEditModal";
@@ -444,12 +445,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [profileRecordSummary, setProfileRecordSummary] = useState(null);
   const [profileRecordSummaryError, setProfileRecordSummaryError] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [xrdShareStatus, setXrdShareStatus] = useState("");
   const [selectedSection, setSelectedSection] = useState(null);
   const [showDashboard, setShowDashboard] = useState(openVerificationDashboard);
-  const [showXRD, setShowXRD] = useState(false);
-  const [showXRC, setShowXRC] = useState(false);
+  const [showXRCProfile, setShowXRCProfile] = useState(false);
+  const [showXRCOracle, setShowXRCOracle] = useState(false);
   const [xrcNotice, setXrcNotice] = useState("");
-  const [initialXRDSection, setInitialXRDSection] = useState("Overview");
   const [selectedContent, setSelectedContent] = useState(null);
   const [verificationLoading, setVerificationLoading] = useState(true);
   const [stats,          setStats]          = useState({
@@ -477,7 +478,11 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const profileLoadSequence = useRef(0);
 
   useEffect(() => {
-    if (openVerificationDashboard) setShowDashboard(true);
+    if (openVerificationDashboard) {
+      setShowXRCProfile(false);
+      setShowXRCOracle(false);
+      setShowDashboard(true);
+    }
   }, [openVerificationDashboard]);
 
   useEffect(() => {
@@ -625,7 +630,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     "--cover-glow": coverVisual.glow || glowColor,
   } : undefined;
 
-  const openXRC = async () => {
+  const reconcileXRCConnections = async () => {
     setXrcNotice("");
     if (isOwn && targetId) {
       try {
@@ -640,15 +645,43 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         setXrcNotice(error?.message || "Linked platform history could not be reconciled.");
       }
     }
-    setShowXRC(true);
   };
-  const xrcExplorer = showXRC && (
+  const openXRCOracle = async () => {
+    setShowDashboard(false);
+    setShowXRCProfile(false);
+    setShowXRCOracle(true);
+    await reconcileXRCConnections();
+  };
+  const openXRCProfile = async () => {
+    setShowDashboard(false);
+    setShowXRCOracle(false);
+    setShowXRCProfile(true);
+    await reconcileXRCConnections();
+  };
+  const openXRD = () => {
+    setShowXRCProfile(false);
+    setShowXRCOracle(false);
+    setShowDashboard(true);
+  };
+  const copyPublicXrdLink = async () => {
+    setXrdShareStatus("");
+    try {
+      if (!profile?.username) throw new Error("This profile does not have a public username.");
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable in this browser.");
+      await navigator.clipboard.writeText(buildPublicXrdLink(profile.username, window.location.origin));
+      setXrdShareStatus("Public XRD link copied.");
+    } catch (error) {
+      console.error("[XRD] Could not copy the public profile link:", error);
+      setXrdShareStatus(error?.message || "Could not copy the public XRD link.");
+    }
+  };
+  const xrcExplorer = showXRCOracle && (
     <Suspense fallback={<div role="status" style={{ position: "fixed", inset: 0, zIndex: 100051, display: "grid", placeItems: "center", background: "#020406", color: "#a3e635", fontSize: 14 }}>Loading XRC…</div>}>
       <XRCOracleExplorer
         currentUser={currentUser}
         xrcService={xrcService}
         notice={xrcNotice}
-        onClose={() => setShowXRC(false)}
+        onClose={() => setShowXRCOracle(false)}
       />
     </Suspense>
   );
@@ -663,7 +696,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
         onClose={onClose}
       />
-      {xrcExplorer}
     </>
   );
 
@@ -1223,10 +1255,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   <nav className="upm-sidebar-nav" aria-label="Your profile shortcuts">
                     <button type="button" onClick={() => handleOwnerShortcut("edit-profile")}><Settings size={15} /><span>Edit profile</span><ChevronRight size={13} /></button>
                     <button type="button" onClick={() => handleOwnerShortcut("saved")}><Bookmark size={15} /><span>Saved</span><ChevronRight size={13} /></button>
-                    <button type="button" onClick={openXRC}><GitBranch size={15} /><span>XRC</span><ChevronRight size={13} /></button>
+                    <button type="button" onClick={openXRCProfile}><GitBranch size={15} /><span>XRC</span><ChevronRight size={13} /></button>
                     <button type="button" onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }}><Globe2 size={15} /><span>Communities</span><b>{fmt(profileCommunities.length)}</b></button>
                     <button type="button" onClick={() => handleOwnerShortcut("ambassador")}><Sparkles size={15} /><span>Ambassador</span><small>{ambassadorData ? `${ambassadorData.commission_pct}%` : "Explore"}</small></button>
-                    <button type="button" onClick={openXRC}><ExternalLink size={15} /><span>XRC Oracle</span><ChevronRight size={13} /></button>
+                    <button type="button" onClick={openXRCOracle}><ExternalLink size={15} /><span>XRC Oracle</span><ChevronRight size={13} /></button>
                   </nav>
                   </ProfileSidebarAccordion>
                 </>
@@ -1364,7 +1396,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                         </button>
                       </>
                     )}
-                    <button type="button" className="upm-xrd-btn" onClick={() => { setInitialXRDSection("Overview"); setShowXRD(true); }} aria-label="Open Xeevia Record dashboard">
+                    <button type="button" className="upm-xrd-btn" onClick={openXRD} aria-label="Open Xeevia Record dashboard">
                       <ShieldCheck size={16} /><span>XRD</span>
                     </button>
                   </div>
@@ -1460,9 +1492,15 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                       <small>Claims and source evidence; verification is shown per record.</small>
                     </div>
                   </div>
-                  <button type="button" className="upm-xrd-open" onClick={() => { setInitialXRDSection("Overview"); setShowXRD(true); }}>
-                    Open XRD <ChevronRight size={14} />
-                  </button>
+                  <div className="upm-xrd-actions">
+                    <button type="button" className="upm-xrd-open" onClick={openXRD}>
+                      Open XRD <ChevronRight size={14} />
+                    </button>
+                    <button type="button" className="upm-xrd-share" onClick={copyPublicXrdLink}>
+                      <Share2 size={13} /> Copy public XRD link
+                    </button>
+                  </div>
+                  {xrdShareStatus && <p className="upm-xrd-share-status" role="status">{xrdShareStatus}</p>}
                   <div className="upm-xrd-stats">
                     {[
                       [recordSummary.records, "Records"],
@@ -1482,17 +1520,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               {(isOwn ? [
                 [Settings, "Edit Profile", "Update your info", "#a3e635", () => handleOwnerShortcut("edit-profile")],
                 [Bookmark, "Saved", "Your bookmarks", "#fb923c", () => handleOwnerShortcut("saved")],
-                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRC],
+                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRCProfile],
                 [Globe2, "Communities", `${fmt(profileCommunities.length)} joined`, "#2dd4bf", () => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }],
                 [Sparkles, "Ambassador", ambassadorData ? `${ambassadorData.commission_pct}% commission` : "Explore the program", "#f59e0b", () => handleOwnerShortcut("ambassador")],
-                [ExternalLink, "XRC Oracle", "Explore the record chain", "#a3e635", openXRC],
+                [ExternalLink, "XRC Oracle", "Ask about record history", "#a3e635", openXRCOracle],
               ] : [
                 [UserPlus, isFollowing ? "Following" : "Follow", isFollowing ? "Manage connection" : "Connect with this profile", "#a3e635", handleFollow],
                 [MessageSquare, "Message", "Say hello", "#fb923c", handleMessage],
-                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRC],
+                [GitBranch, "XRC", "Open the record chain", "#60a5fa", openXRCProfile],
                 [Globe2, "Communities", `${fmt(profileCommunities.length)} joined`, "#2dd4bf", () => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }],
                 [Share2, "Share profile", "Send this profile", "#fb923c", () => setShowShareModal(true)],
-                [Sparkles, "XRC Oracle", "Explore the record chain", "#a3e635", openXRC],
+                [Sparkles, "XRC Oracle", "Ask about record history", "#a3e635", openXRCOracle],
               ]).map(([Icon, title, subtitle, accent, action]) => (
                 <button type="button" key={title} className="upm-quick-action" style={{ "--upm-action-accent": accent }} onClick={action}>
                   <span className="upm-quick-icon"><Icon size={16} /></span>
@@ -1501,14 +1539,16 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               ))}
             </div>
 
-            {showXRD && (
+            {showXRCProfile && (
               <XRDProfileDashboard
                 profile={profile}
                 currentUser={currentUser}
                 targetId={targetId}
                 verificationItems={verificationItems}
-                initialSection={initialXRDSection}
-                onClose={() => setShowXRD(false)}
+                mode="xrc"
+                initialSection="Overview"
+                notice={xrcNotice}
+                onClose={() => setShowXRCProfile(false)}
               />
             )}
             {xrcExplorer}
@@ -2209,8 +2249,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-xrd-mark { width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; border-radius:12px; background:linear-gradient(140deg,#b5f35c,#65a30d); color:#101907; font-size:calc((12px) + 1px); font-weight:950; }
         .upm-xrd-card .upm-verification-copy strong { font-size:calc((13px) + 1px); }
         .upm-xrd-card .upm-verification-copy small { color:#929b8d; white-space:normal; }
-        .upm-xrd-open { width:100%; min-height:34px; display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px; border:0; border-radius:999px; background:linear-gradient(135deg,#b5f35c,#84cc16); color:#101907; font-size:calc((10px) + 1px); font-weight:900; cursor:pointer; }
+        .upm-xrd-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px; }
+        .upm-xrd-open { width:100%; min-width:0; min-height:34px; display:flex; align-items:center; justify-content:center; gap:5px; border:0; border-radius:999px; background:linear-gradient(135deg,#b5f35c,#84cc16); color:#101907; font-size:calc((10px) + 1px); font-weight:900; cursor:pointer; }
         .upm-xrd-open:hover { filter:brightness(1.08); }
+        .upm-xrd-share { width:100%; min-width:0; min-height:34px; display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid rgba(163,230,53,.28); border-radius:999px; background:rgba(163,230,53,.06); color:#c8f590; font-size:calc((10px) + 1px); font-weight:800; cursor:pointer; }
+        .upm-xrd-share:hover { background:rgba(163,230,53,.12); }
+        .upm-xrd-share-status { margin:6px 0 0; color:#a3e635; font-size:11px; text-align:center; }
+        @media(max-width:380px){.upm-xrd-actions{grid-template-columns:minmax(0,1fr)}}
         .upm-xrd-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:9px; }
         .upm-xrd-stats > div { min-height:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:1px solid #242a23; border-radius:11px; background:rgba(0,0,0,.72); }
         .upm-xrd-stats strong { color:#f1f4ec; font-size:calc((17px) + 1px); line-height:1.1; }

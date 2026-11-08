@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   AlertTriangle, ArrowRight, BadgeCheck, Check, ChevronDown,
-  CircleHelp, Clock3, Download, FileCheck2, FileText, Github, Link2,
+  CircleHelp, Clock3, Download, FileCheck2, FileText, GitBranch, Github, Link2,
   LoaderCircle, Plus, RefreshCw, ShieldCheck, Unplug, WifiOff,
 } from "lucide-react";
 import { buildPortableXrdPortfolio, downloadPortableXrdPortfolio } from "../../services/evidence/xrdPortableCredential";
@@ -50,6 +50,7 @@ const XRDClaimsSection = ({
   onCreateClaim,
   onRunSourceCheck,
   onOpenEvidence,
+  onOpenXRC,
 }) => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [recordType, setRecordType] = useState("contribution");
@@ -164,7 +165,7 @@ const XRDClaimsSection = ({
         .xrd-claim-main{flex:1;min-width:0}.xrd-claim-top{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.xrd-claim-top h4{margin:0;color:#e7eee2;font-size:12px;font-weight:800;line-height:1.4}.xrd-claim-type{display:block;margin-top:3px;color:#747e70;font:650 8px/1.4 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}.xrd-claim-state{flex:none;padding:4px 7px;border:1px solid rgba(251,191,36,.24);border-radius:99px;background:rgba(251,191,36,.045);color:#fcd34d;font:700 8px/1.2 ui-monospace,monospace;text-transform:uppercase}
         .xrd-claim-body{margin:9px 0 0;color:#b8c2b2;font-size:11px;line-height:1.55}.xrd-claim-professional-details{margin:5px 0 0;color:#9eae94;font-size:10px;line-height:1.45}.xrd-claim-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.xrd-claim-meta span{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #252b24;border-radius:6px;color:#8f9a89;background:#050705;font-size:8px}.xrd-claim-meta svg{color:#a3e635}
         .xrd-claim-expand{display:flex;align-items:center;gap:5px;margin-left:auto;border:0;background:transparent;color:#91a187;font-size:9px;font-weight:700;cursor:pointer}.xrd-claim-expand svg{transition:transform .15s}.xrd-claim-expand[aria-expanded="true"] svg{transform:rotate(180deg)}
-        .xrd-claim-detail{padding:0 13px 13px 57px}.xrd-claim-path{display:grid;gap:0;margin-top:2px}.xrd-claim-path-row{position:relative;display:grid;grid-template-columns:13px minmax(0,1fr);gap:8px;min-height:23px;color:#9da897;font-size:9px;line-height:1.45}.xrd-claim-path-row:not(:last-child):before{position:absolute;top:10px;bottom:-3px;left:4px;width:1px;background:#353d32;content:""}.xrd-claim-path-row i{z-index:1;width:9px;height:9px;margin-top:2px;border:1.5px solid #789355;border-radius:50%;background:#070907}.xrd-claim-path-row.is-evidence i{border-color:#60a5fa}.xrd-claim-path-row.is-check i{border-color:#fbbf24}
+        .xrd-claim-detail{padding:0 13px 13px 57px}.xrd-claim-path{display:grid;gap:0;margin-top:2px}.xrd-claim-path-row{position:relative;display:grid;grid-template-columns:13px minmax(0,1fr);gap:8px;min-height:23px;color:#9da897;font-size:9px;line-height:1.45}.xrd-claim-path-row:not(:last-child):before{position:absolute;top:10px;bottom:-3px;left:4px;width:1px;background:#353d32;content:""}.xrd-claim-path-row i{z-index:1;width:9px;height:9px;margin-top:2px;border:1.5px solid #789355;border-radius:50%;background:#070907}.xrd-claim-path-row.is-evidence i{border-color:#60a5fa}.xrd-claim-path-row.is-check i{border-color:#fbbf24}.xrd-claim-project-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 9px;border:1px solid rgba(163,230,53,.28);border-radius:8px;background:rgba(163,230,53,.05);color:#c8f590;font-size:9px;font-weight:800;text-decoration:none}.xrd-claim-project-link:hover{border-color:rgba(163,230,53,.6);background:rgba(163,230,53,.1)}
         .xrd-claim-check{display:flex;align-items:flex-start;gap:7px;margin-top:10px;padding:9px;border:1px solid #252b24;border-radius:8px;background:#060806;color:#a8b2a1;font-size:9px;line-height:1.5}.xrd-claim-check svg{flex:none;margin-top:1px}.xrd-claim-check.tone-good svg{color:#a3e635}.xrd-claim-check.tone-warn svg{color:#fbbf24}.xrd-claim-check.tone-neutral svg{color:#8aa2bf}
         .xrd-claim-card-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.xrd-claim-card-actions button{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid #2c3429;border-radius:7px;background:#050705;color:#bfccb8;font-size:9px;font-weight:700;cursor:pointer}.xrd-claim-card-actions button:hover{border-color:rgba(163,230,53,.45);color:#d9f99d}.xrd-claim-card-actions button:disabled{opacity:.55;cursor:wait}
         .xrd-claim-empty,.xrd-claim-loading,.xrd-claim-error-state{display:grid;justify-items:center;gap:8px;min-height:115px;align-content:center;padding:18px;border:1px dashed #30372e;border-radius:11px;text-align:center;background:rgba(0,0,0,.24)}.xrd-claim-empty svg,.xrd-claim-loading svg,.xrd-claim-error-state svg{color:#8b9784}.xrd-claim-empty strong,.xrd-claim-loading strong,.xrd-claim-error-state strong{color:#dce5d7;font-size:11px}.xrd-claim-empty p,.xrd-claim-loading p,.xrd-claim-error-state p{max-width:42ch;margin:0;color:#7f897b;font-size:9px;line-height:1.5}.xrd-claim-loading svg{animation:xrdClaimsSpin .9s linear infinite}@keyframes xrdClaimsSpin{to{transform:rotate(360deg)}}
@@ -249,6 +250,14 @@ const XRDClaimsSection = ({
             const checkInfo = latestCheck && SOURCE_CHECK_COPY[latestCheck.result_status];
             const CheckIcon = checkInfo?.[0];
             const details = claim.structured_claim || {};
+            const projectUrl = (() => {
+              try {
+                const parsed = new URL(details.projectUrl);
+                return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : null;
+              } catch {
+                return null;
+              }
+            })();
             const dateRange = [details.startDate, details.endDate].filter(Boolean).join(" – ");
             const professionalDetails = [details.role, details.organization, dateRange].filter(Boolean);
             const linkedEvidence = (claim.evidence_links || []).map((link) => ({
@@ -275,8 +284,12 @@ const XRDClaimsSection = ({
                   {latestCheck && <div className="xrd-claim-path-row is-check"><i /><span>Source observation · {latestCheck.provider} · {latestCheck.result_status}</span></div>}
                   {claim.latest_audit_event && <div className="xrd-claim-path-row"><i /><span>XRD audit event · {claim.latest_audit_event.event_type}</span></div>}
                 </div>
+                {projectUrl && <a className="xrd-claim-project-link" href={projectUrl} target="_blank" rel="noreferrer"><Link2 size={12} />Open project or portfolio <ArrowRight size={11} /></a>}
                 {linkedEvidence.map((link) => <div className="xrd-claim-check tone-neutral" key={`detail-${link.id}`}><Link2 size={12} /><span>{link.relation === "supports" ? "Linked as supporting evidence" : "Linked as contradicting evidence"}: {link.item.summary || link.item.title || "Source observation"}. This stored relationship does not independently verify the claim.</span></div>)}
-                <div className="xrd-claim-card-actions"><button type="button" onClick={() => onOpenEvidence?.(linkedEvidence[0]?.item)} disabled={!linkedEvidence[0]?.item}><ArrowRight size={11} />Open linked evidence</button></div>
+                <div className="xrd-claim-card-actions">
+                  <button type="button" onClick={() => onOpenEvidence?.(linkedEvidence[0]?.item)} disabled={!linkedEvidence[0]?.item}><ArrowRight size={11} />Open linked evidence</button>
+                  {onOpenXRC && <button type="button" onClick={() => onOpenXRC(claim)}><GitBranch size={11} />Inspect provenance in XRC</button>}
+                </div>
               </div>}
             </article>;
           })}</div>}

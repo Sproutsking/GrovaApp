@@ -95,6 +95,17 @@ const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboard"));
 // ── Public Pages (no auth required) ──────────────────────────────────────────
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const PublicXrdSharePage = lazy(() => import("./pages/PublicXrdSharePage"));
+const XrcProfileRoute = lazy(() => import("./pages/XrcProfileRoute"));
+const XRC_AUTH_RETURN_KEY = "xeevia:xrc-auth-return";
+
+const decodeRouteSegment = (segment) => {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return "";
+  }
+};
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
@@ -1728,6 +1739,42 @@ function AppRouter() {
   const hasStartupSession = Boolean(user && profile);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const publicXrdMatch = pathname.match(/^\/xrd\/([^/]+)\/?$/);
+  const xrcProfileMatch = pathname.match(/^\/xrc\/([^/]+)\/?$/);
+
+  useEffect(() => {
+    if (!xrcProfileMatch || user || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        XRC_AUTH_RETURN_KEY,
+        `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      );
+    } catch (error) {
+      console.error("[XRC] Could not preserve the deep link through sign-in:", error);
+    }
+  }, [pathname, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") return;
+    try {
+      const destination = window.sessionStorage.getItem(XRC_AUTH_RETURN_KEY);
+      if (!destination) return;
+      const parsed = new URL(destination, window.location.origin);
+      if (parsed.origin !== window.location.origin || !/^\/xrc\/[^/]+\/?$/.test(parsed.pathname)) {
+        window.sessionStorage.removeItem(XRC_AUTH_RETURN_KEY);
+        return;
+      }
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (currentPath === destination) {
+        window.sessionStorage.removeItem(XRC_AUTH_RETURN_KEY);
+        return;
+      }
+      window.sessionStorage.removeItem(XRC_AUTH_RETURN_KEY);
+      window.location.replace(`${parsed.pathname}${parsed.search}${parsed.hash}`);
+    } catch (error) {
+      console.error("[XRC] Could not restore the deep link after sign-in:", error);
+    }
+  }, [pathname, user?.id]);
 
   useEffect(() => {
     if (!hasStartupSession) return undefined;
@@ -1783,6 +1830,14 @@ function AppRouter() {
 
   if (pathname === "/auth/link-callback") return <LinkIdentityCallback />;
 
+  if (publicXrdMatch) {
+    return (
+      <Suspense fallback={<Splash />}>
+        <PublicXrdSharePage username={decodeRouteSegment(publicXrdMatch[1])} currentUser={user} />
+      </Suspense>
+    );
+  }
+
   if (loading) {
     return authLoadStalled
       ? (
@@ -1796,6 +1851,13 @@ function AppRouter() {
       : <Splash />;
   }
   if (!user) return <AuthWall />;
+  if (xrcProfileMatch) {
+    return (
+      <Suspense fallback={<Splash />}>
+        <XrcProfileRoute username={decodeRouteSegment(xrcProfileMatch[1])} currentUser={user} />
+      </Suspense>
+    );
+  }
   if (!profile && !profileLoadError) return <Splash />;
   if (!profile) {
     return (

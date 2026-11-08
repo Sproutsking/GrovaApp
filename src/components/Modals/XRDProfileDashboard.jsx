@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import {
-  Activity, ArrowLeft, BadgeCheck, BookOpen, Briefcase, CheckCircle2,
+  Activity, ArrowLeft, BadgeCheck, BookOpen, Briefcase,
   ChevronRight, Clock, Database, FileCheck2, FileText, Fingerprint,
   GitBranch, GraduationCap, Images, Layers3, LockKeyhole, MessageSquareQuote, MoreHorizontal, Network, Search, Send, X,
   Shield, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
-import xrcService, { STREAM_TYPES, XRC_EVENTS } from "../../services/xrc";
+import xrcService, { STREAM_REGISTRY, STREAM_TYPES, XRC_EVENTS } from "../../services/xrc";
+import { computeGenesisHash, verifyRecordHash } from "../../services/xrc/hashing";
 import evidenceService from "../../services/evidence/evidenceService";
 import xrdRecordService, { compareEvidenceSnapshot } from "../../services/evidence/xrdRecordService";
 import { getVisibleXrdBindings } from "../../services/evidence/xrdGraphModel";
@@ -16,14 +17,17 @@ import socialConnectService from "../../services/distribution/socialConnectServi
 import { useAccountLinking } from "../../contexts/AccountLinkingContext";
 import { getRegisteredConnectors, syncUserConnectorEvidence } from "../../services/evidence/connectorService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import XRDPrototypePreview from "./XRDPrototypePreview";
 import XRDClaimsSection from "./XRDClaimsSection";
+const EMPTY_VERIFICATION_ITEMS = [];
+
 const NAV = [
   ["Overview", Layers3],
   ["Identity", Fingerprint],
   ["Records", FileText],
   ["Evidence", FileCheck2],
   ["Graph", Network],
+  ["Chains", GitBranch],
+  ["Activity", Activity],
   ["Verification", ShieldCheck],
   ["Sources", Database],
   ["Projects", Briefcase],
@@ -43,7 +47,19 @@ const NAV_GROUPS = [
   ["CONTROL", ["Permissions", "Audit", "Oracle", "Settings"]],
 ];
 
-const OWNER_ONLY = new Set(["Audit", "Permissions", "Settings"]);
+export const XRC_NAV_GROUPS = [
+  ["CORE", ["Overview", "Identity"]],
+  ["PROVENANCE", ["Records", "Evidence", "Graph", "Chains"]],
+  ["OBSERVABILITY", ["Activity", "Verification", "Sources"]],
+];
+
+const XRC_SECTIONS = new Set(XRC_NAV_GROUPS.flatMap(([, sections]) => sections));
+const OWNER_ONLY = new Set(["Audit", "Permissions", "Remarks", "Settings"]);
+
+export const resolveXrcInitialSection = (section = "Overview") => (
+  XRC_SECTIONS.has(section) ? section : "Overview"
+);
+
 export const SOURCE_PLATFORMS = [
   ["github", "GitHub"], ["linkedin", "LinkedIn"], ["x", "X"], ["facebook", "Facebook"],
   ["instagram", "Instagram"], ["google", "Google"], ["discord", "Discord"], ["tiktok", "TikTok"], ["apple", "Apple"],
@@ -52,7 +68,7 @@ export const SOURCE_PLATFORMS = [
 const SETTING_GROUPS = {
   Visibility: ["Default visibility for new records", "Show record counts to visitors", "Hide restricted records from search"],
   "Record Display": ["Pin selected records first", "Show evidence counts publicly", "Show provenance where permitted"],
-  Remarks: ["Allow people to request remark access", "Show remarks publicly", "Enable owner responses", "Require evidence for remarks", "Show contested remarks publicly"],
+  Remarks: ["Allow people to request remark access", "Enable owner responses", "Require evidence for remarks", "Show contested remarks in owner review"],
   Verification: ["Allow public verification checks", "Show verification history", "Notify me when a record is verified"],
   Connections: ["Show connection-only records to followers", "Allow connections to request evidence"],
   Permissions: ["Require approval for evidence access", "Allow verifiers to view restricted records"],
@@ -87,7 +103,7 @@ const countBySource = (items) => {
 
 const normalizeStatus = (item) => {
   if (item?.metadata?.status) return String(item.metadata.status);
-  return item?.verified ? "Verified" : "Tracked";
+  return item?.verified ? "Source-reported" : "Tracked";
 };
 
 export const getXrdProfileAvatarCandidates = (profile) => {
@@ -272,7 +288,7 @@ const XrdPhotoImage = ({ source }) => {
 
 const graphHashKey = (value) => String(value || "").trim().toLowerCase();
 
-export function XrdEvidenceGraph({ items, edges, profile, connections = [], bindings = [], claims = [], records = [], auditResult = {}, traceResult = {}, onPick, onOpenVerification, onVerifyRecord, onTraceRecord, onOpenIdentity, onOpenClaims }) {
+export function XrdEvidenceGraph({ items, edges, profile, connections = [], bindings = [], claims = [], records = [], auditResult = {}, traceResult = {}, focusEvidenceId = null, onPick, onOpenVerification, onVerifyRecord, onTraceRecord, onOpenIdentity, onOpenClaims }) {
   const [layer, setLayer] = useState("All");
   const [selected, setSelected] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
@@ -287,7 +303,20 @@ export function XrdEvidenceGraph({ items, edges, profile, connections = [], bind
   const didDrag = useRef(false);
   const suppressClick = useRef(false);
   const cx = 480, cy = 300;
-  const visibleItems = items.slice(0, 32);
+  const visibleItems = [...items].sort((left, right) => (
+    Number(right.id === focusEvidenceId) - Number(left.id === focusEvidenceId)
+  )).slice(0, 32);
+  useEffect(() => {
+    if (!focusEvidenceId) return;
+    setLayer("All");
+    setSelected(focusEvidenceId);
+    setSelectedEdgeId(null);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  }, [focusEvidenceId]);
   const connectionByProvider = new Map(connections.map((connection) => [String(connection.provider || "").toLowerCase(), connection]));
   const providerLabels = new Map();
   visibleItems.forEach((item) => {
@@ -573,8 +602,13 @@ const XRDProfileDashboard = ({
   profile,
   currentUser,
   targetId,
-  verificationItems = [],
+  verificationItems = EMPTY_VERIFICATION_ITEMS,
+  mode = "xrd",
   initialSection = "Overview",
+  notice = "",
+  publicSnapshot = null,
+  xrdRecordId = null,
+  onOpenXRC,
   onClose,
 }) => {
   const { openAccountLink } = useAccountLinking();
@@ -584,30 +618,34 @@ const XRDProfileDashboard = ({
   const publicPreview = own && ownerView === "public";
   const canManage = own && !publicPreview;
   const isPublicAudience = !canManage;
-  const requestedInitialSection = resolveXrdInitialSection(initialSection);
+  const isXrcView = mode === "xrc";
+  const navigationGroups = isXrcView ? XRC_NAV_GROUPS : NAV_GROUPS;
+  const requestedInitialSection = isXrcView ? resolveXrcInitialSection(initialSection) : resolveXrdInitialSection(initialSection);
   const [section, setSection] = useState(!canManage && OWNER_ONLY.has(requestedInitialSection) ? "Overview" : requestedInitialSection);
   const [sectionHistory, setSectionHistory] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [records, setRecords] = useState([]);
-  const [xrdClaims, setXrdClaims] = useState([]);
+  const [xrdClaims, setXrdClaims] = useState(() => publicSnapshot?.claims || []);
   const [xrdClaimsLoading, setXrdClaimsLoading] = useState(false);
   const [xrdClaimsError, setXrdClaimsError] = useState("");
   const [xrdClaimsNotice, setXrdClaimsNotice] = useState("");
-  const [identityBindings, setIdentityBindings] = useState([]);
+  const [identityBindings, setIdentityBindings] = useState(() => publicSnapshot?.bindings || []);
   const [identityBindingsError, setIdentityBindingsError] = useState("");
   const [securityEvents, setSecurityEvents] = useState([]);
   const [securityEventsLoading, setSecurityEventsLoading] = useState(false);
   const [securityEventsError, setSecurityEventsError] = useState("");
   const [expandedAuditEvent, setExpandedAuditEvent] = useState(null);
   const [evidenceItems, setEvidenceItems] = useState(verificationItems);
+  const [authorizedEvidenceIds, setAuthorizedEvidenceIds] = useState([]);
   const [evidenceEdges, setEvidenceEdges] = useState([]);
   const [edgesError, setEdgesError] = useState("");
   const [selectedEvidence, setSelectedEvidence] = useState(null);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [visibilityError, setVisibilityError] = useState("");
-  const [recordsLoading, setRecordsLoading] = useState(own);
+  const [recordsLoading, setRecordsLoading] = useState(own || mode === "xrc");
   const [recordsError, setRecordsError] = useState("");
   const [filter, setFilter] = useState("");
+  const [xrcStreamFilter, setXrcStreamFilter] = useState("");
   const [auditResult, setAuditResult] = useState({});
   const [verificationTargetId, setVerificationTargetId] = useState(null);
   const [sourceChecks, setSourceChecks] = useState({});
@@ -616,7 +654,10 @@ const XRDProfileDashboard = ({
   const [accessRequestsLoading, setAccessRequestsLoading] = useState(false);
   const [accessRequestsError, setAccessRequestsError] = useState("");
   const [accessRequestStatus, setAccessRequestStatus] = useState("");
+  const [accessRequestMessage, setAccessRequestMessage] = useState("");
+  const [accessRequestOpen, setAccessRequestOpen] = useState(false);
   const [accessRequestBusy, setAccessRequestBusy] = useState(false);
+  const [focusedEvidenceId, setFocusedEvidenceId] = useState(null);
   const [grantSelections, setGrantSelections] = useState({});
   const [accessNotice, setAccessNotice] = useState("");
   const [traceResult, setTraceResult] = useState({});
@@ -642,7 +683,7 @@ const XRDProfileDashboard = ({
   const [identitySaving, setIdentitySaving] = useState(false);
   const [identityNotice, setIdentityNotice] = useState("");
   const [identityDetails, setIdentityDetails] = useState(() => getXrdIdentityDetails());
-  const [publicIdentityDetails, setPublicIdentityDetails] = useState(() => getXrdIdentityDetails());
+  const [publicIdentityDetails, setPublicIdentityDetails] = useState(() => getXrdIdentityDetails(publicSnapshot?.identityDetails));
   const [identitySavedVisibility, setIdentitySavedVisibility] = useState("private");
   const [identityVisibility, setIdentityVisibility] = useState("private");
   const [identityDetailsExists, setIdentityDetailsExists] = useState(false);
@@ -682,8 +723,10 @@ const XRDProfileDashboard = ({
     accessRequests,
     evidenceGrants,
     userPreferences,
+    grantedEvidenceIds: authorizedEvidenceIds,
   }, isPublicAudience), [
     accessRequests,
+    authorizedEvidenceIds,
     evidenceEdges,
     evidenceGrants,
     evidenceItems,
@@ -699,19 +742,21 @@ const XRDProfileDashboard = ({
     userPreferences,
     xrdClaims,
   ]);
-  const displayedEvidenceItems = publicProjection.evidenceItems;
+  const displayedEvidenceItems = publicProjection.evidenceItems || [];
   const displayedEvidenceIds = useMemo(() => new Set(displayedEvidenceItems.map((item) => item?.id).filter(Boolean)), [displayedEvidenceItems]);
-  const displayedClaims = useMemo(() => isPublicAudience
-    ? publicProjection.claims
-    : own ? xrdClaims : xrdClaims.map((claim) => ({
+  const displayedClaims = useMemo(() => {
+    const claims = isPublicAudience
+      ? publicProjection.claims
+      : own ? xrdClaims : xrdClaims.map((claim) => ({
       ...claim,
       evidence_links: (Array.isArray(claim.evidence_links) ? claim.evidence_links : [])
         .filter((link) => displayedEvidenceIds.has(link?.evidence_item_id)),
-    })),
-  [displayedEvidenceIds, own, isPublicAudience, publicProjection.claims, xrdClaims]);
-  const displayedBindings = isPublicAudience
+      }));
+    return claims || [];
+  }, [displayedEvidenceIds, own, isPublicAudience, publicProjection.claims, xrdClaims]);
+  const displayedBindings = (isPublicAudience
     ? publicProjection.bindings
-    : own ? identityBindings : identityBindings.filter((binding) => String(binding?.visibility || "").toLowerCase() === "public");
+    : own ? identityBindings : identityBindings.filter((binding) => String(binding?.visibility || "").toLowerCase() === "public")) || [];
   const displayedEdges = isPublicAudience
     ? publicProjection.edges
     : evidenceEdges.filter((edge) => displayedEvidenceIds.has(edge?.source_id) && displayedEvidenceIds.has(edge?.target_id));
@@ -722,7 +767,9 @@ const XRDProfileDashboard = ({
     () => publicPreview ? [] : own ? sourceConnections : [],
     [own, publicPreview, sourceConnections],
   );
-  const displayedRecords = publicPreview ? [] : own ? records : [];
+  const displayedRecords = isXrcView
+    ? records || []
+    : publicPreview ? [] : own ? records || [] : [];
   const displayedIdentityDetails = canManage ? identityDetails : publicProjection.identityDetails;
 
   useEffect(() => {
@@ -767,46 +814,52 @@ const XRDProfileDashboard = ({
   }, [own, targetId]);
 
   const loadRecords = useCallback(async () => {
-    if (!own) return;
+    if (!targetId || (!own && !isXrcView)) return;
     setRecordsLoading(true);
     setRecordsError("");
     try {
-      const { data, error } = await supabase
-        .from("xrc_records")
-        .select("record_id,stream_type,previous_hash,record_hash,actor_id,payload,timestamp,version,created_at")
-        .eq("actor_id", targetId)
-        .order("timestamp", { ascending: false })
-        .limit(100);
+      const { data, error } = own
+        ? await supabase
+          .from("xrc_records")
+          .select("*")
+          .eq("actor_id", targetId)
+          .order("timestamp", { ascending: false })
+          .limit(100)
+        : await supabase.rpc("get_xrd_public_xrc_events", {
+          p_profile_id: targetId,
+          p_xrd_record_id: xrdRecordId,
+        });
       if (error) throw error;
       setRecords(data || []);
     } catch (error) {
-      console.error("[XRD] Could not load the owner's XRC records:", error);
-      setRecordsError(error?.message || "XRC records could not be loaded.");
+      console.error("[XRC] Could not load the available record history:", error);
+      setRecordsError(error?.message || "XRC records could not be loaded. Apply the XRC public-record migration and retry.");
     } finally {
       setRecordsLoading(false);
     }
-  }, [own, targetId]);
+  }, [isXrcView, own, targetId, xrdRecordId]);
 
   useEffect(() => {
     loadRecords();
   }, [loadRecords]);
 
   const loadXrdClaims = useCallback(async () => {
-    if (!targetId) return;
+    if (!targetId || publicSnapshot) return;
     setXrdClaimsLoading(true);
     setXrdClaimsError("");
     try {
       const claims = await xrdRecordService.listClaims(targetId, { includePrivateChecks: own });
+      if (!Array.isArray(claims)) throw new Error("XRD claims returned an invalid response.");
       setXrdClaims(claims);
     } catch (error) {
       setXrdClaimsError(error?.message || "XRD claims could not be loaded. Apply the XRD claim migration and retry.");
     } finally {
       setXrdClaimsLoading(false);
     }
-  }, [own, targetId]);
+  }, [own, publicSnapshot, targetId]);
 
   const loadIdentityBindings = useCallback(async () => {
-    if (!targetId) return;
+    if (!targetId || publicSnapshot) return;
     setIdentityBindingsError("");
     try {
       setIdentityBindings(await xrdRecordService.listIdentityBindings(targetId, { includePrivateDetails: own }));
@@ -815,12 +868,12 @@ const XRDProfileDashboard = ({
       setIdentityBindingsError(error?.message || "Identity bindings could not be loaded.");
       setIdentityBindings([]);
     }
-  }, [own, targetId]);
+  }, [own, publicSnapshot, targetId]);
 
   useEffect(() => {
-    if (!["Records", "Graph"].includes(section)) return undefined;
+    if (!["Overview", "Records", "Graph"].includes(section)) return undefined;
     loadXrdClaims();
-    loadIdentityBindings();
+    if (section !== "Overview") loadIdentityBindings();
     return undefined;
   }, [section, loadXrdClaims, loadIdentityBindings]);
 
@@ -868,6 +921,14 @@ const XRDProfileDashboard = ({
 
   useEffect(() => {
     if (section !== "Identity" || !targetId) return undefined;
+    if (publicSnapshot) {
+      const details = getXrdIdentityDetails(publicSnapshot.identityDetails);
+      setIdentityDetails(details);
+      setPublicIdentityDetails(details);
+      setIdentityDetailsExists(Object.values(details).some(Boolean));
+      setIdentityLoading(false);
+      return undefined;
+    }
     let active = true;
     setIdentityLoading(true);
     setIdentityNotice("");
@@ -892,7 +953,7 @@ const XRDProfileDashboard = ({
         if (active) setIdentityLoading(false);
       });
     return () => { active = false; };
-  }, [section, targetId, own]);
+  }, [section, targetId, own, publicSnapshot]);
 
   useEffect(() => {
     if (section !== "Remarks" || !targetId) return undefined;
@@ -958,12 +1019,32 @@ const XRDProfileDashboard = ({
     if ((section === "Records" || section === "Evidence") && !own && viewerId) {
       let active = true;
       setAccessRequestStatus("");
-      supabase.from("xrd_access_requests").select("status").eq("profile_id", targetId).eq("requester_id", viewerId).order("created_at", { ascending: false }).limit(1)
-        .then(({ data, error }) => {
-          if (error) throw error;
-          if (active && data?.[0]) setAccessRequestStatus(data[0].status);
-        })
-        .catch(() => {});
+      setAccessRequestsError("");
+      Promise.all([
+        supabase.from("xrd_access_requests").select("status,message,responded_at,created_at")
+          .eq("profile_id", targetId).eq("requester_id", viewerId)
+          .order("created_at", { ascending: false }).limit(1),
+        supabase.from("xrd_evidence_grants").select("evidence_item_id")
+          .eq("profile_id", targetId).eq("viewer_id", viewerId),
+      ]).then(async ([requestResult, grantsResult]) => {
+        if (requestResult.error) throw requestResult.error;
+        if (grantsResult.error) throw grantsResult.error;
+        if (!active) return;
+        const request = requestResult.data?.[0] || null;
+        setAccessRequestStatus(request?.status || "");
+        setAccessRequestMessage(request?.status === "pending" ? request.message || "" : "");
+        const grantedIds = (grantsResult.data || []).map((grant) => grant.evidence_item_id).filter(Boolean);
+        if (grantedIds.length) {
+          setAuthorizedEvidenceIds(grantedIds);
+          const grantedEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+          if (active) setEvidenceItems(grantedEvidence);
+        } else {
+          setAuthorizedEvidenceIds([]);
+        }
+      }).catch((error) => {
+        console.error("[XRD] Evidence access state could not be loaded:", error);
+        if (active) setAccessRequestsError(error?.message || "Evidence access state could not be loaded.");
+      });
       return () => { active = false; };
     }
     return undefined;
@@ -1279,20 +1360,55 @@ const XRDProfileDashboard = ({
   };
 
   const requestEvidenceAccess = async () => {
+    const message = accessRequestMessage.trim();
     if (!viewerId || !targetId || accessRequestBusy) return;
+    if (message.length < 5) {
+      setAccessRequestsError("Please add a short reason of at least five characters.");
+      return;
+    }
     setAccessRequestBusy(true);
+    setAccessRequestsError("");
     setAccessNotice("");
     try {
-      const { error } = await supabase.from("xrd_access_requests").insert({
+      const { data, error } = await supabase.from("xrd_access_requests").insert({
         profile_id: targetId,
         requester_id: viewerId,
-        message: "Please review whether you can share private evidence with me.",
-      });
+        message,
+      }).select("status,message").single();
       if (error) throw error;
-      setAccessRequestStatus("pending");
-      setAccessNotice("Access request sent to the profile owner.");
+      setAccessRequestStatus(data?.status || "pending");
+      setAccessRequestMessage(data?.message || message);
+      setAccessRequestOpen(false);
+      setAccessNotice("Your request was sent. The owner chooses which evidence, if any, to share.");
     } catch (error) {
-      setAccessNotice(error?.message || "Access request could not be sent.");
+      console.error("[XRD] Evidence access request failed:", error);
+      setAccessRequestsError(error?.message || "Access request could not be sent.");
+    } finally {
+      setAccessRequestBusy(false);
+    }
+  };
+
+  const loadGrantedEvidence = async () => {
+    if (!viewerId || !targetId || accessRequestBusy) return;
+    setAccessRequestBusy(true);
+    setAccessRequestsError("");
+    setAccessNotice("");
+    try {
+      const { data: grants, error } = await supabase.from("xrd_evidence_grants")
+        .select("evidence_item_id")
+        .eq("profile_id", targetId)
+        .eq("viewer_id", viewerId);
+      if (error) throw error;
+      const grantedIds = (grants || []).map((grant) => grant.evidence_item_id).filter(Boolean);
+      const evidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setAuthorizedEvidenceIds(grantedIds);
+      setEvidenceItems(evidence);
+      setAccessNotice(grantedIds.length
+        ? `${grantedIds.length} evidence item${grantedIds.length === 1 ? "" : "s"} shared with you are now available.`
+        : "The owner has not shared any evidence with this request yet.");
+    } catch (error) {
+      console.error("[XRD] Granted evidence could not be refreshed:", error);
+      setAccessRequestsError(error?.message || "Granted evidence could not be refreshed.");
     } finally {
       setAccessRequestBusy(false);
     }
@@ -1406,13 +1522,6 @@ const XRDProfileDashboard = ({
       return left.provider.localeCompare(right.provider);
     });
   }, [displayedEvidenceItems, displayedSourceConnections]);
-  const verifiedCount = displayedEvidenceItems.filter((item) => item?.verified).length;
-  const institutionCount = new Set(displayedEvidenceItems
-    .filter((item) => ["institution", "organization"].includes(String(
-      item?.entity_type || item?.entityType || item?.metadata?.entityType || item?.metadata?.entity_type || "",
-    ).toLowerCase()))
-    .map((item) => item?.provider || item?.metadata?.institution || item?.title)
-    .filter(Boolean)).size;
   const filteredEvidence = useMemo(() => {
     const term = filter.trim().toLowerCase();
     if (!term) return displayedEvidenceItems;
@@ -1480,8 +1589,18 @@ const XRDProfileDashboard = ({
   const navigateSection = (nextSection) => {
     if (!nextSection || nextSection === section) return;
     setSelectedEvidence(null);
+    setFocusedEvidenceId(null);
     setSectionHistory((previous) => [...previous, section]);
     setSection(nextSection);
+  };
+  const navigateToEvidenceGraph = (item) => {
+    if (!item?.id) return;
+    setSelectedEvidence(null);
+    setFocusedEvidenceId(item.id);
+    if (section !== "Graph") {
+      setSectionHistory((previous) => [...previous, section]);
+      setSection("Graph");
+    }
   };
   const switchOwnerView = (nextView) => {
     if (nextView === ownerView) return;
@@ -1502,6 +1621,7 @@ const XRDProfileDashboard = ({
   };
   const openEvidenceVerification = (item) => {
     setVerificationTargetId(item?.id || null);
+    setSelectedEvidence(null);
     if (section === "Verification") return;
     navigateSection("Verification");
   };
@@ -1516,12 +1636,24 @@ const XRDProfileDashboard = ({
   const checkRecord = async (recordId) => {
     setAuditResult((previous) => ({ ...previous, [recordId]: { loading: true } }));
     try {
-      const result = await xrcService.verifyRecord(recordId);
+      const result = isXrcView && !own
+        ? (() => {
+          const record = records.find((item) => item.record_id === recordId);
+          return record
+            ? verifyRecordHash(record).then((valid) => ({
+              status: valid ? "valid" : "modified",
+              record,
+              message: valid ? "The public XRC event record hash matches its disclosed data." : "The record hash does not match its disclosed data.",
+            }))
+            : Promise.reject(new Error("This public XRC record is no longer available."));
+        })()
+        : xrcService.verifyRecord(recordId);
+      const verifiedResult = await result;
       setAuditResult((previous) => ({
         ...previous,
-        [recordId]: result?.error
-          ? { error: result.error }
-          : { result },
+        [recordId]: verifiedResult?.error
+          ? { error: verifiedResult.error }
+          : { result: verifiedResult },
       }));
     } catch (error) {
       console.error("[XRD] Record integrity check failed:", error);
@@ -1532,7 +1664,30 @@ const XRDProfileDashboard = ({
   const traceRecord = async (recordId) => {
     setTraceResult((previous) => ({ ...previous, [recordId]: { loading: true } }));
     try {
-      const result = await xrcService.traceHistory(recordId);
+      let result;
+      if (isXrcView && !own) {
+        const byHash = new Map(records.map((record) => [record.record_hash, record]));
+        const chain = [];
+        let current = records.find((record) => record.record_id === recordId);
+        let parentUnavailable = false;
+        let reachedGenesis = false;
+        while (current && !chain.some((record) => record.record_id === current.record_id)) {
+          chain.push(current);
+          if (current.previous_hash === await computeGenesisHash(current.stream_type)) {
+            reachedGenesis = true;
+            break;
+          }
+          const parent = byHash.get(current.previous_hash);
+          if (!parent) {
+            parentUnavailable = true;
+            break;
+          }
+          current = parent;
+        }
+        result = { chain, depth: chain.length, reachedGenesis, parentUnavailable };
+      } else {
+        result = await xrcService.traceHistory(recordId);
+      }
       setTraceResult((previous) => ({ ...previous, [recordId]: { result } }));
     } catch (error) {
       setTraceResult((previous) => ({ ...previous, [recordId]: { error: error?.message || "Record history could not be traced." } }));
@@ -1608,7 +1763,173 @@ const XRDProfileDashboard = ({
     </button>
   );
 
+  const renderAccessRequestPanel = () => {
+    if (own) return null;
+    return (
+      <>
+        <style>{`.xrd-root .xrd-access-request-form{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:min(100%,360px)}.xrd-root .xrd-access-request-form label{color:#bac5b4;font-size:10px;font-weight:800}.xrd-root .xrd-access-request-form textarea{width:100%;min-height:74px;padding:9px 10px;border:1px solid #30372e;border-radius:8px;background:#050705;color:#e8eee4;font:inherit;font-size:11px;resize:vertical}.xrd-root .xrd-access-request-form textarea:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-root .xrd-access-request-form>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.xrd-root .xrd-access-request-form small{color:#788372;font-size:9px}.xrd-root .xrd-access-request-form>div>span{display:flex;gap:6px}.xrd-root .xrd-access-request-form button{padding:7px 9px;border:1px solid rgba(163,230,53,.34);border-radius:8px;background:rgba(163,230,53,.08);color:var(--xrd-ac);font-size:9px;font-weight:900;cursor:pointer}.xrd-root .xrd-access-request-form button.is-secondary{border-color:var(--xrd-border);background:#070907;color:#a8b09f}.xrd-root .xrd-access-request-form button:disabled{opacity:.5;cursor:wait}@media(max-width:620px){.xrd-root .xrd-access-request{align-items:stretch;flex-direction:column}.xrd-root .xrd-access-request-form{min-width:0}.xrd-root .xrd-access-request>button{align-self:flex-start}}`}</style>
+        {accessNotice && <div className="xrd-inline-success" role="status">{accessNotice}</div>}
+        {accessRequestsError && <div className="xrd-error" role="alert">{accessRequestsError}</div>}
+        <div className="xrd-panel xrd-access-request">
+          <div>
+            <span className="xrd-kicker">RESTRICTED EVIDENCE</span>
+            <h3>{accessRequestStatus === "approved" ? "Evidence access approved" : "Need more context?"}</h3>
+            <p>
+              {accessRequestStatus === "pending"
+                ? `Your request is pending${accessRequestMessage ? `: “${accessRequestMessage}”` : ""}. The owner decides which specific items to share.`
+                : accessRequestStatus === "approved"
+                  ? "The owner approved access. Refresh your shared evidence to see the records they selected."
+                  : accessRequestStatus === "denied"
+                    ? "The owner did not approve the previous request. You can make a new request with more context."
+                    : "Request specific evidence. The owner chooses exactly which records, if any, they share."}
+            </p>
+          </div>
+          {!viewerId
+            ? onOpenXRC
+              ? <button type="button" onClick={() => onOpenXRC(null, "Evidence")}>Sign in to request access</button>
+              : <span className="xrd-access-state">Sign in to Xeevia to request access</span>
+            : accessRequestStatus === "pending"
+              ? <span className="xrd-access-state">Request pending</span>
+              : accessRequestStatus === "approved"
+                ? <button type="button" disabled={accessRequestBusy} onClick={loadGrantedEvidence}>{accessRequestBusy ? "Loading…" : "Load shared evidence"}</button>
+                : accessRequestOpen
+                  ? <form className="xrd-access-request-form" onSubmit={(event) => { event.preventDefault(); requestEvidenceAccess(); }}>
+                    <label htmlFor="xrd-access-request-message">What evidence do you need, and why?</label>
+                    <textarea id="xrd-access-request-message" minLength={5} maxLength={1000} required value={accessRequestMessage} onChange={(event) => setAccessRequestMessage(event.target.value)} placeholder="For example: Could you share the project evidence supporting this role?" />
+                    <div><small>{accessRequestMessage.trim().length}/1000</small><span><button type="button" className="is-secondary" disabled={accessRequestBusy} onClick={() => setAccessRequestOpen(false)}>Cancel</button><button type="submit" disabled={accessRequestBusy || accessRequestMessage.trim().length < 5}>{accessRequestBusy ? "Sending…" : "Send request"}</button></span></div>
+                  </form>
+                  : <button type="button" onClick={() => { setAccessRequestsError(""); setAccessRequestOpen(true); }}>{accessRequestStatus === "denied" ? "Request again" : "Request access"}</button>}
+        </div>
+      </>
+    );
+  };
+
+  const renderXrcRecordCards = (items) => items.length
+    ? <div className="xrd-record-list">{items.map((record) => {
+      const eventName = String(record.payload?.event || record.stream_type || "XRC event").replaceAll("_", " ");
+      const integrity = auditResult[record.record_id];
+      const trace = traceResult[record.record_id];
+      const payloadDetails = Object.entries(record.payload || {})
+        .filter(([key]) => !["event", "entity_type", "entity_id"].includes(key))
+        .slice(0, 4);
+      return (
+        <article className="xrd-record" key={record.record_id}>
+          <div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div>
+          <div className="xrd-record-body">
+            <div className="xrd-record-top">
+              <span className="xrd-record-title">{eventName}</span>
+              <span className="xrd-status">{record.stream_type}</span>
+            </div>
+            <div className="xrd-record-meta">{dateLabel(record.timestamp)} <i /> {record.payload?.entity_type || "chain event"} <i /> sequence {record.stream_sequence ?? "legacy"}</div>
+            <div className="xrd-hash">HASH · {record.record_hash || "Unavailable"}</div>
+            {payloadDetails.length > 0 && <div className="xrd-record-meta">{payloadDetails.map(([key, value]) => `${key.replaceAll("_", " ")}: ${typeof value === "string" ? value : JSON.stringify(value)}`).join(" · ")}</div>}
+            {(integrity?.result || integrity?.error) && <div className="xrd-integrity"><span>Hash integrity: <b>{integrity.error || integrity.result?.status || "not checked"}</b></span></div>}
+            {trace?.result && <div className="xrd-integrity"><span>Trace: <b>{trace.result.depth || 0} linked record{trace.result.depth === 1 ? "" : "s"}</b>{trace.result.reachedGenesis ? " · chain start reached" : trace.result.parentUnavailable ? " · parent outside this view" : trace.result.brokenLink ? " · broken parent link" : ""}</span></div>}
+            <div className="xrd-integrity-actions">
+              <button type="button" disabled={integrity?.loading} onClick={() => checkRecord(record.record_id)}>{integrity?.loading ? "Checking…" : "Check integrity"}</button>
+              <button type="button" disabled={trace?.loading} onClick={() => traceRecord(record.record_id)}>{trace?.loading ? "Tracing…" : "Trace chain"}</button>
+            </div>
+          </div>
+        </article>
+      );
+    })}</div>
+    : <EmptyState text="No XRC event records are available in this view." />;
+
   const renderSection = () => {
+    if (isXrcView && section === "Overview") {
+      const streamCount = new Set(displayedRecords.map((record) => record.stream_type)).size;
+      const latestRecords = [...displayedRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 4);
+      const xrcQuestions = [
+        ["WHAT WAS RECORDED?", "Inspect the event trail and its origin.", "Records", FileText],
+        ["WHAT SUPPORTS A CLAIM?", "Follow the public evidence relationships.", "Evidence", FileCheck2],
+        ["HOW IS IT CONNECTED?", "Explore profile, binding, claim, and evidence links.", "Graph", Network],
+        ["CAN THE CHAIN BE CHECKED?", "Recompute disclosed hashes and inspect parent links.", "Chains", GitBranch],
+      ];
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC · Chain of Chains" subtitle="A provenance network for recorded events, identity bindings, claims, evidence, and integrity proofs." />
+          {notice && own && <div className="xrd-notice" role="status">{notice}</div>}
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          <div className="xrd-stats">
+            {[[displayedRecords.length, "Disclosed events"], [streamCount, "Active streams"], [displayedClaims.length, "XRD claims"], [displayedEvidenceItems.length, "Evidence items"]].map(([value, label]) => <div className="xrd-stat" key={label}><strong>{recordsLoading ? "…" : value}</strong><span>{label}</span></div>)}
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">NETWORK MAP</span><h3>Evidence and provenance at a glance</h3></div><button type="button" onClick={() => navigateSection("Graph")}>Open graph <ChevronRight size={14} /></button></div>
+            {displayedEvidenceItems.length || displayedClaims.length || displayedBindings.length || displayedRecords.length
+              ? <XrdEvidenceGraph items={displayedEvidenceItems} edges={visibleEvidenceEdges} profile={photoProfile} connections={displayedSourceConnections} bindings={displayedBindings} claims={displayedClaims} records={displayedRecords} auditResult={auditResult} traceResult={traceResult} focusEvidenceId={focusedEvidenceId} onPick={setSelectedEvidence} onOpenVerification={openEvidenceVerification} onVerifyRecord={checkRecord} onTraceRecord={traceRecord} onOpenIdentity={() => navigateSection("Identity")} onOpenClaims={() => navigateSection("Records")} />
+              : <EmptyState text={recordsLoading ? "Loading available XRC records and public XRD context…" : "This profile has no XRC or public XRD network data to map yet."} />}
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">FOLLOW THE QUESTIONS</span><h3>Every relationship has a destination</h3></div></div>
+            <div className="xrd-question-grid">{xrcQuestions.map(([question, description, destination, Icon]) => <button type="button" key={question} onClick={() => navigateSection(destination)}><span className="xrd-question-icon"><Icon size={16} /></span><span><b>{question}</b><small>{description}</small></span><ChevronRight size={14} /></button>)}</div>
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">RECENT ACTIVITY</span><h3>Latest chain events</h3></div><button type="button" onClick={() => navigateSection("Activity")}>View activity <ChevronRight size={14} /></button></div>
+            {recordsLoading ? <div className="xrd-loading"><span />Loading XRC events…</div> : renderXrcRecordCards(latestRecords)}
+          </div>
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Records") {
+      const visibleRecords = displayedRecords.filter((record) => {
+        const searchText = `${record.stream_type} ${record.payload?.event || ""} ${record.payload?.entity_type || ""} ${record.record_id}`.toLowerCase();
+        return (!xrcStreamFilter || record.stream_type === xrcStreamFilter)
+          && (!filter || searchText.includes(filter.toLowerCase()));
+      });
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC records" subtitle="Each event is an immutable record with a content hash and a previous-record link. Hash integrity does not prove that the event's claim is true." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading XRC records…</div> : <>
+            <div className="xrd-graph-tools"><button type="button" className={!xrcStreamFilter ? "active" : ""} onClick={() => setXrcStreamFilter("")}>All streams</button>{Object.values(STREAM_TYPES).filter((stream) => displayedRecords.some((record) => record.stream_type === stream)).map((stream) => <button type="button" key={stream} className={xrcStreamFilter === stream ? "active" : ""} onClick={() => setXrcStreamFilter(stream)}>{stream}</button>)}</div>
+            <SearchBox value={filter} onChange={setFilter} placeholder="Filter XRC events, stream, or record ID" />
+            {visibleRecords.length ? renderXrcRecordCards(visibleRecords) : <EmptyState text="No XRC records match this filter." />}
+          </>}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Chains") {
+      const streams = Object.values(STREAM_TYPES).map((stream) => ({
+        stream,
+        info: STREAM_REGISTRY[stream],
+        records: displayedRecords.filter((record) => record.stream_type === stream),
+      })).filter(({ records: streamRecords }) => streamRecords.length);
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="Chain topology" subtitle="XRC partitions events into purpose-specific streams. A profile view only includes records permitted for this viewer." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading chain topology…</div> : streams.length ? <div className="xrd-record-list">{streams.map(({ stream, info, records: streamRecords }) => {
+            const latest = [...streamRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))[0];
+            return <article className="xrd-record" key={stream}><div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div><div className="xrd-record-body"><div className="xrd-record-top"><span className="xrd-record-title">{info?.label || stream}</span><span className="xrd-status">{stream}</span></div><p>{info?.description || "XRC event stream"}</p><div className="xrd-record-meta">{streamRecords.length} visible event{streamRecords.length === 1 ? "" : "s"} <i /> latest {dateLabel(latest?.timestamp)}</div><div className="xrd-hash">HEAD · {latest?.record_hash || "Unavailable"}</div><div className="xrd-integrity-actions"><button type="button" onClick={() => { setXrcStreamFilter(stream); navigateSection("Records"); }}>Inspect stream</button></div></div></article>;
+          })}</div> : <EmptyState text="No chain streams are available for this profile yet." />}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Activity") {
+      const activity = [...displayedRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC activity" subtitle="A time-ordered view of the records available to this viewer. Missing history is not treated as a broken chain." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading XRC activity…</div> : renderXrcRecordCards(activity)}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Verification") {
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC integrity checks" subtitle="Recompute each disclosed record hash and trace available previous-hash links. Integrity checks do not verify the truth of a claim." />
+          <div className="xrd-notice"><ShieldCheck size={16} /><span>Owner views can inspect their full readable chain. Signed-in viewers can inspect only XRC events linked to public XRD claims; undisclosed ancestors are shown as unavailable, not falsely marked broken.</span></div>
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading integrity records…</div> : renderXrcRecordCards(displayedRecords)}
+        </>
+      );
+    }
+
     if (selectedEvidence) {
       const item = selectedEvidence;
       const relatedEdges = visibleEvidenceEdges.filter((edge) => edge.source_id === item.id || edge.target_id === item.id);
@@ -1663,8 +1984,8 @@ const XRDProfileDashboard = ({
             })}</div> : <EmptyState text="No stored evidence relationships connect this item to another visible record." />}
           </div>
           <div className="xrd-detail-actions">
-            <button type="button" className="xrd-primary" onClick={() => navigateSection("Verification")}>Open verification <ShieldCheck size={14} /></button>
-            <button type="button" className="xrd-primary" onClick={() => navigateSection("Graph")}>View in evidence graph <Network size={14} /></button>
+            <button type="button" className="xrd-primary" onClick={() => openEvidenceVerification(item)}>Open verification <ShieldCheck size={14} /></button>
+            <button type="button" className="xrd-primary" onClick={() => navigateToEvidenceGraph(item)}>View in evidence graph <Network size={14} /></button>
             {safeUrl && <button type="button" className="xrd-secondary" onClick={() => window.open(safeUrl, "_blank", "noopener,noreferrer")}>Open source</button>}
           </div>
         </>
@@ -1695,14 +2016,27 @@ const XRDProfileDashboard = ({
       const attentionItems = displayedEvidenceItems.filter((item) =>
         /expired|mismatch|revoked|failed|disputed|contested|pending/i.test(normalizeStatus(item)),
       );
+      const publicWebsite = (() => {
+        try {
+          const parsed = new URL(displayedIdentityDetails.website);
+          return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : null;
+        } catch {
+          return null;
+        }
+      })();
+      const highlightedClaims = displayedClaims
+        .filter((claim) => claim?.lifecycle_status === "published")
+        .slice(0, 3);
+      const recentEvidence = [...displayedEvidenceItems]
+        .sort((left, right) => new Date(right.created_at || right.createdAt || 0) - new Date(left.created_at || left.createdAt || 0))
+        .slice(0, 4);
       const questions = [
         ["WHO?", "Identity and connected accounts", "Identity", Fingerprint],
         ["WHAT?", "Records and evidence", "Records", FileText],
-        ["WHEN?", `${displayedClaims.length} claims · ${displayedEvidenceItems.length} evidence items`, "Records", Activity],
+        ["WHEN?", "Record dates and source history", "Records", Activity],
         ["WHERE FROM?", `${sources.length} represented sources`, "Graph", Network],
         ["WHO CAN ATTEST?", "Verification and provenance", "Verification", ShieldCheck],
-        ["WHAT EVIDENCE?", `${displayedEvidenceItems.length} evidence items`, "Evidence", FileCheck2],
-        ["IS IT VERIFIED?", `${verifiedCount} verified records`, "Verification", CheckCircle2],
+        ["WHAT SUPPORTS IT?", "Inspect linked evidence and source context", "Evidence", FileCheck2],
         ["CAN IT BE TRACED?", "Inspect record and evidence provenance", "Graph", GitBranch],
       ];
       return (
@@ -1713,23 +2047,17 @@ const XRDProfileDashboard = ({
                 <XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} />
                 <button type="button" className="xrd-photo-trigger" aria-label={`View ${photoSources.length} connected profile photos`} onClick={() => loadConnectedProfilePhotos()}><Images size={14} /><b>{photoSources.length}</b></button>
               </div>
-              <div className="xrd-overview-meter" role="img" aria-label={`${verifiedCount} of ${displayedEvidenceItems.length} records verified`}>
-                <svg viewBox="0 0 130 130" aria-hidden="true">
-                  <circle cx="65" cy="65" r="56" />
-                  <circle className="xrd-meter-value" cx="65" cy="65" r="56" style={{ strokeDasharray: `${Math.round((verifiedCount / Math.max(displayedEvidenceItems.length, 1)) * 352)} 352` }} />
-                  <text x="65" y="62">{Math.round((verifiedCount / Math.max(displayedEvidenceItems.length, 1)) * 100)}%</text>
-                  <text className="xrd-meter-label" x="65" y="82">VERIFIED</text>
-                </svg>
-              </div>
             </div>
             <div className="xrd-hero-identity">
               <span className="xrd-kicker">XEEVIA RECORD · {canManage ? "OWNER VIEW" : "PUBLIC VIEW"}</span>
               <h2>{profileName}</h2>
               <p>@{profile?.username || "unknown"}</p>
-              <p className="xrd-prototype-copy">A transparent view of identity evidence, provenance, and record integrity. Only available data is shown; an empty section means no records were returned.</p>
-              <div className="xrd-overview-actions">
-                <button type="button" className="xrd-primary" onClick={() => navigateSection("Records")}>Browse records <ChevronRight size={14} /></button>
-                <button type="button" className="xrd-secondary" onClick={() => navigateSection("Oracle")}><Sparkles size={14} />Search XRD evidence</button>
+            {displayedIdentityDetails.headline && <p className="xrd-prototype-copy">{displayedIdentityDetails.headline}</p>}
+            {displayedIdentityDetails.bio && <p className="xrd-prototype-copy">{displayedIdentityDetails.bio}</p>}
+            {publicWebsite && <a className="xrd-detail-link" href={publicWebsite} target="_blank" rel="noreferrer">Visit website <ChevronRight size={14} /></a>}
+            <div className="xrd-overview-actions">
+              <button type="button" className="xrd-primary" onClick={() => navigateSection("Records")}>Browse records <ChevronRight size={14} /></button>
+              <button type="button" className="xrd-secondary" onClick={() => navigateSection("Oracle")}><Sparkles size={14} />Search XRD evidence</button>
               </div>
             </div>
           </div>
@@ -1743,14 +2071,23 @@ const XRDProfileDashboard = ({
               <strong>{source.name}</strong><small>{source.handle}</small>
             </article>)}</div> : <EmptyState text="No profile photos were returned by connected sources." />}
           </section></div>}
-          <div className="xrd-stats">
-            {[
-              [displayedEvidenceItems.length, "Records", FileCheck2],
-              [verifiedCount, "Verified", CheckCircle2],
-              [sources.length, "Sources", Database],
-              [institutionCount, "Institutions", GraduationCap],
-            ].map(([value, label, Icon]) => <div className="xrd-stat" key={label}><Icon size={17} /><strong>{value}</strong><span>{label}</span></div>)}
-          </div>
+          <section className="xrd-panel" aria-label="Published record highlights">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">PUBLISHED RECORDS</span><h3>What this person presents</h3></div><button type="button" onClick={() => navigateSection("Records")}>All records <ChevronRight size={14} /></button></div>
+            <p className="xrd-prototype-copy">These are the profile owner’s published statements. Linked evidence adds context; it does not automatically verify a claim.</p>
+            {xrdClaimsError && <div className="xrd-error" role="alert">{xrdClaimsError}</div>}
+            {highlightedClaims.length ? <div className="xrd-record-list">{highlightedClaims.map((claim) => {
+              const linkedEvidenceCount = (claim.evidence_links || []).filter((link) => displayedEvidenceIds.has(link.evidence_item_id)).length;
+              return <article className="xrd-record" key={claim.id}>
+                <div className="xrd-record-mark"><FileCheck2 size={17} /></div>
+                <div className="xrd-record-body">
+                  <div className="xrd-record-top"><span className="xrd-record-title">{claim.title || claim.record_type || "Published record"}</span><span className="xrd-status">{linkedEvidenceCount ? "Evidence linked" : "Owner-stated"}</span></div>
+                  {claim.claim_text && <p>{claim.claim_text}</p>}
+                  <div className="xrd-record-meta">{String(claim.record_type || "record").replaceAll("_", " ")} <i /> {linkedEvidenceCount} linked evidence record{linkedEvidenceCount === 1 ? "" : "s"}</div>
+                  {onOpenXRC && <div className="xrd-overview-actions"><button type="button" className="xrd-secondary" onClick={() => onOpenXRC(claim.id)}><GitBranch size={13} />Inspect provenance in XRC</button></div>}
+                </div>
+              </article>;
+            })}</div> : <EmptyState text="No published XRD records are available for this profile yet." />}
+          </section>
           <div className="xrd-panel">
             <div className="xrd-section-heading"><div><span className="xrd-kicker">XRD MAP</span><h3>What this record can answer</h3></div></div>
             <div className="xrd-question-grid">
@@ -1769,9 +2106,9 @@ const XRDProfileDashboard = ({
               ? <div className="xrd-record-list">{attentionItems.slice(0, 4).map(evidenceCard)}</div>
               : <EmptyState text={displayedEvidenceItems.length ? "No available evidence is currently marked as disputed, pending, expired, or failed." : "Evidence status will appear here as records are connected."} />}
           </div>
-          <div className="xrd-section-heading"><div><span className="xrd-kicker">LATEST PROOF</span><h3>Evidence overview</h3></div><button type="button" onClick={() => navigateSection("Records")}>All records <ChevronRight size={14} /></button></div>
-          {displayedEvidenceItems.length
-            ? <div className="xrd-record-list">{displayedEvidenceItems.slice(0, 4).map(evidenceCard)}</div>
+          <div className="xrd-section-heading"><div><span className="xrd-kicker">RECENT EVIDENCE</span><h3>Supporting evidence</h3></div><button type="button" onClick={() => navigateSection("Records")}>All records <ChevronRight size={14} /></button></div>
+          {recentEvidence.length
+            ? <div className="xrd-record-list">{recentEvidence.map(evidenceCard)}</div>
             : <EmptyState text="No evidence records are available for this profile yet." />}
         </>
       );
@@ -1890,13 +2227,9 @@ const XRDProfileDashboard = ({
             onCreateClaim={createXrdClaim}
             onRunSourceCheck={runClaimSourceCheck}
             onOpenEvidence={(item) => item && setSelectedEvidence(item)}
+            onOpenXRC={onOpenXRC ? (claim) => onOpenXRC(claim.id) : null}
           />
-          <XRDPrototypePreview />
-          {!publicPreview && accessNotice && <div className="xrd-inline-success" role="status">{accessNotice}</div>}
-          {!own && viewerId && <div className="xrd-panel xrd-access-request">
-            <div><span className="xrd-kicker">RESTRICTED EVIDENCE</span><h3>Need more context?</h3><p>Ask the owner to share specific evidence. They choose exactly which records you can read.</p></div>
-            {accessRequestStatus === "pending" ? <span className="xrd-access-state">Request pending</span> : accessRequestStatus === "approved" ? <span className="xrd-access-state is-approved">Access granted · reopen profile to refresh</span> : <button type="button" disabled={accessRequestBusy} onClick={requestEvidenceAccess}>{accessRequestBusy ? "Sending…" : "Request access"}</button>}
-          </div>}
+          {renderAccessRequestPanel()}
         </>
       );
     }
@@ -1908,11 +2241,7 @@ const XRDProfileDashboard = ({
           <SectionHeading title="Evidence" subtitle="Source observations and artifacts that may support or contradict an XRD claim." />
           <SearchBox value={filter} onChange={setFilter} placeholder="Filter evidence and sources" />
           {items.length ? <div className="xrd-record-list">{items.map(evidenceCard)}</div> : <EmptyState text="No evidence records match this filter." />}
-          {!publicPreview && accessNotice && <div className="xrd-inline-success" role="status">{accessNotice}</div>}
-          {!own && viewerId && <div className="xrd-panel xrd-access-request">
-            <div><span className="xrd-kicker">RESTRICTED EVIDENCE</span><h3>Need more context?</h3><p>Ask the owner to share specific evidence. They choose exactly which records you can read.</p></div>
-            {accessRequestStatus === "pending" ? <span className="xrd-access-state">Request pending</span> : accessRequestStatus === "approved" ? <span className="xrd-access-state is-approved">Access granted · reopen profile to refresh</span> : <button type="button" disabled={accessRequestBusy} onClick={requestEvidenceAccess}>{accessRequestBusy ? "Sending…" : "Request access"}</button>}
-          </div>}
+          {renderAccessRequestPanel()}
         </>
       );
     }
@@ -1920,12 +2249,19 @@ const XRDProfileDashboard = ({
     if (section === "Graph") {
       return (
         <>
-          <SectionHeading title="Evidence graph" subtitle="Trace XRD claims, identity bindings, and evidence. XRC integrity references are labeled separately from portable records." />
+          <SectionHeading
+            title={isXrcView ? "XRC network graph" : "Evidence graph"}
+            kicker={isXrcView ? "XEEVIA RECORD CHAIN" : "XEEVIA RECORD"}
+            subtitle={isXrcView
+              ? "Explore how profile identity, public bindings, claims, evidence, and XRC integrity records connect."
+              : "Trace XRD claims, identity bindings, and evidence. XRC integrity references are labeled separately from portable records."}
+          />
+          {isXrcView && notice && <div className="xrd-notice" role="status">{notice}</div>}
           {identityBindingsError && <div className="xrd-error" role="alert">{identityBindingsError}</div>}
           {edgesError && <div className="xrd-error" role="alert">{edgesError}</div>}
-          {canManage && recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry XRC references</button></div>}
-          {canManage && recordsLoading && <div className="xrd-loading"><span />Loading XRC integrity references…</div>}
-          {displayedEvidenceItems.length || displayedClaims.length || displayedBindings.length ? <XrdEvidenceGraph items={displayedEvidenceItems} edges={visibleEvidenceEdges} profile={photoProfile} connections={displayedSourceConnections} bindings={displayedBindings} claims={displayedClaims} records={displayedRecords} auditResult={isPublicAudience ? {} : auditResult} traceResult={isPublicAudience ? {} : traceResult} onPick={setSelectedEvidence} onOpenVerification={openEvidenceVerification} onVerifyRecord={checkRecord} onTraceRecord={traceRecord} onOpenIdentity={() => navigateSection("Identity")} onOpenClaims={() => navigateSection("Records")} /> : <EmptyState text="The graph will appear when claims, evidence, or identity bindings are available." />}
+          {(canManage || isXrcView) && recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry XRC references</button></div>}
+          {(canManage || isXrcView) && recordsLoading && <div className="xrd-loading"><span />Loading XRC integrity references…</div>}
+          {displayedEvidenceItems.length || displayedClaims.length || displayedBindings.length || displayedRecords.length ? <XrdEvidenceGraph items={displayedEvidenceItems} edges={visibleEvidenceEdges} profile={photoProfile} connections={displayedSourceConnections} bindings={displayedBindings} claims={displayedClaims} records={displayedRecords} auditResult={isPublicAudience ? {} : auditResult} traceResult={isPublicAudience ? {} : traceResult} focusEvidenceId={focusedEvidenceId} onPick={setSelectedEvidence} onOpenVerification={openEvidenceVerification} onVerifyRecord={checkRecord} onTraceRecord={traceRecord} onOpenIdentity={() => navigateSection("Identity")} onOpenClaims={() => navigateSection("Records")} /> : <EmptyState text={isXrcView ? "No XRC event history is available for this profile yet." : "The graph will appear when claims, evidence, or identity bindings are available."} />}
         </>
       );
     }
@@ -1991,6 +2327,7 @@ const XRDProfileDashboard = ({
     }
 
     if (section === "Remarks") {
+      if (!canManage) return <RestrictedState />;
       return (
         <>
           <SectionHeading title="Remarks" subtitle="Record-linked context from Xeevia members. Remarks are statements, not source verification or professional authority." />
@@ -2163,7 +2500,7 @@ const XRDProfileDashboard = ({
   };
 
   return ReactDOM.createPortal(
-    <div className="xrd-root" role="dialog" aria-modal="true" aria-label={`${profileName} Xeevia Record`}>
+    <div className="xrd-root" role="dialog" aria-modal="true" aria-label={`${profileName} ${isXrcView ? "XRC history" : "Xeevia Record"}`}>
       <style>{`
         .xrd-root{--xrd-ac:#a3e635;--xrd-panel:#080b08;--xrd-border:#252a24;position:fixed;inset:0;z-index:100050;display:grid;grid-template-columns:248px minmax(0,1fr);overflow:hidden;background:#030403;color:#eef2ea;font-family:inherit;isolation:isolate}
         .xrd-root::before{position:absolute;z-index:-1;inset:0;content:"";pointer-events:none;background-image:linear-gradient(rgba(163,230,53,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.025) 1px,transparent 1px),radial-gradient(ellipse at 80% 0,rgba(16,185,129,.08),transparent 42%);background-size:30px 30px,30px 30px,auto;mask-image:linear-gradient(135deg,#000,rgba(0,0,0,.25))}
@@ -2274,10 +2611,10 @@ const XRDProfileDashboard = ({
       <style>{`.xrd-prototype-heading{position:relative;display:flex;align-items:flex-start;gap:14px;margin-bottom:22px;padding-bottom:16px}.xrd-prototype-heading:after{position:absolute;right:0;bottom:0;left:0;height:1px;background:linear-gradient(90deg,var(--xrd-ac),rgba(163,230,53,.15) 30%,transparent);content:""}.xrd-heading-mark{width:56px;height:62px;flex:none;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(135deg,#a3e635,#10b981)}.xrd-heading-mark>span{width:52px;height:58px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#050805;color:#a3e635}.xrd-prototype-heading h2{margin:0 0 5px;font-size:calc((28px) + 1px);letter-spacing:0}.xrd-prototype-heading p{margin:0;color:#8d9589;font-size:calc((12px) + 1px);line-height:1.55}.xrd-prototype-heading>div:last-child{min-width:0;flex:1}@media(max-width:650px){.xrd-overview-hero.xrd-prototype-overview{align-items:flex-start;flex-direction:column;gap:16px;padding:18px}.xrd-overview-visual{width:100%;justify-content:flex-start;gap:16px}.xrd-overview-visual .xrd-hero-avatar{width:112px;height:112px}.xrd-overview-visual .xrd-hero-avatar>img,.xrd-overview-visual .xrd-hero-avatar>span{width:100px;height:100px;font-size:calc((34px) + 1px)}.xrd-overview-meter{width:108px;height:108px}.xrd-prototype-overview .xrd-hero-identity{width:100%;min-width:0}.xrd-prototype-overview .xrd-hero-identity h2{font-size:calc((22px) + 1px);overflow-wrap:anywhere}.xrd-prototype-copy{font-size:calc((11px) + 1px) !important}.xrd-overview-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-overview-actions>*{justify-content:center;min-width:0;padding:9px 7px;font-size:calc((10px) + 1px)}.xrd-prototype-heading h2{font-size:calc((22px) + 1px)}.xrd-heading-mark{width:48px;height:54px}.xrd-heading-mark>span{width:44px;height:50px}.xrd-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-question-grid button{min-height:0;flex-direction:row;align-items:center;justify-content:flex-start}.xrd-question-grid button>span:nth-child(2){flex:1}.xrd-question-grid button>svg:last-child{flex:none}}`}</style>
       <style>{`.xrd-prototype-heading{position:relative;display:flex;align-items:flex-start;gap:14px;margin-bottom:22px;padding-bottom:16px}.xrd-prototype-heading:after{position:absolute;right:0;bottom:0;left:0;height:1px;background:linear-gradient(90deg,var(--xrd-ac),rgba(163,230,53,.15) 30%,transparent);content:""}.xrd-heading-mark{width:56px;height:62px;flex:none;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(135deg,#a3e635,#10b981)}.xrd-heading-mark>span{width:52px;height:58px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#050805;color:#a3e635}.xrd-prototype-heading h2{margin:0 0 5px;font-size:calc((28px) + 1px);letter-spacing:0}.xrd-prototype-heading p{margin:0;color:#8d9589;font-size:calc((12px) + 1px);line-height:1.55}.xrd-heading-copy{min-width:0;flex:1}.xrd-mobile-more-backdrop{position:fixed;inset:0;z-index:100052;border:0;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}.xrd-mobile-more-sheet{position:fixed;right:0;bottom:0;left:0;z-index:100053;max-height:min(78dvh,680px);overflow:auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom));border:1px solid #2a2d2a;border-bottom:0;border-radius:22px 22px 0 0;background:#050605;box-shadow:0 -24px 70px rgba(0,0,0,.7);animation:xrd-mobile-sheet-up .24s cubic-bezier(.2,.9,.3,1)}@keyframes xrd-mobile-sheet-up{from{transform:translateY(100%)}}.xrd-mobile-more-grab{width:40px;height:4px;margin:0 auto 15px;border-radius:4px;background:#3a3e3a}.xrd-mobile-more-sheet>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.xrd-mobile-more-sheet h2{margin:3px 0 0;font-size:calc((19px) + 1px)}.xrd-mobile-more-sheet>header button{width:34px;height:34px;display:grid;place-items:center;border:1px solid #2a2d2a;border-radius:50%;background:#000;color:#dce5d7}.xrd-mobile-more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.xrd-mobile-more-grid button{display:flex;min-width:0;min-height:82px;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:10px 6px;border:1px solid #2a2d2a;border-radius:14px;background:linear-gradient(180deg,#0a0c0a,#000);color:#c4cbbf;font-size:calc((11px) + 1px);font-weight:600}.xrd-mobile-more-grid button svg{color:#a3e635}.xrd-mobile-more-grid button.active{border-color:rgba(163,230,53,.55);background:rgba(163,230,53,.08);color:#a3e635}@media(max-width:650px){.xrd-prototype-heading h2{font-size:calc((22px) + 1px)}.xrd-heading-mark{width:48px;height:54px}.xrd-heading-mark>span{width:44px;height:50px}.xrd-mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}.xrd-mobile-nav button{min-width:0;font-size:calc((9px) + 1px)}.xrd-mobile-more-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}`}</style>
       <aside className="xrd-sidebar">
-        <div className="xrd-brand"><span className="xrd-brand-mark">XRD</span><div><strong>Xeevia Record</strong><small>Profile evidence layer</small></div></div>
+        <div className="xrd-brand"><span className="xrd-brand-mark">{isXrcView ? "XRC" : "XRD"}</span><div><strong>{isXrcView ? "Xeevia Record Chain" : "Xeevia Record"}</strong><small>{isXrcView ? "Integrity and event history" : "Profile evidence layer"}</small></div></div>
         <button type="button" className="xrd-back" onClick={onClose}><ArrowLeft size={14} /> Back to profile</button>
-        <nav className="xrd-nav" aria-label="XRD sections">
-          {NAV_GROUPS.map(([group, items]) => {
+        <nav className="xrd-nav" aria-label={isXrcView ? "XRC sections" : "XRD sections"}>
+          {navigationGroups.map(([group, items]) => {
             const visibleItems = items.filter((name) => canManage || !OWNER_ONLY.has(name));
             if (!visibleItems.length) return null;
             return (
@@ -2300,22 +2637,22 @@ const XRDProfileDashboard = ({
       <main className="xrd-view">
         <header className="xrd-topbar">
           <button type="button" onClick={goBack} aria-label={sectionHistory.length ? "Back to previous section" : "Back to profile"}><ArrowLeft size={15} /></button>
-          <div className="xrd-crumb">xeevia.app / @{profile?.username || "profile"} / <b>XRD</b> / {section === "Oracle" ? "Evidence Q&A" : section}</div>
+          <div className="xrd-crumb">xeevia.app / @{profile?.username || "profile"} / <b>{isXrcView ? "XRC" : "XRD"}</b> / {section === "Oracle" ? "Evidence Q&A" : section}</div>
           <span className="xrd-owner-tag">{publicPreview ? "PUBLIC PREVIEW" : canManage ? "OWNER" : "PUBLIC"}</span>
-          {own && <button type="button" className="xrd-secondary xrd-view-toggle" aria-label={publicPreview ? "Return to owner view" : "Preview public XRD"} onClick={() => switchOwnerView(publicPreview ? "owner" : "public")}>
+          {own && !isXrcView && <button type="button" className="xrd-secondary xrd-view-toggle" aria-label={publicPreview ? "Return to owner view" : "Preview public XRD"} onClick={() => switchOwnerView(publicPreview ? "owner" : "public")}>
             {publicPreview ? "Owner view" : "Public preview"}
           </button>}
         </header>
         <div className="xrd-content" key={`${section}:${publicPreview ? "public" : "owner"}`}>{renderSection()}</div>
-        <nav className="xrd-mobile-nav" aria-label="XRD quick navigation">
-          {["Overview", "Records", "Graph", "Oracle"].map((name) => {
+        <nav className="xrd-mobile-nav" aria-label={isXrcView ? "XRC quick navigation" : "XRD quick navigation"}>
+          {(isXrcView ? ["Overview", "Records", "Graph", "Chains"] : ["Overview", "Records", "Graph", "Oracle"]).map((name) => {
             const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles;
             return <button key={name} type="button" className={section === name ? "active" : ""} onClick={() => name === "Oracle" ? openOracle() : navigateSection(name)}><Icon size={17} />{name === "Oracle" ? "Ask" : name}</button>;
           })}
           <button type="button" className={mobileMenuOpen ? "active" : ""} onClick={() => setMobileMenuOpen(true)}><MoreHorizontal size={17} />More</button>
         </nav>
       </main>
-      {mobileMenuOpen && <><button type="button" className="xrd-mobile-more-backdrop" aria-label="Close XRD sections" onClick={() => setMobileMenuOpen(false)} /><section className="xrd-mobile-more-sheet" role="dialog" aria-modal="true" aria-label="All XRD sections"><div className="xrd-mobile-more-grab" /><header><div><span className="xrd-kicker">XEEVIA RECORD</span><h2>All sections</h2></div><button type="button" aria-label="Close" onClick={() => setMobileMenuOpen(false)}><X size={17} /></button></header><div className="xrd-mobile-more-grid">{NAV_GROUPS.flatMap(([group, names]) => names.filter((name) => canManage || !OWNER_ONLY.has(name)).map((name) => { const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles; const label = name === "Oracle" ? "Evidence Q&A" : name; return <button type="button" key={`${group}-${name}`} className={section === name ? "active" : ""} onClick={() => { setMobileMenuOpen(false); navigateSection(name); }}><Icon size={20} /><span>{label}</span></button>; }))}</div></section></>}
+      {mobileMenuOpen && <><button type="button" className="xrd-mobile-more-backdrop" aria-label={`Close ${isXrcView ? "XRC" : "XRD"} sections`} onClick={() => setMobileMenuOpen(false)} /><section className="xrd-mobile-more-sheet" role="dialog" aria-modal="true" aria-label={`All ${isXrcView ? "XRC" : "XRD"} sections`}><div className="xrd-mobile-more-grab" /><header><div><span className="xrd-kicker">{isXrcView ? "XEEVIA RECORD CHAIN" : "XEEVIA RECORD"}</span><h2>All sections</h2></div><button type="button" aria-label="Close" onClick={() => setMobileMenuOpen(false)}><X size={17} /></button></header><div className="xrd-mobile-more-grid">{navigationGroups.flatMap(([group, names]) => names.filter((name) => canManage || !OWNER_ONLY.has(name)).map((name) => { const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles; const label = name === "Oracle" ? "Evidence Q&A" : name; return <button type="button" key={`${group}-${name}`} className={section === name ? "active" : ""} onClick={() => { setMobileMenuOpen(false); navigateSection(name); }}><Icon size={20} /><span>{label}</span></button>; }))}</div></section></>}
       {oracleChatOpen && <section className="xrd-oracle-chat" role="dialog" aria-modal="true" aria-label="XRD evidence chat">
         <header><button type="button" className="xrd-chat-back" onClick={() => setOracleChatOpen(false)} aria-label="Close evidence chat"><ArrowLeft size={18} /></button><div className="xrd-chat-mark"><Sparkles size={17} /></div><div className="xrd-chat-heading"><strong>XRD Evidence Oracle</strong><small>{displayedEvidenceItems.length} available evidence items · text matches only</small></div><button type="button" className="xrd-chat-close" onClick={() => setOracleConversation([])} aria-label="Clear conversation"><X size={16} /></button></header>
         <div className="xrd-chat-background" aria-hidden="true"><i /><i /><div /></div>
@@ -2337,12 +2674,12 @@ const XRDProfileDashboard = ({
   );
 };
 
-const SectionHeading = ({ title, subtitle }) => {
+const SectionHeading = ({ title, subtitle, kicker = "XEEVIA RECORD" }) => {
   const Icon = NAV.find(([name]) => name === title || (title === "Evidence graph" && name === "Graph") || (title === "Evidence Q&A" && name === "Oracle"))?.[1] || Layers3;
   return (
     <div className="xrd-page-heading xrd-prototype-heading">
       <div className="xrd-heading-mark"><span><Icon size={18} /></span></div>
-      <div><span className="xrd-kicker">XEEVIA RECORD</span><h2>{title}</h2><p>{subtitle}</p></div>
+      <div><span className="xrd-kicker">{kicker}</span><h2>{title}</h2><p>{subtitle}</p></div>
     </div>
   );
 };

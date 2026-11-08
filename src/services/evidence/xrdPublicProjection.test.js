@@ -65,7 +65,7 @@ describe("projectXrdPublicView", () => {
     expect(projection.claims[0].evidence_links).toHaveLength(1);
     expect(projection.bindings.map(({ id }) => id)).toEqual(["public-binding"]);
     expect(projection.edges.map(({ id }) => id)).toEqual(["visible-edge"]);
-    expect(projection.remarks.map(({ id }) => id)).toEqual(["visible-remark"]);
+    expect(projection.remarks).toEqual([]);
   });
 
   it("projects only supplied public identity fields and bases counts on projected items", () => {
@@ -156,6 +156,30 @@ describe("projectXrdPublicView", () => {
     ]);
     expect(projection.bindings[0]).not.toHaveProperty("connection_id");
     expect(projection.bindings[0]).not.toHaveProperty("external_subject_id");
+  });
+
+  it("includes only evidence explicitly granted to this signed-in viewer", () => {
+    const projection = projectXrdPublicView({
+      profileId: "profile-1",
+      grantedEvidenceIds: ["granted-evidence"],
+      evidenceItems: [
+        publicEvidence,
+        {
+          id: "granted-evidence",
+          profile_id: "profile-1",
+          verified: false,
+          metadata: { visibility: "PRIVATE", private_provider_data: "removed" },
+          external_id: "private-provider-id",
+          raw: { token: "never expose" },
+        },
+        { id: "other-private", profile_id: "profile-1", verified: false, metadata: { visibility: "PRIVATE" } },
+      ],
+    });
+
+    expect(projection.evidenceItems.map(({ id }) => id)).toEqual(["public-evidence", "granted-evidence"]);
+    expect(projection.evidenceItems[1]).not.toHaveProperty("raw");
+    expect(projection.evidenceItems[1]).not.toHaveProperty("external_id");
+    expect(projection.evidenceItems[1].metadata).toEqual({ visibility: "PRIVATE" });
   });
 
   it("keeps all owner data unchanged in owner view", () => {
