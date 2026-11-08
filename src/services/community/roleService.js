@@ -1,7 +1,7 @@
 // src/services/community/roleService.js
 import { supabase } from "../config/supabase";
 import RoleModel from "../../models/RoleModel";
-import { compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "./accessService";
+import { categoryIdOf, compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "./accessService";
 import { getVerificationChannelIds } from "../../components/Community/verification/verificationConfig";
 
 function getAvatarUrl(avatarId) {
@@ -231,19 +231,22 @@ class RoleService {
 
       if (!role.id) return (allChannels || []).filter((channel) => roleModel.hasPermission("viewChannels") && !channel.is_private);
 
-      const [rules, verificationResult, verificationSettingsResult, channelOverridesResult, categoryOverridesResult] = await Promise.all([
+      const [rules, verificationResult, verificationSettingsResult, channelOverridesResult, categoryOverridesResult, categoriesResult] = await Promise.all([
         this.getAccessRulesForCommunity(communityId),
         supabase.rpc("get_verification_panel", { p_community_id: communityId }),
         supabase.from("community_tool_settings").select("channel_id").eq("community_id", communityId).eq("tool_type", "verification").maybeSingle(),
         supabase.from("channel_permission_overrides").select("channel_id,role_id,permission,state").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel"),
         supabase.from("category_permission_overrides").select("category_id,role_id,permission,state,apply_to_channels").eq("community_id", communityId).eq("role_id", role.id).eq("permission", "viewChannel").eq("apply_to_channels", true),
+        supabase.from("community_channel_categories").select("id,name").eq("community_id", communityId),
       ]);
       if (verificationResult.error) throw verificationResult.error;
       if (verificationSettingsResult.error) throw verificationSettingsResult.error;
       if (channelOverridesResult.error) throw channelOverridesResult.error;
       if (categoryOverridesResult.error) throw categoryOverridesResult.error;
+      if (categoriesResult.error) throw categoriesResult.error;
       const channelOverrides = channelOverridesResult.data || [];
       const categoryOverrides = categoryOverridesResult.data || [];
+      const categories = categoriesResult.data || [];
       const verificationConfig = verificationResult.data?.configured
         ? verificationResult.data.config || {}
         : {};
@@ -256,6 +259,7 @@ class RoleService {
         completion.method === "rules" && ["rules_accepted", "completed"].includes(completion.status),
       );
       return (allChannels || []).filter((channel) => {
+        const categoryId = categoryIdOf(channel, categories);
         const verificationRoute = (verificationResult.data?.configured && verificationChannelIds.has(String(channel.id)))
           || (rulesGate.enabled && String(channel.id) === String(rulesGate.rulesChannelId))
           || (
@@ -267,12 +271,12 @@ class RoleService {
         const access = resolveAccessForRole({
           roleId: role.id,
           channel,
-          categoryId: channel.category_id ?? channel.category ?? null,
+          categoryId,
           rules,
           defaultOpen: (roleModel.hasPermission("viewChannels") && !channel.is_private) || verificationRoute,
         });
         const channelOverride = channelOverrides.find((override) => override.channel_id === channel.id);
-        const categoryOverride = categoryOverrides.find((override) => override.category_id === channel.category_id);
+        const categoryOverride = categoryOverrides.find((override) => override.category_id === categoryId);
         return resolveChannelPermission({
           access,
           permission: "viewChannel",

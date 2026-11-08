@@ -118,4 +118,50 @@ describe("RoleService.reorderRoles", () => {
 
     expect(supabase.from).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps category-granted legacy channels visible when category_id is missing", async () => {
+    jest.spyOn(roleService, "getUserRole").mockResolvedValue({
+      id: "member-role",
+      name: "Member",
+      permissions: { viewChannels: false },
+    });
+    jest.spyOn(roleService, "getAccessRulesForCommunity").mockResolvedValue([
+      {
+        community_id: "community-1",
+        target_type: "category",
+        target_id: "category-1",
+        role_id: "member-role",
+        can_view: true,
+        can_send: true,
+      },
+    ]);
+
+    const queryFor = (data) => {
+      const query = {
+        select: jest.fn(() => query),
+        eq: jest.fn(() => query),
+        order: jest.fn(() => query),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+        then: (resolve, reject) => Promise.resolve({ data, error: null }).then(resolve, reject),
+      };
+      return query;
+    };
+    supabase.from.mockImplementation((table) => queryFor(
+      table === "community_channel_categories"
+        ? [{ id: "category-1", name: "General" }]
+        : [],
+    ));
+    supabase.rpc.mockResolvedValue({
+      data: { configured: false, completions: [] },
+      error: null,
+    });
+
+    await expect(roleService.getVisibleChannels(
+      "community-1",
+      "user-1",
+      [{ id: "channel-1", name: "general", category: "General", category_id: null, is_private: true }],
+    )).resolves.toEqual([
+      { id: "channel-1", name: "general", category: "General", category_id: null, is_private: true },
+    ]);
+  });
 });

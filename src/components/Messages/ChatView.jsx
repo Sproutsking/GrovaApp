@@ -9,6 +9,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+import { ChevronDown } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import dmMessageService from "../../services/messages/dmMessageService";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -24,6 +25,7 @@ import OptimizedImage from "../Shared/OptimizedImage";
 import UserProfileModal from "../Modals/UserProfileModal";
 import MessageList from "../Community/components/MessageList";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
+import MessageDeletionControls from "./MessageDeletionControls";
 import { VerifiedBadgeCircle } from "../Shared/VerifiedBadges";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
@@ -420,6 +422,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [readStatus,setReadStatus]     = useState({});
   const [replyTo,setReplyTo]           = useState(null);
   const [messageMenu, setMessageMenu] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null);
   const [messageInput, setMessageInput] = useState("");
 
@@ -591,6 +595,13 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     user_id: message.sender_id || message.user_id,
     user: message.user || (String(message.sender_id || message.user_id) === String(currentUser.id) ? currentUser : otherUser),
   }));
+  const selectedMessages = communityMessages.filter((message) => selectedMessageIds.includes(String(message.id)));
+  const toggleMessageSelection = useCallback((message) => {
+    const messageId = String(message.id);
+    setSelectedMessageIds((current) => current.includes(messageId)
+      ? current.filter((id) => id !== messageId)
+      : [...current, messageId]);
+  }, []);
 
   const scrollToMessage=useCallback(msgId=>{
     const el=containerRef.current?.querySelector(`[data-message-id="${msgId}"], [data-msg-id="${msgId}"]`);
@@ -700,6 +711,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
               const touch = event.changedTouches?.[0] || event.touches?.[0];
               setMessageMenu({ message, position: { x: touch?.clientX || 24, y: touch?.clientY || window.innerHeight * 0.5 } });
             }}
+            selectionMode={selectionMode}
+            selectedMessageIds={selectedMessageIds}
+            onToggleMessageSelection={toggleMessageSelection}
             onProfileClick={(user) => user && setProfileTarget(user)}
             onReply={setReplyTo}
             onReplyNavigate={(_, messageId) => scrollToMessage(messageId)}
@@ -712,7 +726,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {typing.isTyping && <div className="cv-community-typing">{typing.userName} is typing…</div>}
           <div ref={endRef}/>
         </div>
-        {showJump&&<button className="cv-jump-btn" onClick={()=>scrollToBottom()}><Ic.Down/></button>}
+        {showJump&&<button className="jump-btn" onClick={()=>scrollToBottom()} aria-label="Scroll to latest messages"><ChevronDown size={18}/></button>}
       </div>
 
       {messageMenu && (
@@ -732,6 +746,10 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
               alert(error.message || "Failed to delete direct message");
             }
           }}
+          onBeginDeleteSelection={() => {
+            setSelectionMode(true);
+            setSelectedMessageIds([String(messageMenu.message.id)]);
+          }}
           onReaction={(emoji) => toggleReaction(messageMenu.message.id, emoji)}
           onForward={() => dmMessageService.sendMessage(convId, `↗ Forwarded message\n${messageMenu.message.content}`, currentUser.id)}
           onReport={() => window.alert("Message reported.")}
@@ -739,7 +757,19 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         />
       )}
 
-      <CommunityMessageInput
+      <MessageDeletionControls
+        kind="direct"
+        conversationId={convId}
+        userId={currentUser.id}
+        selectionMode={selectionMode}
+        selectedMessages={selectedMessages}
+        onCancelSelection={() => { setSelectionMode(false); setSelectedMessageIds([]); }}
+        onMessagesRemoved={(removedIds) => {
+          const removed = new Set(removedIds.map(String));
+          setMessages((items) => items.filter((message) => !removed.has(String(message.id))));
+        }}
+      />
+      {!selectionMode && <CommunityMessageInput
         value={messageInput}
         onChange={(value) => { setMessageInput(value); handleTypingLocal(); }}
         onSend={(_, files) => {
@@ -751,7 +781,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         members={[currentUser, otherUser]}
-      />
+      />}
       {profileTarget && <UserProfileModal user={profileTarget} currentUser={currentUser} onClose={() => setProfileTarget(null)} />}
       <style>{CV_CSS}</style>
     </div>
@@ -822,7 +852,8 @@ export const CV_CSS = `
 .cv-loading{display:flex;justify-content:center;padding:40px;}
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
 @keyframes cvSpin{to{transform:rotate(360deg)}}
-.cv-jump-btn{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
+.cv-root .jump-btn{position:fixed;bottom:80px;right:18px;z-index:15;width:38px;height:38px;border-radius:50%;background:rgba(10,12,10,.96);border:1.5px solid rgba(156,255,0,.4);color:#9cff00;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4);transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.cv-root .jump-btn:hover{transform:scale(1.1) translateY(-2px);box-shadow:0 8px 24px rgba(156,255,0,.2);}
 .cv-msg{display:flex;align-items:flex-start;gap:2px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:0;}
 .cv-me{flex-direction:row-reverse;}.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
 @keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -941,7 +972,7 @@ export const CV_CSS = `
 .cv-gp-item{border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px;overflow:hidden;aspect-ratio:4/3;}
 .cv-gp-img{width:100%;height:100%;object-fit:cover;border-radius:8px;transition:transform .15s;}
 
-@media(max-width:768px){.cv-dr-right,.cv-dr-left{display:none;}.cv-root .msg-list-wrapper.direct-message-list{padding:8px 8px 12px;}.cv-root .direct-message-list .mra-wrapper{flex-basis:88%;max-width:88%;}}
+@media(max-width:768px){.cv-dr-right,.cv-dr-left{display:none;}.cv-root .msg-list-wrapper.direct-message-list{padding:8px 8px 12px;}.cv-root .direct-message-list .mra-wrapper{flex-basis:88%;max-width:88%;}.cv-root .jump-btn{bottom:72px;right:12px;width:36px;height:36px;}}
 `;
 
 export default ChatView;

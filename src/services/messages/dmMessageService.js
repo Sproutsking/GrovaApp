@@ -16,6 +16,7 @@ import conversationState from "./ConversationStateManager";
 import pushService from "../notifications/pushService";
 import uploadService from "../upload/uploadService";
 import { validateMessageAttachments } from "./attachmentPolicy";
+import messageDeletionService from "./messageDeletionService";
 
 class DMMessageService {
   constructor() {
@@ -210,7 +211,8 @@ class DMMessageService {
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      const messages = data || [];
+      const hiddenMessageIds = new Set(await messageDeletionService.getHiddenMessageIds("direct", conversationId));
+      const messages = (data || []).filter((message) => !hiddenMessageIds.has(String(message.id)));
       const ids = messages.map((message) => message.id).filter(Boolean);
       if (ids.length) {
         const { data: reactionRows, error: reactionError } = await supabase

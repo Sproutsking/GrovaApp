@@ -2,6 +2,7 @@
 import { supabase } from "../config/supabase";
 import communityState from "./CommunityStateManager";
 import roleService from "./roleService";
+import messageDeletionService from "../messages/messageDeletionService";
 
 const COMMUNITY_MESSAGE_PAGE_SIZE = 50;
 
@@ -67,8 +68,12 @@ class CommunityMessageService {
 
       if (error) throw error;
 
-      const page = normalizeMessages(data || []).reverse();
-      const messages = mergeMessages(communityState.getMessages(channelId), page);
+      const hiddenMessageIds = new Set(await messageDeletionService.getHiddenMessageIds("community", channelId));
+      const page = normalizeMessages(data || []).filter((message) => !hiddenMessageIds.has(String(message.id))).reverse();
+      const messages = mergeMessages(
+        communityState.getMessages(channelId).filter((message) => !hiddenMessageIds.has(String(message.id))),
+        page,
+      );
       communityState.initMessages(channelId, messages);
       return { messages, hasMore: page.length === COMMUNITY_MESSAGE_PAGE_SIZE };
     } catch (error) {
@@ -107,8 +112,12 @@ class CommunityMessageService {
 
       if (error) throw error;
 
-      const page = normalizeMessages(data || []).reverse();
-      const messages = mergeMessages(communityState.getMessages(channelId), page);
+      const hiddenMessageIds = new Set(await messageDeletionService.getHiddenMessageIds("community", channelId));
+      const page = normalizeMessages(data || []).filter((message) => !hiddenMessageIds.has(String(message.id))).reverse();
+      const messages = mergeMessages(
+        communityState.getMessages(channelId).filter((message) => !hiddenMessageIds.has(String(message.id))),
+        page,
+      );
       communityState.initMessages(channelId, messages);
       return { messages, hasMore: page.length === COMMUNITY_MESSAGE_PAGE_SIZE };
     } catch (error) {

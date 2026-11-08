@@ -46,17 +46,66 @@ const parsePostReplyMetadata = (token) => {
   }
 };
 
-const MessageAttachments = ({ message, onImageClick }) => {
-  const items = Array.isArray(message?.attachments) && message.attachments.length
+const getMessageAttachments = (message) => (
+  Array.isArray(message?.attachments) && message.attachments.length
     ? message.attachments
-    : message?.media_url ? [{ url: message.media_url, type: message.media_type || "file", name: "Attachment" }] : [];
+    : message?.media_url ? [{ url: message.media_url, type: message.media_type || "file", name: "Attachment" }] : []
+);
+
+const MessageAttachments = ({ message, onImageClick }) => {
+  const items = getMessageAttachments(message);
+  const imageItems = items.filter((item) => item?.type === "image" && item.url);
+  const firstImageIndex = items.findIndex((item) => item?.type === "image" && item.url);
+  const [imageRatios, setImageRatios] = React.useState({});
   if (!items.length) return null;
+  const renderImage = (item, index, imageCount, hiddenCount = 0) => {
+    const key = `${item.url}-${index}`;
+    return (
+      <button
+        key={key}
+        type="button"
+        className={`msg-image-item${imageCount === 1 ? " single" : ""}`}
+        onClick={(event) => { event.stopPropagation(); onImageClick?.(item.url); }}
+        aria-label={hiddenCount ? `Open image, and ${hiddenCount} more images` : "Open image in full size"}
+        title={hiddenCount ? `View ${hiddenCount + 1} images` : "Open image in full size"}
+      >
+        <span className="msg-image-frame" style={imageCount === 1 ? { aspectRatio: imageRatios[key] || "4 / 3" } : undefined}>
+          <img
+            src={item.url}
+            alt={item.name && item.name !== "Attachment" ? item.name : "Message image"}
+            onLoad={(event) => {
+              const { naturalWidth, naturalHeight } = event.currentTarget;
+              if (!naturalWidth || !naturalHeight) return;
+              const ratio = `${naturalWidth} / ${naturalHeight}`;
+              setImageRatios((current) => current[key] === ratio ? current : { ...current, [key]: ratio });
+            }}
+            loading="lazy"
+          />
+          {hiddenCount > 0 && <span className="msg-image-more">+{hiddenCount}</span>}
+        </span>
+      </button>
+    );
+  };
   return (
-    <div style={{ display: "grid", gap: 5, marginTop: 5, maxWidth: "100%" }}>
+    <div className="msg-attachments">
       {items.map((item, index) => {
         const url = item?.url;
         if (!url) return null;
-        if (item.type === "image") return <button key={`${url}-${index}`} type="button" onClick={(event) => { event.stopPropagation(); onImageClick?.(url); }} aria-label="Open image in full size" title="Open image in full size" style={{ display: "block", maxWidth: "100%", padding: 0, border: 0, borderRadius: 10, background: "transparent", cursor: "zoom-in", textAlign: "left" }}><img src={url} alt={item.name && item.name !== "Attachment" ? item.name : "Message image"} style={{ display: "block", maxWidth: "100%", maxHeight: 360, borderRadius: 10, objectFit: "contain" }} loading="lazy" /></button>;
+        if (item.type === "image") {
+          if (index !== firstImageIndex) return null;
+          const visibleImages = imageItems.slice(0, 4);
+          const hiddenCount = Math.max(0, imageItems.length - visibleImages.length);
+          return (
+            <div className={`msg-image-grid${imageItems.length === 1 ? " single" : imageItems.length === 2 ? " two" : imageItems.length === 3 ? " three" : ""}`} key="message-image-grid">
+              {visibleImages.map((image, imageIndex) => renderImage(
+                image,
+                items.indexOf(image),
+                imageItems.length,
+                hiddenCount > 0 && imageIndex === 3 ? hiddenCount : 0,
+              ))}
+            </div>
+          );
+        }
         if (item.type === "video") return <video key={`${url}-${index}`} src={url} controls preload="metadata" style={{ display: "block", width: "100%", maxHeight: 360, borderRadius: 10 }} />;
         return <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", maxWidth: "100%", color: "#bef264", overflowWrap: "anywhere" }}>{item.name || "Download attachment"}</a>;
       })}
@@ -84,6 +133,9 @@ const MessageList = ({
   avatarSize = 32,
   onMessageClick,
   onMessageLongPress,
+  selectionMode = false,
+  selectedMessageIds = [],
+  onToggleMessageSelection,
   onPostNavigate,
   onReplyNavigate,
   communityId,
@@ -125,6 +177,7 @@ const MessageList = ({
   };
 
   const allMessages = [...messages, ...pendingMessages];
+  const selectedIds = new Set(selectedMessageIds.map(String));
   const isDirectMessage = messageMode === "direct";
   const [swipe, setSwipe] = React.useState(null);
   const [viewingImage, setViewingImage] = React.useState(null);
@@ -228,16 +281,17 @@ const MessageList = ({
 
       {!loading && allMessages.map((msg, idx) => {
           const isMe = String(msg.user_id) === String(userId);
+          const messageId = msg.id || msg.tempId || msg._tempId;
+          const canSelectMessage = Boolean(msg.id) && !msg._optimistic;
           const prev = allMessages[idx - 1];
           const next = allMessages[idx + 1];
-          const sameAuthorAsPrev = prev && String(prev.user_id) === String(msg.user_id);
           const isAnnouncement = channelType === "announcement";
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
           const isAnnouncementMessage = isAnnouncement || Boolean(announcement);
           const prevCreatedAt = prev ? new Date(prev.created_at).getTime() : null;
           const currentCreatedAt = msg.created_at ? new Date(msg.created_at).getTime() : null;
-          const isWithinCluster = prev && String(prev.user_id) === String(msg.user_id) && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
+          const isWithinCluster = Boolean(prev && String(prev.user_id) === String(msg.user_id) && prevCreatedAt !== null && currentCreatedAt !== null && currentCreatedAt >= prevCreatedAt && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000);
           const nextCreatedAt = next?.created_at ? new Date(next.created_at).getTime() : null;
           const isWithinClusterNext = next && String(next.user_id) === String(msg.user_id) && currentCreatedAt !== null && nextCreatedAt !== null && (nextCreatedAt - currentCreatedAt) <= 10 * 60 * 1000;
           const sameAuthorAsNext = Boolean(isWithinClusterNext);
@@ -247,9 +301,15 @@ const MessageList = ({
           const welcomeMemberId = getWelcomeMemberId(msg.content);
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || String(msg.content || "").replace(/^\[\[welcome-member:[^\]]+\]\]\n?/, "");
-          const hasMessageMedia = (Array.isArray(msg.attachments) && msg.attachments.length > 0) || Boolean(msg.media_url);
+          const messageAttachments = getMessageAttachments(msg);
+          const hasMessageMedia = messageAttachments.length > 0;
+          const hasAttachments = hasMessageMedia;
+          const hasVisualAttachments = messageAttachments.some((attachment) => (
+            attachment?.type === "image" || attachment?.type === "video"
+          ));
           const showMessageBody = !(hasMessageMedia && messageBody.trim().toLowerCase() === "attachment");
-          const showAvatar = !isDirectMessage && (isAnnouncementMessage || showTail);
+          const externalUrls = getExternalUrls(messageBody);
+          const showAvatar = !isDirectMessage && (isAnnouncementMessage || (Boolean(msg.user) && !isWithinCluster));
           const showSenderHeader = isAnnouncementMessage || (!isDirectMessage && Boolean(msg.user) && !isWithinCluster);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
           const hasReactionRow = isReactionChannel || canAddReactions
@@ -294,17 +354,32 @@ const MessageList = ({
             )}
             {welcomeMemberId ? <WelcomeMemberCard communityId={communityId} memberId={welcomeMemberId} viewerId={userId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
             <div
-              data-message-id={msg.id || msg.tempId || msg._tempId}
-              className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${sameAuthorAsNext ? "same-author-next" : "different-author-next"} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
-              onClick={(event) => onMessageClick?.(event, msg)}
-              onContextMenu={(e) => onContextMenu?.(e, msg)}
-              onTouchStart={(e) => { beginSwipe(e, msg); startLongPress(e, msg); }}
-              onTouchMove={(e) => { clearTimeout(longPressTimer.current); moveSwipe(e, msg); }}
-              onTouchEnd={endSwipe}
-              onTouchCancel={endSwipe}
+              data-message-id={messageId}
+              className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${sameAuthorAsNext ? "same-author-next" : "different-author-next"} ${isAnnouncementMessage ? "announcement" : ""} ${selectionMode ? "selection-mode" : ""}${selectedIds.has(String(messageId)) ? " selected-for-deletion" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              onClick={(event) => selectionMode ? (canSelectMessage && onToggleMessageSelection?.(msg)) : onMessageClick?.(event, msg)}
+              onContextMenu={(e) => {
+                if (selectionMode) {
+                  e.preventDefault();
+                  if (canSelectMessage) onToggleMessageSelection?.(msg);
+                } else {
+                  onContextMenu?.(e, msg);
+                }
+              }}
+              onTouchStart={(e) => { if (!selectionMode) { beginSwipe(e, msg); startLongPress(e, msg); } }}
+              onTouchMove={(e) => { if (!selectionMode) { clearTimeout(longPressTimer.current); moveSwipe(e, msg); } }}
+              onTouchEnd={() => { if (!selectionMode) endSwipe(); }}
+              onTouchCancel={() => { if (!selectionMode) endSwipe(); }}
               style={{ transform: swipe?.id === msg.id ? `translateX(${(msg.user_id === userId ? -1 : 1) * swipe.distance}px)` : undefined }}
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
+              {selectionMode && <button
+                type="button"
+                className={`msg-selection-check${selectedIds.has(String(messageId)) ? " checked" : ""}`}
+                aria-label={`${selectedIds.has(String(messageId)) ? "Deselect" : "Select"} message`}
+                aria-pressed={selectedIds.has(String(messageId))}
+                disabled={!canSelectMessage}
+                onClick={(event) => { event.stopPropagation(); if (canSelectMessage) onToggleMessageSelection?.(msg); }}
+              >{selectedIds.has(String(messageId)) ? <span>✓</span> : null}</button>}
               {!isDirectMessage && showAvatar && (
                 <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
                   {avatarUrl ? <img src={avatarUrl} alt="" /> : <span className="msg-avatar-fallback">{initial}</span>}
@@ -312,7 +387,7 @@ const MessageList = ({
               )}
               {!isDirectMessage && !showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel || canAddReactions} canReact={canAddReactions} footerMeta={hasReactionRow ? (
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel || canAddReactions} canReact={canAddReactions} className={`${externalUrls.length ? "has-external-preview" : ""}${hasVisualAttachments ? " has-visual-attachments" : ""}`} footerMeta={hasReactionRow ? (
                 <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
                   <span className="msg-time">{formatTime(msg.created_at)}</span>
                   {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
@@ -322,7 +397,7 @@ const MessageList = ({
                 </div>
               ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? `has-tail ${isDirectMessage ? "tail-bottom" : "tail-top"}` : ""}${hasAttachments ? " has-attachments" : ""}${hasVisualAttachments ? " has-visual-attachments" : ""}${showMessageBody ? " has-message-body" : ""}${externalUrls.length ? " has-external-preview" : ""}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {!isDirectMessage && <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
@@ -364,6 +439,11 @@ const MessageList = ({
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   {showMessageBody && <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>}
                   <MessageAttachments message={msg} onImageClick={setViewingImage} />
+                  {externalUrls.map((url) => (
+                    <div className="msg-external-preview" key={`message-preview-${url}`}>
+                      <LinkifiedText previewOnly onNavigate={onNavigate}>{url}</LinkifiedText>
+                    </div>
+                  ))}
                   <div className="msg-footer">
                     {reactionRow}
                     {!hasReactionRow && <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
@@ -386,11 +466,6 @@ const MessageList = ({
                     <span>Reply</span>
                   </button>
                 )}
-                {getExternalUrls(messageBody).map((url) => (
-                  <div className="msg-external-preview" key={`message-preview-${url}`}>
-                    <LinkifiedText previewOnly onNavigate={onNavigate}>{url}</LinkifiedText>
-                  </div>
-                ))}
                 </>}
               </MessageReactionArea>
             </div>
@@ -485,16 +560,38 @@ const MessageList = ({
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
         .msg-item.clustered { margin-bottom: 2px; }
         .msg-item.same-author-next:not(.clustered) { margin-bottom: 2px; }
-        .msg-item.different-author-next { margin-bottom: 8px; }
+        .msg-item.different-author-next { margin-bottom: 10px; }
+        .msg-item.selection-mode { cursor:pointer; }
+        .msg-selection-check { display:grid; place-items:center; flex:0 0 20px; width:20px; height:20px; margin:4px 2px 0 0; padding:0; border:1.5px solid rgba(220,232,224,.58); border-radius:50%; background:rgba(7,10,8,.56); color:#071006; font:700 12px/1 inherit; cursor:pointer; }
+        .msg-selection-check.checked { border-color:#9cff00; background:#9cff00; box-shadow:0 0 12px rgba(156,255,0,.24); }
+        .msg-selection-check:disabled { visibility:hidden; cursor:default; }
+        .msg-item.selected-for-deletion .msg-bubble { border-color:rgba(156,255,0,.56); box-shadow:0 0 0 1px rgba(156,255,0,.18),0 4px 16px rgba(0,0,0,.2); }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: 70%; align-items: flex-start; }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-start; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
-        .msg-item .msg-bubble { min-width: 0; padding: 5px 9px 6px; }
-        .msg-external-preview{display:block;width:100%;margin:8px 0 0;padding:0 4px;box-sizing:border-box;}
-        .msg-external-preview .xeevia-link-card{width:100%;max-width:420px;}
-        @media(max-width:768px){.msg-external-preview{width:90%;margin-left:5%;}.msg-external-preview .xeevia-link-card{width:100%;}}
+        .msg-item .msg-bubble { min-width: 0; padding: 4px 8px; }
+        .msg-bubble.has-attachments { padding: 1px 2px; }
+        .msg-bubble.has-attachments:not(.has-message-body) { padding-top: 2px; }
+        .msg-bubble.has-attachments .msg-content { margin: 0 0 1px; }
+        .msg-bubble.has-attachments .msg-card-header { padding-top: 1px; margin-bottom: 1px; }
+        .msg-bubble.has-attachments .msg-footer { margin-top: 1px; }
+        .msg-attachments { display:grid; gap:1px; width:100%; min-width:0; margin-top:1px; }
+        .msg-image-grid { display:grid; width:100%; min-width:0; max-height:360px; aspect-ratio:1 / 1; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:1px; overflow:hidden; border-radius:8px; background:rgba(255,255,255,.07); }
+        .msg-image-grid.single { display:block; aspect-ratio:auto; max-height:none; overflow:visible; background:transparent; }
+        .msg-image-grid.two { aspect-ratio:2 / 1; grid-template-rows:minmax(0,1fr); }
+        .msg-image-grid.three .msg-image-item:first-child { grid-row:span 2; }
+        .msg-image-item { position:relative; display:block; width:100%; height:100%; min-width:0; min-height:100px; max-height:360px; overflow:hidden; padding:0; border:0; background:#0b0e0c; cursor:zoom-in; text-align:left; }
+        .msg-image-item.single { height:auto; aspect-ratio:inherit; }
+        .msg-image-frame { position:relative; display:block; width:100%; height:100%; min-height:100px; max-height:360px; overflow:hidden; }
+        .msg-image-frame img { position:absolute; inset:0; display:block; width:100%; height:100%; max-width:none; max-height:none; object-fit:cover; }
+        .msg-image-grid.single .msg-image-frame { height:auto; }
+        .msg-image-grid.single .msg-image-frame img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+        .msg-image-more { position:absolute; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.54); color:#fff; font-size:clamp(20px,7vw,32px); font-weight:700; letter-spacing:-.03em; }
+        .msg-external-preview{display:block;width:100%;margin:7px 0 0;padding:0;box-sizing:border-box;}
+        .msg-external-preview .xeevia-link-card{width:100%;max-width:100%;}
+        .mra-wrapper.has-external-preview{width:min(420px,100%);}
         .msg-item.announcement .msg-bubble { min-width: min(280px, 100%); }
         .msg-card-menu-btn {
           position: relative;
@@ -544,12 +641,10 @@ const MessageList = ({
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:20px; padding-top:3px; margin-bottom:2px; box-sizing:border-box; gap:6px; }
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:18px; padding-top:1px; margin-bottom:1px; box-sizing:border-box; gap:6px; }
         .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
-        .msg-card-header.incoming .msg-user-name { order:1; }
-        .msg-card-header.incoming .msg-card-menu-btn { order:2; }
-        .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
-        .msg-card-header.outgoing .msg-user-name { order:2; }
+        .msg-card-header .msg-user-name { order:1; }
+        .msg-card-header .msg-card-menu-btn { order:2; }
         .msg-card-header.outgoing,
         .msg-card-header.incoming { justify-content:space-between; }
         .msg-card-header.outgoing .msg-user-name { flex-direction:row-reverse; }
@@ -677,8 +772,11 @@ const MessageList = ({
         .announcement-title{font-size:calc((18px) + 1px);line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
+        .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px)); max-width: min(320px, calc(100% - 40px)); }
+        .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; box-sizing: border-box; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
+        .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments { width: min(320px, 84%); max-width: min(320px, 84%); }
         .mra-ann { align-items: flex-start; width: min(70%, 760px); max-width: min(70%, 760px); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
@@ -693,9 +791,9 @@ const MessageList = ({
           overflow: visible;
         }
         .msg-bubble.them {
-          border-bottom-left-radius: 2px;
+          border-top-left-radius: 2px;
         }
-        .msg-item.clustered .msg-bubble.them { border-top-left-radius: 6px; }
+        .msg-item.clustered .msg-bubble.them { border-top-left-radius: 12px; }
 
         .msg-bubble.me {
           --message-tail-fill: #183728;
@@ -703,20 +801,20 @@ const MessageList = ({
           --bubble-border: rgba(156,255,0,.16);
           background: var(--message-tail-fill);
           border: 1px solid var(--bubble-border);
-          border-bottom-right-radius: 2px;
+          border-top-right-radius: 2px;
         }
-        .msg-item.clustered .msg-bubble.me { border-top-right-radius: 6px; }
+        .msg-item.clustered .msg-bubble.me { border-top-right-radius: 12px; }
 
         .msg-list-wrapper.text-channel .msg-bubble.them,
         .msg-list-wrapper.text-channel .msg-bubble.me {
-          border-bottom-left-radius: 12px;
-          border-bottom-right-radius: 12px;
+          border-top-left-radius: 12px;
+          border-top-right-radius: 12px;
         }
 
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         @media (max-width: 768px) {
-          .msg-list-wrapper.text-channel { padding-left: 6px; padding-right: 6px; }
+          .msg-list-wrapper.text-channel { padding-left: 10px; padding-right: 10px; }
           .msg-list-wrapper.announcement-channel { padding-left: 6px; padding-right: 6px; }
           .msg-item .mra-wrapper { flex: 1 1 auto; width: fit-content; max-width: calc(100% - 48px); }
           .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper { flex: 0 1 88%; max-width: 88%; }
@@ -731,8 +829,8 @@ const MessageList = ({
         }
 
         .msg-item .mra-wrapper { overflow: visible; }
-        .msg-list-wrapper.text-channel .msg-bubble.them.has-tail { border-bottom-left-radius: 3px; }
-        .msg-list-wrapper.text-channel .msg-bubble.me.has-tail { border-bottom-right-radius: 3px; }
+        .msg-list-wrapper.text-channel .msg-bubble.them.has-tail { border-top-left-radius: 3px; }
+        .msg-list-wrapper.text-channel .msg-bubble.me.has-tail { border-top-right-radius: 3px; }
         .msg-bubble.them.has-tail::before,
         .msg-bubble.them.has-tail::after,
         .msg-bubble.me.has-tail::before,
@@ -743,36 +841,50 @@ const MessageList = ({
         }
         .msg-bubble.them.has-tail::before {
           left: -7px;
-          bottom: 1px;
+          top: 1px;
           width: 8px;
           height: 10px;
           background: var(--message-tail-edge);
-          clip-path: polygon(100% 0, 100% 100%, 0 100%);
+          clip-path: polygon(100% 0, 100% 100%, 0 0);
         }
         .msg-bubble.them.has-tail::after {
           left: -5px;
-          bottom: 1px;
+          top: 1px;
           width: 6px;
           height: 8px;
           background: var(--message-tail-fill);
-          clip-path: polygon(100% 0, 100% 100%, 0 100%);
+          clip-path: polygon(100% 0, 100% 100%, 0 0);
         }
         .msg-bubble.me.has-tail::before {
           right: -7px;
-          bottom: 1px;
+          top: 1px;
           width: 8px;
           height: 10px;
           background: var(--message-tail-edge);
-          clip-path: polygon(0 0, 0 100%, 100% 100%);
+          clip-path: polygon(0 0, 0 100%, 100% 0);
         }
         .msg-bubble.me.has-tail::after {
           right: -5px;
-          bottom: 1px;
+          top: 1px;
           width: 6px;
           height: 8px;
           background: var(--message-tail-fill);
-          clip-path: polygon(0 0, 0 100%, 100% 100%);
+          clip-path: polygon(0 0, 0 100%, 100% 0);
         }
+
+        .msg-list-wrapper.direct-message-list .msg-bubble.them,
+        .msg-list-wrapper.direct-message-list .msg-bubble.me { border-radius: 12px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail { border-top-left-radius: 12px; border-bottom-left-radius: 3px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail { border-top-right-radius: 12px; border-bottom-right-radius: 3px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::before,
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::after,
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail::before,
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail::after { top:auto; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::before { bottom:1px; clip-path:polygon(100% 0,100% 100%,0 100%); }
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::after { bottom:1px; clip-path:polygon(100% 0,100% 100%,0 100%); }
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail::before { bottom:1px; clip-path:polygon(0 0,0 100%,100% 100%); }
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail::after { bottom:1px; clip-path:polygon(0 0,0 100%,100% 100%); }
+        .mra-wrapper.has-external-preview .msg-bubble.has-external-preview { width:100%; }
 
         .msg-user-name {
           border: 0;
@@ -795,9 +907,9 @@ const MessageList = ({
         }
 
         .msg-content {
-          font-size: calc((14px) + 1px);
+          font-size: 14px;
           color: var(--text);
-          line-height: 1.5;
+          line-height: 1.42;
           word-break: break-word;
           margin-inline: 1px;
         }
@@ -818,7 +930,7 @@ const MessageList = ({
         .msg-footer {
           width: 100%;
           min-width: 0;
-          margin-top: 3px;
+          margin-top: 2px;
         }
         .msg-meta {
           display: flex;
@@ -921,7 +1033,12 @@ const MessageList = ({
             font-size: calc((13px) + 1px);
           }
 
-          .msg-list-wrapper { padding-left: 6px; padding-right: 6px; }
+          .msg-list-wrapper:not(.direct-message-list) { padding-left: 10px; padding-right: 10px; }
+          .msg-list-wrapper.direct-message-list .msg-bubble { padding: 2px; }
+          .msg-list-wrapper .msg-item .mra-wrapper.has-external-preview { width: min(420px, 100%) !important; }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px)); max-width: min(320px, calc(100% - 40px)); }
+          .msg-list-wrapper .msg-item .mra-wrapper .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; }
+          .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments { flex: 0 1 84%; width: min(320px, 84%); max-width: min(320px, 84%); }
 
         }
       `}</style>

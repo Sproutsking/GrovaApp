@@ -12,6 +12,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+import { ChevronDown } from "lucide-react";
 import groupDMService from "../../services/messages/groupDMService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import backgroundService from "../../services/messages/BackgroundService";
@@ -19,6 +20,7 @@ import LinkifiedText from "../Shared/LinkifiedText";
 import MessageList from "../Community/components/MessageList";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
 import ContextMenu from "../Community/components/ContextMenu";
+import MessageDeletionControls from "./MessageDeletionControls";
 import UserProfileModal from "../Modals/UserProfileModal";
 import { supabase } from "../../services/config/supabase";
 
@@ -511,6 +513,8 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const [showJump,     setShowJump]     = useState(false);
   const [newMessageId,setNewMessageId]=useState(null);
   const [messageContextMenu, setMessageContextMenu] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null);
   const [selectedBg,   setSelectedBg]   = useState(() =>
     backgroundService.getConversationBackground ? backgroundService.getConversationBackground(`gc_${groupProp?.id}`) : "classic_weave"
@@ -815,7 +819,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
             {typing.length>0&&<div className="gcv-community-typing">{typing[0]} is typing…</div>}
             <div ref={endRef}/>
           </div>
-          {showJump&&<button className="gcv-jump" onClick={()=>scrollToBottom()}><Ic.Down/></button>}
+          {showJump&&<button className="jump-btn" onClick={()=>scrollToBottom()} aria-label="Scroll to latest messages"><ChevronDown size={18}/></button>}
         </div>
 
         {/* Members side panel */}
@@ -966,7 +970,8 @@ const CSS = `
 .gcv-dlbl{font-size:calc((10px) + 1px);font-weight:700;color:#3a3a3a;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
 
 /* Jump */
-.gcv-jump{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);animation:gcvFadeIn .2s ease-out;}
+.gcv-root .jump-btn{position:fixed;bottom:80px;right:18px;z-index:15;width:38px;height:38px;border-radius:50%;background:rgba(10,12,10,.96);border:1.5px solid rgba(156,255,0,.4);color:#9cff00;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4);transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.gcv-root .jump-btn:hover{transform:scale(1.1) translateY(-2px);box-shadow:0 8px 24px rgba(156,255,0,.2);}
 
 /* Rows */
 .gcv-row{display:flex;align-items:flex-start;gap:2px;margin:0 0 6px;position:relative;animation:gcvMsgIn .18s ease-out both;}
@@ -1028,7 +1033,7 @@ const CSS = `
 .gcv-hr{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:rgba(14,14,14,.95);border:1px solid rgba(132,204,22,.3);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;z-index:5;animation:gcvRBIn .15s ease-out forwards;box-shadow:0 2px 8px rgba(0,0,0,.4);}
 .gcv-hr:hover{background:rgba(132,204,22,.12);}
 .gcv-hr-r{right:-36px;}.gcv-hr-l{left:-36px;}
-@media(max-width:768px){.gcv-hr{display:none;}}
+@media(max-width:768px){.gcv-hr{display:none;}.gcv-root .jump-btn{bottom:72px;right:12px;width:36px;height:36px;}}
 
 /* React panel */
 .gcv-rxp{position:absolute;top:-50px;display:flex;gap:3px;align-items:center;background:rgba(14,14,14,.98);border:1px solid rgba(255,255,255,.1);border-radius:28px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.7);z-index:10;animation:gcvRxIn .15s ease-out;white-space:nowrap;}

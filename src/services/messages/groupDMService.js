@@ -18,6 +18,7 @@
 import { supabase } from "../config/supabase";
 import uploadService from "../upload/uploadService";
 import { validateMessageAttachments } from "./attachmentPolicy";
+import messageDeletionService from "./messageDeletionService";
 
 // Table preference: group_messages (text channel_id) > community_messages
 const MSG_TABLE = "group_messages";
@@ -481,7 +482,10 @@ class GroupDMService {
           }
           throw error;
         }
-        return (data || []).map(m => ({ ...m, channel_id: m.group_id, sender_id: m.user_id }));
+        const hiddenMessageIds = new Set(await messageDeletionService.getHiddenMessageIds("group", groupId));
+        return (data || [])
+          .filter((message) => !hiddenMessageIds.has(String(message.id)))
+          .map(m => ({ ...m, channel_id: m.group_id, sender_id: m.user_id }));
       } catch (e) {
         console.error("[GroupDM] loadMessages:", e);
         return [];

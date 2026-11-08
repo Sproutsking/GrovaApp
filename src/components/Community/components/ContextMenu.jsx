@@ -6,7 +6,7 @@ import EmojiPanel from "./EmojiPanel";
 const QUICK_EMOJIS = ["❤️", "😂", "🔥", "👏"];
 const MORE_EMOJIS = ["😍", "🤯", "💯", "👑", "🚀", "😭", "🥳", "💀", "👍", "🙏", "🎉", "✨"];
 
-const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onClose, onEdit, onDelete, onReaction, onReactionBurst, onCopy, onReply, onForward, onReport }) => {
+const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onClose, onEdit, onDelete, onBeginDeleteSelection, onReaction, onReactionBurst, onCopy, onReply, onForward, onReport }) => {
   const [showMore, setShowMore] = useState(false);
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -105,7 +105,7 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         <button className="message-context-item" onClick={() => handle(onCopy)}><Copy size={14} /><span>Copy message</span></button>
         <button className="message-context-item" onClick={() => handle(onForward)}><Forward size={14} /><span>Forward message</span></button>
         {canEdit && <button className="message-context-item" onClick={() => handle(onEdit)}><Edit2 size={14} /><span>Edit message</span></button>}
-        {canDelete && <button className="message-context-item danger" onClick={() => setShowDeleteConfirm(true)}><Trash2 size={14} /><span>Delete message</span></button>}
+        {canDelete && <button className="message-context-item danger" onClick={() => onBeginDeleteSelection ? handle(onBeginDeleteSelection) : setShowDeleteConfirm(true)}><Trash2 size={14} /><span>Delete message</span></button>}
         <button className="message-context-item" onClick={() => handle(onReport)}><Flag size={14} /><span>Report message</span></button>
       </div>}
       {showDeleteConfirm && (

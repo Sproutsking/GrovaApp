@@ -30,7 +30,8 @@ export function resolveChannelPermission({ access, permission, channelOverride, 
   if (access?.restricted && !accessRuleAllowsPermission(access, permission)) return false;
   const override = channelOverride?.state ? channelOverride : categoryOverride;
   if (override?.state) return override.state === "allow";
-  if (access?.restricted) return true;
+  if (access?.restricted && permission === "viewChannel") return true;
+  if (access?.restricted && permission === "sendMessages") return true;
   return Boolean(roleDefault);
 }
 

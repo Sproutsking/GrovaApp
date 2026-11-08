@@ -113,6 +113,19 @@ describe("LinkifiedText", () => {
     expect(links[1].textContent).toContain("Xeevia post");
   });
 
+  it("describes Giphy links as shared GIFs without displaying the provider hostname", () => {
+    const url = "https://media.giphy.com/media/example/giphy.gif";
+    const { container } = render(<LinkifiedText previewOnly>{url}</LinkifiedText>);
+
+    expect(screen.getByText("Shared GIF")).toBeTruthy();
+    expect(screen.getByText("Animated image")).toBeTruthy();
+    expect(container.textContent).not.toContain("giphy");
+
+    const { unmount } = render(<LinkifiedText>{url}</LinkifiedText>);
+    expect(screen.getByRole("link", { name: "View GIF" })).toBeTruthy();
+    unmount();
+  });
+
   it("extracts only external URLs for message-level preview placement", () => {
     expect(getExternalUrls("https://app.xeevia.com/post/1 https://preeb.cloud/about")).toEqual(["https://preeb.cloud/about"]);
   });

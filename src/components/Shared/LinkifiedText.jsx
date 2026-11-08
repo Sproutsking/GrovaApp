@@ -13,11 +13,16 @@ const PLATFORM_META = {
   twitter: { label: "X", color: "#f5f5f5" },
   tiktok: { label: "TikTok", color: "#25f4ee" },
   linkedin: { label: "LinkedIn", color: "#0a66c2" },
+  gif: { label: "GIF", color: "#a3e635" },
 };
 
 const getPlatformMeta = (url) => {
   try {
-    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    const parsedUrl = new URL(url);
+    const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
+    if (["giphy.com", "media.giphy.com", "tenor.com", "media.tenor.com"].some((domain) => host === domain || host.endsWith(`.${domain}`))) {
+      return { ...PLATFORM_META.gif, key: "gif" };
+    }
     const key = Object.keys(PLATFORM_META).find((name) => host === `${name}.com` || host.endsWith(`.${name}.com`));
     return key ? { ...PLATFORM_META[key], key } : { label: host || "External link", color: "#a3e635", key: "link" };
   } catch {
@@ -109,8 +114,8 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
   };
 
   if (displayMode === "embed") {
-    const previewTitle = internal ? `Xeevia ${internalLabel.toLowerCase()}` : `${platform.label} link`;
-    const hostLabel = internal ? "Xeevia content" : new URL(url).hostname;
+    const previewTitle = internal ? `Xeevia ${internalLabel.toLowerCase()}` : platform.key === "gif" ? "Shared GIF" : `${platform.label} link`;
+    const hostLabel = internal ? "Xeevia content" : platform.key === "gif" ? "Animated image" : new URL(url).hostname;
     return (
       <span className="xeevia-link-wrap xeevia-link-preview-wrap">
         <a
@@ -132,8 +137,8 @@ const LinkSegment = ({ url, trailing, onNavigate, displayMode = "string" }) => {
 
   return (
     <span className="xeevia-link-wrap">
-      <a className="app-link" href={url} aria-label={internalType ? `View ${internalType.toLowerCase()}` : "Open link"} target={internal ? "_self" : "_blank"} rel={internal ? "noopener" : "noopener noreferrer"} onClick={handleClick} style={{ color: internal ? "#a3e635" : platform.color, textDecoration: "none", overflowWrap: "anywhere" }}>
-        {internalType ? `View ${internalType.toLowerCase()}` : url}
+      <a className="app-link" href={url} aria-label={internalType ? `View ${internalType.toLowerCase()}` : platform.key === "gif" ? "View GIF" : "Open link"} target={internal ? "_self" : "_blank"} rel={internal ? "noopener" : "noopener noreferrer"} onClick={handleClick} style={{ color: internal ? "#a3e635" : platform.color, textDecoration: "none", overflowWrap: "anywhere" }}>
+        {internalType ? `View ${internalType.toLowerCase()}` : platform.key === "gif" ? "View GIF" : url}
       </a>
       {trailing}
     </span>
@@ -191,7 +196,7 @@ const LinkifiedText = ({ children, className, onNavigate, displayMode = "embed",
           {renderPreviewCards()}
         </>
       )}
-      <style>{`.xeevia-link-preview-line{display:block;width:100%;margin-top:10px;clear:both}.xeevia-link-preview-wrap{display:block;width:100%;max-width:100%;min-width:0}.xeevia-link-card{display:flex;align-items:center;gap:9px;width:min(100%,420px);max-width:100%;min-width:0;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(163,230,53,.4);border-left:3px solid #a3e635;border-radius:9px;background:rgba(0,0,0,.28);color:#f4f7ee;text-decoration:none;overflow:hidden}.xeevia-link-icon{width:28px;height:28px;flex:0 0 28px;border-radius:7px;background:rgba(255,255,255,.08)}.xeevia-link-open{margin-left:auto;flex:0 0 auto}.xeevia-link-preview-wrap + .xeevia-link-preview-wrap{margin-top:8px}@media(max-width:768px){.xeevia-link-card{width:90%;margin-left:0}.xeevia-link-preview-line{margin-top:12px}}`}</style>
+      <style>{`.xeevia-link-preview-line{display:block;width:100%;margin-top:10px;clear:both}.xeevia-link-preview-wrap{display:block;width:100%;max-width:100%;min-width:0}.xeevia-link-card{display:flex;align-items:center;gap:9px;width:min(100%,420px);max-width:100%;min-width:0;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(163,230,53,.4);border-left:3px solid #a3e635;border-radius:9px;background:rgba(0,0,0,.28);color:#f4f7ee;text-decoration:none;overflow:hidden}.xeevia-link-icon{width:28px;height:28px;flex:0 0 28px;border-radius:7px;background:rgba(255,255,255,.08)}.xeevia-link-open{margin-left:auto;flex:0 0 auto}.xeevia-link-preview-wrap + .xeevia-link-preview-wrap{margin-top:8px}`}</style>
     </span>
   );
 };

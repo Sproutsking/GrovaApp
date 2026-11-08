@@ -1,4 +1,4 @@
-import { accessRuleAllowsPermission, compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "../accessService";
+import { accessRuleAllowsPermission, categoryIdOf, compareEffectiveRoles, getEffectiveRole, resolveAccessForRole, resolveChannelPermission } from "../accessService";
 import { isCommunityMemberOnline } from "../communityOnlineStatusService";
 
 describe("community access rule enforcement", () => {
@@ -72,6 +72,56 @@ describe("community access rule enforcement", () => {
     expect(accessRuleAllowsPermission(viewOnlyAccess, "addReactions")).toBe(true);
     expect(accessRuleAllowsPermission(viewOnlyAccess, "sendMessages")).toBe(false);
     expect(accessRuleAllowsPermission({ ...viewOnlyAccess, canView: false }, "addReactions")).toBe(false);
+  });
+
+  it("does not grant unrelated role permissions through a channel access rule", () => {
+    const viewAndSendAccess = { restricted: true, canView: true, canSend: true };
+
+    expect(resolveChannelPermission({
+      access: viewAndSendAccess,
+      permission: "sendMessages",
+      roleDefault: false,
+    })).toBe(true);
+    expect(resolveChannelPermission({
+      access: viewAndSendAccess,
+      permission: "addReactions",
+      roleDefault: false,
+    })).toBe(false);
+    expect(resolveChannelPermission({
+      access: viewAndSendAccess,
+      permission: "manageMessages",
+      roleDefault: false,
+    })).toBe(false);
+    expect(resolveChannelPermission({
+      access: viewAndSendAccess,
+      permission: "attachFiles",
+      roleDefault: true,
+    })).toBe(true);
+    expect(resolveChannelPermission({
+      access: viewAndSendAccess,
+      permission: "attachFiles",
+      roleDefault: false,
+    })).toBe(false);
+  });
+
+  it("supports category access rules for legacy channels without category IDs", () => {
+    const categories = [{ id: "category-1", name: "General" }];
+    const categoryId = categoryIdOf(
+      { id: "channel-1", category: "General", category_id: null },
+      categories,
+    );
+    const result = resolveAccessForRole({
+      roleId: "member-role",
+      channel: { id: "channel-1", category: "General", category_id: null },
+      categoryId,
+      rules: [
+        { target_type: "category", target_id: "category-1", role_id: "member-role", can_view: true, can_send: true },
+      ],
+    });
+
+    expect(categoryId).toBe("category-1");
+    expect(result.canView).toBe(true);
+    expect(result.canSend).toBe(true);
   });
 
   it("uses channel overrides before category overrides and role defaults", () => {

@@ -336,7 +336,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 /**
  * Full area that wraps a message — shows reaction bar + hover picker trigger
  */
-export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false, canReact = true, footerMeta = null }) => {
+export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false, canReact = true, footerMeta = null, className = "" }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const [burst, setBurst] = useState(null);
@@ -389,7 +389,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
   return (
     <div
       ref={areaRef}
-      className={`mra-wrapper ${isAnnouncement ? "mra-ann" : ""}${isAnnouncement && isOutgoing ? " mra-ann-outgoing" : ""}`}
+      className={`mra-wrapper${className ? ` ${className}` : ""} ${isAnnouncement ? "mra-ann" : ""}${isAnnouncement && isOutgoing ? " mra-ann-outgoing" : ""}`}
     >
       {typeof children === "function" ? children({ reactionRow }) : children}
 
@@ -451,8 +451,8 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           width: 100%;
           max-width: 100%;
           min-width: 0;
-          min-height: 30px;
-          margin-top: 3px;
+          min-height: 24px;
+          margin-top: 1px;
           padding: 0 0 0 0;
           box-sizing: border-box;
         }
@@ -468,6 +468,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           padding: 0;
         }
         .mra-reaction-trigger { position: relative; right: auto; left: auto; bottom: auto; }
+        .mra-reaction-row .rb-add-trigger { min-width: 24px; min-height: 22px; padding: 2px 6px; }
         .mra-reaction-row.announcement .rb-bar {
           flex: 0 1 auto;
           min-width: 0;
