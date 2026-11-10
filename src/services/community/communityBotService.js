@@ -71,6 +71,31 @@ const communityBotService = {
     return unwrapBotFunctionResult(result.data, result.error);
   },
 
+  async validateDestination({ provider, communityId, externalId, parentExternalId = null }) {
+    const result = await supabase.functions.invoke("community-bot", {
+      body: { action: "validate-destination", provider, communityId, externalId, parentExternalId },
+    });
+    return unwrapBotFunctionResult(result.data, result.error);
+  },
+
+  async configureTelegramWebhook(communityId) {
+    const result = await supabase.functions.invoke("community-bot", {
+      body: { action: "configure-webhook", provider: "telegram", communityId },
+    });
+    return unwrapBotFunctionResult(result.data, result.error);
+  },
+
+  async saveInboundRoute({ destinationId, provider, communityId, xeeviaChannelId, enabled }) {
+    if (enabled && !xeeviaChannelId) throw new Error("Choose an Xeevia channel before enabling inbound sync.");
+    if (enabled && provider === "telegram") await this.configureTelegramWebhook(communityId);
+    const { error } = await supabase.from("community_bot_destinations").update({
+      inbound_enabled: Boolean(enabled),
+      xeevia_channel_id: xeeviaChannelId || null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", destinationId).eq("community_id", communityId);
+    if (error) throw error;
+  },
+
   async discoverDiscordTargets(communityId) {
     const result = await supabase.functions.invoke("community-bot", {
       body: { action: "discover", provider: "discord", communityId },

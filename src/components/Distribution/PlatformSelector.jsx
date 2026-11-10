@@ -137,17 +137,15 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
         identitySyncUserIdRef.current = userId;
         await socialConnectService.checkAndImportExistingIdentities(userId);
       }
-      const [platformStates, ownedCommunities] = await Promise.all([
+      const [platformStates, manageableCommunities] = await Promise.all([
         distributionService.getPlatformConnectionStates(userId),
-        resolveCommunityQuery(
-          supabase.from("communities").select("id,name").eq("owner_id", userId).is("deleted_at", null),
-        ),
+        resolveCommunityQuery(supabase.rpc("get_community_bot_manageable_communities")),
       ]);
-      let communityLoadError = ownedCommunities.error
-        ? `Social platforms loaded, but community destinations could not be loaded: ${ownedCommunities.error.message}`
+      let communityLoadError = manageableCommunities.error
+        ? `Social platforms loaded, but manageable community destinations could not be loaded: ${manageableCommunities.error.message}`
         : "";
       const nextConnectionStates = platformStates && typeof platformStates === "object" ? platformStates : {};
-      const communities = (ownedCommunities?.data || []).filter(Boolean);
+      const communities = (manageableCommunities?.data || []).filter(Boolean);
       const communityIds = Array.from(new Set(communities.map((community) => community.id)));
       let nextCommunityTargets = [];
       if (communityIds.length) {
@@ -306,7 +304,7 @@ const PlatformSelector = ({ userId, onSelection, selectedPlatforms = [] }) => {
 
         {communityTargets.length > 0 && (
           <>
-            <div className="psSectionLabel"><Bot size={12} /> Owned community destinations</div>
+            <div className="psSectionLabel"><Bot size={12} /> Manageable community destinations</div>
             <div className="psCommunityGrid">
               {communityTargets.map((destination) => {
                 const isSelected = selected.includes(destination.target);

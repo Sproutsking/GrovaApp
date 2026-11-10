@@ -7,7 +7,7 @@ const BOT_META = {
   telegram: { label: "Telegram bot", help: "Send Xeevia posts to selected Telegram chats or channels.", color: "#2ea6da", destination: "Chat or channel", env: "REACT_APP_TELEGRAM_BOT_USERNAME" },
 };
 
-export default function BotsDashboard({ communityId, userId, canManage = false }) {
+export default function BotsDashboard({ communityId, userId, channels = [], canManage = false }) {
   const [provider, setProvider] = useState("discord");
   const [integrations, setIntegrations] = useState([]);
   const [destinations, setDestinations] = useState([]);
@@ -19,6 +19,7 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
   const [guilds, setGuilds] = useState([]);
   const [selectedGuildId, setSelectedGuildId] = useState("");
   const [selectedChannelId, setSelectedChannelId] = useState("");
+  const [inboundRoutes, setInboundRoutes] = useState({});
 
   const meta = BOT_META[provider];
   const integration = useMemo(() => integrations.find((item) => item.provider === provider), [integrations, provider]);
@@ -30,6 +31,10 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
     const next = await communityBotService.listIntegrations(communityId);
     setIntegrations(next.integrations);
     setDestinations(next.destinations);
+    setInboundRoutes(Object.fromEntries((next.destinations || []).map((destination) => [destination.id, {
+      enabled: Boolean(destination.inbound_enabled),
+      channelId: destination.xeevia_channel_id || "",
+    }])));
   };
 
   useEffect(() => {
@@ -61,6 +66,12 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
     if (!canManage || !integration || !form.externalId.trim() || !form.displayName.trim()) return;
     setBusy(true); setError(""); setNotice("");
     try {
+      await communityBotService.validateDestination({
+        communityId,
+        provider,
+        externalId: form.externalId,
+        parentExternalId: form.parentExternalId,
+      });
       await communityBotService.saveDestination({ communityId, integrationId: integration.id, provider, externalId: form.externalId, parentExternalId: form.parentExternalId, displayName: form.displayName, destinationType: provider === "discord" ? "channel" : "chat" });
       setForm({ externalId: "", parentExternalId: "", displayName: "" });
       await refresh();
@@ -85,6 +96,12 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
     if (!integration || !selectedGuild || !selectedChannel) return;
     setBusy(true); setError("");
     try {
+      await communityBotService.validateDestination({
+        communityId,
+        provider: "discord",
+        externalId: selectedChannel.id,
+        parentExternalId: selectedGuild.id,
+      });
       await communityBotService.saveDestination({ communityId, integrationId: integration.id, provider: "discord", externalId: selectedChannel.id, parentExternalId: selectedGuild.id, displayName: `${selectedGuild.name} / #${selectedChannel.name}`, destinationType: "channel" });
       await refresh();
       setNotice("Discord channel connected. It is ready to receive selected posts.");
@@ -113,6 +130,36 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
     catch (removeError) { setError(removeError.message || "Could not remove destination."); }
   };
 
+  const setInboundDraft = (destination, patch) => setInboundRoutes((current) => ({
+    ...current,
+    [destination.id]: { ...(current[destination.id] || {}), ...patch },
+  }));
+
+  const saveInboundRoute = async (destination) => {
+    const route = inboundRoutes[destination.id] || { enabled: false, channelId: "" };
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await communityBotService.saveInboundRoute({
+        destinationId: destination.id,
+        communityId,
+        provider: destination.provider,
+        xeeviaChannelId: route.channelId,
+        enabled: route.enabled,
+      });
+      await refresh();
+      const channelName = channels.find((channel) => channel.id === route.channelId)?.name;
+      setNotice(!route.enabled
+        ? `Inbound sync paused for ${destination.display_name}.`
+        : destination.provider === "telegram"
+          ? `Telegram inbound webhook connected to #${channelName || "the selected channel"}.`
+          : `Inbound route saved to #${channelName || "the selected channel"}. Deploy and run the Discord bridge worker to receive messages.`);
+    } catch (routeError) {
+      setError(routeError.message || "Could not save this inbound route.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="bots-dashboard">
       <div className="bots-dashboard-head">
@@ -128,8 +175,28 @@ export default function BotsDashboard({ communityId, userId, canManage = false }
         <div className="bot-help">Bot credentials are kept in Supabase secrets. This dashboard stores only destination IDs and display names.</div>
       </section>
       <section className="bot-panel">
-        <div className="bot-section-head"><div><strong>Connected destinations</strong><small>Each enabled destination receives posts selected in the distribution control.</small></div><span>{providerDestinations.filter((item) => item.enabled).length} active</span></div>
-        <div className="bot-destination-list">{providerDestinations.map((destination) => <div className={`bot-destination ${destination.enabled ? "enabled" : "disabled"}`} key={destination.id}><div><strong>{destination.display_name}</strong><small>{meta.destination} ID: {destination.external_id}</small></div><button type="button" onClick={() => toggle(destination)} aria-label={`Toggle ${destination.display_name}`}><span /></button><button type="button" className="bot-delete" onClick={() => remove(destination)} aria-label={`Remove ${destination.display_name}`}><Trash2 size={13} /></button></div>)}{!providerDestinations.length && <div className="bot-empty">No {provider} destinations configured yet.</div>}</div>
+        <div className="bot-section-head"><div><strong>Connected destinations</strong><small>Enabled destinations can receive selected Xeevia posts or mirror external messages into a Xeevia channel.</small></div><span>{providerDestinations.filter((item) => item.enabled).length} active</span></div>
+        <div className="bot-destination-list">{providerDestinations.map((destination) => {
+          const route = inboundRoutes[destination.id] || { enabled: false, channelId: "" };
+          return <div className="bot-destination-card" key={destination.id}>
+            <div className={`bot-destination ${destination.enabled ? "enabled" : "disabled"}`}>
+              <div><strong>{destination.display_name}</strong><small>{meta.destination} ID: {destination.external_id}</small></div>
+              <button type="button" onClick={() => toggle(destination)} aria-label={`Toggle ${destination.display_name}`}><span /></button>
+              <button type="button" className="bot-delete" onClick={() => remove(destination)} aria-label={`Remove ${destination.display_name}`}><Trash2 size={13} /></button>
+            </div>
+            <div className="bot-inbound-route">
+              <label><input type="checkbox" checked={route.enabled} disabled={!canManage || busy} onChange={(event) => setInboundDraft(destination, { enabled: event.target.checked })} /><span>Mirror inbound messages to Xeevia</span></label>
+              <select aria-label={`Xeevia channel for ${destination.display_name}`} value={route.channelId} disabled={!canManage || busy || !route.enabled} onChange={(event) => setInboundDraft(destination, { channelId: event.target.value })}>
+                <option value="">Choose Xeevia channel</option>
+                {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
+              </select>
+              <button type="button" disabled={!canManage || busy || (route.enabled && !route.channelId)} onClick={() => saveInboundRoute(destination)}>
+                {busy ? "Saving…" : route.enabled ? "Save inbound route" : "Pause inbound"}
+              </button>
+              {destination.provider === "discord" && route.enabled && <small className="bot-inbound-requirement">Discord inbound also requires the Xeevia bridge worker and Message Content intent to be enabled.</small>}
+            </div>
+          </div>;
+        })}{!providerDestinations.length && <div className="bot-empty">No {provider} destinations configured yet.</div>}</div>
         {provider === "discord" && guilds.length > 0 && <div className="bot-discovery"><strong><Check size={13} /> Select a Discord destination</strong><select value={selectedGuildId} onChange={(event) => { setSelectedGuildId(event.target.value); setSelectedChannelId(guilds.find((guild) => guild.id === event.target.value)?.channels?.[0]?.id || ""); }}><option value="">Choose server</option>{guilds.map((guild) => <option key={guild.id} value={guild.id}>{guild.name}</option>)}</select><select value={selectedChannelId} onChange={(event) => setSelectedChannelId(event.target.value)} disabled={!selectedGuild}><option value="">Choose channel</option>{(selectedGuild?.channels || []).map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}</select><button type="button" onClick={saveDiscoveredDiscord} disabled={!selectedChannel || busy}><Plus size={13} /> Add selected channel</button></div>}
         {integration && <form className="bot-add-form" onSubmit={addDestination}><strong><Plus size={14} /> Add {meta.destination.toLowerCase()}</strong><input value={form.displayName} onChange={(e) => setForm((current) => ({ ...current, displayName: e.target.value }))} placeholder="Display name" required /><input value={form.externalId} onChange={(e) => setForm((current) => ({ ...current, externalId: e.target.value }))} placeholder={provider === "discord" ? "Channel ID" : "Chat ID"} required /><input value={form.parentExternalId} onChange={(e) => setForm((current) => ({ ...current, parentExternalId: e.target.value }))} placeholder={provider === "discord" ? "Server ID (optional)" : "Thread ID (optional)"} /><button type="submit" disabled={!canManage || busy}><Send size={13} /> Save destination</button></form>}
       </section>

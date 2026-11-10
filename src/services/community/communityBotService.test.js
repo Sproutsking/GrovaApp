@@ -36,4 +36,28 @@ describe("communityBotService edge function errors", () => {
     await expect(communityBotService.discoverDiscordTargets("community"))
       .rejects.toThrow("Community bot request failed (502).");
   });
+
+  it("validates a provider destination before it is saved", async () => {
+    supabase.functions.invoke.mockResolvedValue({
+      data: { ok: true, destination: { id: "channel-1" } },
+      error: null,
+    });
+
+    await expect(communityBotService.validateDestination({
+      provider: "discord",
+      communityId: "community-1",
+      externalId: "channel-1",
+      parentExternalId: "guild-1",
+    })).resolves.toMatchObject({ ok: true });
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith("community-bot", {
+      body: {
+        action: "validate-destination",
+        provider: "discord",
+        communityId: "community-1",
+        externalId: "channel-1",
+        parentExternalId: "guild-1",
+      },
+    });
+  });
 });
