@@ -1,3 +1,5 @@
+import { projectPublicXrdLink } from "./xrdPublicLinkModel";
+
 const isPublicEvidence = (item, profileId) => (
   item?.verified === true
   && String(item?.metadata?.visibility || "PUBLIC").toUpperCase() === "PUBLIC"
@@ -41,6 +43,7 @@ export const projectXrdPublicView = (data = {}, isPublicView = true) => {
     claims = [],
     bindings = [],
     edges = [],
+    links = [],
     identityDetails = {},
     grantedEvidenceIds = [],
     profileId,
@@ -90,6 +93,9 @@ export const projectXrdPublicView = (data = {}, isPublicView = true) => {
         visibility: binding.visibility,
         evidence_id: publicEvidenceIds.has(binding.evidence_id) ? binding.evidence_id : null,
       })),
+    links: (Array.isArray(links) ? links : [])
+      .map(projectPublicXrdLink)
+      .filter(Boolean),
     edges: (Array.isArray(edges) ? edges : [])
       .filter((edge) => isPublicEdge(edge)
         && publicEvidenceIds.has(edge?.source_id)

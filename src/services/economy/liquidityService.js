@@ -33,22 +33,14 @@
 //     — this is explicitly UNBACKED unless the admin records a matching
 //     real-world transfer separately; the UI must say so clearly.
 //
-// WITHDRAWAL TIERS (confirmed business rule):
-//   Gated by profiles.reward_level, NOT subscription_tier.
-//   At EP_PER_USD = 100 (1 USD = 100 EP):
-//     none    → not eligible to withdraw
-//     silver  → up to $1,000  =  100,000 EP per request, processing_tier 1
-//     gold    → up to $10,000 = 1,000,000 EP per request, processing_tier 2
-//     diamond → up to $50,000 = 5,000,000 EP per request, processing_tier 3
-//   Platform fee: flat 2% on every withdrawal, BURNED (destroyed, not
-//   routed to treasury) — for ecosystem stability. net_ep = ep_amount * 0.98.
+// WITHDRAWAL POLICY:
+//   Eligibility and per-request caps are gated by profiles.reward_level, not
+//   subscription_tier. Reward level does not affect payout priority.
+//   A flat platform fee is burned; direct bank payouts are submitted
+//   immediately and settled or refunded from provider events.
 //
-// SYSTEM STATES (driven by liquidity_ratio, thresholds configurable):
-//   healthy   — ratio >= warning_threshold (default 0.30)
-//   warning   — critical_threshold <= ratio < warning_threshold (default 0.15–0.30)
-//   critical  — ratio < critical_threshold (default 0.15). Tier 1/2
-//               withdrawals are batched until recovery; Tier 3 still
-//               processes (high-value, protects platform trust).
+// SYSTEM STATES are reserve-health indicators only. They do not batch or
+// prioritize new direct withdrawals.
 //
 // REQUIRED SCHEMA: see schema.sql shipped alongside this service —
 //   liquidity_config, withdrawal_queue, liquidity_snapshots (extended),
@@ -77,52 +69,34 @@ const FALLBACK_CONFIG = {
   critical_threshold: 0.15,
 };
 
-const REWARD_LEVEL_TIER = { none: 0, silver: 1, gold: 2, diamond: 3 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SYSTEM STATE DISPLAY CONFIG
-// Consumed by StateBanner in LiquiditySection.jsx and WithdrawTab.
+// Consumed by StateBanner and history rows in LiquiditySection.jsx.
 // ─────────────────────────────────────────────────────────────────────────────
 export const SYSTEM_STATE_CONFIG = {
   healthy: {
     label: "Healthy",
-    description: "All systems operational — withdrawals processing on schedule",
+    description: "Reserve coverage is healthy. Bank payouts follow provider settlement status.",
     icon: "✅",
     color: "#34d399",
     bg: "rgba(52,211,153,0.06)",
     border: "rgba(52,211,153,0.20)",
-    tierImpact: {
-      1: "Normal — ~72h",
-      2: "Normal — ~24h",
-      3: "Normal — ~2h",
-    },
   },
   warning: {
     label: "Warning",
-    description: "Elevated withdrawal demand — Tier 1 may experience delays",
+    description: "Reserve coverage is below target. Reward level does not change payout priority.",
     icon: "⚠️",
     color: "#fbbf24",
     bg: "rgba(251,191,36,0.06)",
     border: "rgba(251,191,36,0.20)",
-    tierImpact: {
-      1: "Delayed — up to 5 days",
-      2: "Slight delay — ~36h",
-      3: "Priority — ~4h",
-    },
   },
   critical: {
     label: "Critical",
-    description:
-      "Low liquidity — Tier 1/2 withdrawals are batched and will release automatically on recovery. Tier 3 continues processing.",
+    description: "Reserve coverage is critically low. Monitor provider funding and reconcile outstanding transfers.",
     icon: "🚨",
     color: "#f87171",
     bg: "rgba(248,113,113,0.06)",
     border: "rgba(248,113,113,0.22)",
-    tierImpact: {
-      1: "Batched — awaiting recovery",
-      2: "Batched — awaiting recovery",
-      3: "Still processing — subject to available pool",
-    },
   },
 };
 
@@ -374,7 +348,7 @@ const liquidityService = {
         { data: injections, error: injErr },
       ] = await Promise.all([
         supabase.from("ep_transactions").select("amount").eq("type", "purchase_grant"),
-        supabase.from("ep_transactions").select("amount").eq("type", "refund"),
+        supabase.from("ep_transactions").select("amount,metadata").eq("type", "refund"),
         supabase.from("withdrawal_queue").select("net_ep").eq("status", "completed"),
         supabase.from("liquidity_injections").select("ep_amount"),
       ]);
@@ -387,7 +361,14 @@ const liquidityService = {
       const sum = (arr, field) => (arr || []).reduce((s, r) => s + (Number(r[field]) || 0), 0);
 
       const backed = sum(grants, "amount");
-      const refunded = sum(refunds, "amount"); // refunds reduce backing (the deposit is reversed)
+      const refunded = sum(
+        (refunds || []).filter(
+          (row) =>
+            row.metadata?.source !== "wallet_withdrawal" &&
+            row.metadata?.campaign_id == null,
+        ),
+        "amount",
+      );
       const paidOut = sum(completedWithdrawals, "net_ep");
       const injected = sum(injections, "ep_amount");
 
@@ -468,7 +449,7 @@ const liquidityService = {
   },
 
   /**
-   * Current withdrawal_queue length (queued + batched, not yet completed).
+   * Active withdrawals not yet completed, failed, or cancelled.
    */
   async getQueueLength() {
     try {
@@ -780,93 +761,12 @@ const liquidityService = {
 
   // ── WRITE: WITHDRAWAL QUEUE ───────────────────────────────────────────────
 
-  /**
-   * Submit a withdrawal request on behalf of a user. Validates against
-   * their reward_level limit, computes the 2% burn fee, derives the
-   * processing tier, and — if the system is currently critical — batches
-   * tier 1/2 requests immediately (tier 3 still queues normally).
-   *
-   * @param {{ userId: string, epAmount: number, destination?: string }} params
-   */
-  async requestWithdrawal({ userId, epAmount, destination }) {
-    const amount = Number(epAmount);
-    if (!amount || amount <= 0) {
-      throw new Error("Enter a valid EP amount to withdraw.");
-    }
-    if (!userId) {
-      throw new Error("Missing user identity for this withdrawal.");
-    }
-
-    const [cfg, { data: profile, error: profileErr }] = await Promise.all([
-      this.getConfig(),
-      supabase
-        .from("profiles")
-        .select("reward_level, engagement_points")
-        .eq("id", userId)
-        .single(),
-    ]);
-    if (profileErr) throw new Error(profileErr.message);
-    if (!profile) throw new Error("User profile not found.");
-
-    const rewardLevel = profile.reward_level || "none";
-    const { maxEp, tier } = _limitsForRewardLevel(rewardLevel, cfg);
-
-    if (!tier) {
-      throw new Error(
-        "This account is not yet eligible to withdraw. Reach Silver reward level or higher first.",
-      );
-    }
-    if (amount > maxEp) {
-      throw new Error(
-        `Amount exceeds your ${rewardLevel} limit of ${maxEp.toLocaleString()} EP per request.`,
-      );
-    }
-    if (amount > Number(profile.engagement_points || 0)) {
-      throw new Error("Insufficient EP balance for this withdrawal.");
-    }
-
-    const feePct = Number(cfg.platform_fee_pct ?? FALLBACK_CONFIG.platform_fee_pct) / 100;
-    const feeEp = Math.round(amount * feePct * 100) / 100; // cents-equivalent precision
-    const netEp = amount - feeEp;
-
-    // Determine batching: critical state batches tier 1/2 immediately.
-    const liveSnap = await this.computeLiveSnapshot();
-    const shouldBatch = this.shouldBatch(liveSnap.system_state, tier);
-
-    const { data, error } = await supabase
-      .from("withdrawal_queue")
-      .insert({
-        user_id: userId,
-        ep_amount: amount,
-        fee_ep: feeEp,
-        net_ep: netEp,
-        reward_level_at_request: rewardLevel,
-        processing_tier: tier,
-        status: shouldBatch ? "batched" : "queued",
-        destination: destination ?? null,
-        batched_at: shouldBatch ? new Date().toISOString() : null,
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-    return data;
+  async requestWithdrawal() {
+    throw new Error("Submit withdrawals through the secure wallet withdrawal flow.");
   },
 
-  /**
-   * Admin action: release all currently-batched withdrawals back to the
-   * normal queue (e.g. once liquidity has recovered). Matches what the
-   * "Release Batched Withdrawals" button calls.
-   */
   async releaseBatchedWithdrawals() {
-    const { data, error } = await supabase
-      .from("withdrawal_queue")
-      .update({ status: "queued", released_at: new Date().toISOString() })
-      .eq("status", "batched")
-      .select("id");
-
-    if (error) throw new Error(error.message);
-    return { released: (data || []).length };
+    throw new Error("Legacy withdrawal records require manual reconciliation; they cannot be auto-released.");
   },
 
   /**
@@ -876,54 +776,19 @@ const liquidityService = {
    * — no separate ledger mutation needed, since that function already
    * subtracts completed net_ep on every read).
    */
-  async completeWithdrawal(withdrawalId, transactionId) {
-    const { data, error } = await supabase
-      .from("withdrawal_queue")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        transaction_id: transactionId ?? null,
-      })
-      .eq("id", withdrawalId)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-    _bustAllCache();
-    return data;
+  async completeWithdrawal() {
+    throw new Error("Withdrawals must be settled by the verified payout webhook.");
   },
 
   /**
    * Admin/worker action: mark a queued withdrawal as failed (e.g. payout
    * provider error), with a reason for the audit trail.
    */
-  async failWithdrawal(withdrawalId, reason) {
-    const { data, error } = await supabase
-      .from("withdrawal_queue")
-      .update({ status: "failed", failed_reason: reason || "Unknown error" })
-      .eq("id", withdrawalId)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-    return data;
+  async failWithdrawal() {
+    throw new Error("Withdrawal failures must be recorded through the atomic settlement flow.");
   },
 
   // ── BUSINESS LOGIC HELPERS ────────────────────────────────────────────────
-
-  /**
-   * Returns true if a withdrawal should be batched given the current state.
-   * Tier 3 (diamond, highest reward level) bypasses batching even in
-   * critical state — high-value withdrawals are prioritised for platform
-   * trust and reputation, per confirmed business rule.
-   *
-   * @param {"healthy"|"warning"|"critical"} state
-   * @param {number} tier  1 | 2 | 3
-   * @returns {boolean}
-   */
-  shouldBatch(state, tier) {
-    return state === "critical" && tier < 3;
-  },
 
   /**
    * Returns adjusted estimated processing hours based on system state.

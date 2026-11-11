@@ -15,11 +15,7 @@ if (!TOKEN) {
 
 (async () => {
   try {
-        // Allow passing USER_ID when running with a service role key so the
-        // function can attribute the deposit to a specific user.
-        const USER_ID = process.env.USER_ID;
         const body = { nairaAmount: 500, currency: 'EP' };
-        if (USER_ID) body.userId = USER_ID;
 
         const res = await fetch(`${SUPABASE_URL}/functions/v1/deposit-paystack-init`, {
           method: 'POST',

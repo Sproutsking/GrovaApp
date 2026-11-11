@@ -30,7 +30,7 @@
 //
 //  EP MINT FIX (retained from v6):
 //    NGN → USD → EP conversion at 100 EP/USD.
-//    usd_amount passed in metadata so webhook mints correctly.
+//    The verified server-side deposit intent controls the final credit.
 //
 //  ECONOMY (authoritative):
 //    1 USD  = 100 EP
@@ -269,7 +269,6 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
 //    process.env as a secondary so local dev doesn't break during migration.
 //
 export async function depositPaystackOpen({
-  userId,
   email,
   nairaAmount,
   channel         = "card",
@@ -295,14 +294,13 @@ export async function depositPaystackOpen({
   const token = session?.access_token;
   if (!token) throw new Error("Not authenticated. Please sign in and try again.");
 
-  const userEmail = email || session?.user?.email;
+  const authenticatedUserId = session?.user?.id;
+  if (!authenticatedUserId) throw new Error("Could not verify the signed-in account.");
+
+  const userEmail = session?.user?.email || email;
   if (!userEmail) throw new Error("Email not found. Please update your profile.");
 
-  // ── 2. Compute USD equivalent ─────────────────────────────────────────────
-  const rate      = await getLiveUSDNGN();
-  const usdAmount = parseFloat((n / rate).toFixed(4));
-
-  // ── 3. Call edge function to register intent ──────────────────────────────
+  // ── 2. Call edge function to register the authoritative intent ────────────
   //       Edge function returns: { reference, creditAmount, amountKobo, paystackKey }
   //       paystackKey is read from Deno.env on the server — always available.
   const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
@@ -315,10 +313,7 @@ export async function depositPaystackOpen({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        userId,           // belt+suspenders: also send userId explicitly
         nairaAmount:  n,
-        usdAmount,
-        usdNgnRate:   rate,
         currency,
         channel,
         ...(fromWallet      ? { from_wallet:      fromWallet }      : {}),
@@ -365,10 +360,8 @@ export async function depositPaystackOpen({
       channels: [channel],
       metadata: {
         source:           "wallet_deposit",
-        user_id:          userId,
+        user_id:          authenticatedUserId,
         deposit_currency: currency,
-        usd_amount:       usdAmount,
-        usd_ngn_rate:     rate,
         channel,
         ...(fromWallet      ? { wallet_name:      fromWallet }      : {}),
         ...(walletAddress   ? { wallet_address:   walletAddress }   : {}),

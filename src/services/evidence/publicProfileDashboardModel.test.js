@@ -1,4 +1,4 @@
-import { buildProfileRecordSummary } from "./publicProfileDashboardModel";
+import { buildProfileRecordSummary, buildPublicProfileDashboard, getPublicProfileEvidenceItems } from "./publicProfileDashboardModel";
 
 describe("buildProfileRecordSummary", () => {
   it("counts persisted evidence and claims without treating identity links as verified records", () => {
@@ -35,6 +35,31 @@ describe("buildProfileRecordSummary", () => {
       verified: 1,
       sources: 1,
       institutions: 0,
+    });
+  });
+
+  describe("buildPublicProfileDashboard", () => {
+    const evidenceItems = [
+      { id: "social-public", provider: "x", evidence_type: "profile", verified: true, metadata: { visibility: "PUBLIC" } },
+      { id: "portfolio-private", provider: "GitHub", evidence_type: "portfolio", verified: true, metadata: { visibility: "PRIVATE" } },
+      { id: "comment-public", provider: "x", evidence_type: "activity", verified: true, metadata: { kind: "comment", visibility: "PUBLIC" } },
+      { id: "report-public", provider: "GitHub", evidence_type: "report", verified: true, metadata: { visibility: "PUBLIC" } },
+    ];
+
+    it("only includes verified, public evidence and omits engagement from visitor views", () => {
+      const publicItems = getPublicProfileEvidenceItems(evidenceItems);
+      const dashboard = buildPublicProfileDashboard({ username: "alex" }, evidenceItems);
+
+      expect(publicItems.map((item) => item.id)).toEqual(["social-public", "report-public"]);
+      expect(dashboard.sections.map((section) => section.id)).not.toEqual(expect.arrayContaining(["comments", "replies", "likes"]));
+      expect(dashboard.sections.find((section) => section.id === "socials").items.map((item) => item.id)).toEqual(["social-public"]);
+      expect(dashboard.sections.find((section) => section.id === "reports").items.map((item) => item.id)).toEqual(["report-public"]);
+    });
+
+    it("keeps engagement sections available to the profile owner only", () => {
+      const dashboard = buildPublicProfileDashboard({ username: "alex" }, evidenceItems, { isOwner: true });
+
+      expect(dashboard.sections.map((section) => section.id)).toEqual(expect.arrayContaining(["comments", "replies", "likes"]));
     });
   });
 });

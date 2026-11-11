@@ -3,12 +3,18 @@ import { render, waitFor } from "@testing-library/react";
 import PublicXrdSharePage from "./PublicXrdSharePage";
 import XrcProfileRoute from "./XrcProfileRoute";
 import XRDProfileDashboard from "../components/Modals/XRDProfileDashboard";
+import XRCProfileDashboard from "../components/Modals/XRCProfileDashboard";
 import { buildXrcDeepLink, getPublicXrdShare } from "../services/evidence/xrdPublicShareService";
 import { supabase } from "../services/config/supabase";
 
 jest.mock("../components/Modals/XRDProfileDashboard", () => ({
   __esModule: true,
   default: jest.fn(() => <div data-testid="xrd-dashboard" />),
+}));
+
+jest.mock("../components/Modals/XRCProfileDashboard", () => ({
+  __esModule: true,
+  default: jest.fn(() => <div data-testid="xrc-dashboard" />),
   resolveXrcInitialSection: (section) => (
     ["Overview", "Identity", "Records", "Evidence", "Graph", "Chains", "Activity", "Verification", "Sources"].includes(section)
       ? section
@@ -30,6 +36,8 @@ const publicShare = {
   claims: [{ id: "claim-1", title: "Public contribution" }],
   evidenceItems: [{ id: "evidence-1", provider: "GitHub" }],
   bindings: [],
+  links: [],
+  linksWarning: "",
   identityDetails: { headline: "Builder" },
 };
 
@@ -45,9 +53,10 @@ it("renders an anonymous XRD share from the public projection", async () => {
 
   await waitFor(() => {
     expect(XRDProfileDashboard.mock.calls[0][0]).toEqual(expect.objectContaining({
-      targetId: "profile-1",
-      publicSnapshot: publicShare,
       verificationItems: publicShare.evidenceItems,
+      publicSnapshot: publicShare,
+      forcePublicView: true,
+      presentation: "page",
       onOpenXRC: expect.any(Function),
     }));
   });
@@ -72,12 +81,12 @@ it("opens authenticated XRC at the requested public claim", async () => {
   render(<XrcProfileRoute username="ada" currentUser={{ id: "viewer-1" }} />);
 
   await waitFor(() => {
-    expect(XRDProfileDashboard.mock.calls[0][0]).toEqual(expect.objectContaining({
-      mode: "xrc",
+    expect(XRCProfileDashboard.mock.calls[0][0]).toEqual(expect.objectContaining({
       initialSection: "Records",
       xrdRecordId: "claim-1",
       publicSnapshot: publicShare,
       currentUser: { id: "viewer-1" },
+      presentation: "page",
     }));
   });
   expect(supabase.from).toHaveBeenCalledWith("profiles");

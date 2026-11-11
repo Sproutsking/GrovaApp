@@ -50,6 +50,17 @@ const risks = [
   ["Earn the moat", "The advantage comes from trusted evidence and measured outcomes, not the dashboard alone."],
 ];
 
+const walletUpdates = [
+  ["Deposit integrity — implementation ready for deployment", "Paystack deposit ownership and FX are server-authoritative; settlement is designed to update wallet, transaction, and ledgers atomically and idempotently. Migration 123 and the updated Edge Functions still need deployment and verification."],
+  ["Withdrawal policy — implementation in progress", "The new path is bank-only and immediate, with reward level used for eligibility and request limits—not payout priority. Server-side quote capture and atomic payout settlement/refunds are drafted; migration 124 needs schema review, deployment, and provider testing."],
+];
+
+const walletPriorities = [
+  "Deploy and verify the payment migrations and Edge Functions in a controlled environment before describing either flow as live.",
+  "Reconcile ambiguous Paystack transfer outcomes and historical queued withdrawals against provider records before retrying or refunding.",
+  "Add crypto and PayPal withdrawals only after each has a verified payout, reversal, and atomic refund path.",
+];
+
 const SectionLabel = ({ children, color = C.accent }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8, color, fontSize: 11, fontWeight: 900, letterSpacing: "1.8px", textTransform: "uppercase" }}>
     <span style={{ width: 22, height: 1, background: color, boxShadow: `0 0 10px ${color}` }} />
@@ -139,6 +150,24 @@ const FounderBriefingSection = () => (
         <ul className="founder-next-list">{nextItems.map((item) => <li className="founder-next-item" key={item}><CircleDot size={14} />{item}</li>)}</ul>
       </section>
     </div>
+
+    <section className="founder-panel" style={{ marginTop: 14 }}>
+      <div className="founder-panel-head"><div><SectionLabel color={C.info}>Product updates & decisions</SectionLabel><h2>Wallet payments</h2></div><WalletCards size={20} color={C.info} /></div>
+      <div className="founder-status-list">
+        {walletUpdates.map(([title, text]) => (
+          <div className="founder-status-row" key={title}>
+            <span className="founder-dot" style={{ background: C.info, boxShadow: `0 0 10px ${C.info}` }} />
+            <div><strong>{title}</strong><span>{text}</span></div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 18 }}>
+        <SectionLabel color={C.warn}>Operational priorities</SectionLabel>
+        <ul className="founder-next-list" style={{ marginTop: 12 }}>
+          {walletPriorities.map((item) => <li className="founder-next-item" key={item}><CircleDot size={14} />{item}</li>)}
+        </ul>
+      </div>
+    </section>
 
     <section className="founder-panel" style={{ marginTop: 14 }}>
       <div className="founder-panel-head"><div><SectionLabel color={C.warn}>Founder guardrails</SectionLabel><h2>What must stay true</h2></div><Compass size={20} color={C.warn} /></div>

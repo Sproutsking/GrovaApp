@@ -1,0 +1,2916 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import {
+  Activity, ArrowLeft, BadgeCheck, BookOpen, Briefcase,
+  ChevronRight, Clock, Database, ExternalLink, FileCheck2, FileText, Fingerprint,
+  GitBranch, GraduationCap, Images, Layers3, LockKeyhole, MessageSquareQuote, MoreHorizontal, Network, Search, Send, X,
+  Link2, Shield, ShieldCheck, Sparkles,
+} from "lucide-react";
+import { supabase } from "../../services/config/supabase";
+import xrcService, { STREAM_REGISTRY, STREAM_TYPES, XRC_EVENTS } from "../../services/xrc";
+import { computeGenesisHash, verifyRecordHash } from "../../services/xrc/hashing";
+import evidenceService from "../../services/evidence/evidenceService";
+import xrdRecordService, { compareEvidenceSnapshot } from "../../services/evidence/xrdRecordService";
+import { getVisibleXrdBindings } from "../../services/evidence/xrdGraphModel";
+import { projectXrdPublicView } from "../../services/evidence/xrdPublicProjection";
+import { XRD_PUBLIC_LINK_CATEGORIES } from "../../services/evidence/xrdPublicLinkModel";
+import { deleteOwnerXrdLink, listOwnerXrdLinks, saveOwnerXrdLink } from "../../services/evidence/xrdPublicLinksService";
+import socialConnectService from "../../services/distribution/socialConnectService";
+import { useAccountLinking } from "../../contexts/AccountLinkingContext";
+import { getRegisteredConnectors, syncUserConnectorEvidence } from "../../services/evidence/connectorService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
+import XRDClaimsSection from "./XRDClaimsSection";
+const EMPTY_VERIFICATION_ITEMS = [];
+
+const NAV = [
+  ["Overview", Layers3],
+  ["Identity", Fingerprint],
+  ["Links", Link2],
+  ["Records", FileText],
+  ["Evidence", FileCheck2],
+  ["Graph", Network],
+  ["Chains", GitBranch],
+  ["Activity", Activity],
+  ["Verification", ShieldCheck],
+  ["Sources", Database],
+  ["Projects", Briefcase],
+  ["Credentials", GraduationCap],
+  ["Achievements", BookOpen],
+  ["Remarks", FileText],
+  ["Permissions", LockKeyhole],
+  ["Audit", Shield],
+  ["Settings", LockKeyhole],
+  ["Oracle", Sparkles],
+];
+
+const NAV_GROUPS = [
+  ["CORE", ["Overview", "Identity", "Links"]],
+  ["GRAPH", ["Records", "Evidence", "Graph", "Remarks", "Verification", "Sources"]],
+  ["COLLECTIONS", ["Projects", "Credentials", "Achievements"]],
+  ["CONTROL", ["Permissions", "Audit", "Oracle", "Settings"]],
+];
+
+export const XRC_NAV_GROUPS = [
+  ["CORE", ["Overview", "Identity"]],
+  ["PROVENANCE", ["Records", "Evidence", "Graph", "Chains"]],
+  ["OBSERVABILITY", ["Activity", "Verification", "Sources"]],
+];
+
+const XRC_SECTIONS = new Set(XRC_NAV_GROUPS.flatMap(([, sections]) => sections));
+const OWNER_ONLY = new Set(["Audit", "Permissions", "Remarks", "Settings"]);
+
+export const resolveXrcInitialSection = (section = "Overview") => (
+  XRC_SECTIONS.has(section) ? section : "Overview"
+);
+
+export const SOURCE_PLATFORMS = [
+  ["github", "GitHub"], ["linkedin", "LinkedIn"], ["x", "X"], ["facebook", "Facebook"],
+  ["instagram", "Instagram"], ["google", "Google"], ["discord", "Discord"], ["tiktok", "TikTok"], ["apple", "Apple"],
+];
+
+const SETTING_GROUPS = {
+  Visibility: ["Default visibility for new records", "Show record counts to visitors", "Hide restricted records from search"],
+  "Record Display": ["Pin selected records first", "Show evidence counts publicly", "Show provenance where permitted"],
+  Remarks: ["Allow people to request remark access", "Enable owner responses", "Require evidence for remarks", "Show contested remarks in owner review"],
+  Verification: ["Allow public verification checks", "Show verification history", "Notify me when a record is verified"],
+  Connections: ["Show connection-only records to followers", "Allow connections to request evidence"],
+  Permissions: ["Require approval for evidence access", "Allow verifiers to view restricted records"],
+  Sharing: ["Allow share links to XRD", "Share links expire after 30 days"],
+  Notifications: ["New remark on my records", "Remark access requests", "Evidence access requests"],
+  Privacy: ["Hide XRD from search engines", "Show XRD stats on profile"],
+  Security: ["Require re-authentication for visibility changes", "Alert on new sign-ins"],
+  Sources: ["Require approval before a source syncs new records", "Notify me when a source fails to sync"],
+  Account: ["Show my XRD link on my profile", "Allow Evidence Q&A to cite public records"],
+  Audit: ["Keep my own audit view enabled"],
+  Oracle: ["Let Oracle answer public questions", "Include restricted records in my private Oracle"],
+};
+
+const dateLabel = (value) => {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Date unavailable"
+    : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+};
+
+const countBySource = (items) => {
+  const sources = new Map();
+  items.forEach((item) => {
+    const name = typeof item?.provider === "string" && item.provider.trim()
+      ? item.provider.trim()
+      : "Unknown source";
+    sources.set(name, (sources.get(name) || 0) + 1);
+  });
+  return [...sources.entries()].sort((a, b) => b[1] - a[1]);
+};
+
+const normalizeStatus = (item) => {
+  if (item?.metadata?.status) return String(item.metadata.status);
+  return item?.verified ? "Source-reported" : "Tracked";
+};
+
+export const getXrdProfileAvatarCandidates = (profile) => {
+  const candidates = [
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarUrl, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatar, 300),
+    ...(Array.isArray(profile?.avatarFallbackUrls) ? profile.avatarFallbackUrls.flatMap((url) => mediaUrlService.resolveAvatarUrls(url, 300)) : []),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarId || profile?.avatar_id, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.avatarMetadata || profile?.avatar_metadata, 300),
+    ...mediaUrlService.resolveAvatarUrls(profile?.user_metadata || profile?.userMetadata, 300),
+    ...(Array.isArray(profile?.authenticatedAvatarCandidates) ? profile.authenticatedAvatarCandidates : []),
+  ];
+  return [...new Set(candidates.filter((url) => typeof url === "string" && url.trim()))];
+};
+
+export const getXrdPhotoSources = (profile, evidence = [], connections = []) => {
+  const sources = [];
+  const nativeUrls = getXrdProfileAvatarCandidates(profile);
+  if (nativeUrls.length) {
+    sources.push({
+      id: "xeevia-profile",
+      name: "Xeevia",
+      handle: profile?.username ? `@${profile.username}` : "Profile image",
+      urls: nativeUrls,
+      verified: Boolean(profile?.verified),
+    });
+  }
+
+  evidence.forEach((item) => {
+    const type = String(item?.evidence_type || item?.type || "profile").toLowerCase();
+    if (!type.includes("profile") && !type.includes("identity")) return;
+    const urls = [...new Set([
+      ...mediaUrlService.resolveAvatarUrls(item?.metadata, 300),
+      ...mediaUrlService.resolveAvatarUrls(item?.raw, 300),
+      ...mediaUrlService.resolveAvatarUrls(item?.avatar_url || item?.avatarUrl || item?.profile_image_url || item?.profileImageUrl, 300),
+    ].filter((url) => typeof url === "string" && /^https?:\/\//i.test(url)))];
+    if (!urls.length) return;
+    const name = item.provider || "Connected source";
+    sources.push({
+      id: item.id || `${name}:${urls[0]}`,
+      name,
+      handle: item.metadata?.username || item.metadata?.handle || item.title || "Profile image",
+      urls,
+      verified: Boolean(item.verified),
+    });
+  });
+
+  connections.forEach((connection) => {
+    const urls = mediaUrlService.resolveAvatarUrls(connection?.avatarUrl || connection?.avatar_url || connection?.picture, 300);
+    if (!urls.length) return;
+    const name = String(connection.provider || "Connected source");
+    sources.push({
+      id: `connection:${connection.id || name}`,
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      handle: connection.platform_user_id || connection.username || "Connected account",
+      urls,
+      verified: false,
+    });
+  });
+
+  return [...new Map(sources.map((source) => [`${source.name}:${source.urls[0]}`, source])).values()];
+};
+
+export const getXrdIdentityBindings = (profile, connections = []) => {
+  const hasNativeProfile = Boolean(profile?.id || profile?.username || profile?.fullName);
+  const nativeBinding = hasNativeProfile ? [{
+    provider: "Xeevia",
+    account: profile.username ? `@${profile.username}` : "Native profile",
+    status: "Native profile",
+    native: true,
+  }] : [];
+  const externalBindings = connections
+    .filter((connection) => String(connection?.provider || "").toLowerCase() !== "xeevia")
+    .map((connection) => ({
+      provider: connection.provider,
+      account: connection.auth_status === "active"
+        ? (connection.hasValidToken ? "Account + token" : "Account linked")
+        : connection.auth_status || "Unknown",
+      native: false,
+    }));
+  return [...nativeBinding, ...externalBindings];
+};
+
+export const XRD_IDENTITY_FIELDS = [
+  { key: "headline", label: "Headline", placeholder: "Product designer · community builder" },
+  { key: "location", label: "Location", placeholder: "Paris, FR / Remote" },
+  { key: "pronouns", label: "Pronouns", placeholder: "she/her, he/him, they/them" },
+  { key: "website", label: "Website", placeholder: "https://example.com" },
+  { key: "availability", label: "Availability", placeholder: "Open to collaborations / not currently available" },
+  { key: "bio", label: "Short bio", placeholder: "Tell people who you are, what you build, and what you care about." },
+  { key: "note", label: "Owner note", placeholder: "Optional note for viewers, such as your mission or availability." },
+];
+
+export const getXrdIdentityDetails = (details = {}) => {
+  const raw = Array.isArray(details)
+    ? Object.fromEntries(details.map((row) => [row.field_key, row.value]))
+    : details && typeof details === "object" ? details : {};
+  return {
+    ...Object.fromEntries(XRD_IDENTITY_FIELDS.map(({ key }) => [key, typeof raw[key] === "string" ? raw[key] : ""])),
+  };
+};
+
+export const getXrcRecordSummary = (payload = {}) => {
+  const provider = String(payload.provider || "platform");
+  switch (payload.event) {
+    case "identity_details_updated": {
+      const fields = Array.isArray(payload.updated_fields) ? payload.updated_fields : [];
+      const fieldLabels = fields.map((field) => String(field).replaceAll("_", " "));
+      return `Identity fields changed: ${fieldLabels.join(", ") || "none"} · ${payload.visibility || "private"} visibility`;
+    }
+    case "platform_connected":
+      return `${provider} connected via ${String(payload.connection_method || "unknown").replaceAll("_", " ")} · ${payload.assurance_scope || "account_control"}`;
+    case "platform_identity_imported":
+      return `${provider} identity imported from ${String(payload.connection_method || "Supabase identity").replaceAll("_", " ")} · ${payload.auth_status || "expired"}; account control not established`;
+    case "platform_disconnected":
+      return `${provider} disconnected · was ${payload.previous_auth_status || "unknown"}`;
+    case "follow_added":
+      return payload.following_id ? `Followed Xeevia profile ${payload.following_id}` : "Followed an Xeevia profile";
+    case "follow_removed":
+      return payload.following_id ? `Unfollowed Xeevia profile ${payload.following_id}` : "Unfollowed an Xeevia profile";
+    default:
+      return "";
+  }
+};
+
+export const buildXrdIdentityDetailRows = (profileId, details, visibility, updatedAt) => {
+  const normalized = getXrdIdentityDetails(details);
+  return XRD_IDENTITY_FIELDS.map(({ key }) => ({
+    profile_id: profileId,
+    field_key: key,
+    value: normalized[key],
+    visibility: visibility === "public" ? "public" : "private",
+    updated_at: updatedAt,
+  }));
+};
+
+export const resolveXrdInitialSection = (section) => (
+  section === "Remarks" ? "Records" : ["XRC Oracle", "Chains", "Activity"].includes(section) ? "Overview" : section
+);
+
+export const getXrdIdentityRowStatus = (row = {}) => {
+  const connection = row.connection;
+  if (connection) {
+    const state = String(connection.auth_status || "").toLowerCase();
+    if (state === "active" && connection.connected_via === "profile_link") {
+      return { label: "Profile URL · unverified", tone: "pending" };
+    }
+    if (state === "active" && connection.hasValidToken) {
+      return { label: "Connected · token active", tone: "connected" };
+    }
+    if (state === "active") return { label: "Connected", tone: "connected" };
+    if (/revok|disconnect/.test(state)) return { label: "Disconnected", tone: "disconnected" };
+    if (/pending|reauth/.test(state)) return { label: "Pending", tone: "pending" };
+    return { label: connection.auth_status || "Connection unknown", tone: "neutral" };
+  }
+
+  const evidence = Array.isArray(row.evidence) ? row.evidence : [];
+  const explicitStatus = evidence.map((item) => String(item?.metadata?.status || "").toLowerCase()).find(Boolean);
+  if (explicitStatus && /pending|expired|revoked|disputed|mismatch|unavailable|failed/.test(explicitStatus)) {
+    return { label: explicitStatus.replaceAll("_", " "), tone: /revoked|failed/.test(explicitStatus) ? "disconnected" : "pending" };
+  }
+  if (evidence.some((item) => item?.verified && item?.source !== "first_party" && !item?.metadata?.firstParty)) {
+    return { label: "Source-reported", tone: "source" };
+  }
+  if (evidence.length) return { label: "Tracked", tone: "tracked" };
+  return { label: "No evidence", tone: "neutral" };
+};
+
+const XrdProfileAvatar = ({ candidates, initials }) => {
+  const [failedCandidates, setFailedCandidates] = useState([]);
+  const nextCandidate = candidates.find((candidate) => !failedCandidates.includes(candidate));
+  if (!nextCandidate) return <span>{initials}</span>;
+  return <img src={nextCandidate} alt="" onError={() => setFailedCandidates((failed) => [...failed, nextCandidate])} />;
+};
+
+const XrdPhotoImage = ({ source }) => {
+  const [failedUrls, setFailedUrls] = useState([]);
+  const nextUrl = (source.urls || [source.url]).find((url) => url && !failedUrls.includes(url));
+  if (!nextUrl) return <div className="xrd-photo-fallback" aria-label={`${source.name} image unavailable`}>{source.name.slice(0, 1).toUpperCase()}</div>;
+  return <img src={nextUrl} alt={`${source.name} profile`} loading="lazy" onError={() => setFailedUrls((current) => [...current, nextUrl])} />;
+};
+
+const graphHashKey = (value) => String(value || "").trim().toLowerCase();
+
+export function XrdEvidenceGraph({ items, edges, profile, connections = [], bindings = [], claims = [], records = [], auditResult = {}, traceResult = {}, focusEvidenceId = null, onPick, onOpenVerification, onVerifyRecord, onTraceRecord, onOpenIdentity, onOpenClaims }) {
+  const [layer, setLayer] = useState("All");
+  const [selected, setSelected] = useState(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+  const [selectedRecordId, setSelectedRecordId] = useState(null);
+  const [selectedSourceName, setSelectedSourceName] = useState(null);
+  const [identitySelected, setIdentitySelected] = useState(false);
+  const [selectedClaimId, setSelectedClaimId] = useState(null);
+  const [selectedBindingId, setSelectedBindingId] = useState(null);
+  const [pan, setPan] = useState([0, 0]);
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+  const didDrag = useRef(false);
+  const suppressClick = useRef(false);
+  const cx = 480, cy = 300;
+  const visibleItems = [...items].sort((left, right) => (
+    Number(right.id === focusEvidenceId) - Number(left.id === focusEvidenceId)
+  )).slice(0, 32);
+  useEffect(() => {
+    if (!focusEvidenceId) return;
+    setLayer("All");
+    setSelected(focusEvidenceId);
+    setSelectedEdgeId(null);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  }, [focusEvidenceId]);
+  const connectionByProvider = new Map(connections.map((connection) => [String(connection.provider || "").toLowerCase(), connection]));
+  const providerLabels = new Map();
+  visibleItems.forEach((item) => {
+    const name = item.provider || "Unknown source";
+    if (!providerLabels.has(String(name).toLowerCase())) providerLabels.set(String(name).toLowerCase(), name);
+  });
+  connections.forEach((connection) => {
+    const name = connection.provider || "Unknown source";
+    if (!providerLabels.has(String(name).toLowerCase())) providerLabels.set(String(name).toLowerCase(), name);
+  });
+  const sourceNames = [...providerLabels.values()];
+  const sourceNodes = sourceNames.map((name, index) => {
+    const angle = -Math.PI / 2 + (index / Math.max(sourceNames.length, 1)) * Math.PI * 2;
+    return { name, connection: connectionByProvider.get(name.toLowerCase()) || null, x: cx + Math.cos(angle) * 176, y: cy + Math.sin(angle) * 118, angle };
+  });
+  const sourceMap = new Map(sourceNodes.map((node) => [node.name, node]));
+  const evidenceNodes = visibleItems.map((item) => {
+    const sourceName = item.provider || "Unknown source";
+    const siblings = visibleItems.filter((candidate) => (candidate.provider || "Unknown source") === sourceName);
+    const index = siblings.findIndex((candidate) => candidate.id === item.id);
+    const source = sourceMap.get(sourceName);
+    const spread = (index - (siblings.length - 1) / 2) * 0.22;
+    const angle = source.angle + spread;
+    return { item, x: cx + Math.cos(angle) * 318, y: cy + Math.sin(angle) * 210 };
+  });
+  const evidenceMap = new Map(evidenceNodes.map((node) => [node.item.id, node]));
+  const claimNodes = claims.slice(0, 12).map((claim, index, list) => {
+    const angle = -Math.PI / 2 + (index / Math.max(list.length, 1)) * Math.PI * 2;
+    return { claim, x: cx + Math.cos(angle) * 112, y: cy + Math.sin(angle) * 72 };
+  });
+  const claimById = new Map(claimNodes.map((node) => [node.claim.id, node]));
+  const claimEvidenceEdges = claims.flatMap((claim) => (Array.isArray(claim.evidence_links) ? claim.evidence_links : [])
+    .filter((link) => evidenceMap.has(link.evidence_item_id) && claimById.has(claim.id)
+      && ["supports", "contradicts"].includes(link.relation))
+    .map((link) => ({
+      id: `${claim.id}:${link.evidence_item_id}:${link.relation}`,
+      claim: claimById.get(claim.id),
+      evidence: evidenceMap.get(link.evidence_item_id),
+      relation: link.relation,
+    })));
+  const visibleBindings = getVisibleXrdBindings(bindings);
+  const bindingNodes = visibleBindings.map((binding, index, list) => {
+    const angle = -Math.PI / 2 + (index / Math.max(list.length, 1)) * Math.PI * 2;
+    return { binding, x: cx + Math.cos(angle) * 62, y: cy + Math.sin(angle) * 40 };
+  });
+  const bindingById = new Map(bindingNodes.map((node) => [node.binding.id, node]));
+  const bindingByEvidenceId = new Map(bindingNodes
+    .filter(({ binding }) => binding.evidence_id)
+    .map((node) => [String(node.binding.evidence_id), node]));
+  const bindingByConnectionId = new Map(bindingNodes
+    .filter(({ binding }) => binding.connection_id)
+    .map((node) => [String(node.binding.connection_id), node]));
+  const evidenceBindingEdges = evidenceNodes.flatMap((evidence) => {
+    const binding = bindingByEvidenceId.get(String(evidence.item.id))
+      || bindingByConnectionId.get(String(evidence.item.connection_id || ""));
+    return binding ? [{ id: `${evidence.item.id}:${binding.binding.id}`, evidence, binding }] : [];
+  });
+  const linkedEdges = edges.filter((edge) => evidenceMap.has(edge.source_id) && evidenceMap.has(edge.target_id)).slice(0, 80);
+  const recordNodes = records.slice(0, 12).map((record, index, list) => {
+    const angle = -Math.PI / 2 + (index / Math.max(list.length, 1)) * Math.PI * 2;
+    return { record, x: cx + Math.cos(angle) * 246, y: cy + Math.sin(angle) * 160 };
+  });
+  const claimAuditEdges = claimNodes.flatMap((claimNode) => recordNodes
+    .filter(({ record }) => String(record.payload?.entity_id || record.payload?.entityId || "") === String(claimNode.claim.id))
+    .map((recordNode) => ({ id: `${claimNode.claim.id}:${recordNode.record.record_id}`, claim: claimNode, record: recordNode })));
+  const recordByHash = new Map(recordNodes.filter(({ record }) => record.record_hash).map(({ record }) => [`${record.stream_type}:${graphHashKey(record.record_hash)}`, record]));
+  const recordChainEdges = recordNodes.flatMap((node) => {
+    const { record } = node;
+    const parent = recordByHash.get(`${record.stream_type}:${graphHashKey(record.previous_hash)}`);
+    if (!parent || !record.previous_hash) return [];
+    const parentNode = recordNodes.find(({ record: candidate }) => candidate.record_id === parent.record_id);
+    return parentNode ? [{ id: `${parent.record_id}:${record.record_id}`, source: parentNode, target: node }] : [];
+  });
+  const recordEvidenceEdges = recordNodes.flatMap((recordNode) => visibleItems.flatMap((item) => {
+    const linkedRecordId = item.metadata?.record_id || item.metadata?.recordId;
+    return linkedRecordId === recordNode.record.record_id && evidenceMap.has(item.id)
+      ? [{ id: `${recordNode.record.record_id}:${item.id}`, record: recordNode, evidence: evidenceMap.get(item.id) }]
+      : [];
+  }));
+  const recordById = new Map(recordNodes.map((node) => [node.record.record_id, node]));
+  const enabled = (name) => layer === "All" || layer === name;
+  const showLinkedContext = layer === "Stored links";
+  const onDown = (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
+    dragStart.current = { x: event.clientX, y: event.clientY, pan };
+    didDrag.current = false;
+  };
+  const onMove = (event) => {
+    if (!dragStart.current) return;
+    const dx = event.clientX - dragStart.current.x;
+    const dy = event.clientY - dragStart.current.y;
+    if (!didDrag.current && Math.hypot(dx, dy) < 5) return;
+    if (!didDrag.current) {
+      didDrag.current = true;
+      setDragging(true);
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) { /* Pointer capture is not available in every browser. */ }
+    }
+    setPan([dragStart.current.pan[0] + dx, dragStart.current.pan[1] + dy]);
+  };
+  const onUp = () => {
+    if (didDrag.current) {
+      suppressClick.current = true;
+      window.setTimeout(() => { suppressClick.current = false; }, 0);
+    }
+    dragStart.current = null;
+    didDrag.current = false;
+    setDragging(false);
+  };
+  const pick = (item) => {
+    if (suppressClick.current) return;
+    setSelected(item.id);
+    setSelectedEdgeId(null);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+    onPick(item);
+  };
+  const pickEdge = (edge) => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setSelectedEdgeId(edge.id);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  };
+  const pickSource = (name) => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setSelectedSourceName(name);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedEdgeId(null);
+    setIdentitySelected(false);
+  };
+  const pickIdentity = () => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setIdentitySelected(true);
+    setSelectedRecordId(null);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedEdgeId(null);
+    setSelectedSourceName(null);
+  };
+  const pickRecord = (recordId) => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setSelectedRecordId(recordId);
+    setSelectedClaimId(null);
+    setSelectedBindingId(null);
+    setSelectedEdgeId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  };
+  const pickClaim = (claimId) => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setSelectedClaimId(claimId);
+    setSelectedBindingId(null);
+    setSelectedRecordId(null);
+    setSelectedEdgeId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  };
+  const pickBinding = (bindingId) => {
+    if (suppressClick.current) return;
+    setSelected(null);
+    setSelectedBindingId(bindingId);
+    setSelectedClaimId(null);
+    setSelectedRecordId(null);
+    setSelectedEdgeId(null);
+    setSelectedSourceName(null);
+    setIdentitySelected(false);
+  };
+  const activateOnKey = (event, activate) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activate();
+    }
+  };
+  const selectedEdge = linkedEdges.find((edge) => edge.id === selectedEdgeId);
+  const selectedEdgeSource = selectedEdge && evidenceMap.get(selectedEdge.source_id)?.item;
+  const selectedEdgeTarget = selectedEdge && evidenceMap.get(selectedEdge.target_id)?.item;
+  const selectedSourceItems = selectedSourceName
+    ? visibleItems.filter((item) => (item.provider || "Unknown source") === selectedSourceName)
+    : [];
+  const selectedSource = sourceNodes.find((node) => node.name === selectedSourceName);
+  const selectedRecordNode = selectedRecordId ? recordById.get(selectedRecordId) : null;
+  const selectedClaimNode = selectedClaimId ? claimById.get(selectedClaimId) : null;
+  const selectedBindingNode = selectedBindingId ? bindingById.get(selectedBindingId) : null;
+  const selectedRecordAudit = selectedRecordId ? auditResult[selectedRecordId] : null;
+  const selectedRecordTrace = selectedRecordId ? traceResult[selectedRecordId] : null;
+  const relationNote = selectedEdge?.relation === "generated"
+    ? "The connector returned this activity item from the provider profile. This establishes where the item came from; it does not verify the activity's claims."
+    : selectedEdge?.metadata && [selectedEdge.metadata.description, selectedEdge.metadata.reason, selectedEdge.metadata.note]
+      .find((value) => typeof value === "string" && value.trim());
+  const relationMeaning = !selectedEdge
+    ? "Select a saved relation to see what the connection means."
+    : selectedEdge.relation === "generated"
+      ? "The connector returned this activity item from the provider profile. This establishes where the item came from; it does not verify the activity's claims."
+      : relationNote || `This ${String(selectedEdge.relation || "related_to").replaceAll("_", " ")} relationship is stored in the evidence graph. A saved relationship does not independently verify either endpoint.`;
+
+  return <section className="xrd-graph-tool">
+    <style>{`.xrd-graph-edge{cursor:pointer}.xrd-graph-edge:focus-visible{outline:none}.xrd-graph-edge:focus-visible .xrd-graph-edge-hit,.xrd-graph-edge.is-selected .xrd-graph-edge-hit{stroke:rgba(163,230,53,.28);stroke-width:13}.xrd-graph-edge.is-selected .xrd-graph-edge-visible{stroke:#a3e635;stroke-width:3}.xrd-graph-edge-hit{fill:none;stroke:transparent;stroke-width:18;pointer-events:stroke}.xrd-graph-edge-visible{fill:none;stroke:#fbbf24;stroke-width:2;stroke-dasharray:3 10;stroke-linecap:round}.xrd-graph-source-node,.xrd-graph-person{cursor:pointer}.xrd-graph-source-node.is-selected circle{stroke:#a3e635;stroke-width:2}.xrd-graph-person:focus-visible{outline:none}.xrd-graph-person:focus-visible circle:first-child,.xrd-graph-person.is-selected circle:first-child{stroke:#a3e635;stroke-width:2}.xrd-graph-inspector{margin-top:12px;padding:14px;border:1px solid rgba(163,230,53,.32);border-radius:13px;background:linear-gradient(180deg,#0a0c0a,#000)}.xrd-graph-inspector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.xrd-graph-inspector h3{margin:4px 0;color:#e7eee2;font-size:calc((14px) + 1px);overflow-wrap:anywhere}.xrd-graph-inspector p{margin:8px 0 0;color:#9da797;font-size:calc((11px) + 1px);line-height:1.55}.xrd-graph-inspector-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-inspector-actions button{display:flex;align-items:center;gap:6px;max-width:100%;padding:7px 9px;border:1px solid #2a2d2a;border-radius:8px;background:#000;color:#cfd8c9;font-size:calc((10px) + 1px);text-align:left;overflow-wrap:anywhere}.xrd-graph-inspector-actions button:hover{border-color:rgba(163,230,53,.5);color:#a3e635}@media(max-width:650px){.xrd-graph-inspector-head{flex-direction:column}.xrd-graph-inspector-actions{flex-direction:column}.xrd-graph-inspector-actions button{width:100%}}`}</style>
+    <style>{`.xrd-graph-account-link{fill:none;stroke:#60a5fa;stroke-width:1.6;stroke-opacity:.75}.xrd-graph-account-link.is-profile-url{stroke-dasharray:4 6;stroke:#fbbf24}.xrd-graph-record-link{fill:none;stroke:#a3e635;stroke-width:1.7;stroke-opacity:.72}.xrd-graph-record-evidence-link{fill:none;stroke:#d4d8d2;stroke-width:1.3;stroke-dasharray:2 6;stroke-opacity:.65}.xrd-graph-record-node{cursor:pointer}.xrd-graph-record-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-record-node.is-selected circle{fill:rgba(163,230,53,.18);stroke-width:3}.xrd-graph-record-node:focus-visible{outline:none}.xrd-graph-record-node:focus-visible circle{stroke-width:3}.xrd-graph-meaning{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.xrd-graph-meaning span{padding:9px 10px;border:1px solid #252b23;border-radius:9px;background:#050705;color:#99a393;font-size:calc((10px) + 1px);line-height:1.45}.xrd-graph-meaning b{color:#dce5d7}.xrd-graph-record-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-record-actions button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #343b30;border-radius:8px;background:#000;color:#dce5d7;font-size:calc((10px) + 1px)}.xrd-graph-record-actions button:hover{border-color:var(--xrd-ac);color:var(--xrd-ac)}@media(max-width:650px){.xrd-graph-meaning{grid-template-columns:minmax(0,1fr)}.xrd-graph-record-actions{flex-direction:column}.xrd-graph-record-actions button{width:100%}}`}</style>
+    <style>{`.xrd-graph-account-link{fill:none;stroke:#60a5fa;stroke-width:1.6;stroke-opacity:.75}.xrd-graph-account-link.is-profile-url{stroke-dasharray:4 6;stroke:#fbbf24}.xrd-graph-record-link{fill:none;stroke:#a3e635;stroke-width:1.7;stroke-opacity:.72}.xrd-graph-record-evidence-link{fill:none;stroke:#d4d8d2;stroke-width:1.3;stroke-dasharray:2 6;stroke-opacity:.65}.xrd-graph-record-node{cursor:pointer}.xrd-graph-record-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-record-node.is-selected circle{fill:rgba(163,230,53,.18);stroke-width:3}.xrd-graph-record-node:focus-visible{outline:none}.xrd-graph-record-node:focus-visible circle{stroke-width:3}.xrd-graph-record-status{fill:#a3e635;font-size:calc((7px) + 1px);letter-spacing:.5px}.xrd-graph-meaning{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.xrd-graph-meaning span{padding:9px 10px;border:1px solid #252b23;border-radius:9px;background:#050705;color:#99a393;font-size:calc((10px) + 1px);line-height:1.45}.xrd-graph-meaning b{color:#dce5d7}.xrd-graph-record-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-record-actions button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #343b30;border-radius:8px;background:#000;color:#dce5d7;font-size:calc((10px) + 1px)}.xrd-graph-record-actions button:hover{border-color:var(--xrd-ac);color:var(--xrd-ac)}.xrd-graph-legend .record{border-top:1px solid #a3e635}.xrd-graph-legend .account{border-top:1px solid #60a5fa}@media(max-width:650px){.xrd-graph-meaning{grid-template-columns:minmax(0,1fr)}.xrd-graph-record-actions{flex-direction:column}.xrd-graph-record-actions button{width:100%}}`}</style>
+    <style>{`.xrd-graph-claim-link{fill:none;stroke-width:1.8;stroke-opacity:.8}.xrd-graph-claim-link.is-support{stroke:#a3e635}.xrd-graph-claim-link.is-contradiction{stroke:#fbbf24;stroke-dasharray:4 4}.xrd-graph-claim-audit-link{fill:none;stroke:#d4d8d2;stroke-width:1.4;stroke-dasharray:2 6;stroke-opacity:.75}.xrd-graph-binding-link{fill:none;stroke:#60a5fa;stroke-width:1.5;stroke-dasharray:3 5;stroke-opacity:.85}.xrd-graph-binding-evidence-link{fill:none;stroke:#60a5fa;stroke-width:1.2;stroke-dasharray:1 6;stroke-opacity:.7}.xrd-graph-claim-node,.xrd-graph-binding-node{cursor:pointer}.xrd-graph-claim-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-binding-node circle{fill:#030503;stroke:#60a5fa;stroke-width:1.5}.xrd-graph-claim-node>text,.xrd-graph-binding-node>text{fill:#dce5d7;font-size:9px;font-weight:700;paint-order:stroke;stroke:#030503;stroke-width:3px;stroke-linejoin:round}.xrd-graph-claim-node.is-selected circle,.xrd-graph-binding-node.is-selected circle,.xrd-graph-claim-node:focus-visible circle,.xrd-graph-binding-node:focus-visible circle{stroke-width:3}.xrd-graph-claim-node:focus-visible,.xrd-graph-binding-node:focus-visible{outline:none}.xrd-graph-legend{flex-wrap:wrap}.xrd-graph-legend i.claim-support{height:2px;background:#a3e635}.xrd-graph-legend i.claim-contradiction{height:2px;background:#fbbf24}.xrd-graph-legend i.binding{height:1px;background:#60a5fa}`}</style>
+    <div className="xrd-graph-tools" role="group" aria-label="Evidence graph layers">
+      { ["All", "Identity", "Identity bindings", "Sources", "XRD claims", "XRC records", "Evidence", "Stored links"].map((name) => <button type="button" key={name} className={layer === name ? "active" : ""} onClick={() => setLayer(name)}>{name}</button>)}
+      <span className="xrd-graph-count">{sourceNodes.length} PROVIDERS · {visibleBindings.length} BINDINGS · {claimNodes.length} XRD CLAIMS · {recordNodes.length} XRC RECORDS · {visibleItems.length} EVIDENCE · {linkedEdges.length} SAVED LINKS</span>
+    </div>
+    <div className={`xrd-graph-canvas${dragging ? " is-dragging" : ""}`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClickCapture={(event) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); } }}>
+      <div className="xrd-graph-hud"><span><i />XRC EVIDENCE MAP</span><span>DRAG TO PAN</span></div>
+      <svg viewBox="0 0 960 600" role="group" aria-label="Interactive provenance graph of profile, connected sources, XRC records, and evidence">
+        <defs>
+          <radialGradient id="xrd-graph-core"><stop offset="0" stopColor="#a3e635" stopOpacity=".18" /><stop offset="1" stopColor="#10b981" stopOpacity="0" /></radialGradient>
+          <filter id="xrd-graph-glow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        </defs>
+        <g transform={`translate(${pan[0]} ${pan[1]})`}>
+          <ellipse cx={cx} cy={cy} rx="350" ry="235" fill="url(#xrd-graph-core)" />
+          {[115, 246, 325].map((radius) => <ellipse key={radius} cx={cx} cy={cy} rx={radius} ry={radius * .65} fill="none" stroke="#283126" strokeDasharray={radius === 246 ? "2 7" : "1 8"} />)}
+          {["ACCOUNT BINDINGS", "XRD CLAIMS", "XRC / EVIDENCE"].map((label, index) => <text key={label} x={cx} y={cy - [52, 94, 214][index]} textAnchor="middle" fill="#7c8879" fontSize="9" letterSpacing="2">{label}</text>)}
+          {(enabled("Sources") || enabled("Stored links")) && sourceNodes.filter((source) => source.connection?.auth_status === "active").map((source) => <path key={`account:${source.name}`} className={`xrd-graph-account-link${source.connection.connected_via === "profile_link" ? " is-profile-url" : ""}`} d={`M${cx} ${cy} Q${(cx + source.x) / 2 - 12} ${(cy + source.y) / 2} ${source.x} ${source.y}`}><title>{source.connection.connected_via === "profile_link" ? "Profile URL supplied by owner; account ownership not confirmed" : source.connection.hasValidToken ? "Active provider connection with valid token; supports control of this account only" : "Active provider connection; token control not confirmed"}</title></path>)}
+          {(enabled("Identity bindings") || showLinkedContext) && bindingNodes.map(({ binding, x, y }) => <path key={`binding-link:${binding.id}`} className="xrd-graph-binding-link" d={`M${cx} ${cy} Q${(cx + x) / 2} ${(cy + y) / 2} ${x} ${y}`}><title>Identity binding link; assurance is limited to {String(binding.assurance_scope || "unknown").replaceAll("_", " ")}</title></path>)}
+          {((enabled("Identity bindings") && enabled("Evidence")) || showLinkedContext) && evidenceBindingEdges.map((edge) => <path key={edge.id} className="xrd-graph-binding-evidence-link" d={`M${edge.binding.x} ${edge.binding.y} Q${(edge.binding.x + edge.evidence.x) / 2} ${(edge.binding.y + edge.evidence.y) / 2} ${edge.evidence.x} ${edge.evidence.y}`}><title>This observation was collected through the linked account connection; it does not prove authorship.</title></path>)}
+          {((enabled("XRD claims") && enabled("Evidence")) || showLinkedContext) && claimEvidenceEdges.map((edge) => <path key={edge.id} className={`xrd-graph-claim-link ${edge.relation === "supports" ? "is-support" : "is-contradiction"}`} d={`M${edge.claim.x} ${edge.claim.y} Q${(edge.claim.x + edge.evidence.x) / 2} ${(edge.claim.y + edge.evidence.y) / 2 - 8} ${edge.evidence.x} ${edge.evidence.y}`}><title>{edge.relation === "supports" ? "Owner linked evidence as supporting this claim" : "Owner linked evidence as contradicting this claim"}; this relation is not independent verification</title></path>)}
+          {((enabled("XRD claims") && enabled("XRC records")) || showLinkedContext) && claimAuditEdges.map((edge) => <path key={edge.id} className="xrd-graph-claim-audit-link" d={`M${edge.claim.x} ${edge.claim.y} Q${(edge.claim.x + edge.record.x) / 2} ${(edge.claim.y + edge.record.y) / 2 - 10} ${edge.record.x} ${edge.record.y}`}><title>XRC lifecycle event references this XRD claim; integrity checks do not verify claim truth</title></path>)}
+          {(enabled("XRC records") || enabled("Stored links")) && recordChainEdges.map((edge) => <path key={edge.id} className="xrd-graph-record-link" d={`M${edge.source.x} ${edge.source.y} Q${(edge.source.x + edge.target.x) / 2} ${(edge.source.y + edge.target.y) / 2 - 12} ${edge.target.x} ${edge.target.y}`}><title>Stored previous-hash link between XRC records</title></path>)}
+          {(enabled("XRC records") || enabled("Stored links")) && recordEvidenceEdges.map((edge) => <path key={edge.id} className="xrd-graph-record-evidence-link" d={`M${edge.record.x} ${edge.record.y} Q${(edge.record.x + edge.evidence.x) / 2} ${(edge.record.y + edge.evidence.y) / 2} ${edge.evidence.x} ${edge.evidence.y}`}><title>Evidence metadata references this XRC record</title></path>)}
+          {enabled("Stored links") && linkedEdges.map((edge) => {
+            const from = evidenceMap.get(edge.source_id), to = evidenceMap.get(edge.target_id);
+            const path = `M${from.x} ${from.y} Q${(from.x + to.x) / 2} ${(from.y + to.y) / 2 - 20} ${to.x} ${to.y}`;
+            const sourceLabel = from.item.title || from.item.evidence_type || "Evidence";
+            const targetLabel = to.item.title || to.item.evidence_type || "Evidence";
+            return <g key={edge.id} role="button" tabIndex={0} aria-label={`Inspect ${String(edge.relation || "related_to").replaceAll("_", " ")} relationship: ${sourceLabel} to ${targetLabel}`} className={`xrd-graph-edge${selectedEdgeId === edge.id ? " is-selected" : ""}`} onClick={() => pickEdge(edge)} onKeyDown={(event) => activateOnKey(event, () => pickEdge(edge))}><path className="xrd-graph-edge-hit" d={path} /><path className="xrd-graph-edge-visible" d={path} /><title>{String(edge.relation || "related_to").replaceAll("_", " ")}</title></g>;
+          })}
+          {(enabled("Sources") || showLinkedContext) && sourceNodes.map((source) => <g key={source.name} role="button" tabIndex={0} aria-label={`Inspect ${source.name} source with ${visibleItems.filter((item) => (item.provider || "Unknown source") === source.name).length} evidence items`} className={`xrd-graph-source-node${selectedSourceName === source.name ? " is-selected" : ""}`} onClick={() => pickSource(source.name)} onKeyDown={(event) => activateOnKey(event, () => pickSource(source.name))}>
+            {enabled("Evidence") && !showLinkedContext && visibleItems.filter((item) => (item.provider || "Unknown source") === source.name).map((item) => {
+              const node = evidenceMap.get(item.id);
+              return <path key={item.id} d={`M${source.x} ${source.y} Q${(source.x + node.x) / 2} ${(source.y + node.y) / 2} ${node.x} ${node.y}`} />;
+            })}
+            <circle cx={source.x} cy={source.y} r="29" /><Database x={source.x - 8} y={source.y - 8} size={16} color="#a3e635" />
+            <text x={source.x} y={source.y + 43} textAnchor="middle">{source.name.slice(0, 20)}</text>
+          </g>)}
+          {(enabled("Identity") || enabled("Identity bindings") || showLinkedContext) && <g role="button" tabIndex={0} aria-label={`Inspect ${profile?.fullName || "Xeevia profile"} profile record`} className={`xrd-graph-person${identitySelected ? " is-selected" : ""}`} onClick={pickIdentity} onKeyDown={(event) => activateOnKey(event, pickIdentity)}><circle cx={cx} cy={cy} r="38" /><circle cx={cx} cy={cy} r="47" className="xrd-graph-orbit" /><Fingerprint x={cx - 12} y={cy - 12} size={24} color="#071004" /><text x={cx} y={cy + 60} textAnchor="middle">{"XEEVIA PROFILE"}</text></g>}
+          {(enabled("Identity bindings") || showLinkedContext) && bindingNodes.map(({ binding, x, y }) => <g key={binding.id} role="button" tabIndex={0} aria-label={`${String(binding.provider || "Source")} identity binding, ${binding.status}, ${binding.assurance_scope}`} className={`xrd-graph-binding-node${selectedBindingId === binding.id ? " is-selected" : ""}`} onClick={() => pickBinding(binding.id)} onKeyDown={(event) => activateOnKey(event, () => pickBinding(binding.id))}><circle cx={x} cy={y} r="10" /><Fingerprint x={x - 5} y={y - 5} size={10} color="#60a5fa" /><text x={x} y={y + 22} textAnchor="middle">{String(binding.provider || "Source").slice(0, 12)}</text></g>)}
+          {(enabled("XRD claims") || showLinkedContext) && claimNodes.map(({ claim, x, y }) => <g key={claim.id} role="button" tabIndex={0} aria-label={`XRD claim ${claim.title}`} className={`xrd-graph-claim-node${selectedClaimId === claim.id ? " is-selected" : ""}`} onClick={() => pickClaim(claim.id)} onKeyDown={(event) => activateOnKey(event, () => pickClaim(claim.id))}><circle cx={x} cy={y} r="14" /><FileCheck2 x={x - 7} y={y - 7} size={14} color="#a3e635" /><text x={x} y={y + 27} textAnchor="middle">{String(claim.title || "XRD claim").slice(0, 16)}</text></g>)}
+          {(enabled("XRC records") || showLinkedContext) && recordNodes.map(({ record, x, y }) => {
+            const check = auditResult[record.record_id];
+            const integrityStatus = check?.loading ? "CHECKING" : check?.result?.status?.toUpperCase() || "NOT CHECKED";
+            return <g key={record.record_id} role="button" tabIndex={0} aria-label={`Inspect XRC record ${record.payload?.event || record.stream_type}, integrity ${integrityStatus}`} className={`xrd-graph-record-node${selectedRecordId === record.record_id ? " is-selected" : ""}`} onClick={() => pickRecord(record.record_id)} onKeyDown={(event) => activateOnKey(event, () => pickRecord(record.record_id))}>
+              <circle cx={x} cy={y} r="16" /><GitBranch x={x - 7} y={y - 7} size={14} color="#a3e635" />
+              <text x={x} y={y + 28} textAnchor="middle">{(record.payload?.event || record.stream_type || "XRC record").replaceAll("_", " ").slice(0, 20)}</text>
+              <text x={x} y={y + 39} textAnchor="middle" className="xrd-graph-record-status">{integrityStatus}</text>
+            </g>;
+          })}
+          {(enabled("Evidence") || showLinkedContext) && evidenceNodes.map(({ item, x, y }) => <g key={item.id} role="button" tabIndex={0} aria-label={`Open ${item.title || item.evidence_type || "evidence"}`} className={`xrd-graph-evidence${selected === item.id ? " selected" : ""}`} onClick={() => pick(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pick(item); } }}>
+            <circle cx={x} cy={y} r="19" /><FileText x={x - 7} y={y - 7} size={14} color="#e9eee5" />
+            <text x={x} y={y + 32} textAnchor="middle">{(item.title || item.evidence_type || "Evidence").slice(0, 18)}</text>
+          </g>)}
+        </g>
+      </svg>
+      {(pan[0] || pan[1]) && <button type="button" className="xrd-graph-reset" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPan([0, 0])}>Recenter graph</button>}
+      <div className="xrd-graph-legend"><span><i className="source" />Provider grouping</span><span><i className="claim-support" />Owner link · supports</span><span><i className="claim-contradiction" />Owner link · contradicts</span><span><i className="binding" />Identity binding</span><span><i className="record" />XRC reference / hash link</span></div>
+    </div>
+    <p className="xrd-graph-caption">Claim-to-evidence links show owner-recorded support or contradiction. Binding links describe account relationships only. Neither implies independent verification.</p>
+    <div className="xrd-graph-meaning"><span><b>Linked account:</b> account control only, not personhood or claim truth.</span><span><b>Provider grouping:</b> items share a source label; grouping is not a binding.</span><span><b>Source status:</b> reports what the provider returned, not an independent claim check.</span><span><b>XRC hash check:</b> tests whether the stored record data matches its hash.</span><span><b>Chain trace:</b> follows previous-hash links and reports a missing parent or chain start; it does not validate the claim.</span><span><b>Selected relation:</b> {relationMeaning}</span>{selectedSourceName && <span><b>{selectedSourceName}:</b> {selectedSource?.connection ? selectedSource.connection.connected_via === "profile_link" ? "Owner supplied a public URL; ownership is not confirmed." : selectedSource.connection.auth_status === "active" && selectedSource.connection.hasValidToken ? "Active connection and valid token support control of this provider account only." : `Connection status is ${selectedSource.connection.auth_status || "unknown"}; a usable token is not confirmed.` : "Evidence shares this provider label, but no linked account connection is present."}</span>}{identitySelected && <span><b>Profile node:</b> represents the Xeevia profile record; it does not establish personhood.</span>}</div>
+    {selectedClaimNode && <section className="xrd-graph-inspector" aria-live="polite"><span className="xrd-kicker">XRD CLAIM · {selectedClaimNode.claim.lifecycle_status || "published"}</span><h3>{selectedClaimNode.claim.title}</h3><p>{selectedClaimNode.claim.claim_text}</p><p>{(selectedClaimNode.claim.evidence_links || []).filter((link) => evidenceMap.has(link.evidence_item_id)).length} visible evidence relationship attached. The owner-recorded relationship does not independently verify the claim.</p><div className="xrd-graph-inspector-actions"><button type="button" onClick={onOpenClaims}><FileCheck2 size={13} />Open XRD records</button></div></section>}
+    {selectedBindingNode && <section className="xrd-graph-inspector" aria-live="polite"><span className="xrd-kicker">IDENTITY BINDING · {selectedBindingNode.binding.status}</span><h3>{selectedBindingNode.binding.provider} account relationship</h3><p>Assurance scope: {String(selectedBindingNode.binding.assurance_scope || "unknown").replaceAll("_", " ")}. Method: {String(selectedBindingNode.binding.binding_method || "unknown").replaceAll("_", " ")}. This binding does not establish personhood, claim authorship, or claim truth.</p><div className="xrd-graph-inspector-actions"><button type="button" onClick={onOpenIdentity}><Fingerprint size={13} />Inspect identity bindings</button></div></section>}
+    {selectedRecordNode && <section className="xrd-graph-inspector" aria-live="polite"><span className="xrd-kicker">XRC INTEGRITY REFERENCE</span><h3>{selectedRecordNode.record.payload?.event?.replaceAll("_", " ") || selectedRecordNode.record.stream_type}</h3><p>Hash check: {selectedRecordAudit?.loading ? "Checking…" : selectedRecordAudit?.result?.status || selectedRecordAudit?.error || "Not checked"}. This checks whether the stored record data matches its hash. Chain trace separately follows previous-hash links. Neither check verifies the truth of the original claim.{selectedRecordTrace?.result?.chain?.length ? ` Trace returned ${selectedRecordTrace.result.depth} linked record${selectedRecordTrace.result.depth === 1 ? "" : "s"}${selectedRecordTrace.result.reachedGenesis ? " and reached the chain start" : selectedRecordTrace.result.brokenLink ? " and found a broken parent link" : ""}.` : ""}</p><div className="xrd-graph-record-actions"><button type="button" disabled={selectedRecordAudit?.loading} onClick={() => onVerifyRecord(selectedRecordNode.record.record_id)}><ShieldCheck size={13} />Check XRC integrity</button><button type="button" disabled={selectedRecordTrace?.loading} onClick={() => onTraceRecord(selectedRecordNode.record.record_id)}><GitBranch size={13} />Trace hash chain</button></div></section>}
+    {selectedEdge && selectedEdgeSource && selectedEdgeTarget && <section className="xrd-graph-inspector" aria-live="polite"><div className="xrd-graph-inspector-head"><div><span className="xrd-kicker">STORED EVIDENCE RELATIONSHIP</span><h3>{selectedEdgeSource.title || selectedEdgeSource.evidence_type || "Evidence"} <span aria-hidden="true">→</span> {selectedEdgeTarget.title || selectedEdgeTarget.evidence_type || "Evidence"}</h3></div><span className="xrd-status">{String(selectedEdge.relation || "related_to").replaceAll("_", " ")}</span></div><p>{relationNote || "This link is stored in the evidence graph. Its relation label describes the saved connection; it does not independently verify either record."}</p><div className="xrd-graph-inspector-actions"><button type="button" onClick={() => onPick(selectedEdgeSource)}><FileText size={13} />Open source evidence</button><button type="button" onClick={() => onPick(selectedEdgeTarget)}><FileText size={13} />Open related evidence</button><button type="button" onClick={() => onOpenVerification(selectedEdgeSource)}><ShieldCheck size={13} />Open verification</button></div></section>}
+    {selectedSourceName && <section className="xrd-graph-inspector" aria-live="polite"><span className="xrd-kicker">EVIDENCE SOURCE · {selectedSourceItems.length}</span><h3>{selectedSourceName}</h3><p>Items are grouped by their stored provider field. Select a record to inspect its evidence and source details.</p><div className="xrd-graph-inspector-actions">{selectedSourceItems.map((item) => <button type="button" key={item.id} onClick={() => onPick(item)}><FileText size={13} />{item.title || item.evidence_type || "Evidence record"}<span className={`xrd-status${item.verified ? " is-verified" : ""}`}>{normalizeStatus(item)}</span></button>)}{selectedSourceItems[0] && <button type="button" onClick={() => onOpenVerification(selectedSourceItems[0])}><ShieldCheck size={13} />Open source verification</button>}</div></section>}
+    {identitySelected && <section className="xrd-graph-inspector" aria-live="polite"><span className="xrd-kicker">XEEVIA PROFILE RECORD</span><h3>{profile?.fullName || "Profile"}</h3><p>@{profile?.username || "unknown"} · This is the profile stored by Xeevia. It does not by itself establish personhood. Account links, source evidence, and XRC integrity are separate checks.</p><div className="xrd-graph-inspector-actions"><button type="button" onClick={onOpenIdentity}><Fingerprint size={13} />Inspect identity bindings</button><button type="button" onClick={() => onOpenVerification(items.find((item) => ["profile", "identity"].includes(String(item.evidence_type || item.type || "").toLowerCase())) || items[0])}><ShieldCheck size={13} />Inspect profile evidence</button></div></section>}
+  </section>;
+}
+
+const ProfileEvidenceWorkspace = ({
+  profile,
+  currentUser,
+  targetId,
+  verificationItems = EMPTY_VERIFICATION_ITEMS,
+  mode = "xrd",
+  initialSection = "Overview",
+  notice = "",
+  publicSnapshot = null,
+  xrdRecordId = null,
+  presentation = "dialog",
+  forcePublicView = false,
+  onOpenXRC,
+  onClose,
+}) => {
+  const { openAccountLink } = useAccountLinking();
+  const viewerId = currentUser?.id || currentUser?.uid || currentUser?.userId || currentUser?.user_id;
+  const isProfileOwner = Boolean(viewerId && targetId && String(viewerId) === String(targetId));
+  const own = isProfileOwner && !forcePublicView;
+  const [ownerView, setOwnerView] = useState("owner");
+  const publicPreview = forcePublicView || (isProfileOwner && ownerView === "public");
+  const canManage = own && !publicPreview;
+  const isPublicAudience = !canManage;
+  const isXrcView = mode === "xrc";
+  const navigationGroups = isXrcView ? XRC_NAV_GROUPS : NAV_GROUPS;
+  const requestedInitialSection = isXrcView ? resolveXrcInitialSection(initialSection) : resolveXrdInitialSection(initialSection);
+  const [section, setSection] = useState(!canManage && OWNER_ONLY.has(requestedInitialSection) ? "Overview" : requestedInitialSection);
+  const [sectionHistory, setSectionHistory] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [xrdClaims, setXrdClaims] = useState(() => publicSnapshot?.claims || []);
+  const [xrdClaimsLoading, setXrdClaimsLoading] = useState(false);
+  const [xrdClaimsError, setXrdClaimsError] = useState("");
+  const [xrdClaimsNotice, setXrdClaimsNotice] = useState("");
+  const [identityBindings, setIdentityBindings] = useState(() => publicSnapshot?.bindings || []);
+  const [identityBindingsError, setIdentityBindingsError] = useState("");
+  const [securityEvents, setSecurityEvents] = useState([]);
+  const [securityEventsLoading, setSecurityEventsLoading] = useState(false);
+  const [securityEventsError, setSecurityEventsError] = useState("");
+  const [expandedAuditEvent, setExpandedAuditEvent] = useState(null);
+  const [evidenceItems, setEvidenceItems] = useState(verificationItems);
+  const [authorizedEvidenceIds, setAuthorizedEvidenceIds] = useState([]);
+  const [evidenceEdges, setEvidenceEdges] = useState([]);
+  const [edgesError, setEdgesError] = useState("");
+  const [selectedEvidence, setSelectedEvidence] = useState(null);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityError, setVisibilityError] = useState("");
+  const [recordsLoading, setRecordsLoading] = useState(own || mode === "xrc");
+  const [recordsError, setRecordsError] = useState("");
+  const [filter, setFilter] = useState("");
+  const [xrcStreamFilter, setXrcStreamFilter] = useState("");
+  const [auditResult, setAuditResult] = useState({});
+  const [verificationTargetId, setVerificationTargetId] = useState(null);
+  const [sourceChecks, setSourceChecks] = useState({});
+  const [accessRequests, setAccessRequests] = useState([]);
+  const [evidenceGrants, setEvidenceGrants] = useState([]);
+  const [accessRequestsLoading, setAccessRequestsLoading] = useState(false);
+  const [accessRequestsError, setAccessRequestsError] = useState("");
+  const [accessRequestStatus, setAccessRequestStatus] = useState("");
+  const [accessRequestMessage, setAccessRequestMessage] = useState("");
+  const [accessRequestOpen, setAccessRequestOpen] = useState(false);
+  const [accessRequestBusy, setAccessRequestBusy] = useState(false);
+  const [focusedEvidenceId, setFocusedEvidenceId] = useState(null);
+  const [grantSelections, setGrantSelections] = useState({});
+  const [accessNotice, setAccessNotice] = useState("");
+  const [traceResult, setTraceResult] = useState({});
+  const [settingsGroup, setSettingsGroup] = useState("Visibility");
+  const [permissionsDimension, setPermissionsDimension] = useState("Visibility");
+  const [sourceConnections, setSourceConnections] = useState([]);
+  const [sourceBusy, setSourceBusy] = useState("");
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceNotice, setSourceNotice] = useState("");
+  const [userPreferences, setUserPreferences] = useState({});
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState("");
+  const [settingsError, setSettingsError] = useState("");
+  const [identityDraft, setIdentityDraft] = useState({
+    headline: "",
+    bio: "",
+    location: "",
+    pronouns: "",
+    website: "",
+    note: "",
+    availability: "",
+  });
+  const [identitySaving, setIdentitySaving] = useState(false);
+  const [identityNotice, setIdentityNotice] = useState("");
+  const [identityDetails, setIdentityDetails] = useState(() => getXrdIdentityDetails());
+  const [publicIdentityDetails, setPublicIdentityDetails] = useState(() => getXrdIdentityDetails(publicSnapshot?.identityDetails));
+  const [identitySavedVisibility, setIdentitySavedVisibility] = useState("private");
+  const [identityVisibility, setIdentityVisibility] = useState("private");
+  const [identityDetailsExists, setIdentityDetailsExists] = useState(false);
+  const [identityLoading, setIdentityLoading] = useState(false);
+  const [profileLinks, setProfileLinks] = useState(() => publicSnapshot?.links || []);
+  const [profileLinksLoading, setProfileLinksLoading] = useState(false);
+  const [profileLinksBusy, setProfileLinksBusy] = useState(false);
+  const [profileLinksError, setProfileLinksError] = useState("");
+  const [profileLinksNotice, setProfileLinksNotice] = useState("");
+  const [editingLinkId, setEditingLinkId] = useState(null);
+  const [linkDraft, setLinkDraft] = useState({
+    category: "social",
+    label: "",
+    url: "",
+    visibility: "private",
+  });
+  const [remarks, setRemarks] = useState([]);
+  const [remarksLoading, setRemarksLoading] = useState(false);
+  const [remarksError, setRemarksError] = useState("");
+  const [remarkType, setRemarkType] = useState("CONTEXT");
+  const [remarkEvidenceId, setRemarkEvidenceId] = useState("");
+  const [remarkBody, setRemarkBody] = useState("");
+  const [remarkResponses, setRemarkResponses] = useState({});
+  const [remarksNotice, setRemarksNotice] = useState("");
+  const [remarkSaving, setRemarkSaving] = useState(false);
+  const [oracleQuery, setOracleQuery] = useState("");
+  const [oracleAnswer, setOracleAnswer] = useState(null);
+  const [oracleConversation, setOracleConversation] = useState([]);
+  const [oracleChatOpen, setOracleChatOpen] = useState(false);
+  const [photoHubOpen, setPhotoHubOpen] = useState(false);
+  const [photoSyncing, setPhotoSyncing] = useState(false);
+  const [photoSyncMessage, setPhotoSyncMessage] = useState("");
+  const [photoConnections, setPhotoConnections] = useState([]);
+  const [authenticatedAvatarCandidates, setAuthenticatedAvatarCandidates] = useState([]);
+  const photoSyncAttempted = useRef(false);
+
+  const publicProjection = useMemo(() => projectXrdPublicView({
+    profileId: targetId,
+    evidenceItems,
+    claims: xrdClaims,
+    bindings: identityBindings,
+    edges: evidenceEdges,
+    links: profileLinks,
+    identityDetails: publicIdentityDetails,
+    remarks,
+    records,
+    sourceConnections,
+    photoConnections,
+    securityEvents,
+    accessRequests,
+    evidenceGrants,
+    userPreferences,
+    grantedEvidenceIds: authorizedEvidenceIds,
+  }, isPublicAudience), [
+    accessRequests,
+    authorizedEvidenceIds,
+    evidenceEdges,
+    evidenceGrants,
+    evidenceItems,
+    identityBindings,
+    profileLinks,
+    publicIdentityDetails,
+    isPublicAudience,
+    photoConnections,
+    records,
+    remarks,
+    securityEvents,
+    sourceConnections,
+    targetId,
+    userPreferences,
+    xrdClaims,
+  ]);
+  const displayedEvidenceItems = publicProjection.evidenceItems || [];
+  const displayedEvidenceIds = useMemo(() => new Set(displayedEvidenceItems.map((item) => item?.id).filter(Boolean)), [displayedEvidenceItems]);
+  const displayedClaims = useMemo(() => {
+    const claims = isPublicAudience
+      ? publicProjection.claims
+      : own ? xrdClaims : xrdClaims.map((claim) => ({
+      ...claim,
+      evidence_links: (Array.isArray(claim.evidence_links) ? claim.evidence_links : [])
+        .filter((link) => displayedEvidenceIds.has(link?.evidence_item_id)),
+      }));
+    return claims || [];
+  }, [displayedEvidenceIds, own, isPublicAudience, publicProjection.claims, xrdClaims]);
+  const displayedBindings = (isPublicAudience
+    ? publicProjection.bindings
+    : own ? identityBindings : identityBindings.filter((binding) => String(binding?.visibility || "").toLowerCase() === "public")) || [];
+  const displayedEdges = isPublicAudience
+    ? publicProjection.edges
+    : evidenceEdges.filter((edge) => displayedEvidenceIds.has(edge?.source_id) && displayedEvidenceIds.has(edge?.target_id));
+  const displayedRemarks = isPublicAudience
+    ? publicProjection.remarks
+    : own ? remarks : remarks.filter((remark) => remark?.status === "published" && displayedEvidenceIds.has(remark?.evidence_item_id));
+  const displayedSourceConnections = useMemo(
+    () => publicPreview ? [] : own ? sourceConnections : [],
+    [own, publicPreview, sourceConnections],
+  );
+  const displayedRecords = isXrcView
+    ? records || []
+    : publicPreview ? [] : own ? records || [] : [];
+  const displayedIdentityDetails = canManage ? identityDetails : publicProjection.identityDetails;
+  const publicProfileLinks = isPublicAudience
+    ? publicProjection.links || []
+    : profileLinks.filter((link) => String(link?.visibility || "").toLowerCase() === "public");
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    setFilter("");
+  }, [section]);
+
+  useEffect(() => {
+    setEvidenceItems(verificationItems);
+  }, [verificationItems]);
+
+  useEffect(() => {
+    setOwnerView("owner");
+    setSection(!own && OWNER_ONLY.has(requestedInitialSection) ? "Overview" : requestedInitialSection);
+    setSectionHistory([]);
+    setSelectedEvidence(null);
+  }, [own, requestedInitialSection, targetId]);
+
+  useEffect(() => {
+    if (!own || !targetId) return undefined;
+    let active = true;
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error) throw error;
+      if (!active || String(data?.user?.id || "") !== String(targetId)) return;
+      const metadata = data.user.user_metadata || {};
+      const candidates = [...new Set([
+        ...mediaUrlService.resolveAvatarUrls(metadata, 300),
+        ...mediaUrlService.resolveAvatarUrls(data.user.identities?.map((identity) => identity?.identity_data || {}), 300),
+      ])];
+      setAuthenticatedAvatarCandidates(candidates);
+    }).catch((error) => {
+      if (active) console.warn("[XRD] Could not load the authenticated profile image:", error?.message);
+    });
+    return () => { active = false; };
+  }, [own, targetId]);
+
+  const loadRecords = useCallback(async () => {
+    if (!targetId || (!own && !isXrcView)) return;
+    setRecordsLoading(true);
+    setRecordsError("");
+    try {
+      let ownerRecordsQuery = supabase
+          .from("xrc_records")
+          .select("*")
+          .eq("actor_id", targetId);
+      if (xrdRecordId) {
+        ownerRecordsQuery = ownerRecordsQuery
+          .eq("payload->>entity_type", "xrd_record")
+          .eq("payload->>entity_id", xrdRecordId);
+      }
+      const { data, error } = own
+        ? await ownerRecordsQuery
+          .order("timestamp", { ascending: false })
+          .limit(100)
+        : await supabase.rpc("get_xrd_public_xrc_events", {
+          p_profile_id: targetId,
+          p_xrd_record_id: xrdRecordId,
+        });
+      if (error) throw error;
+      setRecords(data || []);
+    } catch (error) {
+      console.error("[XRC] Could not load the available record history:", error);
+      setRecordsError(error?.message || "XRC records could not be loaded. Apply the XRC public-record migration and retry.");
+    } finally {
+      setRecordsLoading(false);
+    }
+  }, [isXrcView, own, targetId, xrdRecordId]);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+
+  const loadXrdClaims = useCallback(async () => {
+    if (!targetId || publicSnapshot) return;
+    setXrdClaimsLoading(true);
+    setXrdClaimsError("");
+    try {
+      const claims = await xrdRecordService.listClaims(targetId, { includePrivateChecks: own });
+      if (!Array.isArray(claims)) throw new Error("XRD claims returned an invalid response.");
+      setXrdClaims(claims);
+    } catch (error) {
+      setXrdClaimsError(error?.message || "XRD claims could not be loaded. Apply the XRD claim migration and retry.");
+    } finally {
+      setXrdClaimsLoading(false);
+    }
+  }, [own, publicSnapshot, targetId]);
+
+  const loadIdentityBindings = useCallback(async () => {
+    if (!targetId || publicSnapshot) return;
+    setIdentityBindingsError("");
+    try {
+      setIdentityBindings(await xrdRecordService.listIdentityBindings(targetId, { includePrivateDetails: own }));
+    } catch (error) {
+      console.error("[XRD] Identity bindings could not be loaded:", error);
+      setIdentityBindingsError(error?.message || "Identity bindings could not be loaded.");
+      setIdentityBindings([]);
+    }
+  }, [own, publicSnapshot, targetId]);
+
+  useEffect(() => {
+    if (!["Overview", "Records", "Graph"].includes(section)) return undefined;
+    loadXrdClaims();
+    if (section !== "Overview") loadIdentityBindings();
+    return undefined;
+  }, [section, loadXrdClaims, loadIdentityBindings]);
+
+  const loadSourceConnections = useCallback(async () => {
+    if (!own) return;
+    setSourceLoading(true);
+    setSourceNotice("");
+    try {
+      const connections = await socialConnectService.getConnections(targetId);
+      setSourceConnections(Object.entries(connections || {}).map(([provider, connection]) => ({ provider, ...connection })));
+    } catch (error) {
+      setSourceNotice(error?.message || "Connected sources could not be loaded.");
+    } finally {
+      setSourceLoading(false);
+    }
+  }, [own, targetId]);
+
+    <style>{`.xrd-graph-canvas>svg .xrd-graph-edge .xrd-graph-edge-hit{fill:none;stroke:transparent;stroke-width:18;stroke-dasharray:none;animation:none;pointer-events:stroke}.xrd-graph-canvas>svg .xrd-graph-edge .xrd-graph-edge-visible{fill:none;stroke:#fbbf24;stroke-width:2;stroke-dasharray:3 10;stroke-linecap:round;animation:none;pointer-events:none}.xrd-graph-canvas>svg .xrd-graph-edge.is-selected .xrd-graph-edge-visible{stroke:#a3e635;stroke-width:3}.xrd-graph-canvas>svg .xrd-graph-edge:focus-visible .xrd-graph-edge-hit,.xrd-graph-canvas>svg .xrd-graph-edge.is-selected .xrd-graph-edge-hit{stroke:rgba(163,230,53,.28);stroke-width:13}`}</style>
+  useEffect(() => {
+    if ((section === "Sources" || section === "Identity" || section === "Graph") && own) loadSourceConnections();
+  }, [section, own, loadSourceConnections]);
+
+  const loadUserPreferences = useCallback(async () => {
+    if (!own || !targetId) return;
+    setSettingsLoading(true);
+    setSettingsError("");
+    try {
+      const { data, error } = await supabase.from("profiles").select("preferences").eq("id", targetId).maybeSingle();
+      if (error) throw error;
+      const nextPreferences = data?.preferences || {};
+      setUserPreferences(nextPreferences);
+    } catch (error) {
+      setSettingsError(error?.message || "XRD preferences could not be loaded.");
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, [own, targetId]);
+
+  useEffect(() => {
+    if (section !== "Settings") return undefined;
+    if (!own || !targetId) return undefined;
+    loadUserPreferences();
+    return undefined;
+  }, [section, own, targetId, loadUserPreferences]);
+
+  useEffect(() => {
+    let active = true;
+    if (!canManage && publicSnapshot) {
+      setProfileLinks(publicSnapshot.links || []);
+      setProfileLinksError("");
+      setProfileLinksLoading(false);
+      return () => { active = false; };
+    }
+    if (!canManage || !targetId) {
+      setProfileLinks([]);
+      setProfileLinksError("");
+      setProfileLinksLoading(false);
+      return () => { active = false; };
+    }
+    setProfileLinksLoading(true);
+    setProfileLinksError("");
+    listOwnerXrdLinks(targetId)
+      .then((links) => {
+        if (active) setProfileLinks(links);
+      })
+      .catch((error) => {
+        if (active) setProfileLinksError(error?.message || "XRD links could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setProfileLinksLoading(false);
+      });
+    return () => { active = false; };
+  }, [canManage, publicSnapshot, targetId]);
+
+  useEffect(() => {
+    if (section !== "Identity" || !targetId) return undefined;
+    if (publicSnapshot) {
+      const details = getXrdIdentityDetails(publicSnapshot.identityDetails);
+      setIdentityDetails(details);
+      setPublicIdentityDetails(details);
+      setIdentityDetailsExists(Object.values(details).some(Boolean));
+      setIdentityLoading(false);
+      return undefined;
+    }
+    let active = true;
+    setIdentityLoading(true);
+    setIdentityNotice("");
+    supabase.from("xrd_identity_details").select("field_key,value,visibility,status,updated_at").eq("profile_id", targetId)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (!active) return;
+        const rows = data || [];
+        const details = getXrdIdentityDetails(rows);
+        const publicDetails = getXrdIdentityDetails(rows.filter((row) => row.visibility === "public"));
+        setIdentityDetails(details);
+        setPublicIdentityDetails(publicDetails);
+        setIdentityVisibility(rows.length > 0 && rows.every((row) => row.visibility === "public") ? "public" : "private");
+        setIdentitySavedVisibility(rows.length > 0 && rows.every((row) => row.visibility === "public") ? "public" : "private");
+        setIdentityDetailsExists(Object.values(publicDetails).some(Boolean));
+        if (own) setIdentityDraft(details);
+      })
+      .catch((error) => {
+        if (active) setIdentityNotice(error?.message || "Identity details could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setIdentityLoading(false);
+      });
+    return () => { active = false; };
+  }, [section, targetId, own, publicSnapshot]);
+
+  useEffect(() => {
+    if (section !== "Remarks" || !targetId) return undefined;
+    let active = true;
+    setRemarksLoading(true);
+    setRemarksError("");
+    supabase.from("xrd_remarks").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }).limit(100)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (active) setRemarks(data || []);
+      })
+      .catch((error) => {
+        if (active) setRemarksError(error?.message || "Remarks could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setRemarksLoading(false);
+      });
+    return () => { active = false; };
+  }, [section, targetId]);
+
+  useEffect(() => {
+    if (section !== "Audit" || !own || !targetId) return undefined;
+    let active = true;
+    setSecurityEventsLoading(true);
+    setSecurityEventsError("");
+    supabase.from("security_events").select("*").eq("user_id", targetId).order("created_at", { ascending: false }).limit(100)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (active) setSecurityEvents(data || []);
+      })
+      .catch((error) => {
+        if (active) setSecurityEventsError(error?.message || "Security audit events could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setSecurityEventsLoading(false);
+      });
+    return () => { active = false; };
+  }, [section, own, targetId]);
+
+  useEffect(() => {
+    if (section === "Permissions" && own && targetId) {
+      let active = true;
+      setAccessRequestsLoading(true);
+      setAccessRequestsError("");
+      Promise.all([
+        supabase.from("xrd_access_requests").select("*").eq("profile_id", targetId).eq("status", "pending").order("created_at", { ascending: false }),
+        supabase.from("xrd_evidence_grants").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }),
+      ])
+        .then(([requestsResult, grantsResult]) => {
+          if (requestsResult.error) throw requestsResult.error;
+          if (grantsResult.error) throw grantsResult.error;
+          if (active) {
+            setAccessRequests(requestsResult.data || []);
+            setEvidenceGrants(grantsResult.data || []);
+          }
+        })
+        .catch((error) => {
+          if (active) setAccessRequestsError(error?.message || "Access requests could not be loaded.");
+        })
+        .finally(() => { if (active) setAccessRequestsLoading(false); });
+      return () => { active = false; };
+    }
+    if ((section === "Records" || section === "Evidence") && !own && viewerId) {
+      let active = true;
+      setAccessRequestStatus("");
+      setAccessRequestsError("");
+      Promise.all([
+        supabase.from("xrd_access_requests").select("status,message,responded_at,created_at")
+          .eq("profile_id", targetId).eq("requester_id", viewerId)
+          .order("created_at", { ascending: false }).limit(1),
+        supabase.from("xrd_evidence_grants").select("evidence_item_id")
+          .eq("profile_id", targetId).eq("viewer_id", viewerId),
+      ]).then(async ([requestResult, grantsResult]) => {
+        if (requestResult.error) throw requestResult.error;
+        if (grantsResult.error) throw grantsResult.error;
+        if (!active) return;
+        const request = requestResult.data?.[0] || null;
+        setAccessRequestStatus(request?.status || "");
+        setAccessRequestMessage(request?.status === "pending" ? request.message || "" : "");
+        const grantedIds = (grantsResult.data || []).map((grant) => grant.evidence_item_id).filter(Boolean);
+        if (grantedIds.length) {
+          setAuthorizedEvidenceIds(grantedIds);
+          const grantedEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+          if (active) setEvidenceItems(grantedEvidence);
+        } else {
+          setAuthorizedEvidenceIds([]);
+        }
+      }).catch((error) => {
+        console.error("[XRD] Evidence access state could not be loaded:", error);
+        if (active) setAccessRequestsError(error?.message || "Evidence access state could not be loaded.");
+      });
+      return () => { active = false; };
+    }
+    return undefined;
+  }, [section, own, targetId, viewerId]);
+
+  const connectSource = async (provider) => {
+    setSourceBusy(provider);
+    setSourceNotice("");
+    try {
+      const result = await openAccountLink({ userId: targetId, platform: provider, readOnly: true, purpose: "evidence" });
+      if (result?.cancelled) return;
+      const connections = await socialConnectService.getConnections(targetId);
+      const connection = connections?.[provider];
+      if (!connection?.id) throw new Error(`${provider} linked, but XRD could not resolve the saved connection record.`);
+
+      let syncResult = null;
+      let syncError = null;
+      try {
+        syncResult = await syncUserConnectorEvidence(targetId, provider);
+      } catch (error) {
+        syncError = error;
+      }
+      const freshEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setEvidenceItems((current) => {
+        const firstParty = current.filter((item) => String(item.provider || "").toLowerCase() === "xeevia");
+        return [...new Map([...firstParty, ...freshEvidence].map((item) => [item.id, item])).values()];
+      });
+      await xrdRecordService.createIdentityBinding({
+        profileId: targetId,
+        connection,
+        evidenceId: syncResult?.evidenceItems?.find((item) => item.evidence_type === "profile")?.id || null,
+      });
+      await loadSourceConnections();
+      await loadIdentityBindings();
+      await loadXrdClaims();
+      const xrcSkipped = !process.env.REACT_APP_XRC_FORCE_DEV && process.env.NODE_ENV !== "production";
+      setSourceNotice(syncError
+        ? `${provider} account-control binding recorded. Evidence sync failed: ${syncError.message}`
+        : `${provider} connected. OAuth proves account control only; ${syncResult?.evidenceItems?.length || 0} evidence items synced.${xrcSkipped ? " XRC appends are skipped in development." : ""}`);
+    } catch (error) {
+      setSourceNotice(error?.message || `Could not connect ${provider}.`);
+    } finally {
+      setSourceBusy("");
+    }
+  };
+
+  const syncSource = async (provider) => {
+    setSourceBusy(provider);
+    setSourceNotice("");
+    try {
+      await syncUserConnectorEvidence(targetId, provider);
+      const fresh = await evidenceService.getEvidenceForProfile(targetId, { limit: 50 });
+      setEvidenceItems((current) => {
+        const firstParty = current.filter((item) => item.provider === "Xeevia");
+        const merged = new Map([...firstParty, ...fresh].map((item) => [item.id, item]));
+        return [...merged.values()];
+      });
+      await loadSourceConnections();
+      if (String(provider).toLowerCase() === "github") await loadXrdClaims();
+      setSourceNotice(`${provider} evidence synchronized.`);
+    } catch (error) {
+      setSourceNotice(error?.message || `${provider} could not be synchronized.`);
+    } finally {
+      setSourceBusy("");
+    }
+  };
+
+  const disconnectSource = async (provider) => {
+    if (!window.confirm(`Disconnect ${provider}? Existing evidence remains in your XRD.`)) return;
+    setSourceBusy(provider);
+    setSourceNotice("");
+    try {
+      const connection = sourceConnections.find((item) => item.provider === provider);
+      await socialConnectService.unlinkPlatform(targetId, provider);
+      if (connection?.id) await xrdRecordService.revokeIdentityBindings({ profileId: targetId, connection });
+      await loadSourceConnections();
+      await loadIdentityBindings();
+      setSourceNotice(`${provider} access revoked. Existing evidence and prior binding history were preserved.`);
+    } catch (error) {
+      setSourceNotice(error?.message || `${provider} could not be disconnected.`);
+    } finally {
+      setSourceBusy("");
+    }
+  };
+
+  const createXrdClaim = async ({ recordType, title, claimText, structuredClaim, visibility, evidenceId, relation }) => {
+    setXrdClaimsNotice("");
+    setXrdClaimsError("");
+    const record = await xrdRecordService.createClaim({
+      profileId: targetId,
+      actorId: viewerId,
+      recordType,
+      title,
+      claimText,
+      structuredClaim,
+      visibility,
+    });
+    let linked = null;
+    if (evidenceId) {
+      try {
+        linked = await xrdRecordService.linkEvidence({
+          profileId: targetId,
+          actorId: viewerId,
+          recordId: record.id,
+          evidenceId,
+          relation,
+        });
+      } catch (error) {
+        await loadXrdClaims();
+        throw new Error(`The claim was saved, but its evidence link failed: ${error.message}`);
+      }
+    }
+    await loadXrdClaims();
+    const xrcSkipped = record.audit?.xrc?.skipped || linked?.audit?.xrc?.skipped;
+    setXrdClaimsNotice(`Claim saved as self-authored${evidenceId ? ` and linked as ${relation}` : ""}.${xrcSkipped ? " XRD audit events were saved; XRC appends are skipped in this development environment." : ""}`);
+    return record;
+  };
+
+  const runClaimSourceCheck = async (claim, evidence) => {
+    if (!own || !claim?.id || !evidence?.id || sourceBusy === "github") return;
+    setSourceBusy("github");
+    setXrdClaimsNotice("");
+    const startedAt = new Date().toISOString();
+    try {
+      const result = await syncUserConnectorEvidence(targetId, "github");
+      const freshEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setEvidenceItems((current) => {
+        const firstParty = current.filter((item) => String(item.provider || "").toLowerCase() === "xeevia");
+        return [...new Map([...firstParty, ...freshEvidence].map((item) => [item.id, item])).values()];
+      });
+      const refreshed = freshEvidence.find((item) => item.id === evidence.id)
+        || freshEvidence.find((item) => item.external_id && item.external_id === evidence.external_id);
+      const comparison = compareEvidenceSnapshot(evidence, refreshed);
+      const summary = comparison.resultStatus === "matched"
+        ? "The selected source fields match the latest GitHub snapshot. This is not a verification of the claim."
+        : comparison.resultStatus === "changed"
+          ? `GitHub returned changed fields: ${comparison.changedFields.join(", ")}. This observation does not decide the claim.`
+          : "GitHub did not return this evidence item in the latest public activity snapshot.";
+      const run = await xrdRecordService.saveSourceCheck({
+        profileId: targetId,
+        actorId: viewerId,
+        recordId: claim.id,
+        evidenceId: evidence.id,
+        provider: "github",
+        resultStatus: comparison.resultStatus,
+        changedFields: comparison.changedFields,
+        startedAt,
+        summary,
+      });
+      await loadXrdClaims();
+      setXrdClaimsNotice(`${summary}${run.audit?.xrc?.skipped ? " XRD audit was saved; XRC appends are skipped in development." : ""}`);
+      await loadSourceConnections();
+      return result;
+    } catch (error) {
+      const summary = `GitHub could not be checked: ${error?.message || "source unavailable"}. The claim remains self-authored.`;
+      try {
+        await xrdRecordService.saveSourceCheck({
+          profileId: targetId,
+          actorId: viewerId,
+          recordId: claim.id,
+          evidenceId: evidence.id,
+          provider: "github",
+          resultStatus: "unavailable",
+          changedFields: [],
+          startedAt,
+          summary,
+        });
+      } catch (persistError) {
+        console.error("[XRD] Source check could not be persisted:", persistError);
+      }
+      await loadXrdClaims();
+      setXrdClaimsNotice(summary);
+      return null;
+    } finally {
+      setSourceBusy("");
+    }
+  };
+
+  const toggleXrdSetting = async (setting) => {
+    const key = `${settingsGroup}:${setting}`;
+    const current = userPreferences.xrd_settings || {};
+    const nextSettings = { ...current, [key]: current[key] === false };
+    setSettingsBusy(key);
+    setSettingsError("");
+    try {
+      const preferences = { ...userPreferences, xrd_settings: nextSettings };
+      const { error } = await supabase.from("profiles").update({ preferences, updated_at: new Date().toISOString() }).eq("id", targetId);
+      if (error) throw error;
+      setUserPreferences(preferences);
+    } catch (error) {
+      setSettingsError(error?.message || "Preference could not be saved.");
+    } finally {
+      setSettingsBusy("");
+    }
+  };
+
+  const publishRemark = async () => {
+    const evidence = evidenceItems.find((item) => item.id === remarkEvidenceId);
+    if (remarkSaving || !viewerId || !evidence || remarkBody.trim().length < 5) return;
+    setRemarksNotice("");
+    setRemarksError("");
+    setRemarkSaving(true);
+    try {
+      const { data, error } = await supabase.from("xrd_remarks").insert({
+        profile_id: targetId,
+        evidence_item_id: evidence.id,
+        record_title: evidence.title || evidence.evidence_type || "Evidence record",
+        remark_type: remarkType,
+        body: remarkBody.trim(),
+        author_id: viewerId,
+        status: "published",
+      }).select().single();
+      if (error) throw error;
+      setRemarks((current) => [data, ...current]);
+      setRemarkBody("");
+      setRemarksNotice("Remark published.");
+    } catch (error) {
+      setRemarksError(error?.message || "Remark could not be published.");
+    } finally {
+      setRemarkSaving(false);
+    }
+  };
+
+  const saveRemarkResponse = async (remark) => {
+    const response = (remarkResponses[remark.id] || "").trim();
+    if (remarkSaving || !response) return;
+    setRemarksNotice("");
+    setRemarksError("");
+    setRemarkSaving(true);
+    try {
+      const { data, error } = await supabase.from("xrd_remarks")
+        .update({ owner_response: response, owner_response_at: new Date().toISOString() })
+        .eq("id", remark.id).eq("profile_id", targetId).select().single();
+      if (error) throw error;
+      setRemarks((current) => current.map((item) => item.id === data.id ? data : item));
+      setRemarkResponses((current) => ({ ...current, [remark.id]: "" }));
+      setRemarksNotice("Owner response saved.");
+    } catch (error) {
+      setRemarksError(error?.message || "Owner response could not be saved.");
+    } finally {
+      setRemarkSaving(false);
+    }
+  };
+
+  const askEvidence = (value = oracleQuery) => {
+    const query = value.trim();
+    if (!query) return;
+    const terms = [...new Set(query.toLowerCase().match(/[a-z0-9@._-]{3,}/g) || [])]
+      .filter((term) => !["the", "and", "for", "with", "from", "show", "find", "what", "which", "about", "evidence", "records"].includes(term));
+    const matches = displayedEvidenceItems.map((item) => {
+      const haystack = [item.title, item.summary, item.description, item.provider, item.evidence_type, item.entity_type, JSON.stringify(item.metadata || {})]
+        .filter(Boolean).join(" ").toLowerCase();
+      return { item, score: terms.reduce((score, term) => score + (haystack.includes(term) ? 1 : 0), 0) };
+    }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+    const matchedSources = [...new Set(matches.map(({ item }) => item.provider).filter(Boolean))];
+    const answer = {
+      query,
+      matches: matches.map(({ item }) => item),
+      response: matches.length
+        ? `Found ${matches.length} evidence item${matches.length === 1 ? "" : "s"}${matchedSources.length ? ` from ${matchedSources.join(", ")}` : ""}. These are text matches, not a new verification or a conclusion beyond the stored records.`
+        : "No accessible evidence text matched that question. XRD will not infer an answer that is not present in the records.",
+      };
+      setOracleAnswer(answer);
+      setOracleConversation((current) => [...current, { id: `${Date.now()}-${current.length}`, ...answer }]);
+      return answer;
+  };
+
+  const updateEvidenceVisibility = async (item, visibility) => {
+    if (!own || item.profile_id !== targetId || visibilitySaving) return;
+    setVisibilitySaving(true);
+    setVisibilityError("");
+    try {
+      const metadata = { ...(item.metadata || {}), visibility };
+      const { data, error } = await supabase.from("evidence_items")
+        .update({ metadata }).eq("id", item.id).eq("profile_id", targetId).select().single();
+      if (error) throw error;
+      const updated = data || { ...item, metadata };
+      setEvidenceItems((current) => current.map((entry) => entry.id === item.id ? updated : entry));
+      setSelectedEvidence(updated);
+    } catch (error) {
+      setVisibilityError(error?.message || "Visibility could not be saved.");
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
+
+  const recheckEvidenceSource = async (item) => {
+    if (!own || sourceChecks[item.id]?.loading) return;
+    setSourceChecks((current) => ({ ...current, [item.id]: { loading: true } }));
+    try {
+      const result = await syncUserConnectorEvidence(targetId, String(item.provider || "").toLowerCase());
+      const refreshed = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      const sameProvider = refreshed.filter((candidate) => String(candidate.provider || "").toLowerCase() === String(item.provider || "").toLowerCase());
+      const found = sameProvider.find((candidate) => candidate.id === item.id || (item.external_id && candidate.external_id === item.external_id));
+      const comparedFields = ["title", "summary", "url", "verified", "external_id", "evidence_type"];
+      const changedFields = found ? comparedFields.filter((field) => String(found[field] ?? "") !== String(item[field] ?? "")) : [];
+      setEvidenceItems((current) => {
+        const firstParty = current.filter((entry) => entry.provider === "Xeevia");
+        return [...new Map([...firstParty, ...refreshed].map((entry) => [entry.id, entry])).values()];
+      });
+      setSourceChecks((current) => ({
+        ...current,
+        [item.id]: {
+          status: found ? (changedFields.length ? "changed" : "matched") : "not-found",
+          changedFields,
+          checkedAt: new Date().toISOString(),
+          evidenceCount: result?.evidenceItems?.length || 0,
+        },
+      }));
+    } catch (error) {
+      setSourceChecks((current) => ({ ...current, [item.id]: { error: error?.message || "The source could not be checked." } }));
+    }
+  };
+
+  const requestEvidenceAccess = async () => {
+    const message = accessRequestMessage.trim();
+    if (!viewerId || !targetId || accessRequestBusy) return;
+    if (message.length < 5) {
+      setAccessRequestsError("Please add a short reason of at least five characters.");
+      return;
+    }
+    setAccessRequestBusy(true);
+    setAccessRequestsError("");
+    setAccessNotice("");
+    try {
+      const { data, error } = await supabase.from("xrd_access_requests").insert({
+        profile_id: targetId,
+        requester_id: viewerId,
+        message,
+      }).select("status,message").single();
+      if (error) throw error;
+      setAccessRequestStatus(data?.status || "pending");
+      setAccessRequestMessage(data?.message || message);
+      setAccessRequestOpen(false);
+      setAccessNotice("Your request was sent. The owner chooses which evidence, if any, to share.");
+    } catch (error) {
+      console.error("[XRD] Evidence access request failed:", error);
+      setAccessRequestsError(error?.message || "Access request could not be sent.");
+    } finally {
+      setAccessRequestBusy(false);
+    }
+  };
+
+  const loadGrantedEvidence = async () => {
+    if (!viewerId || !targetId || accessRequestBusy) return;
+    setAccessRequestBusy(true);
+    setAccessRequestsError("");
+    setAccessNotice("");
+    try {
+      const { data: grants, error } = await supabase.from("xrd_evidence_grants")
+        .select("evidence_item_id")
+        .eq("profile_id", targetId)
+        .eq("viewer_id", viewerId);
+      if (error) throw error;
+      const grantedIds = (grants || []).map((grant) => grant.evidence_item_id).filter(Boolean);
+      const evidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setAuthorizedEvidenceIds(grantedIds);
+      setEvidenceItems(evidence);
+      setAccessNotice(grantedIds.length
+        ? `${grantedIds.length} evidence item${grantedIds.length === 1 ? "" : "s"} shared with you are now available.`
+        : "The owner has not shared any evidence with this request yet.");
+    } catch (error) {
+      console.error("[XRD] Granted evidence could not be refreshed:", error);
+      setAccessRequestsError(error?.message || "Granted evidence could not be refreshed.");
+    } finally {
+      setAccessRequestBusy(false);
+    }
+  };
+
+  const respondToAccessRequest = async (request, approve) => {
+    const selected = evidenceItems.filter((item) => item.profile_id === targetId && grantSelections[request.id]?.[item.id]);
+    if (approve && !selected.length) return;
+    setAccessRequestBusy(true);
+    setAccessNotice("");
+    try {
+      if (approve) {
+        const selectedIds = selected.map((item) => item.id);
+        const { data: existing, error: existingError } = await supabase.from("xrd_evidence_grants")
+          .select("evidence_item_id").eq("viewer_id", request.requester_id).in("evidence_item_id", selectedIds);
+        if (existingError) throw existingError;
+        const existingIds = new Set((existing || []).map((grant) => grant.evidence_item_id));
+        const grants = selected.filter((item) => !existingIds.has(item.id)).map((item) => ({
+          profile_id: targetId,
+          evidence_item_id: item.id,
+          viewer_id: request.requester_id,
+          request_id: request.id,
+        }));
+        if (grants.length) {
+          const { error: grantError } = await supabase.from("xrd_evidence_grants").insert(grants);
+          if (grantError) throw grantError;
+        }
+      }
+      const { error } = await supabase.from("xrd_access_requests")
+        .update({ status: approve ? "approved" : "denied", responded_at: new Date().toISOString() })
+        .eq("id", request.id).eq("profile_id", targetId);
+      if (error) throw error;
+      setAccessRequests((current) => current.filter((item) => item.id !== request.id));
+      if (approve) {
+        const { data: grants } = await supabase.from("xrd_evidence_grants").select("*").eq("request_id", request.id);
+        if (grants) setEvidenceGrants((current) => [...grants, ...current.filter((grant) => !grants.some((next) => next.id === grant.id))]);
+      }
+      setAccessNotice(approve ? `Access granted to ${selected.length} evidence item${selected.length === 1 ? "" : "s"}.` : "Access request declined.");
+    } catch (error) {
+      setAccessRequestsError(error?.message || "The access request could not be updated.");
+    } finally {
+      setAccessRequestBusy(false);
+    }
+  };
+
+  const revokeEvidenceGrant = async (grant) => {
+    setAccessRequestBusy(true);
+    setAccessNotice("");
+    try {
+      const { error } = await supabase.from("xrd_evidence_grants").delete().eq("id", grant.id).eq("profile_id", targetId);
+      if (error) throw error;
+      setEvidenceGrants((current) => current.filter((item) => item.id !== grant.id));
+      setAccessNotice("Evidence access revoked.");
+    } catch (error) {
+      setAccessRequestsError(error?.message || "Evidence access could not be revoked.");
+    } finally {
+      setAccessRequestBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const itemIds = evidenceItems.map((item) => item?.id).filter(Boolean);
+    if (!itemIds.length) {
+      setEvidenceEdges([]);
+      setEdgesError("");
+      return () => { active = false; };
+    }
+    evidenceService.getEvidenceEdgesForItemIds(itemIds, { limit: 300 })
+      .then((edges) => {
+        if (active) {
+          setEvidenceEdges(edges || []);
+          setEdgesError("");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setEvidenceEdges([]);
+          setEdgesError(error?.message || "Evidence relationships could not be loaded.");
+        }
+      });
+    return () => { active = false; };
+  }, [evidenceItems]);
+
+  const sources = useMemo(() => countBySource(displayedEvidenceItems), [displayedEvidenceItems]);
+  const identityRows = useMemo(() => {
+    const rows = new Map();
+    displayedSourceConnections.forEach((connection) => {
+      const key = String(connection.provider || "unknown").trim().toLowerCase();
+      rows.set(key, {
+        key,
+        provider: connection.provider || "Connected source",
+        account: connection.platform_user_id || "Account identifier unavailable",
+        connection,
+        evidence: [],
+      });
+    });
+    displayedEvidenceItems.forEach((item) => {
+      const provider = item.provider || "Unknown source";
+      const key = String(provider).trim().toLowerCase();
+      const existing = rows.get(key) || { key, provider, account: "", connection: null, evidence: [] };
+      existing.evidence.push(item);
+      if (!existing.account) {
+        existing.account = item.metadata?.username || item.metadata?.handle || item.external_id || item.title || "Profile evidence";
+      }
+      rows.set(key, existing);
+    });
+    return [...rows.values()].sort((left, right) => {
+      if (left.key === "xeevia") return -1;
+      if (right.key === "xeevia") return 1;
+      return left.provider.localeCompare(right.provider);
+    });
+  }, [displayedEvidenceItems, displayedSourceConnections]);
+  const filteredEvidence = useMemo(() => {
+    const term = filter.trim().toLowerCase();
+    if (!term) return displayedEvidenceItems;
+    return displayedEvidenceItems.filter((item) =>
+      [item.title, item.summary, item.provider, item.evidence_type]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term)),
+    );
+  }, [displayedEvidenceItems, filter]);
+  const evidenceById = useMemo(() => new Map(displayedEvidenceItems.filter((item) => item?.id).map((item) => [item.id, item])), [displayedEvidenceItems]);
+  const photoProfile = useMemo(() => isPublicAudience
+    ? {
+      ...profile,
+      avatarMetadata: undefined,
+      avatar_metadata: undefined,
+      userMetadata: undefined,
+      user_metadata: undefined,
+      authenticatedAvatarCandidates: undefined,
+    }
+    : { ...profile, authenticatedAvatarCandidates },
+  [authenticatedAvatarCandidates, isPublicAudience, profile]);
+  const photoSources = useMemo(
+    () => getXrdPhotoSources(photoProfile, displayedEvidenceItems, publicProjection.photoConnections),
+    [displayedEvidenceItems, photoProfile, publicProjection.photoConnections],
+  );
+  const profileAvatarCandidates = useMemo(() => getXrdProfileAvatarCandidates(photoProfile), [photoProfile]);
+  const visibleEvidenceEdges = useMemo(() => displayedEdges.filter((edge) => evidenceById.has(edge.source_id) && evidenceById.has(edge.target_id)), [displayedEdges, evidenceById]);
+  const profileName = profile?.fullName || profile?.username || "Xeevia member";
+  const initials = profileName.trim().charAt(0).toUpperCase() || "X";
+
+  const openOracle = () => navigateSection("Oracle");
+  const loadConnectedProfilePhotos = async (retry = false) => {
+    setPhotoHubOpen(true);
+    if (!canManage || photoSyncing || (photoSyncAttempted.current && !retry)) return;
+    photoSyncAttempted.current = true;
+    setPhotoSyncing(true);
+    setPhotoSyncMessage("");
+    try {
+      const connections = await socialConnectService.getConnections(targetId);
+      const supportedProviders = new Set(getRegisteredConnectors()
+        .filter((connector) => connector.supportedTypes?.includes("profile") && connector.capabilities?.includes("public-profile"))
+        .map((connector) => String(connector.provider).toLowerCase()));
+      setPhotoConnections(Object.values(connections || {}));
+      const syncableConnections = Object.values(connections || {}).filter((connection) =>
+        connection?.auth_status === "active"
+        && connection.hasValidToken
+        && supportedProviders.has(String(connection.provider || "").toLowerCase()),
+      );
+      const syncResults = await Promise.allSettled(syncableConnections.map((connection) =>
+        syncUserConnectorEvidence(targetId, connection.provider),
+      ));
+      const refreshedEvidence = await evidenceService.getEvidenceForProfile(targetId, { limit: 100 });
+      setEvidenceItems((current) => {
+        const nativeItems = current.filter((item) => String(item.provider || "").toLowerCase() === "xeevia");
+        return [...new Map([...nativeItems, ...refreshedEvidence].map((item) => [item.id, item])).values()];
+      });
+      const failedCount = syncResults.filter((result) => result.status === "rejected").length;
+      if (failedCount) setPhotoSyncMessage(`${failedCount} connected source${failedCount === 1 ? "" : "s"} could not refresh. Saved profile images are still shown.`);
+    } catch (error) {
+      setPhotoSyncMessage(error?.message || "Connected profile images could not be refreshed.");
+    } finally {
+      setPhotoSyncing(false);
+    }
+  };
+  const navigateSection = (nextSection) => {
+    if (!nextSection || nextSection === section) return;
+    setSelectedEvidence(null);
+    setFocusedEvidenceId(null);
+    setSectionHistory((previous) => [...previous, section]);
+    setSection(nextSection);
+  };
+  const navigateToEvidenceGraph = (item) => {
+    if (!item?.id) return;
+    setSelectedEvidence(null);
+    setFocusedEvidenceId(item.id);
+    if (section !== "Graph") {
+      setSectionHistory((previous) => [...previous, section]);
+      setSection("Graph");
+    }
+  };
+  const saveProfileLink = async (event) => {
+    event.preventDefault();
+    setProfileLinksBusy(true);
+    setProfileLinksError("");
+    setProfileLinksNotice("");
+    try {
+      const saved = await saveOwnerXrdLink(targetId, linkDraft, editingLinkId);
+      setProfileLinks((current) => editingLinkId
+        ? current.map((link) => link.id === editingLinkId ? saved : link)
+        : [...current, saved]);
+      setEditingLinkId(null);
+      setLinkDraft({ category: "social", label: "", url: "", visibility: "private" });
+      setProfileLinksNotice("Link saved to your XRD.");
+    } catch (error) {
+      setProfileLinksError(error?.message || "The XRD link could not be saved.");
+    } finally {
+      setProfileLinksBusy(false);
+    }
+  };
+  const editProfileLink = (link) => {
+    setEditingLinkId(link.id);
+    setLinkDraft({
+      category: link.category,
+      label: link.label,
+      url: link.url,
+      visibility: link.visibility,
+    });
+    setProfileLinksError("");
+    setProfileLinksNotice("");
+  };
+  const cancelProfileLinkEdit = () => {
+    setEditingLinkId(null);
+    setLinkDraft({ category: "social", label: "", url: "", visibility: "private" });
+    setProfileLinksError("");
+  };
+  const removeProfileLink = async (linkId) => {
+    setProfileLinksBusy(true);
+    setProfileLinksError("");
+    setProfileLinksNotice("");
+    try {
+      await deleteOwnerXrdLink(targetId, linkId);
+      setProfileLinks((current) => current.filter((link) => link.id !== linkId));
+      if (editingLinkId === linkId) cancelProfileLinkEdit();
+      setProfileLinksNotice("Link removed from your XRD.");
+    } catch (error) {
+      setProfileLinksError(error?.message || "The XRD link could not be deleted.");
+    } finally {
+      setProfileLinksBusy(false);
+    }
+  };
+  const switchOwnerView = (nextView) => {
+    if (nextView === ownerView) return;
+    if (nextView === "public" && OWNER_ONLY.has(section)) {
+      setSection("Overview");
+      setSectionHistory([]);
+    }
+    setOwnerView(nextView);
+    setSelectedEvidence(null);
+    setOracleAnswer(null);
+    setOracleConversation([]);
+    setOracleChatOpen(false);
+    setPhotoHubOpen(false);
+    setFilter("");
+    setAccessNotice("");
+    setSourceNotice("");
+    setPhotoSyncMessage("");
+  };
+  const openEvidenceVerification = (item) => {
+    setVerificationTargetId(item?.id || null);
+    setSelectedEvidence(null);
+    if (section === "Verification") return;
+    navigateSection("Verification");
+  };
+  const goBack = () => {
+    if (!sectionHistory.length) {
+      onClose();
+      return;
+    }
+    setSection(sectionHistory[sectionHistory.length - 1]);
+    setSectionHistory((previous) => previous.slice(0, -1));
+  };
+  const checkRecord = async (recordId) => {
+    setAuditResult((previous) => ({ ...previous, [recordId]: { loading: true } }));
+    try {
+      const result = isXrcView && !own
+        ? (() => {
+          const record = records.find((item) => item.record_id === recordId);
+          return record
+            ? verifyRecordHash(record).then((valid) => ({
+              status: valid ? "valid" : "modified",
+              record,
+              message: valid ? "The public XRC event record hash matches its disclosed data." : "The record hash does not match its disclosed data.",
+            }))
+            : Promise.reject(new Error("This public XRC record is no longer available."));
+        })()
+        : xrcService.verifyRecord(recordId);
+      const verifiedResult = await result;
+      setAuditResult((previous) => ({
+        ...previous,
+        [recordId]: verifiedResult?.error
+          ? { error: verifiedResult.error }
+          : { result: verifiedResult },
+      }));
+    } catch (error) {
+      console.error("[XRD] Record integrity check failed:", error);
+      setAuditResult((previous) => ({ ...previous, [recordId]: { error: error?.message || "Integrity check failed." } }));
+    }
+  };
+
+  const traceRecord = async (recordId) => {
+    setTraceResult((previous) => ({ ...previous, [recordId]: { loading: true } }));
+    try {
+      let result;
+      if (isXrcView && !own) {
+        const byHash = new Map(records.map((record) => [record.record_hash, record]));
+        const chain = [];
+        let current = records.find((record) => record.record_id === recordId);
+        let parentUnavailable = false;
+        let reachedGenesis = false;
+        while (current && !chain.some((record) => record.record_id === current.record_id)) {
+          chain.push(current);
+          if (current.previous_hash === await computeGenesisHash(current.stream_type)) {
+            reachedGenesis = true;
+            break;
+          }
+          const parent = byHash.get(current.previous_hash);
+          if (!parent) {
+            parentUnavailable = true;
+            break;
+          }
+          current = parent;
+        }
+        result = { chain, depth: chain.length, reachedGenesis, parentUnavailable };
+      } else {
+        result = await xrcService.traceHistory(recordId);
+      }
+      setTraceResult((previous) => ({ ...previous, [recordId]: { result } }));
+    } catch (error) {
+      setTraceResult((previous) => ({ ...previous, [recordId]: { error: error?.message || "Record history could not be traced." } }));
+    }
+  };
+
+  const visibleIdentityDetails = displayedIdentityDetails;
+
+  const saveIdentityDetails = async () => {
+    if (!own || !targetId) return;
+    setIdentitySaving(true);
+    setIdentityNotice("");
+    try {
+      const details = getXrdIdentityDetails(identityDraft);
+      const rows = buildXrdIdentityDetailRows(targetId, details, identityVisibility, new Date().toISOString());
+      const { data, error } = await supabase.from("xrd_identity_details")
+        .upsert(rows, { onConflict: "profile_id,field_key" })
+        .select("field_key,value,visibility,status,updated_at");
+      if (error) throw error;
+      const savedRows = Array.isArray(data) && data.length ? data : rows;
+      setIdentityDetails(getXrdIdentityDetails(savedRows));
+      setPublicIdentityDetails(getXrdIdentityDetails(savedRows.filter((row) => row.visibility === "public")));
+      const changedFields = XRD_IDENTITY_FIELDS
+        .filter(({ key }) => details[key] !== visibleIdentityDetails[key])
+        .map(({ key }) => key);
+      const visibilityChanged = identityVisibility !== identitySavedVisibility;
+      let xrcNotice = "";
+      if (changedFields.length || visibilityChanged) {
+        try {
+          const updatedFields = visibilityChanged ? [...changedFields, "visibility"] : changedFields;
+          const xrcResult = await xrcService.writeRecord(
+            STREAM_TYPES.XARC,
+            XRC_EVENTS.identityDetailsUpdated(targetId, updatedFields, identityVisibility),
+            targetId,
+          );
+          if (xrcResult?.skipped) {
+            xrcNotice = " XRC history is disabled in this environment, so this save was not added to the chain.";
+          } else if (!xrcResult?.success) {
+            console.error("[XRD] Identity details were saved, but their XRC event failed:", xrcResult?.error || "Unknown error");
+            xrcNotice = " XRC history could not record this save.";
+          }
+        } catch (xrcError) {
+          console.error("[XRD] Identity details were saved, but their XRC event failed:", xrcError);
+          xrcNotice = " XRC history could not record this save.";
+        }
+      }
+      setIdentityVisibility(identityVisibility);
+      setIdentitySavedVisibility(identityVisibility);
+      setIdentityDetailsExists(true);
+      setIdentityNotice(`Identity details saved to your XRD.${xrcNotice}`);
+    } catch (error) {
+      setIdentityNotice(error?.message || "Your identity details could not be saved.");
+    } finally {
+      setIdentitySaving(false);
+    }
+  };
+
+  const evidenceCard = (item, index) => (
+    <button type="button" className="xrd-record xrd-record-button" key={item.id || `${item.provider}-${item.title}-${index}`} onClick={() => setSelectedEvidence(item)} aria-label={`Open evidence details for ${item.title || item.evidence_type || "Evidence record"}`}>
+      <div className="xrd-record-mark"><FileCheck2 size={17} /></div>
+      <div className="xrd-record-body">
+        <div className="xrd-record-top">
+          <span className="xrd-record-title">{item.title || item.evidence_type || "Evidence record"}</span>
+          <span className={`xrd-status${item.verified ? " is-verified" : ""}`}>{normalizeStatus(item)}</span>
+        </div>
+        <div className="xrd-record-meta">{item.provider || "Unknown source"} <i /> {item.evidence_type || "profile"} <i /> {dateLabel(item.created_at || item.createdAt)}</div>
+        {item.summary && <p>{item.summary}</p>}
+        <div className="xrd-record-foot">
+          <span>{item.proofLabel || "Evidence"}</span>
+          {item.verificationLevel && <span>{String(item.verificationLevel).toUpperCase()} TRUST</span>}
+        </div>
+      </div>
+    </button>
+  );
+
+  const renderAccessRequestPanel = () => {
+    if (own) return null;
+    return (
+      <>
+        <style>{`.xrd-root .xrd-access-request-form{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:min(100%,360px)}.xrd-root .xrd-access-request-form label{color:#bac5b4;font-size:10px;font-weight:800}.xrd-root .xrd-access-request-form textarea{width:100%;min-height:74px;padding:9px 10px;border:1px solid #30372e;border-radius:8px;background:#050705;color:#e8eee4;font:inherit;font-size:11px;resize:vertical}.xrd-root .xrd-access-request-form textarea:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-root .xrd-access-request-form>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.xrd-root .xrd-access-request-form small{color:#788372;font-size:9px}.xrd-root .xrd-access-request-form>div>span{display:flex;gap:6px}.xrd-root .xrd-access-request-form button{padding:7px 9px;border:1px solid rgba(163,230,53,.34);border-radius:8px;background:rgba(163,230,53,.08);color:var(--xrd-ac);font-size:9px;font-weight:900;cursor:pointer}.xrd-root .xrd-access-request-form button.is-secondary{border-color:var(--xrd-border);background:#070907;color:#a8b09f}.xrd-root .xrd-access-request-form button:disabled{opacity:.5;cursor:wait}@media(max-width:620px){.xrd-root .xrd-access-request{align-items:stretch;flex-direction:column}.xrd-root .xrd-access-request-form{min-width:0}.xrd-root .xrd-access-request>button{align-self:flex-start}}`}</style>
+        {accessNotice && <div className="xrd-inline-success" role="status">{accessNotice}</div>}
+        {accessRequestsError && <div className="xrd-error" role="alert">{accessRequestsError}</div>}
+        <div className="xrd-panel xrd-access-request">
+          <div>
+            <span className="xrd-kicker">RESTRICTED EVIDENCE</span>
+            <h3>{accessRequestStatus === "approved" ? "Evidence access approved" : "Need more context?"}</h3>
+            <p>
+              {accessRequestStatus === "pending"
+                ? `Your request is pending${accessRequestMessage ? `: “${accessRequestMessage}”` : ""}. The owner decides which specific items to share.`
+                : accessRequestStatus === "approved"
+                  ? "The owner approved access. Refresh your shared evidence to see the records they selected."
+                  : accessRequestStatus === "denied"
+                    ? "The owner did not approve the previous request. You can make a new request with more context."
+                    : "Request specific evidence. The owner chooses exactly which records, if any, they share."}
+            </p>
+          </div>
+          {!viewerId
+            ? onOpenXRC
+              ? <button type="button" onClick={() => onOpenXRC(null, "Records")}>Sign in to XRC to request access</button>
+              : <span className="xrd-access-state">Sign in to Xeevia to request access</span>
+            : accessRequestStatus === "pending"
+              ? <span className="xrd-access-state">Request pending</span>
+              : accessRequestStatus === "approved"
+                ? <button type="button" disabled={accessRequestBusy} onClick={loadGrantedEvidence}>{accessRequestBusy ? "Loading…" : "Load shared evidence"}</button>
+                : accessRequestOpen
+                  ? <form className="xrd-access-request-form" onSubmit={(event) => { event.preventDefault(); requestEvidenceAccess(); }}>
+                    <label htmlFor="xrd-access-request-message">What evidence do you need, and why?</label>
+                    <textarea id="xrd-access-request-message" minLength={5} maxLength={1000} required value={accessRequestMessage} onChange={(event) => setAccessRequestMessage(event.target.value)} placeholder="For example: Could you share the project evidence supporting this role?" />
+                    <div><small>{accessRequestMessage.trim().length}/1000</small><span><button type="button" className="is-secondary" disabled={accessRequestBusy} onClick={() => setAccessRequestOpen(false)}>Cancel</button><button type="submit" disabled={accessRequestBusy || accessRequestMessage.trim().length < 5}>{accessRequestBusy ? "Sending…" : "Send request"}</button></span></div>
+                  </form>
+                  : <button type="button" onClick={() => { setAccessRequestsError(""); setAccessRequestOpen(true); }}>{accessRequestStatus === "denied" ? "Request again" : "Request access"}</button>}
+        </div>
+      </>
+    );
+  };
+
+  const renderXrcRecordCards = (items) => items.length
+    ? <div className="xrd-record-list">{items.map((record) => {
+      const eventName = String(record.payload?.event || record.stream_type || "XRC event").replaceAll("_", " ");
+      const integrity = auditResult[record.record_id];
+      const trace = traceResult[record.record_id];
+      const payloadDetails = Object.entries(record.payload || {})
+        .filter(([key]) => !["event", "entity_type", "entity_id"].includes(key))
+        .slice(0, 4);
+      return (
+        <article className="xrd-record" key={record.record_id}>
+          <div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div>
+          <div className="xrd-record-body">
+            <div className="xrd-record-top">
+              <span className="xrd-record-title">{eventName}</span>
+              <span className="xrd-status">{record.stream_type}</span>
+            </div>
+            <div className="xrd-record-meta">{dateLabel(record.timestamp)} <i /> {record.payload?.entity_type || "chain event"} <i /> sequence {record.stream_sequence ?? "legacy"}</div>
+            <div className="xrd-hash">HASH · {record.record_hash || "Unavailable"}</div>
+            {payloadDetails.length > 0 && <div className="xrd-record-meta">{payloadDetails.map(([key, value]) => `${key.replaceAll("_", " ")}: ${typeof value === "string" ? value : JSON.stringify(value)}`).join(" · ")}</div>}
+            {(integrity?.result || integrity?.error) && <div className="xrd-integrity"><span>Hash integrity: <b>{integrity.error || integrity.result?.status || "not checked"}</b></span></div>}
+            {trace?.result && <div className="xrd-integrity"><span>Trace: <b>{trace.result.depth || 0} linked record{trace.result.depth === 1 ? "" : "s"}</b>{trace.result.reachedGenesis ? " · chain start reached" : trace.result.parentUnavailable ? " · parent outside this view" : trace.result.brokenLink ? " · broken parent link" : ""}</span></div>}
+            <div className="xrd-integrity-actions">
+              <button type="button" disabled={integrity?.loading} onClick={() => checkRecord(record.record_id)}>{integrity?.loading ? "Checking…" : "Check integrity"}</button>
+              <button type="button" disabled={trace?.loading} onClick={() => traceRecord(record.record_id)}>{trace?.loading ? "Tracing…" : "Trace chain"}</button>
+            </div>
+          </div>
+        </article>
+      );
+    })}</div>
+    : <EmptyState text="No XRC event records are available in this view." />;
+
+  const renderPublicLinkCards = (links) => (
+    <div className="xrd-public-link-grid">
+      {links.map((link) => {
+        const Icon = link.category === "portfolio" ? Briefcase : link.category === "report" ? FileText : Link2;
+        return (
+          <a
+            className="xrd-public-link-card"
+            href={link.url}
+            key={link.id || `${link.category}:${link.label}:${link.url}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="xrd-public-link-icon"><Icon size={16} /></span>
+            <span><strong>{link.label}</strong><small>{link.category} · owner-provided</small></span>
+            <ExternalLink size={14} />
+          </a>
+        );
+      })}
+    </div>
+  );
+
+  const renderSection = () => {
+    if (!isXrcView && section === "Links") {
+      return (
+        <>
+          <SectionHeading
+            title="Public links"
+            subtitle={canManage
+              ? "Choose which social profiles, portfolios, and reports are visible on your public XRD."
+              : "Links selected by the profile owner. A public link is not an Xeevia verification."}
+          />
+          <style>{`.xrd-public-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:9px}.xrd-public-link-card{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #252b23;border-radius:12px;background:#060806;color:#e3eadf;text-decoration:none}.xrd-public-link-card:hover{border-color:rgba(163,230,53,.45);background:#090c09}.xrd-public-link-card>span:nth-child(2){display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}.xrd-public-link-card strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.xrd-public-link-card small{color:#7f887b;font-size:9px;text-transform:capitalize}.xrd-public-link-card>svg:last-child{flex:none;color:#a3e635}.xrd-public-link-icon{display:grid;width:32px;height:32px;flex:none;place-items:center;border:1px solid rgba(163,230,53,.2);border-radius:9px;background:rgba(163,230,53,.06);color:#a3e635}.xrd-link-manager{display:grid;gap:12px}.xrd-link-manager form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px;border:1px solid #252b23;border-radius:13px;background:#050705}.xrd-link-manager label{display:grid;gap:5px;color:#aab3a5;font-size:10px;font-weight:800}.xrd-link-manager label>input,.xrd-link-manager label>select{min-width:0;padding:9px 10px;border:1px solid #30372e;border-radius:8px;background:#020302;color:#e8eee4;font:inherit}.xrd-link-manager label>input:focus,.xrd-link-manager label>select:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-link-manager .xrd-link-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}.xrd-link-manager .xrd-link-form-actions button,.xrd-link-row button{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #343b30;border-radius:8px;background:#080a08;color:#cfd8c9;font-size:10px;font-weight:800;cursor:pointer}.xrd-link-manager .xrd-link-form-actions button[type=submit]{border-color:rgba(163,230,53,.4);background:rgba(163,230,53,.08);color:#a3e635}.xrd-link-manager button:disabled{opacity:.5;cursor:wait}.xrd-link-row{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #252b23;border-radius:10px;background:#060806}.xrd-link-row>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}.xrd-link-row strong{color:#e3eadf;font-size:11px}.xrd-link-row small{overflow-wrap:anywhere;color:#7f887b;font-size:9px}.xrd-link-row-actions{display:flex;flex:none;gap:6px}.xrd-link-row-actions .is-delete{border-color:rgba(248,113,113,.35);color:#fca5a5}.xrd-link-privacy-note{margin:0;color:#7f887b;font-size:10px;line-height:1.5}@media(max-width:560px){.xrd-link-manager form{grid-template-columns:minmax(0,1fr)}.xrd-link-manager .xrd-link-form-actions{grid-column:auto}.xrd-link-row{align-items:flex-start;flex-wrap:wrap}.xrd-link-row-actions{width:100%;justify-content:flex-end}}`}</style>
+          {profileLinksError && <div className="xrd-error" role="alert">{profileLinksError}</div>}
+          {profileLinksNotice && <div className="xrd-inline-success" role="status">{profileLinksNotice}</div>}
+          {canManage && (
+            <div className="xrd-panel xrd-link-manager">
+              <div>
+                <span className="xrd-kicker">OWNER CONTROLS</span>
+                <h3>{editingLinkId ? "Edit link" : "Add a public-profile link"}</h3>
+                <p className="xrd-link-privacy-note">New links are private by default. Publishing shares only the label and URL. Xeevia does not verify owner-provided links.</p>
+              </div>
+              <form onSubmit={saveProfileLink}>
+                <label>Category
+                  <select value={linkDraft.category} onChange={(event) => setLinkDraft((current) => ({ ...current, category: event.target.value }))}>
+                    {XRD_PUBLIC_LINK_CATEGORIES.map((category) => <option key={category} value={category}>{category[0].toUpperCase() + category.slice(1)}</option>)}
+                  </select>
+                </label>
+                <label>Display name
+                  <input value={linkDraft.label} maxLength={80} required onChange={(event) => setLinkDraft((current) => ({ ...current, label: event.target.value }))} placeholder="GitHub, portfolio, annual report…" />
+                </label>
+                <label>Web address
+                  <input type="url" value={linkDraft.url} maxLength={2048} required onChange={(event) => setLinkDraft((current) => ({ ...current, url: event.target.value }))} placeholder="https://…" />
+                </label>
+                <label>Visibility
+                  <select value={linkDraft.visibility} onChange={(event) => setLinkDraft((current) => ({ ...current, visibility: event.target.value }))}>
+                    <option value="private">Private · only me</option>
+                    <option value="public">Public · anyone with my XRD</option>
+                  </select>
+                </label>
+                <div className="xrd-link-form-actions">
+                  {editingLinkId && <button type="button" disabled={profileLinksBusy} onClick={cancelProfileLinkEdit}>Cancel</button>}
+                  <button type="submit" disabled={profileLinksBusy}>{profileLinksBusy ? "Saving…" : editingLinkId ? "Save changes" : "Add link"}</button>
+                </div>
+              </form>
+              {profileLinksLoading ? <div className="xrd-loading"><span />Loading your links…</div>
+                : profileLinks.length ? profileLinks.map((link) => (
+                  <article className="xrd-link-row" key={link.id}>
+                    <div><strong>{link.label} · {link.category}</strong><small>{link.url}</small></div>
+                    <span className={`xrd-status${link.visibility === "public" ? " is-verified" : ""}`}>{link.visibility}</span>
+                    <div className="xrd-link-row-actions">
+                      <button type="button" disabled={profileLinksBusy} onClick={() => editProfileLink(link)}>Edit</button>
+                      <button type="button" className="is-delete" disabled={profileLinksBusy} onClick={() => removeProfileLink(link.id)}>Remove</button>
+                    </div>
+                  </article>
+                ))
+                : <EmptyState text="You have not added any profile links yet." />}
+            </div>
+          )}
+          {!canManage && (profileLinksLoading
+            ? <div className="xrd-loading"><span />Loading public links…</div>
+            : publicProfileLinks.length
+              ? <>{renderPublicLinkCards(publicProfileLinks)}<p className="xrd-link-privacy-note">Links are provided by the profile owner. Opening a link takes you to an external site.</p></>
+              : <EmptyState text="The profile owner has not shared any links." />)}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Overview") {
+      const streamCount = new Set(displayedRecords.map((record) => record.stream_type)).size;
+      const latestRecords = [...displayedRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 4);
+      const xrcQuestions = [
+        ["WHAT WAS RECORDED?", "Inspect the event trail and its origin.", "Records", FileText],
+        ["WHAT SUPPORTS A CLAIM?", "Follow the public evidence relationships.", "Evidence", FileCheck2],
+        ["HOW IS IT CONNECTED?", "Explore profile, binding, claim, and evidence links.", "Graph", Network],
+        ["CAN THE CHAIN BE CHECKED?", "Recompute disclosed hashes and inspect parent links.", "Chains", GitBranch],
+      ];
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC · Chain of Chains" subtitle="A provenance network for recorded events, identity bindings, claims, evidence, and integrity proofs." />
+          {notice && own && <div className="xrd-notice" role="status">{notice}</div>}
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          <div className="xrd-stats">
+            {[[displayedRecords.length, "Disclosed events"], [streamCount, "Active streams"], [displayedClaims.length, "XRD claims"], [displayedEvidenceItems.length, "Evidence items"]].map(([value, label]) => <div className="xrd-stat" key={label}><strong>{recordsLoading ? "…" : value}</strong><span>{label}</span></div>)}
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">NETWORK MAP</span><h3>Evidence and provenance at a glance</h3></div><button type="button" onClick={() => navigateSection("Graph")}>Open graph <ChevronRight size={14} /></button></div>
+            {displayedEvidenceItems.length || displayedClaims.length || displayedBindings.length || displayedRecords.length
+              ? <XrdEvidenceGraph items={displayedEvidenceItems} edges={visibleEvidenceEdges} profile={photoProfile} connections={displayedSourceConnections} bindings={displayedBindings} claims={displayedClaims} records={displayedRecords} auditResult={auditResult} traceResult={traceResult} focusEvidenceId={focusedEvidenceId} onPick={setSelectedEvidence} onOpenVerification={openEvidenceVerification} onVerifyRecord={checkRecord} onTraceRecord={traceRecord} onOpenIdentity={() => navigateSection("Identity")} onOpenClaims={() => navigateSection("Records")} />
+              : <EmptyState text={recordsLoading ? "Loading available XRC records and public XRD context…" : "This profile has no XRC or public XRD network data to map yet."} />}
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">FOLLOW THE QUESTIONS</span><h3>Every relationship has a destination</h3></div></div>
+            <div className="xrd-question-grid">{xrcQuestions.map(([question, description, destination, Icon]) => <button type="button" key={question} onClick={() => navigateSection(destination)}><span className="xrd-question-icon"><Icon size={16} /></span><span><b>{question}</b><small>{description}</small></span><ChevronRight size={14} /></button>)}</div>
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">RECENT ACTIVITY</span><h3>Latest chain events</h3></div><button type="button" onClick={() => navigateSection("Activity")}>View activity <ChevronRight size={14} /></button></div>
+            {recordsLoading ? <div className="xrd-loading"><span />Loading XRC events…</div> : renderXrcRecordCards(latestRecords)}
+          </div>
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Records") {
+      const visibleRecords = displayedRecords.filter((record) => {
+        const searchText = `${record.stream_type} ${record.payload?.event || ""} ${record.payload?.entity_type || ""} ${record.record_id}`.toLowerCase();
+        return (!xrcStreamFilter || record.stream_type === xrcStreamFilter)
+          && (!filter || searchText.includes(filter.toLowerCase()));
+      });
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC records" subtitle="Each event is an immutable record with a content hash and a previous-record link. Hash integrity does not prove that the event's claim is true." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading XRC records…</div> : <>
+            <div className="xrd-graph-tools"><button type="button" className={!xrcStreamFilter ? "active" : ""} onClick={() => setXrcStreamFilter("")}>All streams</button>{Object.values(STREAM_TYPES).filter((stream) => displayedRecords.some((record) => record.stream_type === stream)).map((stream) => <button type="button" key={stream} className={xrcStreamFilter === stream ? "active" : ""} onClick={() => setXrcStreamFilter(stream)}>{stream}</button>)}</div>
+            <SearchBox value={filter} onChange={setFilter} placeholder="Filter XRC events, stream, or record ID" />
+            {visibleRecords.length ? renderXrcRecordCards(visibleRecords) : <EmptyState text="No XRC records match this filter." />}
+          </>}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Chains") {
+      const streams = Object.values(STREAM_TYPES).map((stream) => ({
+        stream,
+        info: STREAM_REGISTRY[stream],
+        records: displayedRecords.filter((record) => record.stream_type === stream),
+      })).filter(({ records: streamRecords }) => streamRecords.length);
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="Chain topology" subtitle="XRC partitions events into purpose-specific streams. A profile view only includes records permitted for this viewer." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading chain topology…</div> : streams.length ? <div className="xrd-record-list">{streams.map(({ stream, info, records: streamRecords }) => {
+            const latest = [...streamRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))[0];
+            return <article className="xrd-record" key={stream}><div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div><div className="xrd-record-body"><div className="xrd-record-top"><span className="xrd-record-title">{info?.label || stream}</span><span className="xrd-status">{stream}</span></div><p>{info?.description || "XRC event stream"}</p><div className="xrd-record-meta">{streamRecords.length} visible event{streamRecords.length === 1 ? "" : "s"} <i /> latest {dateLabel(latest?.timestamp)}</div><div className="xrd-hash">HEAD · {latest?.record_hash || "Unavailable"}</div><div className="xrd-integrity-actions"><button type="button" onClick={() => { setXrcStreamFilter(stream); navigateSection("Records"); }}>Inspect stream</button></div></div></article>;
+          })}</div> : <EmptyState text="No chain streams are available for this profile yet." />}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Activity") {
+      const activity = [...displayedRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC activity" subtitle="A time-ordered view of the records available to this viewer. Missing history is not treated as a broken chain." />
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading XRC activity…</div> : renderXrcRecordCards(activity)}
+        </>
+      );
+    }
+
+    if (isXrcView && section === "Verification") {
+      return (
+        <>
+          <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC integrity checks" subtitle="Recompute each disclosed record hash and trace available previous-hash links. Integrity checks do not verify the truth of a claim." />
+          <div className="xrd-notice"><ShieldCheck size={16} /><span>Owner views can inspect their full readable chain. Signed-in viewers can inspect only XRC events linked to public XRD claims; undisclosed ancestors are shown as unavailable, not falsely marked broken.</span></div>
+          {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordsLoading ? <div className="xrd-loading"><span />Loading integrity records…</div> : renderXrcRecordCards(displayedRecords)}
+        </>
+      );
+    }
+
+    if (selectedEvidence) {
+      const item = selectedEvidence;
+      const relatedEdges = visibleEvidenceEdges.filter((edge) => edge.source_id === item.id || edge.target_id === item.id);
+      const safeUrl = (() => {
+        try {
+          const parsed = new URL(item.url);
+          return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : null;
+        } catch {
+          return null;
+        }
+      })();
+      const metadataKeys = ["proofType", "verificationLevel", "kind", "issuer", "visibility", "evidence_access", "external_id", "record_id", "stream_type"];
+      const metadataRows = metadataKeys.filter((key) => item.metadata?.[key] != null).map((key) => [key.replaceAll("_", " "), String(item.metadata[key])]);
+      const backToSection = () => setSelectedEvidence(null);
+      return (
+        <>
+          <div className="xrd-page-heading xrd-detail-heading">
+            <button type="button" className="xrd-detail-back" onClick={backToSection}><ArrowLeft size={14} /> Back to {section}</button>
+            <span className="xrd-kicker">EVIDENCE RECORD</span>
+            <h2>{item.title || item.evidence_type || "Evidence record"}</h2>
+            <p>{item.summary || item.description || "No source description was provided."}</p>
+          </div>
+          <div className="xrd-panel xrd-detail-panel">
+            <div className="xrd-detail-status"><span className={`xrd-status${item.verified ? " is-verified" : ""}`}>{normalizeStatus(item)}</span><span>{item.provider || "Unknown source"}</span></div>
+            <div className="xrd-detail-grid">
+              <div><small>Evidence type</small><strong>{item.evidence_type || item.type || "Not supplied"}</strong></div>
+              <div><small>Entity type</small><strong>{item.entity_type || item.entityType || "Not supplied"}</strong></div>
+              <div><small>Confidence</small><strong>{item.confidence || "Not supplied"}</strong></div>
+              <div><small>Captured</small><strong>{dateLabel(item.created_at || item.createdAt)}</strong></div>
+              <div><small>Source method</small><strong>{item.source || "Not supplied"}</strong></div>
+              <div><small>External reference</small><strong>{item.external_id || item.externalId || "Not supplied"}</strong></div>
+            </div>
+            {safeUrl && <a className="xrd-detail-link" href={safeUrl} target="_blank" rel="noreferrer">Open source record <ChevronRight size={14} /></a>}
+          </div>
+          {canManage && item.profile_id === targetId && <div className="xrd-panel xrd-visibility-control">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">VISIBILITY</span><h3>Who can read this evidence?</h3></div></div>
+            {visibilityError && <div className="xrd-error" role="alert">{visibilityError}</div>}
+            <label>Evidence visibility
+              <select aria-label="Evidence visibility" value={String(item.metadata?.visibility || "PUBLIC").toUpperCase() === "PUBLIC" ? "PUBLIC" : "PRIVATE"} disabled={visibilitySaving} onChange={(event) => updateEvidenceVisibility(item, event.target.value)}>
+                <option value="PUBLIC">Public</option><option value="PRIVATE">Private to you</option>
+              </select>
+            </label>
+            <p>Public evidence is readable by signed-in profile visitors only when the source has marked it verified. Private evidence remains visible to you.</p>
+          </div>}
+          {metadataRows.length > 0 && <div className="xrd-panel"><div className="xrd-section-heading"><div><span className="xrd-kicker">SOURCE METADATA</span><h3>Verification context</h3></div></div><div className="xrd-detail-grid">{metadataRows.map(([label, value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div></div>}
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">PROVENANCE</span><h3>Linked evidence</h3></div><span className="xrd-count">{relatedEdges.length}</span></div>
+            {edgesError && <div className="xrd-error" role="alert">{edgesError}</div>}
+            {relatedEdges.length ? <div className="xrd-record-list">{relatedEdges.map((edge) => {
+              const related = evidenceById.get(edge.source_id === item.id ? edge.target_id : edge.source_id);
+              return <button type="button" className="xrd-related-edge" key={edge.id} onClick={() => setSelectedEvidence(related)}><span>{edge.relation.replaceAll("_", " ")}</span><strong>{related.title || related.evidence_type || "Evidence record"}</strong><small>{related.provider || "Unknown source"} · {normalizeStatus(related)}</small><ChevronRight size={14} /></button>;
+            })}</div> : <EmptyState text="No stored evidence relationships connect this item to another visible record." />}
+          </div>
+          <div className="xrd-detail-actions">
+            <button type="button" className="xrd-primary" onClick={() => openEvidenceVerification(item)}>Open verification <ShieldCheck size={14} /></button>
+            <button type="button" className="xrd-primary" onClick={() => navigateToEvidenceGraph(item)}>View in evidence graph <Network size={14} /></button>
+            {safeUrl && <button type="button" className="xrd-secondary" onClick={() => window.open(safeUrl, "_blank", "noopener,noreferrer")}>Open source</button>}
+          </div>
+        </>
+      );
+    }
+
+    if (section === "Oracle") {
+      return (
+        <>
+          <SectionHeading title="Evidence Q&A" subtitle="Search accessible XRD evidence. XRC chain history is a separate system." />
+          <div className="xrd-oracle-card">
+            <div className="xrd-oracle-glyph"><Sparkles size={24} /></div>
+            <form className="xrd-oracle-search" onSubmit={(event) => { event.preventDefault(); askEvidence(); }}>
+              <label htmlFor="xrd-oracle-query">Search accessible evidence</label>
+              <div><input id="xrd-oracle-query" value={oracleQuery} onChange={(event) => setOracleQuery(event.target.value)} placeholder="Try “education”, “GitHub”, or “employment”…" /><button type="submit" className="xrd-primary" disabled={!oracleQuery.trim()}><Search size={14} />Search</button></div>
+            </form>
+            <button type="button" className="xrd-secondary" onClick={() => setOracleChatOpen(true)}><MessageSquareQuote size={14} />Open evidence chat</button>
+          </div>
+          <div className="xrd-oracle-suggestions">{["Find education evidence", "Search project evidence", "Find employment evidence", "Search GitHub records"].map((question) => <button type="button" key={question} onClick={() => { setOracleQuery(question); askEvidence(question); }}>{question}<ChevronRight size={13} /></button>)}</div>
+          {oracleAnswer && <div className="xrd-panel xrd-oracle-result"><div className="xrd-kicker">MATCHED RECORDS FOR “{oracleAnswer.query}”</div><p>{oracleAnswer.response}</p>
+            {oracleAnswer.matches.map((item) => <button type="button" className="xrd-record xrd-record-button" key={item.id} onClick={() => setSelectedEvidence(item)}><FileText size={15} /><span>{item.title || item.evidence_type || "Evidence record"} · {item.provider || "Unknown source"}</span><span className="xrd-status">{normalizeStatus(item)}</span></button>)}
+          </div>}
+        </>
+      );
+    }
+
+    if (section === "Overview") {
+      const attentionItems = displayedEvidenceItems.filter((item) =>
+        /expired|mismatch|revoked|failed|disputed|contested|pending/i.test(normalizeStatus(item)),
+      );
+      const publicWebsite = (() => {
+        try {
+          const parsed = new URL(displayedIdentityDetails.website);
+          return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : null;
+        } catch {
+          return null;
+        }
+      })();
+      const highlightedClaims = displayedClaims
+        .filter((claim) => claim?.lifecycle_status === "published")
+        .slice(0, 3);
+      const recentEvidence = [...displayedEvidenceItems]
+        .sort((left, right) => new Date(right.created_at || right.createdAt || 0) - new Date(left.created_at || left.createdAt || 0))
+        .slice(0, 4);
+      const questions = [
+        ["WHO?", "Identity and connected accounts", "Identity", Fingerprint],
+        ["WHAT?", "Records and evidence", "Records", FileText],
+        ["WHEN?", "Record dates and source history", "Records", Activity],
+        ["WHERE FROM?", `${sources.length} represented sources`, "Graph", Network],
+        ["WHO CAN ATTEST?", "Verification and provenance", "Verification", ShieldCheck],
+        ["WHAT SUPPORTS IT?", "Inspect linked evidence and source context", "Evidence", FileCheck2],
+        ["CAN IT BE TRACED?", "Inspect record and evidence provenance", "Graph", GitBranch],
+      ];
+      return (
+        <>
+          <div className="xrd-overview-hero xrd-prototype-overview">
+            <div className="xrd-overview-visual">
+              <div className="xrd-hero-avatar">
+                <XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} />
+                <button type="button" className="xrd-photo-trigger" aria-label={`View ${photoSources.length} connected profile photos`} onClick={() => loadConnectedProfilePhotos()}><Images size={14} /><b>{photoSources.length}</b></button>
+              </div>
+            </div>
+            <div className="xrd-hero-identity">
+              <span className="xrd-kicker">XEEVIA RECORD · {canManage ? "OWNER VIEW" : "PUBLIC VIEW"}</span>
+              <h2>{profileName}</h2>
+              <p>@{profile?.username || "unknown"}</p>
+            {displayedIdentityDetails.headline && <p className="xrd-prototype-copy">{displayedIdentityDetails.headline}</p>}
+            {displayedIdentityDetails.bio && <p className="xrd-prototype-copy">{displayedIdentityDetails.bio}</p>}
+            {publicWebsite && <a className="xrd-detail-link" href={publicWebsite} target="_blank" rel="noreferrer">Visit website <ChevronRight size={14} /></a>}
+            <div className="xrd-overview-actions">
+              <button type="button" className="xrd-primary" onClick={() => navigateSection("Records")}>Browse records <ChevronRight size={14} /></button>
+              <button type="button" className="xrd-secondary" onClick={() => navigateSection("Oracle")}><Sparkles size={14} />Search XRD evidence</button>
+              </div>
+            </div>
+          </div>
+          {photoHubOpen && <div className="xrd-photo-modal" role="presentation" onClick={() => setPhotoHubOpen(false)}><section role="dialog" aria-modal="true" aria-label="Profile images across platforms" onClick={(event) => event.stopPropagation()}>
+            <header><div><span className="xrd-kicker">IDENTITY MEDIA</span><h2>Profile images</h2><p>Photos from profile and connected-source evidence.</p></div><button type="button" aria-label="Close profile images" onClick={() => setPhotoHubOpen(false)}><X size={18} /></button></header>
+            <style>{`.xrd-photo-loading,.xrd-photo-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(163,230,53,.2);border-radius:10px;background:rgba(163,230,53,.05);color:#b6c0ae;font-size:calc((11px) + 1px);line-height:1.45}.xrd-photo-notice{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.06)}.xrd-photo-notice button{flex:none;padding:6px 10px;border:1px solid rgba(163,230,53,.3);border-radius:7px;background:rgba(163,230,53,.08);color:#c7f58d;font-size:calc((10px) + 1px);cursor:pointer}.xrd-photo-fallback{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at 30% 20%,rgba(163,230,53,.16),transparent 56%),#101410;color:#a3e635;font-size:calc((30px) + 1px);font-weight:800}`}</style>
+            {photoSyncing && <div className="xrd-photo-loading" role="status">Refreshing profile images from connected sources…</div>}
+            {photoSyncMessage && <div className="xrd-photo-notice" role="status">{photoSyncMessage}{canManage && !photoSyncing && <button type="button" onClick={() => loadConnectedProfilePhotos(true)}>Retry</button>}</div>}
+            {photoSources.length ? <div className="xrd-photo-grid">{photoSources.map((source) => <article key={source.id}>
+              <div className="xrd-photo-frame"><XrdPhotoImage source={source} />{source.verified && <span><BadgeCheck size={15} />Verified source</span>}</div>
+              <strong>{source.name}</strong><small>{source.handle}</small>
+            </article>)}</div> : <EmptyState text="No profile photos were returned by connected sources." />}
+          </section></div>}
+          {(publicProfileLinks.length > 0 || canManage) && <section className="xrd-panel" aria-label="Public links">
+            <div className="xrd-section-heading">
+              <div><span className="xrd-kicker">PUBLIC LINKS</span><h3>Socials, portfolios, and reports</h3></div>
+              <button type="button" onClick={() => navigateSection("Links")}>{canManage ? "Manage links" : "All links"} <ChevronRight size={14} /></button>
+            </div>
+            {publicProfileLinks.length
+              ? renderPublicLinkCards(publicProfileLinks.slice(0, 6))
+              : <EmptyState text="Add a link and choose Public to include it on your XRD." />}
+            {publicProfileLinks.length > 0 && <p className="xrd-link-privacy-note">Owner-provided links are not independently verified by Xeevia.</p>}
+          </section>}
+          <section className="xrd-panel" aria-label="Published record highlights">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">PUBLISHED RECORDS</span><h3>What this person presents</h3></div><button type="button" onClick={() => navigateSection("Records")}>All records <ChevronRight size={14} /></button></div>
+            <p className="xrd-prototype-copy">These are the profile owner’s published statements. Linked evidence adds context; it does not automatically verify a claim.</p>
+            {xrdClaimsError && <div className="xrd-error" role="alert">{xrdClaimsError}</div>}
+            {highlightedClaims.length ? <div className="xrd-record-list">{highlightedClaims.map((claim) => {
+              const linkedEvidenceCount = (claim.evidence_links || []).filter((link) => displayedEvidenceIds.has(link.evidence_item_id)).length;
+              return <article className="xrd-record" key={claim.id}>
+                <div className="xrd-record-mark"><FileCheck2 size={17} /></div>
+                <div className="xrd-record-body">
+                  <div className="xrd-record-top"><span className="xrd-record-title">{claim.title || claim.record_type || "Published record"}</span><span className="xrd-status">{linkedEvidenceCount ? "Evidence linked" : "Owner-stated"}</span></div>
+                  {claim.claim_text && <p>{claim.claim_text}</p>}
+                  <div className="xrd-record-meta">{String(claim.record_type || "record").replaceAll("_", " ")} <i /> {linkedEvidenceCount} linked evidence record{linkedEvidenceCount === 1 ? "" : "s"}</div>
+                  {onOpenXRC && <div className="xrd-overview-actions"><button type="button" className="xrd-secondary" onClick={() => onOpenXRC(claim.id)}><GitBranch size={13} />Inspect provenance in XRC</button></div>}
+                </div>
+              </article>;
+            })}</div> : <EmptyState text="No published XRD records are available for this profile yet." />}
+          </section>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">XRD MAP</span><h3>What this record can answer</h3></div></div>
+            <div className="xrd-question-grid">
+              {questions.map(([question, description, destination, Icon]) => (
+                <button type="button" key={question} onClick={() => navigateSection(destination)}>
+                  <span className="xrd-question-icon"><Icon size={16} /></span>
+                  <span><b>{question}</b><small>{description}</small></span>
+                  <ChevronRight size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">REVIEW</span><h3>Needs attention</h3></div><button type="button" onClick={() => navigateSection("Verification")}>All states <ChevronRight size={14} /></button></div>
+            {attentionItems.length
+              ? <div className="xrd-record-list">{attentionItems.slice(0, 4).map(evidenceCard)}</div>
+              : <EmptyState text={displayedEvidenceItems.length ? "No available evidence is currently marked as disputed, pending, expired, or failed." : "Evidence status will appear here as records are connected."} />}
+          </div>
+          <div className="xrd-section-heading"><div><span className="xrd-kicker">RECENT EVIDENCE</span><h3>Supporting evidence</h3></div><button type="button" onClick={() => navigateSection("Records")}>All records <ChevronRight size={14} /></button></div>
+          {recentEvidence.length
+            ? <div className="xrd-record-list">{recentEvidence.map(evidenceCard)}</div>
+            : <EmptyState text="No evidence records are available for this profile yet." />}
+        </>
+      );
+    }
+
+    if (section === "Identity") {
+      const identityItems = filteredEvidence.filter((item) =>
+        ["person", "identity"].includes(String(item?.entity_type || item?.entityType || item?.metadata?.entityType || "").toLowerCase())
+        || ["profile", "identity"].includes(String(item?.evidence_type || item?.type || "").toLowerCase()),
+      );
+      const selfProof = identityItems.some((item) => String(item.provider || "").toLowerCase() === "self" && item.verified);
+      const sourceVerified = identityItems.some((item) => item.verified && item.source !== "first_party");
+      const customIdentity = visibleIdentityDetails;
+      const identityFields = [
+        { key: "headline", label: "Headline", placeholder: "Product designer · community builder" },
+        { key: "location", label: "Location", placeholder: "Paris, FR / Remote" },
+        { key: "pronouns", label: "Pronouns", placeholder: "she/her, he/him, they/them" },
+        { key: "website", label: "Website", placeholder: "https://example.com" },
+        { key: "availability", label: "Availability", placeholder: "Open to collaborations / not currently available" },
+      ];
+      return (
+        <>
+          <SectionHeading title="Identity" subtitle="Profile identity details and first-party verification evidence." />
+          <style>{`.xrd-identity-editor .xrd-section-heading{margin-top:0}.xrd-identity-ownership-note{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;padding:10px 11px;border:1px solid rgba(96,165,250,.25);border-radius:9px;background:rgba(96,165,250,.055);color:#aab8ca;font-size:calc((10px) + 1px);line-height:1.45}.xrd-identity-ownership-note svg{flex:none;color:#60a5fa}.xrd-identity-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.xrd-identity-field{display:flex;min-width:0;flex-direction:column;gap:5px;color:#aab3a5;font-size:calc((10px) + 1px);font-weight:700}.xrd-identity-field-wide{grid-column:1/-1}.xrd-identity-field input,.xrd-identity-field textarea,.xrd-identity-visibility select{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--xrd-border);border-radius:8px;background:#050705;color:#e5ecdf;font:inherit;font-size:calc((11px) + 1px)}.xrd-identity-field textarea{resize:vertical;line-height:1.5}.xrd-identity-field input:focus,.xrd-identity-field textarea:focus,.xrd-identity-visibility select:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-identity-visibility{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;color:#dce5d7;font-size:calc((11px) + 1px);font-weight:700}.xrd-identity-visibility select{width:auto;min-width:180px}.xrd-identity-privacy-note{margin:8px 0 0;color:#829080;font-size:calc((10px) + 1px);line-height:1.45}.xrd-identity-details-list{display:grid;gap:8px}.xrd-identity-details-list>div{display:grid;grid-template-columns:minmax(90px,.35fr) minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid #1c211b}.xrd-identity-details-list>div:last-child{border-bottom:0}.xrd-identity-details-list small{color:#7d887a;font-size:calc((10px) + 1px)}.xrd-identity-details-list strong{color:#e0e8dc;font-size:calc((11px) + 1px);font-weight:500;overflow-wrap:anywhere}.xrd-status-connected{border-color:rgba(96,165,250,.35);background:rgba(96,165,250,.08);color:#93c5fd}.xrd-status-pending{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.07);color:#fbbf24}.xrd-status-disconnected{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.07);color:#fca5a5}.xrd-status-source{border-color:rgba(163,230,53,.28);background:rgba(163,230,53,.06);color:#c3e89a}.xrd-status-tracked{border-color:#343b30;background:#070907;color:#a4ae9e}.xrd-status-neutral{border-color:#30352d;background:#060806;color:#818a7c}@media(max-width:650px){.xrd-identity-form-grid{grid-template-columns:minmax(0,1fr)}.xrd-identity-field-wide{grid-column:auto}.xrd-identity-visibility{align-items:flex-start;flex-direction:column}.xrd-identity-visibility select{width:100%}.xrd-identity-details-list>div{grid-template-columns:minmax(0,1fr);gap:3px}}`}</style>
+          <div className="xrd-identity-panel">
+            <div className="xrd-identity-avatar"><XrdProfileAvatar key={`${targetId}:${profileAvatarCandidates.join("|")}`} candidates={profileAvatarCandidates} initials={initials} /></div>
+            <div className="xrd-identity-copy"><h3>{profileName} {profile?.verified && <BadgeCheck size={16} />}</h3><p>@{profile?.username || "unknown"}</p>{(customIdentity.bio || profile?.bio) && <p className="xrd-bio">{customIdentity.bio || profile.bio}</p>}<span>Member since {profile?.joinDate || "date unavailable"}</span></div>
+          </div>
+          {canManage && <div className="xrd-panel xrd-identity-editor">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">YOUR IDENTITY</span><h3>Add or edit what you want people to see</h3></div></div>
+            <div className="xrd-identity-ownership-note"><ShieldCheck size={14} /><span>These details are self-authored profile information. Adding them does not verify a claim.</span></div>
+            <div className="xrd-identity-form-grid">
+              {identityFields.map((field) => <label key={field.key} className="xrd-identity-field"><span>{field.label}</span><input value={identityDraft[field.key] || ""} onChange={(event) => setIdentityDraft((current) => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} /></label>)}
+              <label className="xrd-identity-field xrd-identity-field-wide"><span>Short bio</span><textarea value={identityDraft.bio || ""} onChange={(event) => setIdentityDraft((current) => ({ ...current, bio: event.target.value }))} placeholder="Tell people who you are, what you build, and what you care about." rows={4} /></label>
+              <label className="xrd-identity-field xrd-identity-field-wide"><span>Owner note</span><textarea value={identityDraft.note || ""} onChange={(event) => setIdentityDraft((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note for viewers, such as your trust profile, mission, or availability." rows={3} /></label>
+            </div>
+            <label className="xrd-identity-visibility"><span>Who can see these details?</span><select value={identityVisibility} onChange={(event) => setIdentityVisibility(event.target.value)}><option value="private">Only me</option><option value="public">Everyone viewing my XRD</option></select></label>
+            {identityVisibility === "public" && <p className="xrd-identity-privacy-note">Your headline, bio, location, pronouns, website, availability, and owner note will be visible to anyone with your public XRD link.</p>}
+            {identityNotice && <div className="xrd-inline-success" role="status">{identityNotice}</div>}
+            <div className="xrd-detail-actions">
+              <button type="button" className="xrd-primary" disabled={identitySaving} onClick={saveIdentityDetails}>{identitySaving ? "Saving…" : "Save identity details"}</button>
+            </div>
+          </div>}
+          {!canManage && identityLoading && <div className="xrd-loading"><span />Loading public identity details…</div>}
+          {!canManage && identityDetailsExists && (customIdentity.headline || customIdentity.bio || customIdentity.location || customIdentity.note || customIdentity.website || customIdentity.availability || customIdentity.pronouns) && <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">PUBLIC PROFILE</span><h3>Owner-supplied identity details</h3></div><span className="xrd-status">Self-authored</span></div>
+            <p className="xrd-identity-privacy-note">These details were supplied by the profile owner; they are not independently verified.</p>
+            <div className="xrd-identity-details-list">
+              {customIdentity.headline && <div><small>Headline</small><strong>{customIdentity.headline}</strong></div>}
+              {customIdentity.bio && <div><small>Bio</small><strong>{customIdentity.bio}</strong></div>}
+              {customIdentity.location && <div><small>Location</small><strong>{customIdentity.location}</strong></div>}
+              {customIdentity.pronouns && <div><small>Pronouns</small><strong>{customIdentity.pronouns}</strong></div>}
+              {customIdentity.website && <div><small>Website</small><strong>{customIdentity.website}</strong></div>}
+              {customIdentity.availability && <div><small>Availability</small><strong>{customIdentity.availability}</strong></div>}
+              {customIdentity.note && <div><small>Owner note</small><strong>{customIdentity.note}</strong></div>}
+            </div>
+          </div>}
+          <div className="xrd-assurance-panel">
+            <div className="xrd-kicker">IDENTITY ASSURANCE · EACH LAYER IS SEPARATE</div>
+            <div className="xrd-assurance-steps">
+              <div className="is-present"><b>01</b><strong>Profile identity</strong><small>Profile record available</small></div>
+              <div className={displayedSourceConnections.length || identityItems.some((item) => item.metadata?.proofType === "social") ? "is-present" : ""}><b>02</b><strong>Account control</strong><small>{displayedSourceConnections.length || identityItems.filter((item) => item.metadata?.proofType === "social").length} linked accounts</small></div>
+              <div className={sourceVerified ? "is-present" : ""}><b>03</b><strong>Source evidence</strong><small>{sourceVerified ? "Source-reported verified record" : "No verified external source record"}</small></div>
+              <div className={selfProof ? "is-present" : "is-unavailable"}><b>04</b><strong>Personhood</strong><small>{selfProof ? "Self proof stored" : "No personhood proof stored"}</small></div>
+            </div>
+            <p>Connecting an account proves control of that account only. It does not verify the person's identity or their claims.</p>
+          </div>
+          <div className="xrd-panel">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">IDENTITY BINDINGS</span><h3>Connected accounts and evidence</h3></div><span className="xrd-count">{identityRows.length}</span></div>
+            <p className="xrd-identity-intro">Each account is linked to this profile. Evidence and verification status are shown separately from account ownership.</p>
+            {sourceLoading && canManage && <div className="xrd-loading"><span />Loading account bindings…</div>}
+            {identityRows.length > 0 && <div className="xrd-identity-sources">
+              {identityRows.map((row) => {
+                const state = getXrdIdentityRowStatus(row);
+                return <article className="xrd-identity-source" key={row.key}>
+                  <span className="xrd-source-glyph"><Fingerprint size={16} /></span>
+                  <div className="xrd-identity-source-copy">
+                    <strong>{row.provider} account</strong>
+                    <small>{row.account}</small>
+                    <span>{row.connection ? `${row.evidence.length} profile evidence item${row.evidence.length === 1 ? "" : "s"}` : "Evidence source · not an account connection"}</span>
+                  </div>
+                  <span className={`xrd-status xrd-status-${state.tone}`}>{state.label}</span>
+                </article>;
+              })}
+            </div>}
+            {!identityRows.length && !sourceLoading && <EmptyState text="No connected accounts or identity evidence are available." />}
+          </div>
+          <div className="xrd-section-heading"><div><span className="xrd-kicker">RELATED RECORDS</span><h3>Identity evidence</h3></div></div>
+          {filteredEvidence.filter((item) => ["profile", "identity", "verification"].includes(String(item?.evidence_type || item?.type || "").toLowerCase())).map(evidenceCard)}
+          {!displayedEvidenceItems.some((item) => ["profile", "identity", "verification"].includes(String(item?.evidence_type || item?.type || "").toLowerCase())) && <EmptyState text="No separate identity evidence has been added." />}
+        </>
+      );
+    }
+
+    if (section === "Records") {
+      return (
+        <>
+          <SectionHeading title="XRD records" subtitle="Claims, evidence, and source observations stay separate. Every displayed relationship explains what it does and does not establish." />
+          {identityBindingsError && <div className="xrd-error" role="alert">{identityBindingsError}</div>}
+          <XRDClaimsSection
+            own={canManage}
+            claims={displayedClaims}
+            evidenceItems={displayedEvidenceItems}
+            identityBindings={displayedBindings}
+            profile={profile?.id ? profile : { ...profile, id: targetId }}
+            connection={displayedSourceConnections.find((item) => item.provider === "github") || null}
+            binding={displayedBindings.find((item) => item.provider === "github" && ["bound", "verified", "claimed"].includes(item.status)) || null}
+            sourceBusy={sourceBusy}
+            loading={xrdClaimsLoading}
+            error={xrdClaimsError}
+            notice={xrdClaimsNotice || sourceNotice}
+            onRetry={loadXrdClaims}
+            onConnect={() => connectSource("github")}
+            onSync={() => syncSource("github")}
+            onDisconnect={() => disconnectSource("github")}
+            onCreateClaim={createXrdClaim}
+            onRunSourceCheck={runClaimSourceCheck}
+            onOpenEvidence={(item) => item && setSelectedEvidence(item)}
+            onOpenXRC={onOpenXRC ? (claim) => onOpenXRC(claim.id) : null}
+          />
+          {renderAccessRequestPanel()}
+        </>
+      );
+    }
+
+    if (section === "Evidence") {
+      const items = filteredEvidence;
+      return (
+        <>
+          <SectionHeading title="Evidence" subtitle="Source observations and artifacts that may support or contradict an XRD claim." />
+          <SearchBox value={filter} onChange={setFilter} placeholder="Filter evidence and sources" />
+          {items.length ? <div className="xrd-record-list">{items.map(evidenceCard)}</div> : <EmptyState text="No evidence records match this filter." />}
+          {renderAccessRequestPanel()}
+        </>
+      );
+    }
+
+    if (section === "Graph") {
+      return (
+        <>
+          <SectionHeading
+            title={isXrcView ? "XRC network graph" : "Evidence graph"}
+            kicker={isXrcView ? "XEEVIA RECORD CHAIN" : "XEEVIA RECORD"}
+            subtitle={isXrcView
+              ? "Explore how profile identity, public bindings, claims, evidence, and XRC integrity records connect."
+              : "Trace XRD claims, identity bindings, and evidence. XRC integrity references are labeled separately from portable records."}
+          />
+          {isXrcView && notice && <div className="xrd-notice" role="status">{notice}</div>}
+          {identityBindingsError && <div className="xrd-error" role="alert">{identityBindingsError}</div>}
+          {edgesError && <div className="xrd-error" role="alert">{edgesError}</div>}
+          {(canManage || isXrcView) && recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry XRC references</button></div>}
+          {(canManage || isXrcView) && recordsLoading && <div className="xrd-loading"><span />Loading XRC integrity references…</div>}
+          {displayedEvidenceItems.length || displayedClaims.length || displayedBindings.length || displayedRecords.length ? <XrdEvidenceGraph items={displayedEvidenceItems} edges={visibleEvidenceEdges} profile={photoProfile} connections={displayedSourceConnections} bindings={displayedBindings} claims={displayedClaims} records={displayedRecords} auditResult={isPublicAudience ? {} : auditResult} traceResult={isPublicAudience ? {} : traceResult} focusEvidenceId={focusedEvidenceId} onPick={setSelectedEvidence} onOpenVerification={openEvidenceVerification} onVerifyRecord={checkRecord} onTraceRecord={traceRecord} onOpenIdentity={() => navigateSection("Identity")} onOpenClaims={() => navigateSection("Records")} /> : <EmptyState text={isXrcView ? "No XRC event history is available for this profile yet." : "The graph will appear when claims, evidence, or identity bindings are available."} />}
+        </>
+      );
+    }
+
+    if (section === "Audit") {
+      if (!canManage) return <RestrictedState />;
+      return (
+        <>
+          <SectionHeading title="Audit" subtitle="Account security events recorded for this profile. XRC lifecycle history is maintained separately from XRD records." />
+          {securityEventsError && <div className="xrd-error" role="alert">{securityEventsError}</div>}
+          {securityEventsLoading ? <div className="xrd-loading"><span />Loading security events…</div>
+            : securityEvents.length ? <div className="xrd-record-list">{securityEvents.map((event) => <article className="xrd-record xrd-audit-event" key={event.id}>
+              <div className="xrd-record-mark"><Shield size={16} /></div><div className="xrd-record-body">
+                <button type="button" className="xrd-audit-toggle" aria-expanded={expandedAuditEvent === event.id} onClick={() => setExpandedAuditEvent((current) => current === event.id ? null : event.id)}>
+                  <span><strong>{String(event.event_type || "Security event").replaceAll("_", " ")}</strong><small>{dateLabel(event.created_at)} · {event.severity || "info"}</small></span><ChevronRight size={15} />
+                </button>
+                {expandedAuditEvent === event.id && <div className="xrd-audit-detail"><p>{event.metadata?.description || event.metadata?.reason || "Security event recorded by Xeevia."}</p>{event.metadata && Object.keys(event.metadata).length > 0 && <dl>{Object.entries(event.metadata).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd></div>)}</dl>}</div>}
+              </div>
+            </article>)}</div> : <EmptyState text="No security audit events are recorded for this account." />}
+        </>
+      );
+    }
+
+    if (section === "Sources") {
+      const sourceRows = new Map([["xeevia", "Xeevia"], ...SOURCE_PLATFORMS]);
+      displayedSourceConnections.forEach((connection) => {
+        if (!sourceRows.has(connection.provider)) sourceRows.set(connection.provider, connection.provider);
+      });
+      sources.forEach(([source]) => {
+        const provider = source.toLowerCase();
+        if (!sourceRows.has(provider)) sourceRows.set(provider, source);
+      });
+      return (
+        <>
+          <SectionHeading title="Sources" subtitle={canManage ? "Manage connected accounts and synchronize their evidence." : "Evidence providers represented in the records visible to you."} />
+          {canManage && sourceNotice && <div className="xrd-notice" role="status">{sourceNotice}</div>}
+          {sourceLoading && canManage && <div className="xrd-loading"><span />Loading connected accounts…</div>}
+          <div className="xrd-source-list">{[...sourceRows.entries()].map(([provider, label]) => {
+            const connection = displayedSourceConnections.find((entry) => entry.provider === provider);
+            const active = connection?.auth_status === "active";
+            const count = displayedEvidenceItems.filter((item) => String(item.provider || "").toLowerCase() === provider).length;
+            const nativeProfile = provider === "xeevia";
+            if (!canManage && count === 0 && !nativeProfile) return null;
+            const canConnect = SOURCE_PLATFORMS.some(([configuredProvider]) => configuredProvider === provider);
+            return (
+              <article className="xrd-source" key={provider}>
+                <span><Database size={17} /></span>
+                <div><strong>{label}</strong><small>{nativeProfile ? `${profile?.username ? `@${profile.username}` : "Native profile"} · ${count} evidence item${count === 1 ? "" : "s"}` : canManage ? `${connection?.platform_user_id || "Not connected"} · ${count} evidence item${count === 1 ? "" : "s"}` : `${count} evidence item${count === 1 ? "" : "s"}`}</small></div>
+                {canManage && <div className="xrd-source-actions">
+                  {nativeProfile ? <span className="xrd-status is-verified">Native</span> : active ? <>
+                    <span className="xrd-status is-verified">Connected</span>
+                    <button type="button" disabled={sourceBusy === provider} onClick={() => syncSource(provider)}>{sourceBusy === provider ? "Working…" : "Sync"}</button>
+                    <button type="button" disabled={sourceBusy === provider} onClick={() => disconnectSource(provider)}>Disconnect</button>
+                  </> : canConnect && <button type="button" disabled={sourceBusy === provider} onClick={() => connectSource(provider)}>{sourceBusy === provider ? "Connecting…" : "Connect"}</button>}
+                </div>}
+              </article>
+            );
+          })}</div>
+          {canManage && <div className="xrd-notice"><LockKeyhole size={16} /><span>OAuth tokens stay in the existing connection service. Disconnecting revokes future use and preserves evidence already collected.</span></div>}
+          {!canManage && !sources.length && <EmptyState text="No evidence sources are visible on this profile." />}
+        </>
+      );
+    }
+
+    if (section === "Remarks") {
+      if (!canManage) return <RestrictedState />;
+      return (
+        <>
+          <SectionHeading title="Remarks" subtitle="Record-linked context from Xeevia members. Remarks are statements, not source verification or professional authority." />
+          <div className="xrd-notice"><MessageSquareQuote size={16} /><span>Each remark is tied to one visible evidence record. The profile owner can respond; neither a remark nor a response changes the record’s verification status.</span></div>
+          {remarksNotice && <div className="xrd-inline-success" role="status">{remarksNotice}</div>}
+          {remarksError && <div className="xrd-error" role="alert">{remarksError}</div>}
+          {!own && viewerId && <div className="xrd-panel xrd-remark-compose">
+            <div className="xrd-section-heading"><div><span className="xrd-kicker">ADD A REMARK</span><h3>What should readers know?</h3></div></div>
+            <label className="xrd-remark-label">Evidence record
+              <select value={remarkEvidenceId} onChange={(event) => setRemarkEvidenceId(event.target.value)}>
+                <option value="">Choose a visible record</option>
+                {displayedEvidenceItems.map((item) => <option key={item.id} value={item.id}>{item.title || item.evidence_type || "Evidence record"}</option>)}
+              </select>
+            </label>
+            <label className="xrd-remark-label">Remark type
+              <select value={remarkType} onChange={(event) => setRemarkType(event.target.value)}>
+                {["CONTEXT", "CONFIRM", "CORRECTION", "DISPUTE", "RECOGNITION"].map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
+            </label>
+            <label className="xrd-remark-label">Statement
+              <textarea maxLength={3000} rows={4} value={remarkBody} onChange={(event) => setRemarkBody(event.target.value)} placeholder="Add relevant context, correction, or recognition." />
+            </label>
+            <div className="xrd-remark-submit"><small>{remarkBody.trim().length}/3000 · Minimum 5 characters</small><button type="button" className="xrd-primary" disabled={remarkSaving || !remarkEvidenceId || remarkBody.trim().length < 5} onClick={publishRemark}><Send size={14} />{remarkSaving ? "Publishing…" : "Publish remark"}</button></div>
+          </div>}
+          {!own && !viewerId && <div className="xrd-notice"><LockKeyhole size={16} /><span>Sign in to publish a remark.</span></div>}
+          {remarksLoading && <div className="xrd-loading"><span />Loading remarks…</div>}
+          {!remarksLoading && displayedRemarks.map((remark) => <article className="xrd-remark" key={remark.id}>
+            <div className="xrd-remark-head"><span className="xrd-remark-type">{remark.remark_type}</span><span><Clock size={12} />{dateLabel(remark.created_at)}</span></div>
+            <p>{remark.body}</p>
+            <div className="xrd-remark-meta">{remark.author_id === viewerId ? "You" : remark.author_id ? `Member ${String(remark.author_id).slice(0, 8)}` : "Xeevia member"} · regarding <button type="button" onClick={() => { const item = evidenceById.get(remark.evidence_item_id); if (item) setSelectedEvidence(item); }}>{remark.record_title}</button></div>
+            {remark.owner_response && <div className="xrd-owner-response"><small>PROFILE OWNER RESPONSE</small><p>{remark.owner_response}</p>{remark.owner_response_at && <time>{dateLabel(remark.owner_response_at)}</time>}</div>}
+            {!remark.owner_response && canManage && <div className="xrd-remark-reply"><textarea rows={2} maxLength={1500} value={remarkResponses[remark.id] || ""} onChange={(event) => setRemarkResponses((current) => ({ ...current, [remark.id]: event.target.value }))} placeholder="Respond as the profile owner" /><button type="button" disabled={remarkSaving || !(remarkResponses[remark.id] || "").trim()} onClick={() => saveRemarkResponse(remark)}>{remarkSaving ? "Saving…" : "Save response"}</button></div>}
+          </article>)}
+          {!remarksLoading && !displayedRemarks.length && !remarksError && <EmptyState text="No remarks have been published for this profile yet." />}
+        </>
+      );
+    }
+
+    if (section === "Projects" || section === "Credentials" || section === "Achievements") {
+      const match = section === "Projects"
+        ? (item) => item?.metadata?.kind === "project" || item?.evidence_type === "portfolio"
+        : section === "Credentials"
+          ? (item) => item?.evidence_type === "credential" || item?.metadata?.kind === "credential"
+          : section === "Achievements"
+            ? (item) => item?.metadata?.kind === "achievement" || item?.evidence_type === "achievement"
+            : (item) => item?.metadata?.kind === "achievement" || item?.evidence_type === "achievement";
+      const items = filteredEvidence.filter(match);
+      return (
+        <>
+          <SectionHeading title={section} subtitle={{
+            Projects: "Project and portfolio evidence supplied by connected sources.",
+            Credentials: "Credential evidence supplied by connected issuers.",
+            Achievements: "Achievement records that have been added to this profile's evidence.",
+          }[section]} />
+          {items.length ? <div className="xrd-record-list">{items.map(evidenceCard)}</div> : <EmptyState text={`No ${section.toLowerCase()} evidence is available yet.`} />}
+        </>
+      );
+    }
+
+    if (section === "Verification") {
+      const verificationItems = [...filteredEvidence]
+        .sort((left, right) => Number(right.id === verificationTargetId) - Number(left.id === verificationTargetId));
+      return (
+        <>
+          <SectionHeading title="Verification" subtitle="Review source-reported status and, as owner, recheck connected profile evidence." />
+          <div className="xrd-notice"><ShieldCheck size={16} /><span>A successful source recheck confirms that the connector responded and returned this identity record. It does not independently verify education, employment, or issuer authority.</span></div>
+          {verificationItems.length ? <div className="xrd-record-list">{verificationItems.map((item, index) => <div
+            className={`xrd-verification-item${item.id === verificationTargetId ? " is-focused" : ""}`}
+            key={item.id || `${item.provider}-${index}`}
+            role="group"
+            aria-label={`Verification record ${item.title || item.evidence_type || "Evidence record"}`}
+            aria-current={item.id === verificationTargetId ? "true" : undefined}
+          >
+            {evidenceCard(item, index)}
+            {canManage && item.connection_id && <div className="xrd-source-check">
+              <button type="button" disabled={sourceChecks[item.id]?.loading} onClick={() => recheckEvidenceSource(item)}>{sourceChecks[item.id]?.loading ? "Checking source…" : "Recheck source"}</button>
+              {sourceChecks[item.id]?.status === "matched" && <span className="is-match">Source returned a record with no changes to the compared fields · {dateLabel(sourceChecks[item.id].checkedAt)}.</span>}
+              {sourceChecks[item.id]?.status === "changed" && <span className="is-warning">Source returned changed fields: {sourceChecks[item.id].changedFields.join(", ")}.</span>}
+              {sourceChecks[item.id]?.status === "not-found" && <span className="is-warning">Source responded, but the same evidence item was not returned.</span>}
+              {sourceChecks[item.id]?.error && <span className="is-warning">{sourceChecks[item.id].error}</span>}
+            </div>}
+          </div>)}</div> : <EmptyState text="No verification records are available yet." />}
+        </>
+      );
+    }
+
+    if (section === "Permissions") {
+      if (!canManage) return <RestrictedState />;
+      const dimensions = ["Visibility", "Evidence access", "Authority"];
+      const describeEvidence = (item) => {
+        const metadata = item?.metadata || {};
+        const value = permissionsDimension === "Visibility"
+          ? metadata.visibility || metadata.audience
+          : permissionsDimension === "Evidence access"
+            ? metadata.evidence_access || metadata.access
+            : metadata.issuer || metadata.authority || item?.provider;
+        if (typeof value === "string" || typeof value === "number") return String(value);
+        if (Array.isArray(value)) return value.map((entry) => typeof entry === "string" ? entry : "").filter(Boolean).join(", ") || "Policy-controlled";
+        return permissionsDimension === "Authority" ? "Not supplied by source" : "Policy-controlled";
+      };
+      return (
+        <>
+          <SectionHeading title="Permissions" subtitle="Visibility, evidence access, and authority are separate decisions. This dashboard reports source-provided values and does not override database access policies." />
+          <div className="xrd-control-tabs" role="tablist" aria-label="Permission dimensions">
+            {dimensions.map((dimension) => <button type="button" role="tab" aria-selected={permissionsDimension === dimension} className={permissionsDimension === dimension ? "active" : ""} key={dimension} onClick={() => setPermissionsDimension(dimension)}>{dimension}</button>)}
+          </div>
+            {accessNotice && <div className="xrd-inline-success" role="status">{accessNotice}</div>}
+            {accessRequestsError && <div className="xrd-error" role="alert">{accessRequestsError}</div>}
+            {(accessRequestsLoading || accessRequests.length > 0) && <div className="xrd-panel xrd-access-queue">
+              <div className="xrd-section-heading"><div><span className="xrd-kicker">PRIVATE EVIDENCE</span><h3>Access requests</h3></div><span className="xrd-count">{accessRequests.length}</span></div>
+              {accessRequestsLoading && <div className="xrd-loading"><span />Loading requests…</div>}
+              {!accessRequestsLoading && accessRequests.map((request) => {
+                const privateItems = evidenceItems.filter((item) => item.profile_id === targetId && (String(item.metadata?.visibility || "PUBLIC").toUpperCase() !== "PUBLIC" || !item.verified));
+                const selectedCount = Object.values(grantSelections[request.id] || {}).filter(Boolean).length;
+                return <article className="xrd-access-request-row" key={request.id}>
+                  <div className="xrd-access-request-header"><div><strong>Member {String(request.requester_id).slice(0, 8)}</strong><small>{dateLabel(request.created_at)} · {request.message}</small></div><span className="xrd-status">Pending</span></div>
+                  <div className="xrd-access-options">{privateItems.map((item) => <label key={item.id}><input type="checkbox" checked={Boolean(grantSelections[request.id]?.[item.id])} onChange={(event) => setGrantSelections((current) => ({ ...current, [request.id]: { ...(current[request.id] || {}), [item.id]: event.target.checked } }))} /><span>{item.title || item.evidence_type || "Evidence record"}</span></label>)}</div>
+                  {!privateItems.length && <p className="xrd-access-empty">No private evidence items are available to grant.</p>}
+                  <div className="xrd-access-actions"><button type="button" disabled={accessRequestBusy || selectedCount === 0} onClick={() => respondToAccessRequest(request, true)}>Grant {selectedCount || "selected"} item{selectedCount === 1 ? "" : "s"}</button><button type="button" className="is-secondary" disabled={accessRequestBusy} onClick={() => respondToAccessRequest(request, false)}>Decline</button></div>
+                </article>;
+              })}
+            </div>}
+            {evidenceGrants.length > 0 && <div className="xrd-panel xrd-grants-panel">
+              <div className="xrd-section-heading"><div><span className="xrd-kicker">ACTIVE SHARES</span><h3>Granted private evidence</h3></div><span className="xrd-count">{evidenceGrants.length}</span></div>
+              {evidenceGrants.map((grant) => {
+                const evidence = evidenceById.get(grant.evidence_item_id);
+                return <div className="xrd-grant-row" key={grant.id}><div><strong>{evidence?.title || evidence?.evidence_type || grant.evidence_item_id}</strong><small>Shared with member {String(grant.viewer_id).slice(0, 8)} · {dateLabel(grant.created_at)}</small></div><button type="button" disabled={accessRequestBusy} onClick={() => revokeEvidenceGrant(grant)}>Revoke</button></div>;
+              })}
+            </div>}
+          {permissionsDimension === "Authority" && <div className="xrd-notice"><LockKeyhole size={16} /><span>Only authority explicitly supplied by a record source is shown. Xeevia does not infer who may attest to a claim.</span></div>}
+          {evidenceItems.length ? <div className="xrd-permission-list">
+            {evidenceItems.map((item, index) => (
+              <article key={item.id || `${item.provider}-${index}`}>
+                <div><strong>{item.title || item.evidence_type || "Evidence record"}</strong><small>{item.provider || "Unknown source"} · {item.evidence_type || item.type || "record"}</small></div>
+                <span>{describeEvidence(item)}</span>
+              </article>
+            ))}
+          </div> : <EmptyState text="Permission details will appear when records include source-provided visibility and access metadata." />}
+          <div className="xrd-notice"><Shield size={16} /><span>Record access remains governed by the existing Supabase policies. This view is informational and does not expose database controls.</span></div>
+        </>
+      );
+    }
+
+    if (section === "Settings") {
+      if (!canManage) return <RestrictedState />;
+      return (
+        <>
+          <SectionHeading title="XRD settings" subtitle="Presentation and notification preferences. Integrity and required system records cannot be disabled." />
+          <div className="xrd-control-tabs xrd-settings-tabs" role="tablist" aria-label="XRD setting groups">
+            {Object.keys(SETTING_GROUPS).map((group) => <button type="button" role="tab" aria-selected={settingsGroup === group} className={settingsGroup === group ? "active" : ""} key={group} onClick={() => setSettingsGroup(group)}>{group}</button>)}
+          </div>
+          <div className="xrd-settings-card">
+            {settingsLoading && <div className="xrd-loading"><span />Loading saved preferences…</div>}
+            {settingsError && <div className="xrd-error" role="alert">{settingsError}</div>}
+            {SETTING_GROUPS[settingsGroup].map((setting) => (
+              <div className="xrd-setting-row" key={setting}>
+                {(() => {
+                  const key = `${settingsGroup}:${setting}`;
+                  const enabled = userPreferences.xrd_settings?.[key] !== false;
+                  return <>
+                <span>{setting}</span>
+                <span className="xrd-setting-state">{settingsBusy === key ? "Saving…" : enabled ? "On" : "Off"}</span>
+                <button type="button" role="switch" aria-checked={enabled} aria-label={setting} disabled={settingsLoading || settingsBusy === key} onClick={() => toggleXrdSetting(setting)} className={enabled ? "active" : ""}><i /></button>
+                  </>;
+                })()}
+              </div>
+            ))}
+            <div className="xrd-notice"><LockKeyhole size={16} /><span>Preferences are saved to your profile. Access enforcement remains governed by database policies; a presentation toggle cannot override those policies.</span></div>
+          </div>
+        </>
+      );
+    }
+
+    return <EmptyState text="There is no data for this section yet." />;
+  };
+
+  const Root = presentation === "page" ? "main" : "div";
+  const rootAccessibility = presentation === "page"
+    ? { "aria-label": `${profileName} ${isXrcView ? "XRC history" : "Xeevia Record"}` }
+    : { role: "dialog", "aria-modal": "true", "aria-label": `${profileName} ${isXrcView ? "XRC history" : "Xeevia Record"}` };
+
+  return ReactDOM.createPortal(
+    <Root className="xrd-root" {...rootAccessibility}>
+      <style>{`
+        .xrd-root{--xrd-ac:#a3e635;--xrd-panel:#080b08;--xrd-border:#252a24;position:fixed;inset:0;z-index:100050;display:grid;grid-template-columns:248px minmax(0,1fr);overflow:hidden;background:#030403;color:#eef2ea;font-family:inherit;isolation:isolate}
+        .xrd-root::before{position:absolute;z-index:-1;inset:0;content:"";pointer-events:none;background-image:linear-gradient(rgba(163,230,53,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.025) 1px,transparent 1px),radial-gradient(ellipse at 80% 0,rgba(16,185,129,.08),transparent 42%);background-size:30px 30px,30px 30px,auto;mask-image:linear-gradient(135deg,#000,rgba(0,0,0,.25))}
+        .xrd-root *{box-sizing:border-box}.xrd-root button{font:inherit;color:inherit}
+        .xrd-graph-tool{margin:10px 0 18px}.xrd-graph-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:9px}.xrd-graph-tools button{padding:6px 9px;border:1px solid var(--xrd-border);border-radius:99px;background:#070907;color:#9da696;font-size:calc((9px) + 1px);cursor:pointer}.xrd-graph-tools button.active{border-color:rgba(163,230,53,.48);background:rgba(163,230,53,.09);color:var(--xrd-ac)}.xrd-graph-count{margin-left:auto;color:#66705f;font:8px ui-monospace,monospace;letter-spacing:.1em}.xrd-graph-canvas{position:relative;overflow:hidden;border:1px solid rgba(163,230,53,.27);border-radius:15px;background:radial-gradient(ellipse at 50% 45%,rgba(163,230,53,.07),transparent 47%),linear-gradient(rgba(163,230,53,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.035) 1px,transparent 1px),#030503;background-size:auto,24px 24px,24px 24px,auto;cursor:grab;touch-action:none;user-select:none}.xrd-graph-canvas.is-dragging{cursor:grabbing}.xrd-graph-canvas svg{display:block;width:100%;min-width:640px;aspect-ratio:960/600}.xrd-graph-hud{position:absolute;z-index:2;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;color:#6c7866;font:8px ui-monospace,monospace;letter-spacing:.13em;pointer-events:none}.xrd-graph-hud span:first-child{color:var(--xrd-ac)}.xrd-graph-hud i{display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--xrd-ac);box-shadow:0 0 8px var(--xrd-ac);animation:xrd-live 1.6s ease-in-out infinite}@keyframes xrd-live{50%{opacity:.25}}.xrd-graph-canvas>svg .xrd-graph-edge path{fill:none;stroke:#fbbf24;stroke-width:2.1;stroke-dasharray:3 13;stroke-linecap:round;animation:xrd-edge-flow 1.7s linear infinite}@keyframes xrd-edge-flow{to{stroke-dashoffset:-32}}.xrd-graph-source-node>path{fill:none;stroke:#64705e;stroke-width:1.1;stroke-dasharray:4 7;opacity:.7}.xrd-graph-source-node>circle{fill:#071007;stroke:#a3e635;stroke-width:1.5;filter:drop-shadow(0 0 7px rgba(163,230,53,.28))}.xrd-graph-source-node>text,.xrd-graph-evidence>text{fill:#dce5d7;font-size:calc((10px) + 1px);font-weight:700;paint-order:stroke;stroke:#030503;stroke-width:4px;stroke-linejoin:round}.xrd-graph-person>circle:first-child{fill:#a3e635;stroke:#ddff9a;stroke-width:2;filter:drop-shadow(0 0 18px rgba(163,230,53,.55))}.xrd-graph-person .xrd-graph-orbit{fill:none;stroke:#a3e635;stroke-opacity:.5;stroke-dasharray:3 8;animation:xrd-orbit 28s linear infinite;transform-origin:480px 300px}@keyframes xrd-orbit{to{transform:rotate(360deg)}}.xrd-graph-person>text{fill:#a3e635;font:9px ui-monospace,monospace;letter-spacing:1px}.xrd-graph-evidence{cursor:pointer}.xrd-graph-evidence circle{fill:#080c08;stroke:#8a918a;stroke-width:1.5;transition:stroke .15s,filter .15s,fill .15s}.xrd-graph-evidence:hover circle,.xrd-graph-evidence.selected circle,.xrd-graph-evidence:focus-visible circle{fill:#10170b;stroke:#a3e635;filter:drop-shadow(0 0 10px rgba(163,230,53,.55))}.xrd-graph-evidence:focus-visible{outline:none}.xrd-graph-reset{position:absolute;right:12px;bottom:48px;padding:7px 9px;border:1px solid rgba(163,230,53,.35);border-radius:8px;background:#080b08;color:var(--xrd-ac);font-size:calc((9px) + 1px);cursor:pointer}.xrd-graph-legend{position:absolute;bottom:0;left:0;right:0;display:flex;gap:16px;padding:10px 13px;border-top:1px solid #1d241b;background:rgba(3,5,3,.9);color:#8d9686;font-size:calc((8px) + 1px)}.xrd-graph-legend span{display:flex;align-items:center;gap:6px}.xrd-graph-legend i{width:17px;height:1px;background:#64705e}.xrd-graph-legend i.stored{height:2px;background:#fbbf24}.xrd-graph-caption{margin:8px 2px 0;color:#737d70;font-size:calc((9px) + 1px);line-height:1.5}
+        @media(prefers-reduced-motion:reduce){.xrd-graph-hud i,.xrd-graph-person .xrd-graph-orbit,.xrd-graph-edge path{animation:none!important}.xrd-photo-modal{animation:none}}
+        .xrd-sidebar{min-width:0;display:flex;flex-direction:column;padding:18px 13px;border-right:1px solid var(--xrd-border);background:linear-gradient(180deg,#080b08,#050605)}
+        .xrd-brand{display:flex;align-items:center;gap:11px;padding:5px 8px 20px}
+        .xrd-brand-mark{width:38px;height:38px;display:grid;place-items:center;border:1px solid rgba(163,230,53,.35);border-radius:12px;background:rgba(163,230,53,.1);color:var(--xrd-ac);font-weight:900;font-size:calc((12px) + 1px)}
+        .xrd-brand strong{display:block;font-size:calc((13px) + 1px)}.xrd-brand small{display:block;margin-top:3px;color:#81877d;font-size:calc((10px) + 1px)}
+        .xrd-back{display:flex;align-items:center;gap:8px;padding:9px 10px;margin-bottom:18px;border:1px solid var(--xrd-border);border-radius:10px;background:#070907;color:#c7cec1!important;font-size:calc((11px) + 1px);cursor:pointer}
+        .xrd-nav-label{padding:12px 10px 6px;color:#737b70;font-size:calc((9px) + 1px);font-weight:900;letter-spacing:.14em}
+        .xrd-nav{display:flex;flex-direction:column;gap:3px;overflow:auto}
+        .xrd-nav button{display:flex;align-items:center;gap:10px;min-height:39px;padding:0 10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#9ca398;font-size:calc((11px) + 1px);text-align:left;cursor:pointer}
+        .xrd-nav button:hover{background:#10140e;color:#e8f0df}.xrd-nav button.active{border-color:rgba(163,230,53,.2);background:linear-gradient(90deg,rgba(163,230,53,.13),rgba(163,230,53,.025));color:var(--xrd-ac)}
+        .xrd-nav button svg{flex:none}.xrd-view{min-width:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+        .xrd-topbar{height:58px;flex:none;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid var(--xrd-border);background:rgba(5,7,5,.95)}
+        .xrd-topbar button{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--xrd-border);border-radius:50%;background:#090b09;cursor:pointer}
+        .xrd-topbar .xrd-view-toggle{width:auto;min-width:0;height:32px;flex:none;margin-left:auto;padding:0 9px;border-radius:8px;font-size:calc((9px) + 1px);white-space:nowrap}
+        .xrd-topbar .xrd-crumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .xrd-crumb{min-width:0;flex:1;overflow:hidden;color:#7c8479;font-size:calc((11px) + 1px);text-overflow:ellipsis;white-space:nowrap}
+        .xrd-crumb b{color:#dce5d5}.xrd-owner-tag{padding:5px 8px;border:1px solid rgba(163,230,53,.19);border-radius:99px;color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:800}
+        .xrd-content{width:min(100%,1060px);margin:0 auto;padding:28px 34px 50px;overflow:auto;overscroll-behavior:contain}
+        .xrd-content h2,.xrd-content h3,.xrd-content p{margin-top:0}
+        .xrd-overview-hero{position:relative;overflow:hidden;min-height:188px;padding:25px;border:1px solid rgba(163,230,53,.3);border-radius:19px;background:radial-gradient(ellipse at 2% 0%,rgba(163,230,53,.15),transparent 48%),linear-gradient(135deg,#0b1009,#050605 70%);box-shadow:inset 0 0 50px rgba(163,230,53,.035)}
+        .xrd-hero-orbit{position:absolute;right:74px;top:-78px;width:245px;height:245px;border:1px solid rgba(163,230,53,.13);border-radius:50%;box-shadow:0 0 0 25px rgba(163,230,53,.025),0 0 0 56px rgba(163,230,53,.018)}
+        .xrd-hero-identity{position:relative;z-index:1;display:flex;align-items:center;gap:14px}.xrd-hero-avatar{position:relative;flex:none;width:54px;height:54px}.xrd-hero-avatar>img,.xrd-hero-avatar>span{width:54px;height:54px;display:grid;place-items:center;border:1px solid rgba(163,230,53,.4);border-radius:50%;object-fit:cover;background:#11180c;color:var(--xrd-ac);font-size:calc((22px) + 1px);font-weight:900}.xrd-photo-trigger{position:absolute;right:-7px;bottom:-5px;display:flex;align-items:center;gap:3px;padding:4px 5px;border:2px solid #080b08;border-radius:99px;background:var(--xrd-ac);color:#0a1400!important;box-shadow:0 0 12px rgba(163,230,53,.5);cursor:pointer}.xrd-photo-trigger b{font-size:calc((8px) + 1px)}
+        .xrd-photo-modal{position:fixed;z-index:100060;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.82);backdrop-filter:blur(9px);animation:xrd-fade .18s ease-out}.xrd-photo-modal>section{width:min(720px,100%);max-height:min(88vh,860px);overflow:auto;padding:20px;border:1px solid rgba(163,230,53,.34);border-radius:18px;background:radial-gradient(ellipse at 0 0,rgba(163,230,53,.11),transparent 50%),#060806;box-shadow:0 32px 90px #000}.xrd-photo-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}.xrd-photo-modal header h2{margin:4px 0;font-size:calc((20px) + 1px)}.xrd-photo-modal header p{margin:0;color:#8d9589;font-size:calc((11px) + 1px)}.xrd-photo-modal header button{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--xrd-border);border-radius:50%;background:#090c09;cursor:pointer}.xrd-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:11px}.xrd-photo-grid article{display:flex;min-width:0;flex-direction:column;gap:5px;padding:9px;border:1px solid var(--xrd-border);border-radius:12px;background:#080a08}.xrd-photo-frame{position:relative;aspect-ratio:1;overflow:hidden;border-radius:9px;background:#101410}.xrd-photo-frame img{width:100%;height:100%;object-fit:cover}.xrd-photo-frame>span{position:absolute;left:5px;bottom:5px;display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:99px;background:rgba(0,0,0,.82);color:var(--xrd-ac);font-size:calc((8px) + 1px)}.xrd-photo-grid strong{overflow:hidden;color:#e3e9de;font-size:calc((10px) + 1px);text-overflow:ellipsis;white-space:nowrap}.xrd-photo-grid small{overflow:hidden;color:#80897d;font-size:calc((9px) + 1px);text-overflow:ellipsis;white-space:nowrap}
+        @keyframes xrd-fade{from{opacity:0}}@keyframes xrd-scan{from{transform:translateY(-120%)}to{transform:translateY(620%)}}@keyframes xrd-shimmer{to{background-position:200% 0}}
+        .xrd-oracle-chat{position:fixed;z-index:100070;inset:0;display:flex;flex-direction:column;overflow:hidden;background:#020402;animation:xrd-fade .18s ease-out}.xrd-oracle-chat>header{position:relative;z-index:3;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid #252a24;background:rgba(3,5,3,.9);backdrop-filter:blur(14px)}.xrd-chat-back,.xrd-chat-close{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--xrd-border);border-radius:50%;background:#080b08;color:#dce5d7;cursor:pointer}.xrd-chat-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 35% 25%,#ecfccb,#a3e635 45%,#10b981);color:#071004;box-shadow:0 0 18px rgba(163,230,53,.4)}.xrd-chat-heading{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.xrd-chat-heading strong{font-size:calc((12px) + 1px)}.xrd-chat-heading small{color:#7d8878;font:8px ui-monospace,monospace;letter-spacing:.08em}.xrd-chat-background{position:absolute;inset:48px 0 0;overflow:hidden;pointer-events:none}.xrd-chat-background>i{position:absolute;inset:-20%;background:radial-gradient(ellipse at 25% 20%,rgba(163,230,53,.18),transparent 43%),radial-gradient(ellipse at 80% 65%,rgba(16,185,129,.15),transparent 42%);filter:blur(24px);animation:xrd-aurora 16s ease-in-out infinite alternate}.xrd-chat-background>i:nth-child(2){opacity:.5;transform:rotate(180deg);animation-duration:22s}.xrd-chat-background>div{position:absolute;left:-20%;right:-20%;bottom:-20%;height:55%;background-image:linear-gradient(rgba(163,230,53,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.25) 1px,transparent 1px);background-size:40px 40px;transform:perspective(460px) rotateX(62deg);transform-origin:50% 100%;mask-image:linear-gradient(transparent,#000 45%,transparent);animation:xrd-floor 3.2s linear infinite}@keyframes xrd-aurora{to{transform:translate3d(-4%,3%,0) scale(1.08)}}@keyframes xrd-floor{to{background-position:0 40px}}
+        .xrd-chat-body{position:relative;z-index:1;flex:1;min-height:0;overflow:auto;padding:22px 16px 30px;overscroll-behavior:contain}.xrd-chat-welcome{width:min(640px,100%);min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:auto;text-align:center}.xrd-chat-orb{width:96px;height:96px;display:grid;place-items:center;margin-bottom:16px;border:1px solid rgba(163,230,53,.65);border-radius:50%;background:radial-gradient(circle at 40% 35%,#eaffc9,#a3e635 35%,rgba(16,185,129,.45) 70%,transparent 73%);color:#071004;box-shadow:0 0 55px rgba(163,230,53,.25);animation:xrd-orb 3.1s ease-in-out infinite}@keyframes xrd-orb{50%{transform:scale(1.06);box-shadow:0 0 75px rgba(163,230,53,.42)}}.xrd-chat-welcome h2{margin:0 0 7px;font-size:calc((25px) + 1px);background:linear-gradient(90deg,#fff,#d9f2b8);color:transparent;background-clip:text}.xrd-chat-welcome>p{max-width:420px;color:#899386;font-size:calc((11px) + 1px);line-height:1.55}.xrd-chat-welcome>div:last-child{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:min(520px,100%);margin-top:16px}.xrd-chat-welcome>div:last-child button{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;border:1px solid #252c22;border-radius:11px;background:rgba(4,7,4,.75);color:#c8d2c1;font-size:calc((10px) + 1px);text-align:left;cursor:pointer}.xrd-chat-welcome>div:last-child button:hover{border-color:rgba(163,230,53,.55);color:var(--xrd-ac)}.xrd-chat-turn{width:min(760px,100%);margin:0 auto 18px;animation:xrd-fade .22s ease-out}.xrd-chat-user{width:fit-content;max-width:84%;margin:0 0 12px auto;padding:10px 13px;border-radius:16px 16px 3px 16px;background:linear-gradient(180deg,#b9f54f,#84cc16);color:#0a1400;font-size:calc((11px) + 1px);font-weight:700;overflow-wrap:anywhere}.xrd-chat-answer{padding:14px;border:1px solid var(--xrd-border);border-left:2px solid var(--xrd-ac);border-radius:5px 14px 14px 14px;background:rgba(5,8,5,.92);backdrop-filter:blur(8px)}.xrd-chat-answer-meta{display:flex;align-items:center;gap:7px;color:#8a9585;font-size:calc((9px) + 1px)}.xrd-chat-answer-meta .xrd-chat-mark{width:24px;height:24px}.xrd-chat-answer-meta strong{color:var(--xrd-ac)}.xrd-chat-answer-meta>span:last-child{margin-left:auto;font:8px ui-monospace,monospace}.xrd-chat-answer>p{margin:10px 0;color:#d4ddd0;font-size:calc((11px) + 1px);line-height:1.6}.xrd-chat-answer>button{display:flex;align-items:center;gap:8px;width:100%;padding:9px;margin-top:6px;border:1px solid #232a21;border-radius:9px;background:#030503;color:#dce5d7;text-align:left;font-size:calc((9px) + 1px);cursor:pointer}.xrd-chat-answer>button:hover{border-color:rgba(163,230,53,.4)}.xrd-chat-answer>button>span:nth-child(2){min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.xrd-chat-compose{position:relative;z-index:2;display:flex;align-items:center;gap:9px;padding:10px max(14px,calc((100vw - 780px)/2)) calc(10px + env(safe-area-inset-bottom));border-top:1px solid #252a24;background:rgba(3,5,3,.94);backdrop-filter:blur(14px)}.xrd-chat-compose>svg{flex:none;color:var(--xrd-ac)}.xrd-chat-compose input{min-width:0;flex:1;padding:12px;border:1px solid #2b3228;border-radius:11px;background:#050705;color:#edf2e9;font:inherit;font-size:calc((12px) + 1px)}.xrd-chat-compose input:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}
+        @media(max-width:600px){.xrd-chat-welcome>div:last-child{grid-template-columns:1fr}.xrd-chat-orb{width:76px;height:76px}.xrd-chat-welcome h2{font-size:calc((21px) + 1px)}.xrd-chat-body{padding:16px 12px 22px}.xrd-chat-compose{padding-left:10px;padding-right:10px}}
+        @media(prefers-reduced-motion:reduce){.xrd-chat-background>i,.xrd-chat-background>div,.xrd-chat-orb,.xrd-chat-turn{animation:none!important}}
+        .xrd-kicker{color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:900;letter-spacing:.16em}.xrd-hero-identity h2{margin:3px 0;font-size:calc((21px) + 1px);letter-spacing:-.025em}.xrd-hero-identity p{margin:0;color:#82897e;font-size:calc((11px) + 1px)}
+        .xrd-hero-mark{position:absolute;right:26px;top:27px;width:52px;height:52px;display:grid;place-items:center;border:1px solid rgba(163,230,53,.24);border-radius:16px;background:rgba(163,230,53,.08);color:var(--xrd-ac)}
+        .xrd-hero-copy{position:relative;z-index:1;max-width:690px;margin:19px 0 0!important;color:#a8b0a3;font-size:calc((12px) + 1px);line-height:1.6}
+        .xrd-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 30px}.xrd-stat{display:grid;grid-template-columns:22px 1fr;align-items:center;gap:4px 8px;padding:13px;border:1px solid var(--xrd-border);border-radius:13px;background:linear-gradient(180deg,#0a0c09,#060706)}.xrd-stat svg{grid-row:span 2;color:var(--xrd-ac)}.xrd-stat strong{font-size:calc((18px) + 1px)}.xrd-stat span{color:#81887d;font-size:calc((10px) + 1px)}
+        .xrd-section-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:22px 0 12px}.xrd-section-heading h3{margin:4px 0 0;font-size:calc((18px) + 1px)}.xrd-section-heading button{display:flex;align-items:center;gap:4px;border:0;background:none;color:var(--xrd-ac);font-size:calc((10px) + 1px);font-weight:800;cursor:pointer}
+        .xrd-panel{margin:0 0 14px;padding:16px;border:1px solid var(--xrd-border);border-radius:15px;background:linear-gradient(180deg,#080a08,#050605)}
+        .xrd-question-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+        .xrd-question-grid button{min-width:0;display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #242a23;border-radius:11px;background:#050705;text-align:left;cursor:pointer}
+        .xrd-question-grid button:hover{border-color:rgba(163,230,53,.35);background:rgba(163,230,53,.045)}
+        .xrd-question-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border:1px solid rgba(163,230,53,.2);border-radius:9px;color:var(--xrd-ac);background:rgba(163,230,53,.06)}
+        .xrd-question-grid button>span:nth-child(2){min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+        .xrd-question-grid b{color:#dce3d7;font-size:calc((9px) + 1px);letter-spacing:.04em}
+        .xrd-question-grid small{color:#838b7f;font-size:calc((9px) + 1px);line-height:1.35}
+        .xrd-question-grid button>svg:last-child{flex:none;color:#687064}
+        .xrd-control-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 12px}
+        .xrd-control-tabs button{min-height:34px;padding:0 12px;border:1px solid #282e27;border-radius:999px;background:#070907;color:#9ba394;font-size:calc((10px) + 1px);cursor:pointer}
+        .xrd-control-tabs button.active{border-color:rgba(163,230,53,.38);background:rgba(163,230,53,.09);color:var(--xrd-ac)}
+        .xrd-settings-tabs{flex-wrap:nowrap;overflow:auto;padding-bottom:5px;scrollbar-width:thin}
+        .xrd-settings-tabs button{flex:none}
+        .xrd-settings-card{padding:4px 16px 16px;border:1px solid var(--xrd-border);border-radius:15px;background:linear-gradient(180deg,#080a08,#050605)}
+        .xrd-setting-row{display:flex;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid #1c211b;color:#dce2d7;font-size:calc((11px) + 1px)}
+        .xrd-setting-row>span:first-child{flex:1}
+        .xrd-setting-state{color:#747d70;font-size:calc((9px) + 1px)}
+        .xrd-setting-row button{position:relative;width:34px;height:19px;padding:0;border:1px solid #353b33;border-radius:99px;background:#151815;opacity:.68}
+        .xrd-setting-row button i{position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#788073;transition:left .18s,background .18s}.xrd-setting-row button.active{border-color:rgba(163,230,53,.55);background:rgba(163,230,53,.22);opacity:1}.xrd-setting-row button.active i{left:17px;background:var(--xrd-ac)}
+        .xrd-notice{display:flex;align-items:flex-start;gap:9px;margin:14px 0 0;padding:12px;border:1px solid rgba(163,230,53,.16);border-radius:11px;background:rgba(163,230,53,.035);color:#a2ab9a;font-size:calc((10px) + 1px);line-height:1.5}
+        .xrd-notice svg{flex:none;color:var(--xrd-ac)}
+        .xrd-permission-list{display:flex;flex-direction:column;gap:7px}
+        .xrd-permission-list article{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;border:1px solid var(--xrd-border);border-radius:11px;background:#070907}
+        .xrd-permission-list article>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+        .xrd-permission-list strong{overflow:hidden;color:#e4e9df;font-size:calc((11px) + 1px);text-overflow:ellipsis;white-space:nowrap}
+        .xrd-permission-list small{color:#778073;font-size:calc((9px) + 1px)}
+        .xrd-permission-list article>span{max-width:45%;color:#a3e635;font-size:calc((9px) + 1px);text-align:right;overflow-wrap:anywhere}
+        .xrd-inline-success{margin:10px 0;padding:10px 12px;border:1px solid rgba(163,230,53,.25);border-radius:9px;background:rgba(163,230,53,.06);color:#c9f78a;font-size:calc((10px) + 1px)}
+        .xrd-assurance-panel{margin:0 0 14px;padding:14px;border:1px solid var(--xrd-border);border-radius:14px;background:radial-gradient(ellipse at 0 0,rgba(163,230,53,.075),transparent 60%),#070907}.xrd-assurance-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0 10px}.xrd-assurance-steps>div{position:relative;display:flex;min-height:84px;flex-direction:column;gap:4px;padding:9px;border:1px solid #252b23;border-radius:9px;background:#050705}.xrd-assurance-steps>div::after{position:absolute;top:15px;right:-8px;width:8px;height:1px;background:#3c4538;content:""}.xrd-assurance-steps>div:last-child::after{display:none}.xrd-assurance-steps b{color:#75816d;font:8px ui-monospace,monospace}.xrd-assurance-steps strong{color:#cbd4c5;font-size:calc((9px) + 1px)}.xrd-assurance-steps small{color:#788174;font-size:calc((8px) + 1px);line-height:1.35}.xrd-assurance-steps .is-present{border-color:rgba(163,230,53,.35)}.xrd-assurance-steps .is-present b,.xrd-assurance-steps .is-present strong{color:var(--xrd-ac)}.xrd-assurance-steps .is-unavailable{border-style:dashed}.xrd-assurance-panel>p{margin:0;color:#818b7d;font-size:calc((9px) + 1px);line-height:1.5}
+        .xrd-grants-panel{margin-top:14px}.xrd-grant-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--xrd-border)}.xrd-grant-row>div{display:flex;min-width:0;flex-direction:column;gap:4px}.xrd-grant-row strong{overflow:hidden;color:#dbe4d6;font-size:calc((10px) + 1px);text-overflow:ellipsis;white-space:nowrap}.xrd-grant-row small{color:#7f887a;font-size:calc((8px) + 1px)}.xrd-grant-row button{padding:6px 8px;border:1px solid rgba(248,113,113,.35);border-radius:7px;background:rgba(248,113,113,.06);color:#fca5a5;font-size:calc((8px) + 1px);font-weight:800;cursor:pointer}.xrd-grant-row button:disabled{opacity:.5;cursor:wait}
+        .xrd-access-request{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px}.xrd-access-request h3{margin:4px 0;font-size:calc((13px) + 1px)}.xrd-access-request p{margin:0;color:#808a7c;font-size:calc((9px) + 1px);line-height:1.5}.xrd-access-request>button,.xrd-access-actions button{padding:8px 11px;border:1px solid rgba(163,230,53,.34);border-radius:8px;background:rgba(163,230,53,.08);color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:900;white-space:nowrap;cursor:pointer}.xrd-access-request>button:disabled,.xrd-access-actions button:disabled{opacity:.5;cursor:wait}.xrd-access-state{color:#fbbf24;font-size:calc((9px) + 1px)}.xrd-access-state.is-approved{color:#a3e635}.xrd-access-queue{margin-top:16px}.xrd-access-request-row{padding:12px 0;border-top:1px solid var(--xrd-border)}.xrd-access-request-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.xrd-access-request-header>div{display:flex;min-width:0;flex-direction:column;gap:4px}.xrd-access-request-header strong{color:#e1e8dc;font-size:calc((10px) + 1px)}.xrd-access-request-header small{color:#7d887a;font-size:calc((9px) + 1px);overflow-wrap:anywhere}.xrd-access-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}.xrd-access-options label{display:flex;align-items:center;gap:7px;min-width:0;padding:8px;border:1px solid #20251f;border-radius:8px;background:#050705;color:#b8c2b2;font-size:calc((9px) + 1px);cursor:pointer}.xrd-access-options input{accent-color:#a3e635}.xrd-access-options span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.xrd-access-empty{color:#899284;font-size:calc((9px) + 1px)}.xrd-access-actions{display:flex;justify-content:flex-end;gap:7px}.xrd-access-actions button.is-secondary{border-color:var(--xrd-border);background:#070907;color:#a8b09f}
+        .xrd-visibility-control{margin-bottom:14px}.xrd-visibility-control label{display:flex;flex-direction:column;gap:6px;color:#aab3a5;font-size:calc((10px) + 1px);font-weight:800}.xrd-visibility-control select{max-width:260px;padding:9px 10px;border:1px solid var(--xrd-border);border-radius:8px;background:#050705;color:#e5ecdf;font:inherit}.xrd-visibility-control select:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-visibility-control select:disabled{opacity:.55}.xrd-visibility-control p{margin:9px 0 0;color:#7f887b;font-size:calc((9px) + 1px);line-height:1.5}
+        .xrd-verification-item{min-width:0}.xrd-source-check{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:-5px 0 2px 46px}.xrd-source-check button{padding:6px 9px;border:1px solid rgba(163,230,53,.3);border-radius:8px;background:rgba(163,230,53,.06);color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:800;cursor:pointer}.xrd-source-check button:disabled{opacity:.5;cursor:wait}.xrd-source-check span{color:#8b9586;font-size:calc((9px) + 1px)}.xrd-source-check .is-match{color:#a3e635}.xrd-source-check .is-warning{color:#fbbf24}.xrd-audit-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:0;border:0;background:none;text-align:left;cursor:pointer}.xrd-audit-toggle>span{display:flex;min-width:0;flex-direction:column;gap:5px}.xrd-audit-toggle strong{color:#e1e8dc;font-size:calc((11px) + 1px);text-transform:capitalize}.xrd-audit-toggle small{color:#7d887a;font-size:calc((9px) + 1px)}.xrd-audit-toggle>svg{flex:none;color:var(--xrd-ac);transition:transform .18s}.xrd-audit-toggle[aria-expanded="true"]>svg{transform:rotate(90deg)}.xrd-audit-detail{margin-top:10px;padding:10px;border-top:1px solid var(--xrd-border);color:#aeb8a9;font-size:calc((10px) + 1px)}.xrd-audit-detail p{margin:0 0 8px}.xrd-audit-detail dl{display:grid;gap:6px;margin:0}.xrd-audit-detail dl>div{display:grid;grid-template-columns:minmax(90px,.4fr) minmax(0,1fr);gap:8px}.xrd-audit-detail dt{color:#778272;text-transform:capitalize}.xrd-audit-detail dd{margin:0;overflow-wrap:anywhere;color:#d5ded0}
+        .xrd-remark-compose{margin-top:14px}.xrd-remark-label{display:flex;flex-direction:column;gap:6px;margin:12px 0;color:#a9b1a2;font-size:calc((10px) + 1px);font-weight:800}.xrd-remark-label select,.xrd-remark-label textarea,.xrd-remark-reply textarea{width:100%;padding:10px;border:1px solid var(--xrd-border);border-radius:9px;background:#050705;color:#e8eee4;font:inherit;font-size:calc((11px) + 1px);resize:vertical}.xrd-remark-label select:focus,.xrd-remark-label textarea:focus,.xrd-remark-reply textarea:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-remark-submit{display:flex;align-items:center;justify-content:space-between;gap:10px}.xrd-remark-submit small{color:#7f887a;font-size:calc((9px) + 1px)}
+        .xrd-remark{margin:10px 0;padding:14px;border:1px solid var(--xrd-border);border-radius:12px;background:linear-gradient(180deg,#080a08,#050605)}.xrd-remark-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.xrd-remark-head>span:last-child{display:flex;align-items:center;gap:5px;color:#7e887b;font-size:calc((9px) + 1px)}.xrd-remark-type{padding:4px 7px;border:1px solid rgba(163,230,53,.25);border-radius:99px;color:var(--xrd-ac);font-size:calc((8px) + 1px);font-weight:900}.xrd-remark>p{margin:12px 0;color:#e2e8dc;font-size:calc((12px) + 1px);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.xrd-remark-meta{color:#7e887b;font-size:calc((9px) + 1px)}.xrd-remark-meta button{padding:0;border:0;background:none;color:#b6d88b;font:inherit;text-decoration:underline;cursor:pointer}.xrd-owner-response{margin-top:12px;padding:11px;border-left:2px solid var(--xrd-ac);background:#0a0d08}.xrd-owner-response small{color:var(--xrd-ac);font-size:calc((8px) + 1px);font-weight:900;letter-spacing:.08em}.xrd-owner-response p{margin:6px 0;color:#dbe4d5;font-size:calc((11px) + 1px);line-height:1.5;white-space:pre-wrap}.xrd-owner-response time{color:#798273;font-size:calc((8px) + 1px)}.xrd-remark-reply{display:flex;align-items:flex-end;gap:8px;margin-top:12px}.xrd-remark-reply textarea{flex:1}.xrd-remark-reply button{padding:8px 10px;border:1px solid rgba(163,230,53,.25);border-radius:8px;background:rgba(163,230,53,.08);color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:800;cursor:pointer}.xrd-remark-reply button:disabled{opacity:.45}
+        .xrd-identity-sources{display:flex;flex-direction:column;gap:7px}
+        .xrd-identity-source{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #222821;border-radius:11px;background:#060806}
+        .xrd-source-glyph{width:32px;height:32px;display:grid;place-items:center;flex:none;border:1px solid rgba(163,230,53,.18);border-radius:9px;background:rgba(163,230,53,.06);color:var(--xrd-ac)}
+        .xrd-identity-source>div{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+        .xrd-identity-source strong{color:#e3e9de;font-size:calc((10px) + 1px)}
+        .xrd-identity-source small{overflow:hidden;color:#7f887a;font-size:calc((9px) + 1px);text-overflow:ellipsis;white-space:nowrap}
+        .xrd-count{display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border:1px solid rgba(163,230,53,.2);border-radius:99px;color:var(--xrd-ac);font-size:calc((9px) + 1px)}
+        .xrd-page-heading{margin-bottom:17px}.xrd-page-heading h2{margin:0 0 5px;font-size:calc((25px) + 1px);letter-spacing:-.03em}.xrd-page-heading p{margin:0;color:#8d9589;font-size:calc((12px) + 1px);line-height:1.55}
+        .xrd-record-list{display:flex;flex-direction:column;gap:9px}.xrd-record{display:flex;gap:12px;padding:14px;border:1px solid var(--xrd-border);border-radius:13px;background:linear-gradient(125deg,rgba(255,255,255,.035),rgba(255,255,255,.012));min-width:0}
+        .xrd-root .xrd-record-button{width:100%;color:inherit;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}.xrd-root .xrd-record-button:hover{border-color:rgba(163,230,53,.38);background:linear-gradient(125deg,rgba(163,230,53,.07),rgba(255,255,255,.015));transform:translateY(-1px)}.xrd-root .xrd-record-button:focus-visible,.xrd-root .xrd-related-edge:focus-visible,.xrd-root .xrd-edge button:focus-visible{outline:2px solid var(--xrd-ac);outline-offset:2px}
+        .xrd-detail-back{display:flex;align-items:center;gap:6px;margin:0 0 15px;padding:7px 10px;border:1px solid var(--xrd-border);border-radius:9px;background:#080a08;color:#abb3a5;font-size:calc((10px) + 1px);cursor:pointer}.xrd-detail-back:hover{border-color:rgba(163,230,53,.35);color:var(--xrd-ac)}.xrd-detail-heading h2{overflow-wrap:anywhere}.xrd-detail-panel{margin-bottom:14px}.xrd-detail-status{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--xrd-border);color:#929a8e;font-size:calc((10px) + 1px)}.xrd-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.xrd-detail-grid>div{min-width:0;padding:10px;border:1px solid #20251f;border-radius:9px;background:#050705}.xrd-detail-grid small{display:block;margin-bottom:5px;color:#7f887b;font-size:calc((8px) + 1px);text-transform:uppercase}.xrd-detail-grid strong{display:block;color:#dce4d7;font-size:calc((10px) + 1px);font-weight:700;overflow-wrap:anywhere}.xrd-detail-link{display:inline-flex;align-items:center;gap:5px;margin-top:13px;color:var(--xrd-ac);font-size:calc((10px) + 1px);font-weight:800;text-decoration:none}.xrd-detail-link:hover{text-decoration:underline}.xrd-root .xrd-related-edge{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:12px 34px 12px 12px;border:1px solid var(--xrd-border);border-radius:10px;background:#060806;text-align:left;cursor:pointer}.xrd-root .xrd-related-edge:hover{border-color:rgba(163,230,53,.32)}.xrd-related-edge>span{color:var(--xrd-ac);font-size:calc((8px) + 1px);font-weight:900;text-transform:uppercase}.xrd-related-edge strong{color:#e3e9de;font-size:calc((11px) + 1px)}.xrd-related-edge small{color:#81897d;font-size:calc((9px) + 1px)}.xrd-related-edge svg{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#81897d}.xrd-detail-actions{display:flex;flex-wrap:wrap;gap:8px}.xrd-secondary{display:flex;align-items:center;justify-content:center;padding:9px 12px;border:1px solid var(--xrd-border);border-radius:9px;background:#080a08;color:#c5cdc0;font-size:calc((10px) + 1px);font-weight:800;cursor:pointer}
+        .xrd-record-mark{width:34px;height:34px;flex:none;display:grid;place-items:center;border:1px solid rgba(163,230,53,.18);border-radius:10px;background:rgba(163,230,53,.07);color:var(--xrd-ac)}
+        .xrd-record-body{min-width:0;flex:1}.xrd-record-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.xrd-record-title{color:#f0f3ec;font-size:calc((12px) + 1px);font-weight:800;overflow-wrap:anywhere}.xrd-status{flex:none;padding:3px 7px;border:1px solid rgba(148,163,184,.2);border-radius:99px;color:#a8b0a4;font-size:calc((8px) + 1px);font-weight:900;text-transform:uppercase}
+        .xrd-status.is-verified{border-color:rgba(163,230,53,.28);background:rgba(163,230,53,.08);color:var(--xrd-ac)}
+        .xrd-record-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;color:#7d857a;font-size:calc((9px) + 1px)}.xrd-record-meta i{width:3px;height:3px;border-radius:50%;background:#535b50}.xrd-record-body>p{margin:9px 0 0;color:#b8beb4;font-size:calc((11px) + 1px);line-height:1.5}
+        .xrd-record-foot{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.xrd-record-foot span{padding:3px 7px;border:1px solid #242a23;border-radius:99px;color:#929a8d;font-size:calc((8px) + 1px);font-weight:800}
+        .xrd-search{display:flex;align-items:center;gap:8px;margin-bottom:13px;padding:0 12px;border:1px solid var(--xrd-border);border-radius:11px;background:#080a08;color:#81887e}.xrd-search input{width:100%;height:40px;border:0;outline:0;background:transparent;color:#eff2eb;font:inherit;font-size:calc((11px) + 1px)}
+        .xrd-identity-panel{display:flex;align-items:center;gap:14px;margin-bottom:13px;padding:16px;border:1px solid var(--xrd-border);border-radius:14px;background:#080a08}.xrd-identity-avatar{width:64px;height:64px;display:grid;place-items:center;flex:none;overflow:hidden;border:2px solid rgba(163,230,53,.35);border-radius:50%;background:#11180c;color:var(--xrd-ac);font-size:calc((24px) + 1px);font-weight:900}.xrd-identity-avatar img{width:100%;height:100%;object-fit:cover}.xrd-identity-copy h3{display:flex;align-items:center;gap:6px;margin:0;font-size:calc((15px) + 1px)}.xrd-identity-copy h3 svg{color:var(--xrd-ac)}.xrd-identity-copy p{margin:3px 0;color:#8b9387;font-size:calc((10px) + 1px)}.xrd-identity-copy .xrd-bio{max-width:620px;color:#c0c6bc;font-size:calc((11px) + 1px);line-height:1.5}.xrd-identity-copy>span{color:#737b70;font-size:calc((9px) + 1px)}
+        .xrd-graph{display:flex;flex-direction:column;gap:12px}.xrd-graph-source{display:grid;grid-template-columns:minmax(150px,.75fr) 50px minmax(0,1.4fr);align-items:center;gap:10px;padding:13px;border:1px solid var(--xrd-border);border-radius:13px;background:#070907}.xrd-graph-node{display:flex;flex-direction:column;gap:5px;color:var(--xrd-ac)}.xrd-graph-node span{color:#e6ecdf;font-size:calc((11px) + 1px);font-weight:800;overflow-wrap:anywhere}.xrd-graph-node small{color:#788174;font-size:calc((9px) + 1px)}.xrd-graph-links{display:flex;flex-direction:column;gap:6px}.xrd-graph-links i{display:block;height:1px;background:linear-gradient(90deg,rgba(163,230,53,.6),rgba(163,230,53,.05))}
+        .xrd-graph-records{display:flex;flex-direction:column;gap:5px}.xrd-graph-record{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px;border:1px solid #1c211b;border-radius:8px;color:#969f91;font-size:calc((9px) + 1px)}.xrd-graph-record span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.xrd-graph-record b{color:var(--xrd-ac);font-size:calc((8px) + 1px)}.xrd-root .xrd-graph-record-button{width:100%;background:#060806;text-align:left;cursor:pointer}.xrd-root .xrd-graph-record-button:hover{border-color:rgba(163,230,53,.38)}.xrd-edge-list{display:flex;flex-direction:column;gap:7px}.xrd-edge{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,.65fr) minmax(0,1fr);align-items:center;gap:9px;padding:10px;border:1px solid var(--xrd-border);border-radius:11px;background:#070907}.xrd-root .xrd-edge button{min-width:0;padding:8px;border:1px solid #242a23;border-radius:8px;background:#050705;color:#dce3d7;font-size:calc((9px) + 1px);text-align:left;overflow-wrap:anywhere;cursor:pointer}.xrd-root .xrd-edge button:hover{border-color:rgba(163,230,53,.35)}.xrd-edge>span{color:var(--xrd-ac);font-size:calc((8px) + 1px);font-weight:900;text-align:center;text-transform:uppercase;overflow-wrap:anywhere}
+        .xrd-source-list{display:flex;flex-direction:column;gap:8px}.xrd-source{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--xrd-border);border-radius:11px;background:#080a08}.xrd-source>span{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:10px;background:rgba(163,230,53,.08);color:var(--xrd-ac)}.xrd-source>div{min-width:0;display:flex;flex:1;flex-direction:column;gap:3px}.xrd-source strong{font-size:calc((11px) + 1px)}.xrd-source small{color:#7a8276;font-size:calc((9px) + 1px);overflow-wrap:anywhere}.xrd-source>svg{color:#687064}.xrd-source-actions{display:flex!important;flex:0 0 auto!important;flex-direction:row!important;align-items:center;gap:5px}.xrd-root .xrd-source-actions button{padding:6px 8px;border:1px solid var(--xrd-border);border-radius:7px;background:#080a08;color:#cbd3c5;font-size:calc((9px) + 1px);font-weight:800;cursor:pointer}.xrd-root .xrd-source-actions button:hover{border-color:rgba(163,230,53,.4);color:var(--xrd-ac)}.xrd-root .xrd-source-actions button:disabled{opacity:.55;cursor:wait}
+        .xrd-chain-mark{border-color:rgba(96,165,250,.2);background:rgba(96,165,250,.07);color:#60a5fa}.xrd-hash{margin-top:7px;color:#92a7bc;font:9px ui-monospace,monospace;overflow-wrap:anywhere}.xrd-chain-summary{margin:8px 0 0;color:#aab4a5;font-size:calc((9px) + 1px);line-height:1.5;text-transform:capitalize;overflow-wrap:anywhere}.xrd-integrity{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:#899286;font-size:calc((9px) + 1px);text-transform:capitalize}.xrd-integrity b{color:#d8e2d3}.xrd-integrity button,.xrd-error button{padding:6px 9px;border:1px solid rgba(163,230,53,.25);border-radius:7px;background:rgba(163,230,53,.08);color:var(--xrd-ac);font-size:calc((9px) + 1px);font-weight:800;cursor:pointer}.xrd-integrity button:disabled{opacity:.5;cursor:wait}
+        .xrd-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:38px 16px;border:1px dashed #292f28;border-radius:13px;color:#90988b;text-align:center;font-size:calc((11px) + 1px)}.xrd-empty svg{color:#7f9f52}.xrd-restricted{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid rgba(251,191,36,.2);border-radius:12px;background:rgba(251,191,36,.04);color:#fbbf24}.xrd-restricted p{margin:4px 0 0;color:#a9a391;font-size:calc((11px) + 1px);line-height:1.5}.xrd-error{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;padding:10px;border:1px solid rgba(248,113,113,.25);border-radius:10px;color:#fca5a5;font-size:calc((10px) + 1px)}.xrd-loading{display:flex;align-items:center;gap:9px;padding:22px;color:#9ca397;font-size:calc((11px) + 1px)}.xrd-loading span{width:14px;height:14px;border:2px solid #394431;border-top-color:var(--xrd-ac);border-radius:50%;animation:xrd-spin .8s linear infinite}
+        .xrd-integrity-actions{display:flex;gap:6px}.xrd-trace-list{display:flex;flex-direction:column;gap:6px;margin-top:11px;padding-top:10px;border-top:1px solid var(--xrd-border)}.xrd-trace-heading{color:#929a8e;font-size:calc((9px) + 1px)}.xrd-trace-row{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px;border:1px solid #20251f;border-radius:8px;background:#050705;color:#8c9688}.xrd-trace-row>span{min-width:0;display:flex;flex-direction:column;gap:3px}.xrd-trace-row strong{color:#dce4d7;font-size:calc((9px) + 1px);text-transform:capitalize}.xrd-trace-row small{color:#778073;font-size:calc((8px) + 1px);overflow-wrap:anywhere}.xrd-trace-row>b{font-size:calc((8px) + 1px);text-align:right}.xrd-trace-row .is-valid{color:var(--xrd-ac)}.xrd-trace-row .is-invalid{color:#f87171}.xrd-trace-row .is-legacy{color:#fbbf24}
+        @keyframes xrd-spin{to{transform:rotate(360deg)}}.xrd-oracle-card{display:flex;align-items:center;gap:16px;padding:20px;border:1px solid rgba(163,230,53,.22);border-radius:16px;background:radial-gradient(circle at 0 0,rgba(163,230,53,.1),transparent 50%),#080a08}.xrd-oracle-glyph{width:44px;height:44px;display:grid;place-items:center;flex:none;border:1px solid rgba(163,230,53,.28);border-radius:13px;color:var(--xrd-ac)}.xrd-oracle-card>div:nth-child(2){flex:1}.xrd-oracle-card h2{margin:0 0 5px;font-size:calc((16px) + 1px)}.xrd-oracle-card p{margin:0;color:#929a8f;font-size:calc((11px) + 1px);line-height:1.5}.xrd-primary{display:flex;align-items:center;gap:6px;padding:9px 12px;border:0;border-radius:9px;background:var(--xrd-ac);color:#10170a!important;font-size:calc((10px) + 1px);font-weight:900;white-space:nowrap;cursor:pointer}
+        .xrd-oracle-search{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}.xrd-oracle-search label{color:#c8d2c1;font-size:calc((11px) + 1px);font-weight:800}.xrd-oracle-search>div{display:flex;gap:8px}.xrd-oracle-search input{min-width:0;flex:1;padding:10px 12px;border:1px solid var(--xrd-border);border-radius:9px;background:#030503;color:#edf2e9;font:inherit;font-size:calc((11px) + 1px)}.xrd-oracle-search input:focus{outline:1px solid var(--xrd-ac);border-color:var(--xrd-ac)}.xrd-oracle-search .xrd-primary{margin:0}.xrd-primary:disabled{opacity:.45;cursor:default}.xrd-oracle-suggestions{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.xrd-oracle-suggestions button{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--xrd-border);border-radius:99px;background:#070907;color:#b5c0ae;font-size:calc((9px) + 1px);cursor:pointer}.xrd-oracle-suggestions button:hover{border-color:rgba(163,230,53,.4);color:var(--xrd-ac)}.xrd-oracle-result>p{margin:8px 0 12px;color:#c5cec0;font-size:calc((11px) + 1px);line-height:1.55}.xrd-oracle-result .xrd-record{width:100%;align-items:center;margin-top:7px;text-align:left;cursor:pointer}
+        .xrd-mobile-nav{display:none}
+        @media(max-width:850px){.xrd-root{grid-template-columns:205px minmax(0,1fr)}.xrd-content{padding:22px 20px 42px}}
+        @media(max-width:650px){.xrd-root{display:flex;flex-direction:column}.xrd-sidebar{display:none}.xrd-view{height:100dvh;padding-bottom:60px}.xrd-topbar{height:52px;padding:0 12px;gap:9px}.xrd-owner-tag{font-size:calc((8px) + 1px)}.xrd-content{padding:16px 13px 28px}.xrd-overview-hero{min-height:0;padding:17px}.xrd-hero-identity img,.xrd-hero-identity>span{width:46px;height:46px;font-size:calc((18px) + 1px)}.xrd-hero-identity h2{font-size:calc((17px) + 1px)}.xrd-hero-mark{right:14px;top:14px;width:36px;height:36px;border-radius:11px}.xrd-hero-mark svg{width:22px}.xrd-hero-copy{margin-top:14px!important;font-size:calc((10px) + 1px)}.xrd-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:22px}.xrd-stat{padding:10px}.xrd-stat strong{font-size:calc((16px) + 1px)}.xrd-stat span{font-size:calc((9px) + 1px)}.xrd-page-heading h2{font-size:calc((21px) + 1px)}.xrd-graph-source{grid-template-columns:minmax(0,1fr);gap:9px}.xrd-graph-links{flex-direction:row;padding-left:7px}.xrd-graph-links i{width:18px}.xrd-oracle-card{align-items:flex-start;flex-wrap:wrap;padding:14px}.xrd-oracle-card>div:nth-child(2){min-width:calc(100% - 66px)}.xrd-oracle-search{flex-basis:calc(100% - 60px)}.xrd-oracle-search>div{flex-direction:column}.xrd-oracle-search .xrd-primary{justify-content:center}.xrd-oracle-card>.xrd-secondary{margin-left:60px}.xrd-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-edge{grid-template-columns:minmax(0,1fr);gap:6px}.xrd-edge>span{text-align:left;padding-left:8px}.xrd-integrity{align-items:flex-start;flex-direction:column}.xrd-integrity-actions{width:100%}.xrd-trace-row{grid-template-columns:14px minmax(0,1fr)}.xrd-trace-row>b{grid-column:2;text-align:left}.xrd-source{align-items:flex-start;flex-wrap:wrap}.xrd-source-actions{width:100%;justify-content:flex-end}.xrd-remark-submit,.xrd-remark-reply{align-items:stretch;flex-direction:column}.xrd-remark-reply button{align-self:flex-end}.xrd-mobile-nav{position:fixed;z-index:2;bottom:0;left:0;right:0;display:flex;align-items:stretch;justify-content:space-around;padding:5px 4px calc(5px + env(safe-area-inset-bottom));border-top:1px solid #252a24;background:rgba(5,7,5,.97);backdrop-filter:blur(14px)}.xrd-mobile-nav button{display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:8px;background:transparent;color:#828a7e;font-size:calc((8px) + 1px);cursor:pointer}.xrd-mobile-nav button.active{background:rgba(163,230,53,.08);color:var(--xrd-ac)}}
+      `}</style>
+      <style>{`.xrd-root{width:100vw;min-width:0}.xrd-root>.xrd-view{width:100%;min-width:0}.xrd-content{width:100%;min-width:0;box-sizing:border-box}.xrd-content>*{min-width:0;max-width:100%}@media(max-width:850px){.xrd-root{grid-template-columns:minmax(0,205px) minmax(0,1fr)}.xrd-view{min-width:0}.xrd-content{min-width:0}}@media(max-width:650px){.xrd-root{width:100vw;min-width:0;align-items:stretch}.xrd-view{width:100%;min-width:0;flex:1}.xrd-content{width:100%;min-width:0;flex:1;padding:16px 13px 28px}.xrd-overview-hero,.xrd-panel,.xrd-stats,.xrd-page-heading{width:100%;min-width:0;max-width:100%}.xrd-overview-hero{overflow:hidden}.xrd-hero-identity{min-width:0}.xrd-hero-identity>div:last-child{min-width:0}.xrd-question-grid{grid-template-columns:minmax(0,1fr)}}`}</style>
+      <style>{`.xrd-root{width:100vw;min-width:0}.xrd-root>.xrd-view{width:100%;min-width:0}.xrd-content{width:100%;min-width:0;box-sizing:border-box}.xrd-content>*{min-width:0;max-width:100%}@media(max-width:850px){.xrd-root{grid-template-columns:minmax(0,205px) minmax(0,1fr)}.xrd-sidebar,.xrd-view{min-width:0}.xrd-content{width:100%;min-width:0}}@media(max-width:650px){.xrd-root{width:100vw;min-width:0;align-items:stretch}.xrd-view{width:100%;min-width:0;flex:1}.xrd-content{width:100%;min-width:0;flex:1;padding:16px 13px 28px}.xrd-overview-hero,.xrd-panel,.xrd-stats,.xrd-page-heading{width:100%;min-width:0;max-width:100%}.xrd-overview-hero{overflow:hidden}.xrd-hero-identity,.xrd-hero-identity>div:last-child{min-width:0}.xrd-hero-identity h2{overflow-wrap:anywhere}.xrd-question-grid{grid-template-columns:minmax(0,1fr)}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');.xrd-root{font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif;background:#000}.xrd-content{background-image:linear-gradient(rgba(163,230,53,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.025) 1px,transparent 1px);background-size:22px 22px}.xrd-sidebar{background:#000;border-right-color:#2a2d2a}.xrd-nav-label,.xrd-kicker,.xrd-owner-tag,.xrd-status{font-family:'JetBrains Mono',ui-monospace,monospace}.xrd-nav{gap:4px}.xrd-nav button{position:relative;min-height:40px;padding:0 12px;border-radius:12px;transition:background .15s,color .15s,border-color .15s}.xrd-nav button.active{border-color:transparent;background:#0d0d0d;color:var(--xrd-ac)}.xrd-nav button.active:before{position:absolute;left:0;top:50%;width:2px;height:16px;transform:translateY(-50%);border-radius:0 2px 2px 0;background:var(--xrd-ac);box-shadow:0 0 8px var(--xrd-ac);content:""}.xrd-topbar{background:rgba(0,0,0,.94)}.xrd-content{padding-top:24px}.xrd-overview-hero.xrd-prototype-overview{display:flex;align-items:center;gap:22px;min-height:0;padding:22px;border-color:rgba(163,230,53,.45);border-radius:20px;background-color:#000;background-image:linear-gradient(rgba(163,230,53,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,.05) 1px,transparent 1px);background-size:22px 22px;box-shadow:inset 0 0 60px rgba(163,230,53,.05)}.xrd-overview-visual{display:flex;align-items:center;gap:22px;flex:none}.xrd-overview-visual .xrd-hero-avatar{width:132px;height:132px}.xrd-overview-visual .xrd-hero-avatar>img,.xrd-overview-visual .xrd-hero-avatar>span{width:116px;height:116px;border:2px solid #060706;box-shadow:0 0 0 2px rgba(163,230,53,.72),0 0 28px rgba(163,230,53,.3);font-size:calc((38px) + 1px)}.xrd-overview-meter{width:130px;height:130px;flex:none}.xrd-overview-meter svg{display:block;width:100%;height:100%;overflow:visible}.xrd-overview-meter circle{fill:none;stroke:rgba(255,255,255,.08);stroke-width:9}.xrd-overview-meter .xrd-meter-value{stroke:#a3e635;stroke-linecap:round;filter:drop-shadow(0 0 8px #a3e635);transform:rotate(-90deg);transform-origin:65px 65px}.xrd-overview-meter text{fill:#e9f1e4;font-size:calc((28px) + 1px);font-weight:800;text-anchor:middle}.xrd-overview-meter .xrd-meter-label{fill:#7e8b78;font-size:calc((9px) + 1px);font-weight:600;letter-spacing:1.2px}.xrd-prototype-overview .xrd-hero-identity{display:block;min-width:220px;flex:1}.xrd-prototype-overview .xrd-hero-identity h2{margin:5px 0;font-size:calc((28px) + 1px);letter-spacing:0}.xrd-prototype-overview .xrd-hero-identity p{margin:0;color:#cfe8b8;font-size:calc((13px) + 1px)}.xrd-prototype-copy{max-width:62ch;margin:12px 0 0!important;color:#a8b0a3!important;font-size:calc((13px) + 1px) !important;line-height:1.55}.xrd-overview-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.xrd-photo-trigger{right:-2px;bottom:2px;width:40px;height:40px;padding:0;justify-content:center;border:2px solid #060706;border-radius:50%;background:#a3e635;color:#06100a;box-shadow:0 0 18px rgba(163,230,53,.35)}.xrd-photo-trigger b{font-size:calc((10px) + 1px)}.xrd-stats{gap:10px;margin:14px 0 24px}.xrd-stat{display:block;padding:12px;border-color:#2a2d2a;border-radius:12px;background:#000;text-align:center}.xrd-stat svg{display:none}.xrd-stat strong{display:block;font-size:calc((22px) + 1px)}.xrd-stat span{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:calc((9px) + 1px);letter-spacing:.09em;text-transform:uppercase}.xrd-panel{border-color:#2a2d2a;border-radius:16px;background:linear-gradient(180deg,#050605,#000);box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}.xrd-section-heading{margin-top:20px}.xrd-section-heading h3{font-size:calc((15px) + 1px)}.xrd-question-grid button{min-height:118px;flex-direction:column;align-items:stretch;justify-content:space-between;padding:14px;border-color:#2a2d2a;border-radius:16px;background:radial-gradient(120% 140% at 100% 0%,rgba(163,230,53,.07),transparent 60%),linear-gradient(180deg,#0a0c0a,#000);transition:transform .2s,border-color .2s,box-shadow .25s}.xrd-question-grid button:hover{border-color:rgba(163,230,53,.55);transform:translateY(-2px);box-shadow:0 10px 24px -14px #a3e635}.xrd-question-icon{width:38px;height:38px;border-radius:11px;background:#0a0a0a}.xrd-question-grid b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:calc((10px) + 1px);letter-spacing:.08em}.xrd-question-grid small{font-size:calc((11px) + 1px)}.xrd-record{border-color:#2a2d2a;border-radius:14px;background-color:#000;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:14px 14px}.xrd-root .xrd-record-button:hover{border-color:rgba(163,230,53,.55);transform:translateY(-1px)}`}</style>
+      <style>{`.xrd-prototype-heading{position:relative;display:flex;align-items:flex-start;gap:14px;margin-bottom:22px;padding-bottom:16px}.xrd-prototype-heading:after{position:absolute;right:0;bottom:0;left:0;height:1px;background:linear-gradient(90deg,var(--xrd-ac),rgba(163,230,53,.15) 30%,transparent);content:""}.xrd-heading-mark{width:56px;height:62px;flex:none;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(135deg,#a3e635,#10b981)}.xrd-heading-mark>span{width:52px;height:58px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#050805;color:#a3e635}.xrd-prototype-heading h2{margin:0 0 5px;font-size:calc((28px) + 1px);letter-spacing:0}.xrd-prototype-heading p{margin:0;color:#8d9589;font-size:calc((12px) + 1px);line-height:1.55}.xrd-prototype-heading>div:last-child{min-width:0;flex:1}@media(max-width:650px){.xrd-overview-hero.xrd-prototype-overview{align-items:flex-start;flex-direction:column;gap:16px;padding:18px}.xrd-overview-visual{width:100%;justify-content:flex-start;gap:16px}.xrd-overview-visual .xrd-hero-avatar{width:112px;height:112px}.xrd-overview-visual .xrd-hero-avatar>img,.xrd-overview-visual .xrd-hero-avatar>span{width:100px;height:100px;font-size:calc((34px) + 1px)}.xrd-overview-meter{width:108px;height:108px}.xrd-prototype-overview .xrd-hero-identity{width:100%;min-width:0}.xrd-prototype-overview .xrd-hero-identity h2{font-size:calc((22px) + 1px);overflow-wrap:anywhere}.xrd-prototype-copy{font-size:calc((11px) + 1px) !important}.xrd-overview-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-overview-actions>*{justify-content:center;min-width:0;padding:9px 7px;font-size:calc((10px) + 1px)}.xrd-prototype-heading h2{font-size:calc((22px) + 1px)}.xrd-heading-mark{width:48px;height:54px}.xrd-heading-mark>span{width:44px;height:50px}.xrd-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.xrd-question-grid button{min-height:0;flex-direction:row;align-items:center;justify-content:flex-start}.xrd-question-grid button>span:nth-child(2){flex:1}.xrd-question-grid button>svg:last-child{flex:none}}`}</style>
+      <style>{`.xrd-prototype-heading{position:relative;display:flex;align-items:flex-start;gap:14px;margin-bottom:22px;padding-bottom:16px}.xrd-prototype-heading:after{position:absolute;right:0;bottom:0;left:0;height:1px;background:linear-gradient(90deg,var(--xrd-ac),rgba(163,230,53,.15) 30%,transparent);content:""}.xrd-heading-mark{width:56px;height:62px;flex:none;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(135deg,#a3e635,#10b981)}.xrd-heading-mark>span{width:52px;height:58px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#050805;color:#a3e635}.xrd-prototype-heading h2{margin:0 0 5px;font-size:calc((28px) + 1px);letter-spacing:0}.xrd-prototype-heading p{margin:0;color:#8d9589;font-size:calc((12px) + 1px);line-height:1.55}.xrd-heading-copy{min-width:0;flex:1}.xrd-mobile-more-backdrop{position:fixed;inset:0;z-index:100052;border:0;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}.xrd-mobile-more-sheet{position:fixed;right:0;bottom:0;left:0;z-index:100053;max-height:min(78dvh,680px);overflow:auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom));border:1px solid #2a2d2a;border-bottom:0;border-radius:22px 22px 0 0;background:#050605;box-shadow:0 -24px 70px rgba(0,0,0,.7);animation:xrd-mobile-sheet-up .24s cubic-bezier(.2,.9,.3,1)}@keyframes xrd-mobile-sheet-up{from{transform:translateY(100%)}}.xrd-mobile-more-grab{width:40px;height:4px;margin:0 auto 15px;border-radius:4px;background:#3a3e3a}.xrd-mobile-more-sheet>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.xrd-mobile-more-sheet h2{margin:3px 0 0;font-size:calc((19px) + 1px)}.xrd-mobile-more-sheet>header button{width:34px;height:34px;display:grid;place-items:center;border:1px solid #2a2d2a;border-radius:50%;background:#000;color:#dce5d7}.xrd-mobile-more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.xrd-mobile-more-grid button{display:flex;min-width:0;min-height:82px;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:10px 6px;border:1px solid #2a2d2a;border-radius:14px;background:linear-gradient(180deg,#0a0c0a,#000);color:#c4cbbf;font-size:calc((11px) + 1px);font-weight:600}.xrd-mobile-more-grid button svg{color:#a3e635}.xrd-mobile-more-grid button.active{border-color:rgba(163,230,53,.55);background:rgba(163,230,53,.08);color:#a3e635}@media(max-width:650px){.xrd-prototype-heading h2{font-size:calc((22px) + 1px)}.xrd-heading-mark{width:48px;height:54px}.xrd-heading-mark>span{width:44px;height:50px}.xrd-mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}.xrd-mobile-nav button{min-width:0;font-size:calc((9px) + 1px)}.xrd-mobile-more-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}`}</style>
+      <aside className="xrd-sidebar">
+        <div className="xrd-brand"><span className="xrd-brand-mark">{isXrcView ? "XRC" : "XRD"}</span><div><strong>{isXrcView ? "Xeevia Record Chain" : "Xeevia Record"}</strong><small>{isXrcView ? "Integrity and event history" : "Profile evidence layer"}</small></div></div>
+        <button type="button" className="xrd-back" onClick={onClose}><ArrowLeft size={14} /> Back to profile</button>
+        <nav className="xrd-nav" aria-label={isXrcView ? "XRC sections" : "XRD sections"}>
+          {navigationGroups.map(([group, items]) => {
+            const visibleItems = items.filter((name) => canManage || !OWNER_ONLY.has(name));
+            if (!visibleItems.length) return null;
+            return (
+              <div key={group}>
+                <div className="xrd-nav-label">{!canManage && group === "CONTROL" ? "DISCOVER" : group}</div>
+                {visibleItems.map((name) => {
+                  const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles;
+                  const label = name === "Oracle" ? "Evidence Q&A" : name;
+                  return (
+                    <button key={name} type="button" className={section === name ? "active" : ""} onClick={() => navigateSection(name)}>
+                      <Icon size={15} />{label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </nav>
+      </aside>
+      <div className="xrd-view">
+        <header className="xrd-topbar">
+          <button type="button" onClick={goBack} aria-label={sectionHistory.length ? "Back to previous section" : "Back to profile"}><ArrowLeft size={15} /></button>
+          <div className="xrd-crumb">xeevia.app / @{profile?.username || "profile"} / <b>{isXrcView ? "XRC" : "XRD"}</b> / {section === "Oracle" ? "Evidence Q&A" : section}</div>
+          <span className="xrd-owner-tag">{publicPreview ? "PUBLIC PREVIEW" : canManage ? "OWNER" : "PUBLIC"}</span>
+          {own && !isXrcView && !forcePublicView && <button type="button" className="xrd-secondary xrd-view-toggle" aria-label={publicPreview ? "Return to owner view" : "Preview public XRD"} onClick={() => switchOwnerView(publicPreview ? "owner" : "public")}>
+            {publicPreview ? "Owner view" : "Public preview"}
+          </button>}
+        </header>
+        {notice && publicPreview && !isXrcView && <div className="xrd-notice" role="status">{notice}</div>}
+        <div className="xrd-content" key={`${section}:${publicPreview ? "public" : "owner"}`}>{renderSection()}</div>
+        <nav className="xrd-mobile-nav" aria-label={isXrcView ? "XRC quick navigation" : "XRD quick navigation"}>
+          {(isXrcView ? ["Overview", "Records", "Graph", "Chains"] : ["Overview", "Records", "Graph", "Oracle"]).map((name) => {
+            const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles;
+            return <button key={name} type="button" className={section === name ? "active" : ""} onClick={() => name === "Oracle" ? openOracle() : navigateSection(name)}><Icon size={17} />{name === "Oracle" ? "Ask" : name}</button>;
+          })}
+          <button type="button" className={mobileMenuOpen ? "active" : ""} onClick={() => setMobileMenuOpen(true)}><MoreHorizontal size={17} />More</button>
+        </nav>
+      </div>
+      {mobileMenuOpen && <><button type="button" className="xrd-mobile-more-backdrop" aria-label={`Close ${isXrcView ? "XRC" : "XRD"} sections`} onClick={() => setMobileMenuOpen(false)} /><section className="xrd-mobile-more-sheet" role="dialog" aria-modal="true" aria-label={`All ${isXrcView ? "XRC" : "XRD"} sections`}><div className="xrd-mobile-more-grab" /><header><div><span className="xrd-kicker">{isXrcView ? "XEEVIA RECORD CHAIN" : "XEEVIA RECORD"}</span><h2>All sections</h2></div><button type="button" aria-label="Close" onClick={() => setMobileMenuOpen(false)}><X size={17} /></button></header><div className="xrd-mobile-more-grid">{navigationGroups.flatMap(([group, names]) => names.filter((name) => canManage || !OWNER_ONLY.has(name)).map((name) => { const Icon = NAV.find(([navName]) => navName === name)?.[1] || Sparkles; const label = name === "Oracle" ? "Evidence Q&A" : name; return <button type="button" key={`${group}-${name}`} className={section === name ? "active" : ""} onClick={() => { setMobileMenuOpen(false); navigateSection(name); }}><Icon size={20} /><span>{label}</span></button>; }))}</div></section></>}
+      {oracleChatOpen && <section className="xrd-oracle-chat" role="dialog" aria-modal="true" aria-label="XRD evidence chat">
+        <header><button type="button" className="xrd-chat-back" onClick={() => setOracleChatOpen(false)} aria-label="Close evidence chat"><ArrowLeft size={18} /></button><div className="xrd-chat-mark"><Sparkles size={17} /></div><div className="xrd-chat-heading"><strong>XRD Evidence Oracle</strong><small>{displayedEvidenceItems.length} available evidence items · text matches only</small></div><button type="button" className="xrd-chat-close" onClick={() => setOracleConversation([])} aria-label="Clear conversation"><X size={16} /></button></header>
+        <div className="xrd-chat-background" aria-hidden="true"><i /><i /><div /></div>
+        <div className="xrd-chat-body">
+          {!oracleConversation.length && <div className="xrd-chat-welcome"><div className="xrd-chat-orb"><Sparkles size={28} /></div><h2>Ask your evidence</h2><p>Answers use only accessible records and show the matches used. No claim is inferred or re-verified here.</p>
+            <div>{["Find education evidence", "Search project evidence", "Find employment evidence", "Search GitHub records"].map((question) => <button type="button" key={question} onClick={() => { askEvidence(question); }}>{question}<ChevronRight size={13} /></button>)}</div>
+          </div>}
+          {oracleConversation.map((turn) => <article className="xrd-chat-turn" key={turn.id}>
+            <div className="xrd-chat-user">{turn.query}</div>
+            <div className="xrd-chat-answer"><div className="xrd-chat-answer-meta"><span className="xrd-chat-mark"><Sparkles size={13} /></span><strong>Evidence search</strong><span>{turn.matches.length} matches</span></div><p>{turn.response}</p>
+              {turn.matches.map((item) => <button type="button" key={item.id} onClick={() => { setOracleChatOpen(false); setSelectedEvidence(item); }}><FileText size={13} /><span>{item.title || item.evidence_type || "Evidence"} · {item.provider || "Unknown source"}</span><span className="xrd-status">{normalizeStatus(item)}</span></button>)}
+            </div>
+          </article>)}
+        </div>
+        <form className="xrd-chat-compose" onSubmit={(event) => { event.preventDefault(); askEvidence(); setOracleQuery(""); }}><Sparkles size={17} /><input autoFocus value={oracleQuery} onChange={(event) => setOracleQuery(event.target.value)} placeholder="Ask about accessible evidence…" aria-label="Ask XRD Evidence Oracle" /><button type="submit" className="xrd-primary" disabled={!oracleQuery.trim()} aria-label="Send question"><Send size={15} /></button></form>
+      </section>}
+    </Root>,
+    document.body,
+  );
+};
+
+export const XRCProfileDashboard = (props) => (
+  <ProfileEvidenceWorkspace {...props} mode="xrc" />
+);
+
+const SectionHeading = ({ title, subtitle, kicker = "XEEVIA RECORD" }) => {
+  const Icon = NAV.find(([name]) => name === title || (title === "Evidence graph" && name === "Graph") || (title === "Evidence Q&A" && name === "Oracle"))?.[1] || Layers3;
+  return (
+    <div className="xrd-page-heading xrd-prototype-heading">
+      <div className="xrd-heading-mark"><span><Icon size={18} /></span></div>
+      <div><span className="xrd-kicker">{kicker}</span><h2>{title}</h2><p>{subtitle}</p></div>
+    </div>
+  );
+};
+
+const SearchBox = ({ value, onChange, placeholder }) => (
+  <label className="xrd-search"><Search size={15} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>
+);
+
+const EmptyState = ({ text }) => <div className="xrd-empty"><Database size={20} /><span>{text}</span></div>;
+
+const RestrictedState = () => (
+  <div className="xrd-restricted"><LockKeyhole size={18} /><div><strong>Owner-only section</strong><p>Private XRC activity and controls are only available to the profile owner. Public views only show evidence permitted by the data access policy.</p></div></div>
+);
+
+export default ProfileEvidenceWorkspace;

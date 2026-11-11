@@ -389,8 +389,9 @@ const XnvsPlayer = ({ videos, startIndex, onClose }) => {
           <iframe
             ref={ifRef}
             key={`xnvsp-${idx}`}
-            src={`https://www.youtube-nocookie.com/embed/${cur.videoId}?autoplay=1&mute=${muted?1:0}&controls=0&rel=0&modestbranding=1&playsinline=1${live?"":"&enablejsapi=1"}`}
+            src={`https://www.youtube-nocookie.com/embed/${cur.videoId}?autoplay=1&mute=${muted?1:0}&controls=0&rel=0&modestbranding=1&playsinline=1${live?"":"&enablejsapi=1"}&origin=${encodeURIComponent(window.location.origin)}`}
             title={cur.title}
+            referrerPolicy="strict-origin-when-cross-origin"
             allow="autoplay; fullscreen; accelerometer; gyroscope; clipboard-write; encrypted-media; picture-in-picture"
             allowFullScreen
             className="xnvsp-iframe"

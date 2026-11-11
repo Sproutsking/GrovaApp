@@ -19,9 +19,8 @@
 //    7. Pending transaction row must exist (written by deposit-paystack-init)
 //    8. If already "completed" → skip with 200 OK
 //    9. Amount integrity: Paystack-verified kobo vs intent kobo (±1 tolerance)
-//   10. Atomic wallet update with optimistic concurrency (eq field = before)
-//   11. wallet_history, ep_transactions, transaction completion written
-//   12. 200 on success, 500 on credit failure (Paystack retries on 500)
+//   10. One database RPC atomically updates the wallet, ledgers, and transaction
+//   11. 200 on success, 500 on transient/configuration failures (Paystack retries)
 //
 //  IMPORTANT: No .catch() on Supabase query builders.
 //  Supabase builders are thenables, not full Promises — .catch() crashes.
@@ -31,15 +30,15 @@
 import { supabaseAdmin, corsHeaders, validateEnv } from "../_shared/payments.ts";
 
 // ── Economy ───────────────────────────────────────────────────────────────────
-const EP_PER_USD            = 100;   // 1 USD = 100 EP
-const XEV_PER_EP            = 0.1;   // 1 XEV = 10 EP
-const FALLBACK_NGN_RATE     = 1366;
 const AMOUNT_TOLERANCE_KOBO = 1;     // ±1 kobo for float rounding
 
-function calcCredit(naira: number, currency: "EP" | "XEV", ngnRate: number): number {
-  const epPerNGN = EP_PER_USD / ngnRate;
-  if (currency === "XEV") return parseFloat((naira * epPerNGN * XEV_PER_EP).toFixed(4));
-  return Math.floor(naira * epPerNGN);
+function constantTimeEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return mismatch === 0;
 }
 
 // ── Paystack re-verify ────────────────────────────────────────────────────────
@@ -84,7 +83,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const ok200 = () => new Response("ok", { status: 200 });
 
   const envErr = validateEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "PAYSTACK_SECRET_KEY"]);
-  if (envErr) { console.error("[deposit-ps-wh] Missing env vars"); return ok200(); }
+  if (envErr) {
+    console.error("[deposit-ps-wh] Missing env vars");
+    return new Response("webhook_not_configured", { status: 500 });
+  }
 
   const PAYSTACK_SK = Deno.env.get("PAYSTACK_SECRET_KEY")!;
 
@@ -102,7 +104,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const key      = await crypto.subtle.importKey("raw", enc.encode(PAYSTACK_SK), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
     const sigBuf   = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
     const computed = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
-    if (computed !== signature) { console.error("[deposit-ps-wh] ❌ Signature mismatch"); return ok200(); }
+    if (!constantTimeEqual(computed, signature.toLowerCase())) {
+      console.error("[deposit-ps-wh] ❌ Signature mismatch");
+      return ok200();
+    }
   } catch (e) { console.error("[deposit-ps-wh] Signature error:", e); return ok200(); }
 
   // ── Parse event ───────────────────────────────────────────────────────────
@@ -165,6 +170,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!psVerify.ok) {
     console.error(`[deposit-ps-wh] ❌ Verify failed ref=${reference}: ${psVerify.error}`);
     await _logEvent(db, eventId, event, false, null, null, `Verify failed: ${psVerify.error}`);
+    if (/Paystack HTTP (429|5\d\d)/.test(psVerify.error ?? "")) {
+      return new Response("paystack_verify_retry", { status: 500 });
+    }
     return ok200();
   }
 
@@ -172,20 +180,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const verifiedAmountNGN  = verifiedAmountKobo / 100;
   console.log(`[deposit-ps-wh] ✅ Paystack verified ref=${reference} ₦${verifiedAmountNGN}`);
 
-  // ── STEP 7: Find pending intent ───────────────────────────────────────────
-  // The intent was written by deposit-paystack-init.
-  // We match by: user_id in metadata + paystack_ref + source tag.
-  const intentUserId = String(metadata.user_id ?? "");
-  if (!intentUserId) {
-    console.error(`[deposit-ps-wh] ❌ No user_id in metadata ref=${reference}`);
-    await _logEvent(db, eventId, event, false, null, null, "No user_id in metadata");
-    return ok200();
-  }
-
+  // ── STEP 7: Find pending intent by server-generated payment reference ──────
   const { data: pendingTx, error: txFindErr } = await db
     .from("transactions")
-    .select("id, status, amount, metadata")
-    .eq("from_user_id", intentUserId)
+    .select("id, from_user_id, status, amount, metadata")
     .eq("type", "deposit")
     .eq("metadata->>paystack_ref", reference)
     .eq("metadata->>source", "wallet_deposit")
@@ -199,7 +197,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!pendingTx) {
     console.error(`[deposit-ps-wh] ❌ No pending intent ref=${reference}`);
     await _logEvent(db, eventId, event, false, null, null, "No pending intent found");
-    return ok200();
+    return new Response("pending_intent_missing", { status: 500 });
+  }
+  const intentUserId = String(pendingTx.from_user_id ?? "");
+  if (!intentUserId) {
+    console.error(`[deposit-ps-wh] ❌ Intent has no owner ref=${reference}`);
+    await _logEvent(db, eventId, event, false, null, pendingTx.id, "Pending intent has no owner");
+    return new Response("pending_intent_invalid", { status: 500 });
   }
 
   // ── STEP 8: Already completed? ────────────────────────────────────────────
@@ -212,164 +216,44 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // ── STEP 9: Amount integrity ──────────────────────────────────────────────
   const intentMeta       = (pendingTx.metadata as Record<string, unknown>) ?? {};
   const intentAmountKobo = Number(intentMeta.amount_kobo ?? 0);
-
-  if (intentAmountKobo > 0) {
-    const diff = Math.abs(verifiedAmountKobo - intentAmountKobo);
-    if (diff > AMOUNT_TOLERANCE_KOBO) {
-      console.error(`[deposit-ps-wh] ❌ Amount mismatch ref=${reference}: intent=${intentAmountKobo} verified=${verifiedAmountKobo}`);
-      await _logEvent(db, eventId, event, false, null, pendingTx.id, `Amount mismatch: intent=${intentAmountKobo} verified=${verifiedAmountKobo}`);
-      return ok200();
-    }
+  if (!Number.isSafeInteger(intentAmountKobo) || intentAmountKobo <= 0) {
+    await _logEvent(db, eventId, event, false, null, pendingTx.id, "Invalid amount in pending intent");
+    return new Response("pending_intent_invalid", { status: 500 });
+  }
+  const diff = Math.abs(verifiedAmountKobo - intentAmountKobo);
+  if (diff > AMOUNT_TOLERANCE_KOBO) {
+    const reason = `Amount mismatch: intent=${intentAmountKobo} verified=${verifiedAmountKobo}`;
+    console.error(`[deposit-ps-wh] ❌ ${reason} ref=${reference}`);
+    await _logEvent(db, eventId, event, false, null, pendingTx.id, reason);
+    return ok200();
   }
 
-  // ── Fetch NGN rate for credit calculation ─────────────────────────────────
-  // Prefer the rate stored in the intent (set at time of registration).
-  // Falls back to live platform_settings, then constant.
-  let ngnRate = Number(intentMeta.ngn_rate ?? 0);
-  if (ngnRate < 100) {
-    try {
-      const { data: rateRow } = await db.from("platform_settings").select("value").eq("key", "paywall_config").maybeSingle();
-      const stored = Number(rateRow?.value?.ngn_rate ?? 0);
-      if (stored >= 100) ngnRate = stored;
-    } catch { /* ignore */ }
+  if (psVerify.metadata.source !== "wallet_deposit") {
+    await _logEvent(db, eventId, event, false, null, pendingTx.id, "Verified transaction source mismatch");
+    return ok200();
   }
-  if (ngnRate < 100) ngnRate = FALLBACK_NGN_RATE;
 
-  const depositCurrency = (intentMeta.deposit_currency as "EP" | "XEV") ?? "EP";
-  const walletId        = String(intentMeta.wallet_id ?? "");
-
-  // Credit is computed from VERIFIED NGN, not from client-supplied amount
-  const creditAmount = calcCredit(verifiedAmountNGN, depositCurrency, ngnRate);
-
-  console.log(`[deposit-ps-wh] Crediting ${creditAmount} ${depositCurrency} user=${intentUserId} ref=${reference}`);
-
-  // ── STEP 10: Credit wallet ────────────────────────────────────────────────
-  let credited    = false;
-  let creditError: string | null = null;
-
+  // Ownership and conversion terms come from the persisted server-side intent,
+  // never from the webhook's metadata.
   try {
-    const field = depositCurrency === "XEV" ? "xev_tokens" : "engagement_points";
+    const { data: settlement, error: settlementError } = await db.rpc(
+      "settle_paystack_wallet_deposit",
+      {
+        p_paystack_reference: reference,
+        p_verified_amount_kobo: verifiedAmountKobo,
+      },
+    );
+    if (settlementError) throw new Error(settlementError.message);
+    if (!settlement?.success) throw new Error("Deposit settlement returned no success result");
 
-    // Fetch current wallet balance
-    let walletQuery = db.from("wallets").select(`id,${field}`);
-    const { data: w, error: wErr } = walletId
-      ? await walletQuery.eq("id", walletId).single()
-      : await walletQuery.eq("user_id", intentUserId).single();
-
-    if (wErr || !w) throw new Error(`Wallet not found: ${wErr?.message ?? "null"}`);
-
-    const finalWalletId = (w as Record<string, string>).id;
-    const before        = parseFloat(String((w as Record<string, unknown>)[field] ?? "0")) || 0;
-    const after         = parseFloat((before + creditAmount).toFixed(4));
-
-    // Optimistic concurrency: only update if value matches what we read.
-    // Prevents double-credit if two webhook retries fire simultaneously.
-    const { data: updated, error: updateErr } = await db
-      .from("wallets")
-      .update({ [field]: after, updated_at: new Date().toISOString() })
-      .eq("id", finalWalletId)
-      .eq(field, before)   // optimistic lock
-      .select("id")
-      .maybeSingle();
-
-    if (updateErr) throw new Error(`Wallet update error: ${updateErr.message}`);
-
-    if (!updated) {
-      // Another webhook beat us — check if transaction completed already
-      const { data: recheck } = await db.from("transactions").select("status").eq("id", pendingTx.id).single();
-      if (recheck?.status === "completed") {
-        console.log(`[deposit-ps-wh] Race resolved — already credited ref=${reference}`);
-        await _logEvent(db, eventId, event, true, null, pendingTx.id, null);
-        return ok200();
-      }
-      throw new Error("Wallet update matched 0 rows — concurrent update, Paystack should retry");
-    }
-
-    console.log(`[deposit-ps-wh] ✅ ${field} ${before} → ${after} (+${creditAmount}) user=${intentUserId}`);
-
-    // ── wallet_history ──────────────────────────────────────────────────────
-    try {
-      await db.from("wallet_history").insert({
-        wallet_id:      finalWalletId,
-        user_id:        intentUserId,
-        change_type:    "credit",
-        amount:         creditAmount,
-        balance_before: before,
-        balance_after:  after,
-        reason:         "deposit:paystack_webhook",
-        transaction_id: pendingTx.id,
-        metadata: {
-          currency:      depositCurrency,
-          naira_paid:    verifiedAmountNGN,
-          kobo_paid:     verifiedAmountKobo,
-          paystack_ref:  reference,
-          source:        "wallet_deposit",
-          verified_by:   "paystack_api",
-          ngn_rate:      ngnRate,
-        },
-      });
-    } catch (e) { console.warn("[deposit-ps-wh] wallet_history warn:", e); }
-
-    // ── EP ledger (EP only) ─────────────────────────────────────────────────
-    if (depositCurrency === "EP") {
-      try {
-        await db.from("ep_transactions").insert({
-          user_id:       intentUserId,
-          amount:        creditAmount,
-          balance_after: after,
-          type:          "purchase_grant",
-          reason:        `EP minted — Paystack deposit ₦${verifiedAmountNGN} | ref:${reference}`,
-          metadata: {
-            deposit_ref:  reference,
-            naira_paid:   verifiedAmountNGN,
-            ep_rate:      `100 EP per $1 USD @ ₦${ngnRate}/USD`,
-            source:       "wallet_deposit",
-            verified_by:  "paystack_api",
-          },
-        });
-      } catch (e) { console.warn("[deposit-ps-wh] ep_transactions warn:", e); }
-    }
-
-    // ── Mark transaction completed ──────────────────────────────────────────
-    try {
-      await db.from("transactions").update({
-        status:       "completed",
-        completed_at: new Date().toISOString(),
-        metadata: {
-          ...intentMeta,
-          verified_amount_kobo: verifiedAmountKobo,
-          verified_amount_ngn:  verifiedAmountNGN,
-          credited_amount:      creditAmount,
-          credited_at:          new Date().toISOString(),
-        },
-      }).eq("id", pendingTx.id);
-    } catch (e) { console.warn("[deposit-ps-wh] tx update warn:", e); }
-
-    // ── Platform revenue (informational) ────────────────────────────────────
-    try {
-      await db.from("platform_revenue").insert({
-        amount:   parseFloat((verifiedAmountNGN / ngnRate).toFixed(6)),
-        user_id:  intentUserId,
-        source:   "paystack_wallet_deposit",
-        metadata: { reference, naira: verifiedAmountNGN, currency: depositCurrency, credit: creditAmount, ngn_rate: ngnRate },
-      });
-    } catch (e) { console.warn("[deposit-ps-wh] platform_revenue warn:", e); }
-
-    credited = true;
-
+    await _logEvent(db, eventId, event, true, null, pendingTx.id, null);
+    return ok200();
   } catch (e) {
-    creditError = e instanceof Error ? e.message : String(e);
-    console.error(`[deposit-ps-wh] ❌ Credit failed ref=${reference}:`, creditError);
-  }
-
-  await _logEvent(db, eventId, event, credited, null, pendingTx.id, creditError);
-
-  if (!credited) {
-    // Return 500 so Paystack retries the webhook delivery
+    const reason = e instanceof Error ? e.message : String(e);
+    console.error(`[deposit-ps-wh] ❌ Atomic settlement failed ref=${reference}:`, reason);
+    await _logEvent(db, eventId, event, false, null, pendingTx.id, reason);
     return new Response("credit_failed", { status: 500 });
   }
-
-  return ok200();
 });
 
 // ── Log webhook event ─────────────────────────────────────────────────────────

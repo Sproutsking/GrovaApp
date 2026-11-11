@@ -72,10 +72,21 @@ export function buildProfileRecordSummary({
   };
 }
 
-export function buildPublicProfileDashboard(profile, evidenceItems = []) {
-  const normalized = Array.isArray(evidenceItems) ? evidenceItems : [];
+export function getPublicProfileEvidenceItems(evidenceItems = []) {
+  const items = Array.isArray(evidenceItems) ? evidenceItems : [];
+  return items.filter((item) => item?.verified === true
+    && String(item?.metadata?.visibility || "PUBLIC").toUpperCase() === "PUBLIC"
+    && !["comment", "reply", "like"].includes(String(item?.evidence_type || item?.type || "").toLowerCase())
+    && !["comment", "reply", "like"].includes(String(item?.metadata?.kind || "").toLowerCase()));
+}
+
+export function buildPublicProfileDashboard(profile, evidenceItems = [], { isOwner = false } = {}) {
+  const normalized = isOwner
+    ? (Array.isArray(evidenceItems) ? evidenceItems : [])
+    : getPublicProfileEvidenceItems(evidenceItems);
   const sections = buildVerificationDashboardSections(normalized, {
     username: profile?.username || profile?.fullName || profile?.handle || "profile",
+    isOwner,
   });
 
   return {

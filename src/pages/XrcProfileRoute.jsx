@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, ArrowLeft, LoaderCircle } from "lucide-react";
-import XRDProfileDashboard, { resolveXrcInitialSection } from "../components/Modals/XRDProfileDashboard";
+import XRCProfileDashboard, { resolveXrcInitialSection } from "../components/Modals/XRCProfileDashboard";
 import { supabase } from "../services/config/supabase";
 import { getPublicXrdShare } from "../services/evidence/xrdPublicShareService";
 
@@ -83,15 +83,15 @@ const XrcProfileRoute = ({ username, currentUser }) => {
   }
 
   return (
-    <XRDProfileDashboard
+    <XRCProfileDashboard
       profile={profile}
       currentUser={currentUser}
       targetId={profile.id}
       verificationItems={publicSnapshot?.evidenceItems || []}
       publicSnapshot={publicSnapshot}
-      mode="xrc"
       initialSection={initialSection}
       xrdRecordId={xrdRecordId}
+      presentation="page"
       onClose={close}
     />
   );

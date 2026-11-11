@@ -10,11 +10,13 @@ The Web3 option in the wallet's existing **Add Funds** flow credits Engagement P
 
 Native ETH, BNB, SOL, TRX, and TRC-20 USDT are not enabled in this deposit flow. Do not send unsupported assets to the deposit address.
 
-The minimum verified deposit is $1 equivalent. Stablecoins are valued at $1 per token. ADA is valued using the current CoinGecko ADA/USD price; verification fails closed if that quote is unavailable. EP is credited at 100 EP per USD, rounded down.
+Enter the desired deposit in NGN before requesting the wallet address. The app fetches a fresh CoinGecko quote for the selected asset in USD and NGN, derives the live NGN/USD rate, and rounds the displayed $1-equivalent minimum up to the next ₦100. The requested USD-equivalent target is included in the signed wallet challenge and stored server-side. The confirmed on-chain transfer must meet or exceed it; EP is computed from the verified transfer at the server's current market quote, not the user-entered amount. USDC, USDT, and ADA all use live USD market prices for settlement; quote requests fail closed if required price data is unavailable or older than 24 hours. The interface also shows each asset's 24-hour USD price movement and quote time. The maximum requested amount is $1,000,000 equivalent. EP is credited at 100 EP per USD, rounded down.
+
+The crypto amount panel previews NGN paid and estimated EP, with quick-amount presets. It displays the rounded minimum in NGN and the selected crypto asset. These crypto quantities are estimates only: settlement and EP credit always use the verified on-chain amount and server-side price.
 
 ## Database and Edge Function setup
 
-1. Apply `supabase/migrations/120_web3_wallet_deposits.sql` to the project database.
+1. Apply `supabase/migrations/120_web3_wallet_deposits.sql` and `supabase/migrations/125_web3_deposit_requested_amount.sql` to the project database.
 2. Configure the Supabase Edge Function secrets:
    - `TREASURY_WALLET_EVM` (or the existing `TREASURY_WALLET_ADDRESS`)
    - `TREASURY_WALLET_SOL`

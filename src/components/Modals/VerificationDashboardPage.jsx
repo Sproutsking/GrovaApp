@@ -7,11 +7,21 @@ const SOCIAL_PROVIDERS = new Set([
   "reddit", "youtube", "twitch", "kick", "telegram", "pinterest",
 ]);
 
+const getSafeExternalUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
 const VerificationDashboardPage = ({
   profile,
   dashboard,
   verificationItems = [],
   loading,
+  notice = "",
   title = "Xeevia Record Dashboard (XRD)",
   onBack,
   onClose,
@@ -61,7 +71,7 @@ const VerificationDashboardPage = ({
       </div>
       <section className="vdp-records">
         <div className="vdp-heading"><div><h2>Verified records</h2><p>{selected.summary}</p></div></div>
-        {selected.items.length === 0 ? <div className="vdp-empty"><span className="vdp-empty-seal">◇</span><span>No verified evidence found for this section yet.</span><small>This chamber is ready for its first proof record.</small></div> : <div className="vdp-evidence">{selected.items.map((item, index) => <article className="vdp-evidence-item" key={item.id || item.title}><div className="vdp-evidence-seal" aria-hidden="true"><span>{item.verified ? "✓" : "·"}</span></div><div className="vdp-evidence-topline"><div className="vdp-evidence-index">PROOF {String(index + 1).padStart(2, "0")}</div><span className={`vdp-evidence-status${item.verified ? " verified" : ""}`}>{item.verified ? "Verified" : "Tracked"}</span></div><div className="vdp-evidence-title"><strong>{item.title}</strong><span className="vdp-evidence-type">{item.evidence_type || "profile"}</span></div><div className="vdp-evidence-meta"><span className="vdp-provider-mark">{String(item.provider || "unknown").charAt(0).toUpperCase()}</span><span>{item.provider || "Unknown source"}</span><span className="vdp-meta-dot">·</span><span>{item.proofLabel || "Evidence record"}</span></div>{item.summary && <div className="vdp-evidence-summary">{item.summary}</div>}<div className="vdp-evidence-foot"><span>Confidence <b>{item.confidence || "medium"}</b></span><span>Trust <b>{item.verificationLevel || "standard"}</b></span><span className="vdp-evidence-sealed">{item.verified ? "Sealed proof" : "Open record"}</span></div></article>)}</div>}
+        {selected.items.length === 0 ? <div className="vdp-empty"><span className="vdp-empty-seal">◇</span><span>No verified evidence found for this section yet.</span><small>This chamber is ready for its first proof record.</small></div> : <div className="vdp-evidence">{selected.items.map((item, index) => <article className="vdp-evidence-item" key={item.id || item.title}><div className="vdp-evidence-seal" aria-hidden="true"><span>{item.verified ? "✓" : "·"}</span></div><div className="vdp-evidence-topline"><div className="vdp-evidence-index">PROOF {String(index + 1).padStart(2, "0")}</div><span className={`vdp-evidence-status${item.verified ? " verified" : ""}`}>{item.verified ? "Verified" : item.proofLabel === "Public link" ? "Public link" : "Tracked"}</span></div><div className="vdp-evidence-title"><strong>{item.title}</strong><span className="vdp-evidence-type">{item.evidence_type || "profile"}</span></div><div className="vdp-evidence-meta"><span className="vdp-provider-mark">{String(item.provider || "unknown").charAt(0).toUpperCase()}</span><span>{item.provider || "Unknown source"}</span><span className="vdp-meta-dot">·</span><span>{item.proofLabel || "Evidence record"}</span></div>{item.summary && <div className="vdp-evidence-summary">{item.summary}</div>}{item.proofLabel === "Public link" && getSafeExternalUrl(item.url) && <a href={getSafeExternalUrl(item.url)} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", marginTop: 10, color: "#bef264", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>Open {item.title}<span aria-hidden="true"> ↗</span></a>}<div className="vdp-evidence-foot"><span>Confidence <b>{item.confidence || "medium"}</b></span><span>Trust <b>{item.verificationLevel || "standard"}</b></span><span className="vdp-evidence-sealed">{item.verified ? "Sealed proof" : item.proofLabel === "Public link" ? "Owner-published link" : "Open record"}</span></div></article>)}</div>}
       </section>
     </div>
   );
@@ -112,9 +122,10 @@ const VerificationDashboardPage = ({
       <div className="vdp-bg" /><div className="vdp-data-rain" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} style={{ "--stream": `${index * 7}%`, "--delay": `${index * -0.7}s` }} />)}</div>
       <main className="vdp-shell">
         {!selected && <div className="vdp-nav">
-          <button type="button" onClick={onBack}><ArrowLeft size={15}/> Back to profile</button>
+          <button type="button" onClick={onBack || onClose}><ArrowLeft size={15}/> Back to profile</button>
           <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
         </div>}
+        {notice && <div role="status" style={{ marginBottom: 16, padding: "11px 14px", border: "1px solid rgba(132,204,22,.24)", borderRadius: 12, background: "rgba(132,204,22,.06)", color: "#d9f99d", fontSize: 13, lineHeight: 1.5 }}>{notice}</div>}
         {selected ? renderSectionPage() : <>
         <section className="vdp-hero">
           <div className="vdp-hero-grid" aria-hidden="true" /><div className="vdp-hero-scan" aria-hidden="true" />
@@ -149,7 +160,7 @@ const VerificationDashboardPage = ({
         </section>
         {selected && <section className="vdp-detail">
           <div className="vdp-detail-head"><div><h3>{selected.title}</h3><p>{selected.summary}</p></div><button className="vdp-detail-close" type="button" onClick={() => setSelectedSection(null)} aria-label="Close section"><X size={15}/></button></div>
-          {selected.items.length === 0 ? <p className="vdp-evidence-meta">No verified evidence found for this section yet.</p> : <div className="vdp-evidence">{selected.items.map(item => <article className="vdp-evidence-item" key={item.id || item.title}><div className="vdp-evidence-title"><span>{item.title}</span><span style={{color:item.verified ? "#84cc16" : "#9ca3af"}}>{item.verified ? "Verified" : "Tracked"}</span></div><div className="vdp-evidence-meta">{item.provider} · {item.evidence_type}</div>{item.summary && <div className="vdp-evidence-summary">{item.summary}</div>}</article>)}</div>}
+          {selected.items.length === 0 ? <p className="vdp-evidence-meta">No verified evidence found for this section yet.</p> : <div className="vdp-evidence">{selected.items.map(item => <article className="vdp-evidence-item" key={item.id || item.title}><div className="vdp-evidence-title"><span>{item.title}</span><span style={{color:item.verified ? "#84cc16" : "#9ca3af"}}>{item.verified ? "Verified" : item.proofLabel === "Public link" ? "Public link" : "Tracked"}</span></div><div className="vdp-evidence-meta">{item.provider} · {item.evidence_type}</div>{item.summary && <div className="vdp-evidence-summary">{item.summary}</div>}{item.proofLabel === "Public link" && getSafeExternalUrl(item.url) && <a href={getSafeExternalUrl(item.url)} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", marginTop: 10, color: "#bef264", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>Open {item.title}<span aria-hidden="true"> ↗</span></a>}</article>)}</div>}
         </section>}
         </>}
       </main>

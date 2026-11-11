@@ -83,6 +83,8 @@ import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
 import { useAccountLinking } from "../../contexts/AccountLinkingContext";
+import walletIdentityService from "../../services/identity/walletIdentityService";
+import { getDetectedWallets } from "../../services/wallet/walletDiscovery";
 
 // ── Real brand icon per platform key ──────────────────────────────────────────
 // Keyed to match CONNECTOR_DEFINITIONS keys. Add new entries here as new
@@ -433,10 +435,15 @@ const CSS = `
 // ── Main Component ─────────────────────────────────────────────────────────────
 const IdentitySection = ({ userId }) => {
   const [connections,  setConnections]  = useState({});
+  const [walletIdentities, setWalletIdentities] = useState([]);
+  const [walletIdentityError, setWalletIdentityError] = useState("");
+  const [availableWallets, setAvailableWallets] = useState([]);
+  const [walletPickerOpen, setWalletPickerOpen] = useState(false);
   const [distStats,    setDistStats]    = useState({});
   const [summary,      setSummary]      = useState({ connected: 0, published: 0 });
   const [loading,      setLoading]      = useState(true);
   const [connecting,   setConnecting]   = useState(null); // platform key being connected
+  const [linkingWallet, setLinkingWallet] = useState(null);
   const [busy,         setBusy]         = useState(null);  // platform being disconnected
   const [toast,        setToast]        = useState(null);  // { type, message }
   const [fetchError,   setFetchError]   = useState(null);
@@ -462,6 +469,15 @@ const IdentitySection = ({ userId }) => {
       const connMap = await socialConnectService.getConnections(userId);
       setConnections(connMap);
 
+      let walletRows = [];
+      try {
+        walletRows = await walletIdentityService.list(userId);
+        setWalletIdentityError("");
+      } catch (walletError) {
+        setWalletIdentityError(walletError?.message || "Wallet identity linking is temporarily unavailable.");
+      }
+      setWalletIdentities(walletRows);
+
       // Load distribution stats (soft fail)
       let distRows = [];
       try {
@@ -481,7 +497,7 @@ const IdentitySection = ({ userId }) => {
       setDistStats(statsMap);
 
       setSummary({
-        connected: Object.values(connMap).filter(c => getIdentityConnectionStatus(c) === "active").length,
+        connected: Object.values(connMap).filter(c => getIdentityConnectionStatus(c) === "active").length + walletRows.length,
         published: distRows.filter(d => d.status === "success").length,
       });
     } catch (err) {
@@ -535,6 +551,45 @@ const IdentitySection = ({ userId }) => {
       window.dispatchEvent(new Event("xeevia:connections-changed"));
     } catch (err) {
       showToast("error", err.message || "Failed to disconnect.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openWalletLinker = () => {
+    setAvailableWallets(typeof window === "undefined" ? [] : getDetectedWallets(window));
+    setWalletPickerOpen((open) => !open);
+  };
+
+  const handleLinkWallet = async (wallet) => {
+    if (linkingWallet) return;
+    setLinkingWallet(wallet.id);
+    setWalletPickerOpen(false);
+    try {
+      await walletIdentityService.link(wallet.chain, wallet.provider, wallet.name);
+      showToast("success", `${wallet.name} verified and linked to this Xeevia account.`);
+      await load();
+      window.dispatchEvent(new Event("xeevia:connections-changed"));
+    } catch (err) {
+      const message = err?.message || "Wallet verification failed.";
+      showToast("error", /reject|cancel|denied/i.test(message)
+        ? "Wallet signature was cancelled."
+        : message, 6000);
+    } finally {
+      setLinkingWallet(null);
+    }
+  };
+
+  const handleUnlinkWallet = async (wallet) => {
+    if (!window.confirm(`Unlink ${wallet.wallet_name || wallet.chain} wallet ${wallet.address}?`)) return;
+    setBusy(wallet.id);
+    try {
+      await walletIdentityService.unlink(userId, wallet.id);
+      showToast("success", "Wallet identity unlinked.");
+      await load();
+      window.dispatchEvent(new Event("xeevia:connections-changed"));
+    } catch (err) {
+      showToast("error", err?.message || "Could not unlink this wallet.", 6000);
     } finally {
       setBusy(null);
     }
@@ -645,6 +700,117 @@ const IdentitySection = ({ userId }) => {
             ))}
           </div>
         </div>
+
+        {!walletIdentityError && (
+        <section
+          aria-labelledby="idWalletIdentitiesTitle"
+          style={{
+            padding: 18,
+            borderRadius: 16,
+            border: "1px solid rgba(132,204,22,.18)",
+            background: "linear-gradient(135deg, rgba(132,204,22,.045), rgba(255,255,255,.015))",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <p className="idLabel" id="idWalletIdentitiesTitle" style={{ margin: 0 }}>
+                <Shield size={11} /> Verified wallet identities
+              </p>
+              <p style={{ margin: "8px 0 0", color: "#8b8b8b", fontSize: 12, lineHeight: 1.6 }}>
+                Prove wallet ownership with a message signature. No transaction or token approval is requested.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="idBtn btnLink"
+              onClick={openWalletLinker}
+              disabled={Boolean(linkingWallet)}
+            >
+              {linkingWallet ? "Verifying…" : walletPickerOpen ? "Close wallets" : "Link wallet"}
+            </button>
+          </div>
+
+          {walletPickerOpen && (
+            <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+              {availableWallets.length ? availableWallets.map((wallet) => (
+                <button
+                  type="button"
+                  key={wallet.id}
+                  onClick={() => handleLinkWallet(wallet)}
+                  disabled={Boolean(linkingWallet)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "11px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,.09)",
+                    background: "rgba(0,0,0,.2)",
+                    color: "#e5e5e5",
+                    cursor: linkingWallet ? "wait" : "pointer",
+                    font: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <span>{wallet.name}</span>
+                  <span style={{ color: "#a3e635", fontSize: 11, textTransform: "uppercase" }}>
+                    {wallet.chain === "ethereum" ? "EVM" : wallet.chain}
+                  </span>
+                </button>
+              )) : (
+                <p style={{ margin: 0, color: "#a1a1aa", fontSize: 12, lineHeight: 1.6 }}>
+                  No compatible wallet was detected in this browser. Open Xeevia in your wallet app or install a browser wallet, then try again.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+            {walletIdentities.map((wallet) => (
+              <div
+                key={wallet.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 11px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,.07)",
+                  background: "rgba(0,0,0,.18)",
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                    <strong style={{ color: "#dedede", fontSize: 12 }}>
+                      {wallet.wallet_name || (wallet.chain === "ethereum" ? "EVM wallet" : `${wallet.chain[0].toUpperCase()}${wallet.chain.slice(1)} wallet`)}
+                    </strong>
+                    <span style={{ color: "#a3e635", fontSize: 9, textTransform: "uppercase", letterSpacing: ".5px" }}>
+                      Verified · {wallet.chain === "ethereum" ? "EVM" : wallet.chain}
+                    </span>
+                  </div>
+                  <code style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 4, color: "#8d8d8d", fontSize: 11 }}>
+                    {wallet.address}
+                  </code>
+                </div>
+                <button
+                  type="button"
+                  className="idBtn btnDisconnect"
+                  onClick={() => handleUnlinkWallet(wallet)}
+                  disabled={busy === wallet.id}
+                >
+                  {busy === wallet.id ? "Working…" : "Unlink"}
+                </button>
+              </div>
+            ))}
+            {!walletIdentities.length && (
+              <p style={{ margin: 0, color: "#777", fontSize: 12 }}>No wallet identities linked yet.</p>
+            )}
+          </div>
+        </section>
+        )}
 
         {/* ── Platform cards grouped by category ── */}
         {Object.entries(byCategory).map(([category, pairs]) => (

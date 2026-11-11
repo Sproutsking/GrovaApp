@@ -416,3 +416,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/cardano-auth/deno.json"
 entrypoint = "./functions/cardano-auth/index.ts"
+
+[functions.wallet-identity]
+enabled = true
+verify_jwt = true
+import_map = "./functions/wallet-identity/deno.json"
+entrypoint = "./functions/wallet-identity/index.ts"

@@ -41,6 +41,12 @@ The repository config enables Ethereum and Solana Web3 auth and sets the Web3 ra
 
 If hosted Web3 auth is not enabled, the UI reports that configuration requirement rather than falling back to trusting a wallet address. Cardano auth fails closed if the Edge Function secrets, allowed origins, challenge migration, or deployment are missing. Existing OAuth sign-in remains available.
 
+## Linking wallets to an existing account
+
+The Account → Identity section can link EVM, Solana, and CIP-30 Cardano wallets to the currently signed-in Xeevia account. This is separate from authentication and from payment-wallet records: linking does not switch accounts or grant token/transaction permissions. The wallet signs a short-lived, single-use message challenge, and the `wallet-identity` Edge Function verifies the signature before recording the link. A wallet address can be linked to only one Xeevia account at a time.
+
+Apply migration `124_verified_wallet_identities.sql`, deploy the `wallet-identity` Edge Function, and configure its `WEB3_AUTH_ALLOWED_ORIGINS`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` secrets. The allowed origins can use the same value as `cardano-auth`. The function verifies the signed message separately for EVM, Solana Ed25519, and Cardano CIP-8/CIP-30; the browser's wallet list includes compatible wallets injected into the current browser. Users can unlink a verified wallet from the same Identity section.
+
 ## Account and recovery considerations
 
 Wallet authentication proves control of the wallet at sign-in time; it does not establish a person's civil identity, unique personhood, or ownership of other connected accounts. Users who lose access to their signing wallet may lose access to their Xeevia account. The synthetic email used internally for Cardano's Supabase session exchange is not deliverable and cannot be used for recovery.

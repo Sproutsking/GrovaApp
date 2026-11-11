@@ -51,7 +51,14 @@ const normalizeSectionItems = (items = [], sectionId) => {
 };
 
 export function buildVerificationDashboardSections(items = [], context = {}) {
-  const safeItems = Array.isArray(items) ? items : [];
+  const allItems = Array.isArray(items) ? items : [];
+  const isOwner = context.isOwner === true;
+  const safeItems = isOwner
+    ? allItems
+    : allItems.filter((item) => item?.verified === true
+      && String(item?.metadata?.visibility || "PUBLIC").toUpperCase() === "PUBLIC"
+      && !["comment", "reply", "like"].includes(String(item?.evidence_type || item?.type || "").toLowerCase())
+      && !["comment", "reply", "like"].includes(String(item?.metadata?.kind || "").toLowerCase()));
   const profileItems = safeItems.filter((item) => {
     const type = item?.evidence_type || item?.type;
     return type === "profile" || type === "identity" || type === "verification";
@@ -95,30 +102,28 @@ export function buildVerificationDashboardSections(items = [], context = {}) {
       items: normalizeSectionItems(reportItems, "reports"),
       summary: reportItems.length ? "Accountability evidence and delivery reports" : "Reports section is ready for verifiable outcomes",
     },
-    {
+    ...(isOwner ? [{
       id: "comments",
       title: "Comments",
       subtitle: "Conversation history and public commentary",
       accent: "#f472b6",
       items: normalizeSectionItems(commentItems, "comments"),
       summary: commentItems.length ? "Comment history aggregated from connected sources" : "Comments panel will populate when evidence is available",
-    },
-    {
+    }, {
       id: "replies",
       title: "Replies",
       subtitle: "Responses, reactions, and follow-up interactions",
       accent: "#38bdf8",
       items: normalizeSectionItems(replyItems, "replies"),
       summary: replyItems.length ? "Replies connected to the broader evidence graph" : "Replies panel will populate with engagement evidence",
-    },
-    {
+    }, {
       id: "likes",
       title: "Likes",
       subtitle: "Signals of interest and content affinity",
       accent: "#fb923c",
       items: normalizeSectionItems(likeItems, "likes"),
       summary: likeItems.length ? "Likes mapped to content and social context" : "Likes panel will populate as activity evidence arrives",
-    },
+    }] : []),
   ];
 
   return sections.sort((a, b) => SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id));

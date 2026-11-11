@@ -597,18 +597,10 @@ const CommunityMessageInput = ({
           align-items: center;
           gap: 8px;
           padding: 10px 12px;
-          border: 1px solid transparent;
-          border-radius: 20px;
-          background:
-            linear-gradient(var(--panel), var(--panel)) padding-box,
-            linear-gradient(115deg, rgba(132,204,22,.58), rgba(56,189,248,.26) 52%, rgba(132,204,22,.22)) border-box;
-          box-shadow: 0 0 14px rgba(132,204,22,.07);
           z-index: 3;
           touch-action: manipulation;
-          transition: box-shadow .2s ease, background .2s ease;
         }
-        .comm-msg-input-bar:focus-within { box-shadow: 0 0 18px rgba(132,204,22,.13); }
-        .comm-msg-input-bar.announcement-input{align-items:flex-end;flex-wrap:wrap;border-top-color:rgba(156,255,0,.32);background:linear-gradient(rgba(13,20,14,.98),rgba(13,20,14,.98)) padding-box,linear-gradient(115deg,rgba(132,204,22,.62),rgba(56,189,248,.22) 52%,rgba(132,204,22,.28)) border-box}
+        .comm-msg-input-bar.announcement-input{align-items:flex-end;flex-wrap:wrap}
         .comm-announcement-tools{order:-2;flex:1 0 100%;display:flex;align-items:center;gap:10px;min-width:0;padding:2px 0 1px}.comm-announcement-tool-group{display:flex;align-items:center;gap:7px;min-width:0}.comm-announcement-tool-label{display:inline-flex;align-items:center;gap:4px;color:var(--text-secondary);font-size:calc((10px) + 1px);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.comm-announcement-style-list{display:flex;gap:4px}.comm-announcement-style,.comm-announcement-preview-btn{border:1px solid var(--surface-border);border-radius:7px;background:var(--surface);color:var(--text-secondary);font-size:calc((10px) + 1px);font-weight:700;padding:6px 8px;cursor:pointer;white-space:nowrap}.comm-announcement-style:hover,.comm-announcement-style.selected,.comm-announcement-preview-btn:hover{color:var(--accent);border-color:var(--accent-border);background:var(--accent-bg-soft)}.comm-announcement-colors{display:flex;align-items:center;gap:5px;margin-left:auto}.comm-announcement-color{width:17px;height:17px;padding:0;border:2px solid transparent;border-radius:50%;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.16)}.comm-announcement-color.selected{box-shadow:0 0 0 2px var(--panel),0 0 0 4px currentColor}.comm-announcement-preview-btn{display:inline-flex;align-items:center;gap:5px;color:var(--accent)}
         .comm-announcement-title{order:-1;flex:1 0 calc(100% - 48px);min-width:0;padding:9px 12px;border:1px solid rgba(156,255,0,.24);border-radius:10px;background:rgba(0,0,0,.2);color:var(--text);font:700 13px inherit;outline:none}
         .comm-announcement-title:focus{border-color:var(--accent-border-strong);box-shadow:0 0 0 3px var(--accent-glow)}
@@ -646,8 +638,10 @@ const CommunityMessageInput = ({
         .comm-textarea {
           flex: 1;
           min-width: 0;
-          background: var(--surface);
-          border: 1px solid var(--surface-border);
+          background:
+            linear-gradient(var(--surface), var(--surface)) padding-box,
+            linear-gradient(115deg, rgba(132,204,22,.58), rgba(56,189,248,.26) 52%, rgba(132,204,22,.22)) border-box;
+          border: 1px solid transparent;
           border-radius: 20px;
           padding: 10px 16px;
           color: var(--text);
@@ -659,12 +653,11 @@ const CommunityMessageInput = ({
           max-height: 140px;
           overflow-y: hidden;
           box-sizing: border-box;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: box-shadow 0.2s;
         }
 
         .comm-textarea:focus {
-          border-color: var(--accent-border-strong);
-          box-shadow: 0 0 0 3px var(--accent-glow-strong);
+          box-shadow: 0 0 12px var(--accent-shadow);
         }
 
         .comm-textarea::placeholder {

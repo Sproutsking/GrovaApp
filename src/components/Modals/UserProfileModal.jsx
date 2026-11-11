@@ -39,13 +39,13 @@ import ReelCard              from "../Home/ReelCard";
 import StoryCard             from "../Home/StoryCard";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
-import { buildProfileRecordSummary, buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
-import { buildPublicXrdLink } from "../../services/evidence/xrdPublicShareService";
+import { buildProfileRecordSummary, getPublicProfileEvidenceItems } from "../../services/evidence/publicProfileDashboardModel";
+import { buildPublicXrdLink, getPublicXrdShare } from "../../services/evidence/xrdPublicShareService";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
 import ProfileEditModal from "../Account/ProfileEditModal";
 import trendingService from "../../services/feed/trendingService";
-import VerificationDashboardPage from "./VerificationDashboardPage";
+import XRCProfileDashboard, { resolveXrcInitialSection } from "./XRCProfileDashboard";
 import XRDProfileDashboard from "./XRDProfileDashboard";
 import xrcService from "../../services/xrc";
 import socialConnectService from "../../services/distribution/socialConnectService";
@@ -53,8 +53,7 @@ import ShareModal from "./ShareModal";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
-  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles,
-  BadgeCheck, ShieldCheck, Users, MessageSquare, GitBranch,
+  MessageCircleReply, Sparkles, BadgeCheck, ShieldCheck, Users, MessageSquare, GitBranch,
   ChevronRight, Edit3,
 } from "lucide-react";
 
@@ -446,9 +445,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [profileRecordSummaryError, setProfileRecordSummaryError] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [xrdShareStatus, setXrdShareStatus] = useState("");
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(openVerificationDashboard);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [publicXrdShare, setPublicXrdShare] = useState(null);
+  const [publicXrdLoading, setPublicXrdLoading] = useState(false);
+  const [publicXrdError, setPublicXrdError] = useState("");
   const [showXRCProfile, setShowXRCProfile] = useState(false);
+  const [xrcInitialSection, setXrcInitialSection] = useState("Overview");
+  const [xrcRecordId, setXrcRecordId] = useState(null);
   const [showXRCOracle, setShowXRCOracle] = useState(false);
   const [xrcNotice, setXrcNotice] = useState("");
   const [selectedContent, setSelectedContent] = useState(null);
@@ -476,14 +479,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
   const mounted = useRef(true);
   const profileLoadSequence = useRef(0);
-
-  useEffect(() => {
-    if (openVerificationDashboard) {
-      setShowXRCProfile(false);
-      setShowXRCOracle(false);
-      setShowDashboard(true);
-    }
-  }, [openVerificationDashboard]);
 
   useEffect(() => {
     let active = true;
@@ -573,6 +568,36 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const isOwn        = !!(myId && targetId && String(myId) === String(targetId));
   const showFollowBtn = !!myId && !isOwn;
 
+  const loadPublicXrd = useCallback(async () => {
+    setShowDashboard(true);
+    setPublicXrdLoading(true);
+    setPublicXrdError("");
+    setPublicXrdShare(null);
+    try {
+      if (!profile?.username) throw new Error("This profile does not have a public username.");
+      const share = await getPublicXrdShare(profile.username);
+      if (!share) throw new Error("This profile does not have a public XRD share available.");
+      setPublicXrdShare(share);
+      setShowDashboard(true);
+    } catch (error) {
+      console.error("[XRD] Could not load the public XRD in-app:", error);
+      setPublicXrdError(error?.message || "This public XRD could not be loaded.");
+    } finally {
+      setPublicXrdLoading(false);
+    }
+  }, [profile?.username]);
+
+  useEffect(() => {
+    if (!openVerificationDashboard) return;
+    setShowXRCProfile(false);
+    setShowXRCOracle(false);
+    if (profile?.username && !isOwn) {
+      loadPublicXrd();
+    } else if (profile?.username || !loading) {
+      setShowDashboard(true);
+    }
+  }, [openVerificationDashboard, profile?.username, isOwn, loading, loadPublicXrd]);
+
   // ── Live boost tier ───────────────────────────────────────────────────────
   const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, backgroundColorId: liveBackgroundColorId, loading: boostLoading } =
     useUserBoostTier(targetId);
@@ -593,8 +618,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const nameDesign = getBoostNameDesign(tier, fontId, colorId);
   const nameColor  = hasBoosted ? (nameDesign.color?.color ?? getTierColor(tier, themeId)) : "#ffffff";
-  const dashboard = buildPublicProfileDashboard(profile, verificationItems);
-  const selectedSectionData = dashboard.sections.find((section) => section.id === selectedSection) || null;
+  const dashboardEvidenceItems = isOwn ? verificationItems : getPublicProfileEvidenceItems(verificationItems);
   const profileFields = [profile?.fullName, profile?.username, profile?.avatarUrl, profile?.bio, profile?.profileTags?.length, profile?.joinDate];
   const profileCompleteness = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
   const publicSocialLinks = Object.entries(profile?.socialLinks || {})
@@ -611,15 +635,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     socialLinks: profile?.socialLinks,
     ...(profileRecordSummary || {}),
   });
-  const sectionIconMap = {
-    bio: ShieldCheck,
-    socials: Users,
-    portfolio: Briefcase,
-    reports: FileText,
-    comments: MessageSquare,
-    replies: MessageCircleReply,
-    likes: ThumbsUp,
-  };
   const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
   const v          = hasBoosted ? BOOST_VISUAL?.[tier] : null;
   const coverVisual = hasBoosted
@@ -652,15 +667,26 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     setShowXRCOracle(true);
     await reconcileXRCConnections();
   };
-  const openXRCProfile = async () => {
+  const openXRCProfile = async (recordId = null, section = null) => {
+    const selectedRecordId = typeof recordId === "string" ? recordId : null;
+    const selectedSection = typeof section === "string" ? section : null;
     setShowDashboard(false);
     setShowXRCOracle(false);
+    setXrcInitialSection(resolveXrcInitialSection(selectedSection || (selectedRecordId ? "Records" : "Overview")));
+    setXrcRecordId(selectedRecordId);
     setShowXRCProfile(true);
     await reconcileXRCConnections();
   };
   const openXRD = () => {
     setShowXRCProfile(false);
     setShowXRCOracle(false);
+    if (!isOwn) {
+      setShowDashboard(true);
+      loadPublicXrd();
+      return;
+    }
+    setPublicXrdShare(null);
+    setPublicXrdError("");
     setShowDashboard(true);
   };
   const copyPublicXrdLink = async () => {
@@ -685,18 +711,35 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       />
     </Suspense>
   );
-  const dashboardPage = (
-    <>
-      <VerificationDashboardPage
-        profile={profile}
-        dashboard={dashboard}
-        verificationItems={verificationItems}
-        loading={verificationLoading}
-        title="Xeevia Record Dashboard (XRD)"
-        onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
-        onClose={onClose}
-      />
-    </>
+  const dashboardPage = !isOwn && publicXrdLoading ? (
+    <main role="status" style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "#030403", color: "#d9f99d", font: "14px ui-sans-serif,system-ui" }}>
+      Loading public XRD…
+    </main>
+  ) : !isOwn && publicXrdError ? (
+    <main role="alert" style={{ minHeight: "100dvh", display: "grid", placeContent: "center", gap: 12, padding: 24, background: "#030403", color: "#e8eee4", font: "14px ui-sans-serif,system-ui" }}>
+      <strong>Public XRD unavailable</strong>
+      <p>{publicXrdError}</p>
+      <div>
+        <button type="button" onClick={loadPublicXrd}>Try again</button>
+        <button type="button" onClick={() => setShowDashboard(false)}>Back to profile</button>
+      </div>
+    </main>
+  ) : (
+    <XRDProfileDashboard
+      profile={isOwn ? profile : {
+        ...profile,
+        ...(publicXrdShare?.profile || {}),
+        avatarUrl: profile?.avatarUrl || profile?.avatar || null,
+      }}
+      currentUser={isOwn ? currentUser || { id: targetId } : currentUser}
+      targetId={targetId}
+      verificationItems={isOwn ? dashboardEvidenceItems : publicXrdShare?.evidenceItems || []}
+      publicSnapshot={isOwn ? null : publicXrdShare}
+      forcePublicView={!isOwn}
+      notice={!isOwn ? publicXrdShare?.linksWarning || "" : ""}
+      onOpenXRC={openXRCProfile}
+      onClose={() => setShowDashboard(false)}
+    />
   );
 
   // ── Follow button inline style ────────────────────────────────────────────
@@ -1497,7 +1540,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                       Open XRD <ChevronRight size={14} />
                     </button>
                     <button type="button" className="upm-xrd-share" onClick={copyPublicXrdLink}>
-                      <Share2 size={13} /> Copy public XRD link
+                      <Share2 size={13} /> Copy XRD link
                     </button>
                   </div>
                   {xrdShareStatus && <p className="upm-xrd-share-status" role="status">{xrdShareStatus}</p>}
@@ -1540,87 +1583,18 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             </div>
 
             {showXRCProfile && (
-              <XRDProfileDashboard
+              <XRCProfileDashboard
                 profile={profile}
                 currentUser={currentUser}
                 targetId={targetId}
                 verificationItems={verificationItems}
-                mode="xrc"
-                initialSection="Overview"
+                initialSection={xrcInitialSection}
+                xrdRecordId={xrcRecordId}
                 notice={xrcNotice}
                 onClose={() => setShowXRCProfile(false)}
               />
             )}
             {xrcExplorer}
-
-            {showDashboard ? (
-              <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", padding: 14 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Xeevia Record Dashboard (XRD)</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>{verificationLoading ? "Loading sections…" : "Tap a section to inspect verified evidence."}</div>
-                  </div>
-                  <button type="button" onClick={() => { setShowDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                    Close
-                  </button>
-                </div>
-
-                {selectedSectionData ? (
-                  <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)", padding: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
-                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
-                      </div>
-                      <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                        Back
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 13, color: "#cfcfcf", marginBottom: 12 }}>{selectedSectionData.summary}</div>
-                    {selectedSectionData.items.length === 0 ? (
-                      <div style={{ padding: "12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 13 }}>No verified evidence found for this section yet.</div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {selectedSectionData.items.map((item) => (
-                          <div key={item.id || item.title} style={{ padding: "12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
-                                <div style={{ fontSize: 12, color: "#8b8b8b", marginTop: 2 }}>{item.provider || "Unknown source"} · {item.evidence_type}</div>
-                              </div>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: item.verified ? "#84cc16" : "#9ca3af" }}>{item.verified ? "Verified" : "Tracked"}</div>
-                            </div>
-                            {item.summary ? <div style={{ fontSize: 13, color: "#d1d5db", marginTop: 8 }}>{item.summary}</div> : null}
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                              <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.14)", color: "#84cc16", fontSize: 11, fontWeight: 700, border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
-                              {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 11, fontWeight: 700, border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
-                    {dashboard.sections.map((section) => {
-                      const Icon = sectionIconMap[section.id] || Sparkles;
-                      return (
-                        <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 16, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{section.title}</div>
-                            <div style={{ width: 28, height: 28, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Icon size={14} style={{ color: section.accent }} />
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
-                          <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : null}
 
             {/* ── Tabs ── */}
             {!showDashboard && (
@@ -2255,7 +2229,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-xrd-share { width:100%; min-width:0; min-height:34px; display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid rgba(163,230,53,.28); border-radius:999px; background:rgba(163,230,53,.06); color:#c8f590; font-size:calc((10px) + 1px); font-weight:800; cursor:pointer; }
         .upm-xrd-share:hover { background:rgba(163,230,53,.12); }
         .upm-xrd-share-status { margin:6px 0 0; color:#a3e635; font-size:11px; text-align:center; }
-        @media(max-width:380px){.upm-xrd-actions{grid-template-columns:minmax(0,1fr)}}
         .upm-xrd-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:9px; }
         .upm-xrd-stats > div { min-height:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:1px solid #242a23; border-radius:11px; background:rgba(0,0,0,.72); }
         .upm-xrd-stats strong { color:#f1f4ec; font-size:calc((17px) + 1px); line-height:1.1; }

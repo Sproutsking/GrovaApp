@@ -31,6 +31,7 @@ export function createWeb3DepositChallenge({
   chain,
   asset,
   walletAddress,
+  requestedUsdAmount,
 }) {
   return invokeDeposit({
     action: "challenge",
@@ -38,6 +39,16 @@ export function createWeb3DepositChallenge({
     chain,
     asset,
     walletAddress,
+    requestedUsdAmount,
+  });
+}
+
+export function getWeb3DepositQuote({ chainType, chain, asset }) {
+  return invokeDeposit({
+    action: "quote",
+    chainType,
+    chain,
+    asset,
   });
 }
 

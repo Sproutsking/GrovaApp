@@ -1,5 +1,7 @@
 import { projectXrdPublicView } from "./xrdPublicProjection";
 
+const unsafeScriptUrl = ["java", "script"].join("") + ":alert(1)";
+
 describe("projectXrdPublicView", () => {
   const publicEvidence = {
     id: "public-evidence",
@@ -105,6 +107,20 @@ describe("projectXrdPublicView", () => {
     expect(projection.accessRequests).toEqual([]);
     expect(projection.evidenceGrants).toEqual([]);
     expect(projection.userPreferences).toEqual({});
+  });
+
+  it("includes only safe public social, portfolio, and report links", () => {
+    const projection = projectXrdPublicView({
+      links: [
+        { id: "public-social", category: "social", label: "GitHub", url: "https://github.com/ada", visibility: "public" },
+        { id: "private-report", category: "report", label: "Private report", url: "https://example.com/private", visibility: "private" },
+        { id: "unsafe-link", category: "portfolio", label: "Unsafe", url: unsafeScriptUrl, visibility: "public" },
+      ],
+    });
+
+    expect(projection.links).toEqual([
+      expect.objectContaining({ id: "public-social", category: "social", label: "GitHub" }),
+    ]);
   });
 
   it("removes provider identifiers and owner-only verification data from public entities", () => {

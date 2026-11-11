@@ -101,6 +101,45 @@ export const SOLANA_TOKENS: Record<"USDC" | "USDT", { mint: string; decimals: nu
 export const ERC20_TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
+export function isValidRequestedUsdAmount(amount: number): boolean {
+  return Number.isFinite(amount) &&
+    amount >= 1 &&
+    amount <= 1_000_000 &&
+    Math.abs(amount * 100 - Math.round(amount * 100)) <= 1e-8;
+}
+
+export function minimumAssetAmount(
+  minimumUsdAmount: number,
+  unitPriceUsd: number,
+  decimals: number,
+): number {
+  if (
+    !Number.isFinite(minimumUsdAmount) || minimumUsdAmount <= 0 ||
+    !Number.isFinite(unitPriceUsd) || unitPriceUsd <= 0 ||
+    !Number.isInteger(decimals) || decimals < 0 || decimals > 18
+  ) {
+    throw new Error("Invalid deposit quote.");
+  }
+  const scale = 10 ** decimals;
+  return Math.ceil((minimumUsdAmount / unitPriceUsd) * scale) / scale;
+}
+
+export function meetsRequestedDepositAmount(
+  verifiedUsdAmount: number,
+  requestedUsdAmount: number,
+): boolean {
+  return Number.isFinite(verifiedUsdAmount) &&
+    isValidRequestedUsdAmount(requestedUsdAmount) &&
+    verifiedUsdAmount + 0.000001 >= requestedUsdAmount;
+}
+
+export function normalizeDepositTransactionHash(
+  chainType: DepositChainType,
+  txHash: string,
+): string {
+  return chainType === "SOLANA" ? txHash : txHash.toLowerCase();
+}
+
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 export function decodeBase58(value: string): Uint8Array {

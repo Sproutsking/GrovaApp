@@ -53,6 +53,7 @@ const CSS = `
 @keyframes dt-glow  { 0%,100%{box-shadow:0 0 20px rgba(163,230,53,.15)} 50%{box-shadow:0 0 40px rgba(163,230,53,.35)} }
 @keyframes dt-ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 @keyframes dt-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes dt-choice-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
 .dt-shell {
   width: 100%; min-width: 0; box-sizing: border-box;
@@ -107,35 +108,69 @@ const CSS = `
 /* ── RATE TICKER ── */
 .dt-ticker-bar {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 14px;
-  background: rgba(255,255,255,.025);
-  border: 1px solid rgba(255,255,255,.06);
+  padding: 10px 14px;
+  background: linear-gradient(105deg,rgba(163,230,53,.055),rgba(255,255,255,.025) 58%);
+  border: 1px solid rgba(163,230,53,.18);
   border-radius: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   overflow: hidden;
   position: relative;
 }
 .dt-ticker-dot {
-  width: 6px; height: 6px;
+  width: 8px; height: 8px;
   border-radius: 50%; flex-shrink: 0;
 }
 .dt-ticker-dot.live  { background: #a3e635; animation: dt-pulse 2s ease infinite; box-shadow: 0 0 8px #a3e635 }
 .dt-ticker-dot.stale { background: rgba(255,255,255,.2) }
 .dt-ticker-content {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 12px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: calc((11px) + 1px); color: rgba(255,255,255,.4);
+  font-size: calc((12px) + 1px); font-weight: 600; color: rgba(255,255,255,.78);
   flex: 1;
 }
-.dt-ticker-hl { color: rgba(255,255,255,.85); font-weight: 600 }
-.dt-ticker-sep { color: rgba(255,255,255,.15) }
+.dt-ticker-hl { color: #f4f4f5; font-weight: 800 }
+.dt-ticker-sep { color: rgba(163,230,53,.55) }
 .dt-ticker-live-tag {
-  margin-left: auto; font-size: calc((9px) + 1px); font-weight: 700;
-  color: #a3e635; text-transform: uppercase; letter-spacing: .1em; flex-shrink: 0;
+  margin-left: auto; padding: 4px 7px; border: 1px solid rgba(163,230,53,.2); border-radius: 999px;
+  background: rgba(163,230,53,.07); font-size: calc((9px) + 1px); font-weight: 800;
+  color: #bef264; text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0;
 }
 
 /* ── CURRENCY TOGGLE ── */
-.dt-unit-note { margin:0 0 14px;color:rgba(255,255,255,.32);font:10px 'JetBrains Mono',monospace;text-align:center; }
+.dt-choice { padding: clamp(8px,2vw,22px) 0 24px; animation:dt-choice-in .32s ease both; }
+.dt-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.dt-choice-card { position:relative; isolation:isolate; display:flex; flex-direction:column; align-items:stretch; min-width:0; min-height:244px; padding:17px; overflow:hidden; border:1px solid rgba(255,255,255,.1); border-radius:17px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014) 65%),#080a08; color:inherit; text-align:left; cursor:pointer; font:inherit; transition:transform .2s,border-color .2s,background .2s,box-shadow .2s; }
+.dt-choice-card:hover { transform:translateY(-3px); border-color:rgba(163,230,53,.42); background:linear-gradient(145deg,rgba(163,230,53,.09),rgba(255,255,255,.025) 70%),#080a08; box-shadow:0 18px 42px rgba(0,0,0,.34),0 0 24px rgba(163,230,53,.06); }
+.dt-choice-card:focus-visible { outline:2px solid #a3e635; outline-offset:3px; }
+.dt-choice-card::after { content:""; position:absolute; z-index:-1; width:190px; height:190px; right:-112px; top:-118px; border-radius:50%; background:rgba(163,230,53,.13); filter:blur(3px); pointer-events:none; }
+.dt-choice-card.crypto::after { background:rgba(45,212,191,.13); }
+.dt-choice-topline,.dt-choice-content,.dt-choice-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.dt-choice-topline { margin-bottom:22px; }
+.dt-choice-eyebrow { color:rgba(255,255,255,.42); font:700 9px/1.3 'JetBrains Mono',monospace; letter-spacing:.13em; }
+.dt-choice-status { display:inline-flex; align-items:center; padding:5px 8px; border:1px solid rgba(163,230,53,.2); border-radius:999px; background:rgba(163,230,53,.055); color:#bef264; font:700 9px/1 'JetBrains Mono',monospace; letter-spacing:.04em; white-space:nowrap; }
+.dt-choice-card.crypto .dt-choice-status { border-color:rgba(45,212,191,.24); background:rgba(45,212,191,.06); color:#5eead4; }
+.dt-choice-content { justify-content:flex-start; margin-bottom:10px; }
+.dt-choice-icon { display:grid; place-items:center; width:43px; height:43px; flex:none; border:1px solid rgba(163,230,53,.22); border-radius:13px; background:linear-gradient(145deg,rgba(163,230,53,.14),rgba(163,230,53,.035)); color:#bef264; box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
+.dt-choice-card.crypto .dt-choice-icon { border-color:rgba(45,212,191,.25); background:linear-gradient(145deg,rgba(45,212,191,.15),rgba(45,212,191,.035)); color:#5eead4; }
+.dt-choice-copy { min-width:0; }
+.dt-choice-label { margin:0; color:rgba(255,255,255,.94); font-size:17px; font-weight:800; letter-spacing:-.02em; }
+.dt-choice-currency { display:block; margin-top:4px; color:rgba(255,255,255,.43); font:600 9px/1.4 'JetBrains Mono',monospace; letter-spacing:.06em; text-transform:uppercase; }
+.dt-choice-description { min-height:38px; margin:0; color:rgba(255,255,255,.59); font-size:11px; line-height:1.6; }
+.dt-choice-chips { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 15px; }
+.dt-choice-chip-group { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
+.dt-choice-chip-label { margin-right:2px; color:rgba(255,255,255,.34); font:700 8px/1 'JetBrains Mono',monospace; letter-spacing:.08em; }
+.dt-choice-chip { padding:5px 8px; border:1px solid rgba(255,255,255,.09); border-radius:7px; background:rgba(255,255,255,.035); color:rgba(255,255,255,.74); font:650 9px/1 'JetBrains Mono',monospace; }
+.dt-choice-card.crypto .dt-choice-chip-group:first-child .dt-choice-chip { border-color:rgba(45,212,191,.22); color:#99f6e4; }
+.dt-choice-footer { min-height:34px; margin-top:auto; padding-top:11px; border-top:1px solid rgba(255,255,255,.075); }
+.dt-choice-note { display:inline-flex; align-items:center; gap:6px; min-width:0; color:rgba(255,255,255,.42); font-size:9px; line-height:1.4; }
+.dt-choice-note svg { flex:none; color:rgba(163,230,53,.75); }
+.dt-choice-card.crypto .dt-choice-note svg { color:#5eead4; }
+.dt-choice-action { display:inline-flex; align-items:center; gap:4px; flex:none; color:#bef264; font-size:10px; font-weight:800; white-space:nowrap; }
+.dt-choice-card.crypto .dt-choice-action { color:#5eead4; }
+.dt-choice-action svg { transition:transform .18s; }
+.dt-choice-card:hover .dt-choice-action svg { transform:translateX(3px); }
+@media(max-width:560px) { .dt-choice-grid { grid-template-columns:1fr; } .dt-choice-card { min-height:232px; } }
+@media(max-width:380px) { .dt-choice-card { padding:14px; } .dt-choice-topline { margin-bottom:18px; } .dt-choice-note { font-size:8px; } .dt-choice-action { font-size:9px; } }
 
 /* ── METHOD TABS ── */
 .dt-methods {
@@ -161,10 +196,17 @@ const CSS = `
 .dt-meth-lbl { font-size: calc((10px) + 1px); font-weight: 700; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .1em }
 .dt-meth.on .dt-meth-lbl { color: #a3e635 }
 
-.dt-divider { height: 1px; background: rgba(255,255,255,.05); margin: 16px 0 }
-
 /* ── DUAL INPUT ── */
-.dt-inputs { padding: 4px 0; display: flex; flex-direction: column; gap: 12px }
+.dt-inputs {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(163,230,53,.17);
+  border-radius: 14px;
+  background: linear-gradient(135deg,rgba(163,230,53,.055),rgba(255,255,255,.018));
+  box-sizing: border-box;
+}
 .dt-input-row { display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:end;gap:8px;width:100%;min-width:0; }
 .dt-field { min-width:0; }
 .dt-field-box { min-width:0; }
@@ -175,27 +217,28 @@ const CSS = `
 }
 .dt-field { position: relative }
 .dt-field-label {
-  font-size: calc((9px) + 1px); font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; color: rgba(255,255,255,.3);
+  font-size: calc((10px) + 1px); font-weight: 800; letter-spacing: .09em;
+  text-transform: uppercase; color: rgba(255,255,255,.58);
   font-family: 'JetBrains Mono', monospace;
-  margin-bottom: 8px; display: block;
+  margin-bottom: 7px; display: block;
 }
 .dt-field-box {
   display: flex; align-items: center;
-  background: rgba(255,255,255,.04);
-  border: 1.5px solid rgba(255,255,255,.09);
-  border-radius: 12px;
-  padding: 13px 14px;
-  transition: border-color .2s, background .2s;
+  min-height: 56px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 11px;
+  padding: 0 11px;
+  transition: border-color .2s, box-shadow .2s, background .2s;
   box-sizing: border-box; width: 100%;
 }
 .dt-field-box:focus-within {
-  border-color: rgba(163,230,53,.4);
-  background: rgba(163,230,53,.03);
+  border-color: rgba(163,230,53,.58);
+  box-shadow: 0 0 0 3px rgba(163,230,53,.08);
 }
 .dt-field-box.active {
-  border-color: rgba(163,230,53,.35);
-  background: rgba(163,230,53,.04);
+  border-color: rgba(163,230,53,.4);
+  background: rgba(163,230,53,.035);
 }
 .dt-field-num {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
@@ -209,38 +252,34 @@ const CSS = `
   flex-shrink: 0; margin-left: 8px;
   font-size: calc((9px) + 1px); font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
-  letter-spacing: .1em; text-transform: uppercase;
-  padding: 4px 8px; border-radius: 5px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.05);
-  color: rgba(255,255,255,.4);
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 0; border-radius: 5px;
+  color: rgba(255,255,255,.52);
   white-space: nowrap;
 }
 .dt-field-tag.accent {
   color: #a3e635;
-  border-color: rgba(163,230,53,.3);
-  background: rgba(163,230,53,.08);
 }
 .dt-arrow-sep {
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 2px; flex-shrink: 0;
 }
 .dt-arrow-circle {
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 30px; height: 30px; border-radius: 50%;
   background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.1);
   display: flex; align-items: center; justify-content: center;
-  color: rgba(255,255,255,.3);
+  color: #a3e635;
 }
 
 /* ── QUICK AMOUNTS ── */
-.dt-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px }
+.dt-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 1px }
 .dt-q {
-  padding: 8px 0; border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,.07);
-  background: rgba(255,255,255,.03);
-  font-size: calc((11px) + 1px); font-weight: 700;
-  color: rgba(255,255,255,.35);
+  min-height: 34px; padding: 6px 0; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.025);
+  font-size: calc((10px) + 1px); font-weight: 700;
+  color: rgba(255,255,255,.62);
   cursor: pointer; font-family: 'JetBrains Mono', monospace;
   transition: all .15s; text-align: center;
 }
@@ -569,7 +608,7 @@ function DualInput({ rate, onNairaChange }) {
 }
 
 // ── PAY mode ──────────────────────────────────────────────────────────────────
-function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, onOpenWeb3, rate }) {
+function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, rate }) {
   const [naira,   setNaira]   = useState("");
   const [loading, setLoading] = useState(null);
   const [error,   setError]   = useState("");
@@ -634,18 +673,6 @@ function PayMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack, o
           </div>
           <span className="dt-pay-badge" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.2)",color:"#a3e635"}}>
             {loading==="bank_transfer"?"OPENING":"REAL-TIME"}
-          </span>
-        </button>
-        <button className="dt-pay-card" onClick={onOpenWeb3} disabled={!!loading}>
-          <div className="dt-pay-icon" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.18)"}}>
-            <Wallet size={18} color="#a3e635"/>
-          </div>
-          <div style={{flex:1}}>
-            <div className="dt-pay-name">Crypto / Web3</div>
-            <div className="dt-pay-sub">USDC · USDT · ADA on supported networks</div>
-          </div>
-          <span className="dt-pay-badge" style={{background:"rgba(163,230,53,.08)",border:"1px solid rgba(163,230,53,.2)",color:"#a3e635"}}>
-            ON-CHAIN
           </span>
         </button>
       </div>
@@ -890,7 +917,7 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
   const resolvedEmail  = profile?.email || user?.email || "";
   const { rate, live } = useRate();
   const epBalance = Math.floor(balance?.points ?? 0);
-  const [showWeb3Deposit, setShowWeb3Deposit] = useState(false);
+  const [depositRoute, setDepositRoute] = useState(null);
 
   return (
     <div className="dt-shell">
@@ -898,12 +925,12 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
 
       {/* Header */}
       <div className="dt-header">
-        <button className="dt-back" onClick={() => showWeb3Deposit ? setShowWeb3Deposit(false) : setActiveTab("overview")}>
+        <button className="dt-back" onClick={() => depositRoute ? setDepositRoute(null) : setActiveTab("overview")}>
           <ArrowLeft size={15}/>
         </button>
         <div className="dt-header-info">
-          <div className="dt-header-title">{showWeb3Deposit ? "Web3 Deposit" : "Add Funds"}</div>
-          <div className="dt-header-sub">{showWeb3Deposit ? "Verified on-chain · Secure EP credit" : "Add Engagement Points · Secure Deposit"}</div>
+          <div className="dt-header-title">{depositRoute === "crypto" ? "Crypto deposit" : depositRoute === "fiat" ? "Local currency deposit" : "Add Funds"}</div>
+          <div className="dt-header-sub">{depositRoute === "crypto" ? "Verified on-chain · Secure EP credit" : depositRoute === "fiat" ? "Pay in NGN · Secure EP credit" : "Fiat or crypto"}</div>
         </div>
         <div className="dt-xev-chip">{epBalance.toLocaleString()} EP</div>
       </div>
@@ -915,10 +942,69 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
         </div>
       )}
 
-      {showWeb3Deposit ? (
+      {!depositRoute ? (
+        <section className="dt-choice" aria-label="Choose deposit method">
+          <div className="dt-choice-grid">
+            <button
+              type="button"
+              className="dt-choice-card fiat"
+              onClick={() => setDepositRoute("fiat")}
+              aria-label="Deposit with local currency, Nigerian naira"
+            >
+              <span className="dt-choice-topline">
+                <span className="dt-choice-eyebrow">LOCAL CURRENCY</span>
+                <span className="dt-choice-status">NGN</span>
+              </span>
+              <span className="dt-choice-content">
+                <span className="dt-choice-icon"><CreditCard size={20}/></span>
+                <span className="dt-choice-copy">
+                  <span className="dt-choice-label">Fiat · NGN</span>
+                  <span className="dt-choice-currency">Nigerian naira</span>
+                </span>
+              </span>
+              <span className="dt-choice-description">Choose an amount in naira, then pay by card or bank transfer through checkout.</span>
+              <span className="dt-choice-chips" aria-label="Available payment methods">
+                <span className="dt-choice-chip">Card</span>
+                <span className="dt-choice-chip">Bank transfer</span>
+              </span>
+              <span className="dt-choice-footer">
+                <span className="dt-choice-note"><Shield size={12}/>Amount shown before checkout</span>
+                <span className="dt-choice-action">Choose fiat <ChevronRight size={14}/></span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="dt-choice-card crypto"
+              onClick={() => setDepositRoute("crypto")}
+              aria-label="Deposit with crypto or Web3"
+            >
+              <span className="dt-choice-topline">
+                <span className="dt-choice-eyebrow">CRYPTO · WEB3</span>
+                <span className="dt-choice-status">ON-CHAIN</span>
+              </span>
+              <span className="dt-choice-content">
+                <span className="dt-choice-icon"><Wallet size={20}/></span>
+                <span className="dt-choice-copy">
+                  <span className="dt-choice-label">Crypto deposits</span>
+                  <span className="dt-choice-currency">Choose asset & network</span>
+                </span>
+              </span>
+              <span className="dt-choice-description">Review the live minimum, send a supported asset, and submit its transaction for verification.</span>
+              <span className="dt-choice-chips" aria-label="Supported crypto assets and networks">
+                <span className="dt-choice-chip-group"><span className="dt-choice-chip-label">ASSETS</span><span className="dt-choice-chip">USDC</span><span className="dt-choice-chip">USDT</span><span className="dt-choice-chip">ADA</span></span>
+                <span className="dt-choice-chip-group"><span className="dt-choice-chip-label">NETWORKS</span><span className="dt-choice-chip">EVM</span><span className="dt-choice-chip">Solana</span><span className="dt-choice-chip">Cardano</span></span>
+              </span>
+              <span className="dt-choice-footer">
+                <span className="dt-choice-note"><Shield size={12}/>Live quote · network fees may apply</span>
+                <span className="dt-choice-action">Review crypto <ChevronRight size={14}/></span>
+              </span>
+            </button>
+          </div>
+        </section>
+      ) : depositRoute === "crypto" ? (
         <Web3DepositView
-          onBack={() => setShowWeb3Deposit(false)}
           onRefresh={onRefresh}
+          rate={rate}
         />
       ) : (
         <>
@@ -926,7 +1012,7 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
             <div className={`dt-ticker-dot ${live?"live":"stale"}`}/>
             <div className="dt-ticker-content">
               <span>1 USD</span>
-              <span className="dt-ticker-sep">·</span>
+              <span className="dt-ticker-sep">≈</span>
               <span className="dt-ticker-hl">₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
               <span className="dt-ticker-sep">·</span>
               <span className="dt-ticker-hl">100 EP</span>
@@ -934,16 +1020,12 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
             <span className="dt-ticker-live-tag">{live?"live":"cached"}</span>
           </div>
 
-          <div className="dt-unit-note">$1 = 100 EP · ₦{rate.toLocaleString(undefined,{maximumFractionDigits:0})} ≈ 100 EP</div>
-          <div className="dt-divider"/>
-
           <PayMode
             resolvedUserId={resolvedUserId}
             resolvedEmail={resolvedEmail}
             currency="EP"
             onRefresh={onRefresh}
             onBack={() => setActiveTab("overview")}
-            onOpenWeb3={() => setShowWeb3Deposit(true)}
             rate={rate}
           />
         </>

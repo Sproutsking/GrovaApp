@@ -1,338 +1,62 @@
-# Withdrawal System V2 — Production-Grade Model
-
-## Overview
-
-The new withdrawal system eliminates unnecessary queueing while implementing tier-based limits, spam protection, and smart queueing for actual congestion scenarios.
-
-### Key Improvements
-
-✅ **No Unnecessary Queueing** — Withdrawals process immediately on healthy systems
-✅ **Smart Queueing** — Queue only when system detects genuine congestion
-✅ **Tier-Based Limits** — Different limits for free, silver, gold, diamond tiers
-✅ **Spam Protection** — Rate limiting, cooldowns, daily caps per tier
-✅ **Robust Error Handling** — Automatic retries, audit trails, clear user feedback
-✅ **Production Ready** — Handles edge cases, scales, fails gracefully
-
----
-
-## Tier Configuration
-
-### FREE Tier
-- **Withdrawals:** Not allowed (upgrade required message)
-
-### SILVER Tier
-- **Min/Max Per Withdrawal:** $5 – $500
-- **Daily Limit:** $2,000 (14 withdrawals max)
-- **Processing Fee:** 2%
-- **Estimated Time:** ~24 hours
-- **Rate Limit:** 1 withdrawal per 5 minutes, max 6 per hour
-
-### GOLD Tier
-- **Min/Max Per Withdrawal:** $5 – $2,000
-- **Daily Limit:** $10,000 (50 withdrawals max)
-- **Processing Fee:** 1.5%
-- **Estimated Time:** ~4 hours
-- **Rate Limit:** 1 withdrawal per 3 minutes, max 20 per hour
-
-### DIAMOND Tier
-- **Min/Max Per Withdrawal:** $5 – $10,000
-- **Daily Limit:** Unlimited
-- **Processing Fee:** 1%
-- **Estimated Time:** ~1 hour
-- **Rate Limit:** 1 withdrawal per minute, unlimited per hour
-
----
-
-## Spam & Rate Protection
-
-### Protections Implemented
-
-1. **Minimum Interval Between Withdrawals** (tier-dependent)
-   - Silver: 5 minutes
-   - Gold: 3 minutes
-   - Diamond: 1 minute
-
-2. **Hourly Rate Limits** (tier-dependent)
-   - Silver: max 6 withdrawals/hour
-   - Gold: max 20 withdrawals/hour
-   - Diamond: unlimited
-
-3. **Daily Amount & Count Limits** (tier-specific)
-   - Enforced per user per day (UTC midnight reset)
-   - Prevents account takeover abuse
-
-4. **Cooldown Backoff**
-   - Rapid-fire attempts trigger escalating delays
-   - Example: User attempts 3 withdrawals in 10 seconds → forced cooldown
-
-### User Experience
-
-```javascript
-// Example: User tries to withdraw again too soon
-{
-  allowed: false,
-  error: "Please wait 245s before next withdrawal",
-  cooldownSeconds: 245
-}
-```
-
----
-
-## Smart Queueing Logic
-
-### When to Queue
-
-System queues a withdrawal **ONLY IF**:
-
-1. **Pending Withdrawals >= 50** (system overload)
-   - Too many processing; queue for fairness
-
-2. **Recent Error Rate > 30%** (system instability)
-   - Last 10 withdrawals: >3 failures
-   - Pause new processing; let system recover
-
-3. **Paystack Response Time > 5 seconds** (payment processor slow)
-   - Payment gateway throttled; don't hammer it
-
-4. **Database Under Resource Strain** (infrastructure limit)
-   - Detected via connection pool or query latency
-
-### User Experience
-
-```javascript
-// Healthy system — immediate processing
-{
-  status: "processing",
-  message: "Your withdrawal is being processed.",
-  systemWasHealthy: true,
-  estimatedHours: 4
-}
-
-// Congested system — queued
-{
-  status: "queued",
-  message: "Your withdrawal is queued due to high system traffic. It will be processed soon.",
-  systemWasHealthy: false,
-  estimatedHours: 12
-}
-```
-
----
-
-## API Usage
-
-### Initiate Withdrawal
-
-```javascript
-import withdrawServiceV2 from "src/services/wallet/withdrawServiceV2";
-
-const result = await withdrawServiceV2.initiateWithdrawal({
-  userId: "user-uuid",
-  usdAmount: 100,
-  method: "bank", // "bank" | "crypto" | "paypal"
-  fields: {
-    bank: "GTBank",
-    accountNumber: "0123456789",
-    accountName: "John Doe",
-    bankCode: "058", // optional
-  },
-  pin: "1234", // required if amount >= $100
-});
-
-// Response:
-// {
-//   id: "withdrawal-uuid",
-//   status: "processing" or "queued",
-//   grossUSD: 100,
-//   feeUSD: 1.5,
-//   netUSD: 98.5,
-//   netEP: 9850,
-//   estimatedHours: 4,
-//   systemWasHealthy: true,
-//   message: "Your withdrawal is being processed.",
-//   dailyRemaining: 9900,
-//   dailyCount: 1
-// }
-```
-
-### Get Withdrawal Preview
-
-```javascript
-const preview = await withdrawServiceV2.getPreview(userId, tier, 100); // $100 USD
-
-// Response:
-// {
-//   valid: true,
-//   grossUSD: 100,
-//   feeUSD: 1.5,
-//   netUSD: 98.5,
-//   grossEP: 10000,
-//   feeEP: 150,
-//   netEP: 9850,
-//   ngnRate: 1520,
-//   netNGN: 150070,
-//   estimatedHours: 4,
-//   dailyRemaining: 9900
-// }
-```
-
-### Get User Stats
-
-```javascript
-const stats = await withdrawServiceV2.getUserWithdrawalStats(userId);
-
-// Response:
-// {
-//   dailyUsedUSD: 250,
-//   dailyUsedEP: 25000,
-//   dailyPendingUSD: 50,
-//   dailyPendingEP: 5000,
-//   dailyCount: 3,
-//   totalRequestedUSD: 300,
-//   totalRequestedEP: 30000
-// }
-```
-
----
-
-## Migration from V1
-
-### Old Service → New Service Mapping
-
-| Old | New | Notes |
-|-----|-----|-------|
-| `withdrawService.queueWithdrawal()` | `withdrawServiceV2.initiateWithdrawal()` | New params; same endpoint logic |
-| `withdrawService.getWithdrawalHistory()` | `withdrawServiceV2.getWithdrawalHistory()` | Compatible; no changes needed |
-| `withdrawService.MIN_WITHDRAWAL_EP` (100) | `withdrawServiceV2.MIN_WITHDRAWAL_EP` (500) | **BREAKING: Now 500 EP = $5 USD** |
-| `withdrawService.getWithdrawalPreview()` | `withdrawServiceV2.getPreview()` | New name; requires tier param |
-
-### Update Your Components
-
-```javascript
-// OLD
-import withdrawService from "src/services/wallet/withdrawService";
-const result = await withdrawService.queueWithdrawal({ ... });
-
-// NEW
-import withdrawServiceV2 from "src/services/wallet/withdrawServiceV2";
-const result = await withdrawServiceV2.initiateWithdrawal({ ... });
-```
-
----
-
-## Error Handling
-
-### Tier-Related Errors
-
-```javascript
-// User is on free tier
-"Your tier cannot withdraw"
-
-// Withdrawal below minimum ($5)
-"Minimum withdrawal is $5 USD"
-
-// Withdrawal above tier limit ($2000 for silver)
-"Maximum per withdrawal is $500 USD for your tier"
-
-// Daily limit reached
-"Daily withdrawal limit ($2000) reached"
-"This withdrawal would exceed your daily limit. Remaining: $1750"
-```
-
-### Rate Limit Errors
-
-```javascript
-// User tried to withdraw too soon
-"Please wait 245s before next withdrawal"
-
-// Hourly quota exceeded
-"Hourly withdrawal limit (6) reached"
-```
-
-### System Errors
-
-```javascript
-// Could not fetch profile
-"Could not fetch user profile"
-
-// Invalid destination
-"Account number must be 10 digits (NUBAN)"
-"Please enter a valid PayPal email address"
-"Wallet address too short"
-```
-
----
-
-## Database Schema (withdrawal_queue)
-
-```sql
-CREATE TABLE withdrawal_queue (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id),
-  ep_amount BIGINT NOT NULL,
-  usd_amount DECIMAL(10,2) NOT NULL,
-  processing_tier TEXT, -- "silver" | "gold" | "diamond"
-  fee_pct DECIMAL(5,2), -- e.g., 1.5
-  fee_ep BIGINT,
-  net_ep BIGINT,
-  status TEXT, -- "processing" | "queued" | "completed" | "failed" | "cancelled"
-  destination_type TEXT, -- "bank" | "crypto" | "paypal"
-  destination_info JSONB,
-  pin_verified BOOLEAN DEFAULT FALSE,
-  ngn_rate DECIMAL(10,2),
-  requested_at TIMESTAMP DEFAULT NOW(),
-  estimated_at TIMESTAMP,
-  processed_at TIMESTAMP,
-  error_msg TEXT,
-  metadata JSONB,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_withdrawal_queue_user ON withdrawal_queue(user_id);
-CREATE INDEX idx_withdrawal_queue_status ON withdrawal_queue(status);
-```
-
----
-
-## Testing Scenarios
-
-### Scenario 1: Single User, Healthy System
-- **Expected:** Immediate processing (no queue)
-- **Test:** User withdraws $10 → status: "processing"
-
-### Scenario 2: User at Daily Limit
-- **Expected:** Rejected with clear message
-- **Test:** User has withdrawn $2000 today → tries $100 → "Daily limit reached"
-
-### Scenario 3: Rapid-Fire Attempts
-- **Expected:** Rate limit enforced
-- **Test:** User attempts 3 withdrawals in 30s → 2nd blocked with cooldown
-
-### Scenario 4: System Congestion
-- **Expected:** Queued for later processing
-- **Test:** >50 pending withdrawals exist → new withdrawal status: "queued"
-
----
-
-## Production Deployment
-
-1. **Deploy WithdrawalModel.js** (models)
-2. **Deploy withdrawServiceV2.js** (services)
-3. **Update UI components** to use new service
-4. **Run database migrations** if needed (schema updates)
-5. **Test with real tier users** (silver, gold, diamond)
-6. **Monitor for spam/abuse** (rate limits working?)
-7. **Monitor withdrawal success rate** (edge function reliability)
-
----
-
-## Future Enhancements
-
-- [ ] Multi-step verification for large withdrawals (>$1000)
-- [ ] Auto-conversion between currencies (USD → NGN → fiat payout)
-- [ ] Webhook notifications (withdrawal approved/processed/failed)
-- [ ] Dispute resolution system
-- [ ] Admin dashboard for manual processing
-- [ ] Advanced analytics dashboard (withdrawal trends, fee totals)
-- [ ] Recurring withdrawal scheduling
-- [ ] Whitelist saved beneficiary accounts
+# Wallet withdrawals
+
+## Current flow
+
+Only Nigerian bank payouts through Paystack are enabled. Crypto and PayPal are
+not available until their payout, failure, and refund paths are implemented.
+New withdrawals are initiated immediately; reward level controls eligibility
+and per-request limits, not payout priority. Historical queued or batched
+records are not automatically released or paid and require reconciliation.
+
+The withdrawal screen submits an authenticated request to
+`initiate_direct_withdrawal`. The database function derives the user's reward
+level and the current fee, exchange rate, and limits from server-side
+configuration. In one transaction it validates the request and PIN, checks
+the wallet balance and rate limits, records the transaction, debits EP, and
+writes wallet and EP ledger entries.
+
+The withdrawal row starts in `processing` with a server-generated,
+stable Paystack reference and a `ready` payout state. The
+`withdraw-paystack-init` Edge Function claims it once, creates the Paystack
+recipient, and submits the bank transfer using that same reference. Transfer
+success, failure, and reversal events are settled through
+`settle_withdrawal_paystack_event`, which atomically updates the withdrawal,
+transaction, wallet, and ledgers. Duplicate provider events are idempotent.
+
+If Paystack definitively rejects a request before accepting the transfer, the
+same settlement function refunds the full EP amount atomically. If the
+provider response is ambiguous (for example, a network timeout after submit),
+the EP remains reserved and the record is marked for reconciliation rather
+than risking a duplicate payout or an incorrect refund.
+
+## Policy defaults
+
+These are defaults from `liquidity_config`; the server enforces the current
+configured values.
+
+- Minimum request: 500 EP ($5 at 100 EP per USD)
+- Per-request caps: Silver $1,000, Gold $10,000, Diamond $50,000
+- Platform fee: 2% flat
+- Daily cap: 50,000 EP per account
+- Cooldown: five minutes between requests, up to six per hour
+- PIN required for requests of 10,000 EP or more
+
+The server stores the exchange-rate quote with each request. Later changes to
+the configured rate do not change an existing payout amount.
+
+## Deployment requirements
+
+Before enabling withdrawals in production:
+
+1. Review and apply `supabase/migrations/127_fair_immediate_withdrawals.sql`
+   against the actual database schema.
+2. Deploy `withdraw-paystack-init` and `withdraw-paystack-webhook`.
+3. Configure `PAYSTACK_SECRET_KEY` and register the webhook URL in Paystack.
+4. Verify the Paystack transfer balance, bank resolution, success/failure/
+   reversal webhooks, and refund ledger entries in a controlled environment.
+5. Monitor records marked `reconciliation_required`; do not refund or retry
+   them until the Paystack reference has been checked.
+
+The code changes alone do not mean the migration or Edge Functions are live.
+Production deployment and provider reconciliation have not been verified from
+this repository.

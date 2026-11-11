@@ -115,7 +115,10 @@ describe("MessageList presentation", () => {
       ".msg-image-frame img { position:absolute; inset:0; display:block; width:100%; height:100%;",
     );
     expect(direct.container.querySelector(".msg-list-wrapper style").textContent).toContain(
-      ".msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments { width: min(320px, 84%);",
+      ".msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px));",
+    );
+    expect(direct.container.querySelector(".msg-list-wrapper style").textContent).not.toContain(
+      ".msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments",
     );
     direct.unmount();
 
@@ -128,10 +131,7 @@ describe("MessageList presentation", () => {
     expect(community.container.querySelector(".msg-card-header")).toBeTruthy();
     expect(community.container.querySelector(".msg-image-grid.single")).toBeTruthy();
     expect(community.container.querySelector(".msg-list-wrapper style").textContent).toContain(
-      ".mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px));",
-    );
-    expect(community.container.querySelector(".msg-list-wrapper style").textContent).toContain(
-      ".msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px));",
+      ".msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px));",
     );
     expect(community.container.querySelector(".msg-list-wrapper style").textContent).toContain(
       ".msg-bubble.has-attachments .msg-card-header { padding-top: 1px; margin-bottom: 1px;",
@@ -195,6 +195,25 @@ describe("MessageList presentation", () => {
     expect(container.querySelector(".msg-list-wrapper style").textContent).toContain(
       ".msg-item.different-author-next { margin-bottom: 10px; }",
     );
+  });
+
+  it("shows the sender name for a new cluster when the message lacks its embedded user relation", () => {
+    const message = makeMessage({ user: undefined });
+    const { container } = render(
+      <MessageList
+        messages={[message]}
+        pendingMessages={[]}
+        loading={false}
+        userId="me"
+        currentUser={{ id: "me", fullName: "Me" }}
+        communityMembers={[{ user_id: "friend", user: { id: "friend", full_name: "Friend from membership" } }]}
+        messagesEndRef={React.createRef()}
+        messageMode="community"
+      />,
+    );
+
+    expect(screen.getByText("Friend from membership")).toBeTruthy();
+    expect(screen.getByLabelText("View Friend from membership's profile")).toBeTruthy();
   });
 
   it("shows a media thumbnail and readable excerpt inside a reply preview", () => {

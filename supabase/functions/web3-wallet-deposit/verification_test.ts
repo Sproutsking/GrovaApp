@@ -1,6 +1,10 @@
 import {
   decodeBase58,
   EVM_DEPOSIT_CHAINS,
+  isValidRequestedUsdAmount,
+  meetsRequestedDepositAmount,
+  minimumAssetAmount,
+  normalizeDepositTransactionHash,
   normalizeWalletAddress,
   rawAmountToNumber,
   SOLANA_TOKENS,
@@ -49,5 +53,55 @@ Deno.test("converts raw token units without rounding away token precision", () =
   }
   if (rawAmountToNumber(1_000_000_000_000_000_000n, 18) !== 1) {
     throw new Error("Eighteen-decimal token amount was converted incorrectly.");
+  }
+});
+
+Deno.test("validates the requested deposit amount and enforces the confirmed minimum", () => {
+  if (!isValidRequestedUsdAmount(1) || !isValidRequestedUsdAmount(125.5)) {
+    throw new Error("A valid requested deposit amount was rejected.");
+  }
+  if (
+    isValidRequestedUsdAmount(0.99) ||
+    isValidRequestedUsdAmount(1.001) ||
+    isValidRequestedUsdAmount(1_000_000.01)
+  ) {
+    throw new Error("An invalid requested deposit amount was accepted.");
+  }
+  if (!meetsRequestedDepositAmount(25.5, 25.5)) {
+    throw new Error("A confirmed deposit equal to the requested amount was rejected.");
+  }
+  if (meetsRequestedDepositAmount(25.49, 25.5)) {
+    throw new Error("A confirmed deposit below the requested amount was accepted.");
+  }
+});
+
+Deno.test("normalizes case-insensitive EVM and Cardano transaction hashes", () => {
+  const evmHash = `0x${"aB".repeat(32)}`;
+  if (normalizeDepositTransactionHash("EVM", evmHash) !== evmHash.toLowerCase()) {
+    throw new Error("EVM transaction hash was not normalized.");
+  }
+  const cardanoHash = "aB".repeat(32);
+  if (
+    normalizeDepositTransactionHash("CARDANO", cardanoHash) !==
+    cardanoHash.toLowerCase()
+  ) {
+    throw new Error("Cardano transaction hash was not normalized.");
+  }
+  if (
+    normalizeDepositTransactionHash("SOLANA", "AbCd") !== "AbCd"
+  ) {
+    throw new Error("Case-sensitive Solana signature was changed.");
+  }
+});
+
+Deno.test("rounds minimum crypto deposits up to the asset precision", () => {
+  if (minimumAssetAmount(1, 1, 6) !== 1) {
+    throw new Error("Stablecoin minimum was calculated incorrectly.");
+  }
+  if (minimumAssetAmount(1, 0.4, 6) !== 2.5) {
+    throw new Error("ADA minimum was calculated incorrectly.");
+  }
+  if (minimumAssetAmount(1, 3, 6) !== 0.333334) {
+    throw new Error("Crypto minimum was not rounded up to token precision.");
   }
 });

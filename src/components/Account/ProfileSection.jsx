@@ -27,9 +27,8 @@ import SavedContentModal   from "../Modals/SavedContentModal";
 import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
+import XRCProfileDashboard from "../Modals/XRCProfileDashboard";
 import XRDProfileDashboard from "../Modals/XRDProfileDashboard";
-import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
-import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
 import xrcService from "../../services/xrc";
@@ -1032,23 +1031,25 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         )}
 
         {showXRD && (
-          <VerificationDashboardPage
-            profile={profile}
-            dashboard={buildPublicProfileDashboard(profile, verificationItems)}
-            verificationItems={verificationItems}
-            loading={verificationLoading}
-            title="Xeevia Record Dashboard (XRD)"
-            onClose={() => setShowXRD(false)}
-          />
-        )}
-
-        {showXRC && (
           <XRDProfileDashboard
             profile={profile ? { ...profile, avatarUrl: profile.avatar } : null}
             currentUser={currentUser || authUser || { id: userId }}
             targetId={userId}
             verificationItems={verificationItems}
-            mode="xrc"
+            isOwner
+            notice={verificationLoading ? "Refreshing linked source evidence…" : ""}
+            initialSection="Overview"
+            onOpenXRC={openXRC}
+            onClose={() => setShowXRD(false)}
+          />
+        )}
+
+        {showXRC && (
+          <XRCProfileDashboard
+            profile={profile ? { ...profile, avatarUrl: profile.avatar } : null}
+            currentUser={currentUser || authUser || { id: userId }}
+            targetId={userId}
+            verificationItems={verificationItems}
             initialSection="Overview"
             notice={xrcNotice}
             onClose={() => setShowXRC(false)}

@@ -2,9 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Initialises a Paystack transaction for wallet deposits.
 //
-// FIX: userId now sourced from JWT (auth header) as the primary source,
-// falling back to body.userId. This resolves "userId is required" error
-// that occurred when the frontend auth session hadn't fully propagated.
+// The depositor identity and email are derived from a verified Supabase session.
 //
 // FIX v2: Response now includes `paystackKey` (from REACT_APP_PAYSTACK_PUBLIC_KEY
 // secret) so the frontend never needs REACT_APP_PAYSTACK_PUBLIC_KEY baked into
@@ -21,6 +19,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const FALLBACK_NGN_RATE = 1366;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -69,8 +69,6 @@ serve(async (req: Request) => {
 
     const {
       nairaAmount,
-      usdAmount,
-      usdNgnRate,
       currency = "EP",
       channel = "card",
       from_wallet,
@@ -79,8 +77,6 @@ serve(async (req: Request) => {
       import_ref,
     } = body as {
       nairaAmount: number;
-      usdAmount?: number;
-      usdNgnRate?: number;
       currency?: string;
       channel?: string;
       from_wallet?: string;
@@ -91,55 +87,34 @@ serve(async (req: Request) => {
 
     // ── 2. Resolve userId from JWT (authoritative) + email ─────────────────
     const authHeader = req.headers.get("authorization") ?? "";
-    let resolvedUserId = body.userId as string | undefined;
-    let resolvedEmail = body.email as string | undefined;
-
-    if (authHeader) {
-      const userClient = getSupabaseUser(authHeader);
-      if (userClient) {
-        const {
-          data: { user },
-          error: userErr,
-        } = await userClient.auth.getUser();
-        if (!userErr && user) {
-          resolvedUserId = resolvedUserId || user.id;
-          resolvedEmail = resolvedEmail || user.email || "";
-        }
-      }
+    if (!authHeader.startsWith("Bearer ")) {
+      return json({ success: false, error: "Sign in to deposit." }, 401);
     }
-
-    // If still no userId, try to extract from JWT manually
-    if (!resolvedUserId && authHeader.startsWith("Bearer ")) {
-      try {
-        const token = authHeader.slice(7);
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        resolvedUserId = payload.sub;
-        resolvedEmail = resolvedEmail || payload.email;
-      } catch {
-        /* ignore */
-      }
+    const userClient = getSupabaseUser(authHeader);
+    if (!userClient) {
+      return json({ success: false, error: "Authentication is not configured." }, 503);
     }
-
-    if (!resolvedUserId) {
-      return json(
-        {
-          success: false,
-          error: "userId is required — please sign in and try again",
-        },
-        400,
-      );
+    const {
+      data: { user },
+      error: userErr,
+    } = await userClient.auth.getUser();
+    if (userErr || !user) {
+      return json({ success: false, error: "Your session is invalid or expired." }, 401);
+    }
+    const resolvedUserId = user.id;
+    let resolvedEmail = user.email || "";
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      return json({ success: false, error: "Deposit service is not configured." }, 503);
     }
     if (!resolvedEmail) {
-      // Try to fetch email from profiles table
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        const { data: profile } = await sb
-          .from("profiles")
-          .select("email")
-          .eq("id", resolvedUserId)
-          .maybeSingle();
-        resolvedEmail = profile?.email ?? "";
-      }
+      const { data: profile, error: profileError } = await sb
+        .from("profiles")
+        .select("email")
+        .eq("id", resolvedUserId)
+        .maybeSingle();
+      if (profileError) throw new Error(`Could not load depositor profile: ${profileError.message}`);
+      resolvedEmail = profile?.email ?? "";
     }
     if (!resolvedEmail) {
       return json(
@@ -152,12 +127,23 @@ serve(async (req: Request) => {
     }
 
     // ── 3. Validate amount ─────────────────────────────────────────────────
-    const n = parseFloat(String(nairaAmount));
-    if (!n || n < 100) {
+    let n = Number(nairaAmount);
+    if (!Number.isFinite(n) || n < 100) {
       return json(
         { success: false, error: "amount must be at least ₦100" },
         400,
       );
+    }
+    const amountKobo = Math.round(n * 100);
+    if (!Number.isSafeInteger(amountKobo) || amountKobo < 10_000) {
+      return json({ success: false, error: "Enter a valid deposit amount." }, 400);
+    }
+    n = amountKobo / 100;
+    if (currency !== "EP" && currency !== "XEV") {
+      return json({ success: false, error: "Unsupported wallet currency." }, 400);
+    }
+    if (channel !== "card" && channel !== "bank_transfer") {
+      return json({ success: false, error: "Unsupported payment method." }, 400);
     }
 
     // ── 4. Paystack keys ───────────────────────────────────────────────────
@@ -187,14 +173,22 @@ serve(async (req: Request) => {
 
     // ── 5. Build reference ─────────────────────────────────────────────────
     const safeId = resolvedUserId.replace(/-/g, "").slice(0, 8);
-    const reference = `xev_dep_${safeId}_${Date.now()}`;
+    const reference = `xev_dep_${safeId}_${crypto.randomUUID()}`;
     const APP_URL = Deno.env.get("APP_URL") || "http://localhost:3000";
     const callback = `${APP_URL}/#wallet?verify=${reference}&status=success`;
-    const amountKobo = Math.round(n * 100);
-
-    // Compute USD equivalent for EP minting
-    const ngnRate = usdNgnRate || 1500;
-    const usdEquiv = usdAmount || parseFloat((n / ngnRate).toFixed(4));
+    const { data: rateSetting, error: rateError } = await sb
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "paywall_config")
+      .maybeSingle();
+    if (rateError) {
+      console.warn("[deposit-paystack-init] Could not load configured NGN rate; using server fallback:", rateError.message);
+    }
+    const configuredRate = Number(rateSetting?.value?.ngn_rate);
+    const ngnRate = Number.isFinite(configuredRate) && configuredRate >= 100 && configuredRate <= 1_000_000
+      ? configuredRate
+      : FALLBACK_NGN_RATE;
+    const usdEquiv = parseFloat((n / ngnRate).toFixed(6));
 
     // Compute credit preview (for response only — server webhook is authoritative)
     const EP_PER_USD = 100;
@@ -209,6 +203,12 @@ serve(async (req: Request) => {
     } else {
       creditAmount = Math.floor(usdEquiv * EP_PER_USD);
       creditLabel = "EP";
+    }
+    if (!Number.isFinite(creditAmount) || creditAmount <= 0) {
+      return json(
+        { success: false, error: "This deposit amount is too small to credit your wallet." },
+        400,
+      );
     }
 
     // ── 6. Call Paystack initialize ────────────────────────────────────────
@@ -263,63 +263,60 @@ serve(async (req: Request) => {
     }
 
     // ── 7. Record pending transaction in DB ────────────────────────────────
-    try {
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        // Find wallet id
-        const { data: wallet } = await sb
-          .from("wallets")
-          .select("id")
-          .eq("user_id", resolvedUserId)
-          .maybeSingle();
+    const { data: wallet, error: walletError } = await sb
+      .from("wallets")
+      .select("id")
+      .eq("user_id", resolvedUserId)
+      .maybeSingle();
+    if (walletError) throw new Error(`Could not load depositor wallet: ${walletError.message}`);
 
-        // Record as a pending transaction row
-        await sb.from("transactions").insert({
-          from_user_id: resolvedUserId,
-          to_user_id: resolvedUserId,
-          amount: n,
-          type: "deposit",
-          status: "pending",
-          metadata: {
-            paystack_ref: reference,
-            source: "wallet_deposit",
-            wallet_id: wallet?.id ?? null,
-            amount_kobo: amountKobo,
-            deposit_currency: currency,
-            usd_amount: usdEquiv,
-            ngn_rate: ngnRate,
-            channel,
-          },
-        });
+    const { error: txInsertError } = await sb.from("transactions").insert({
+      from_user_id: resolvedUserId,
+      to_user_id: resolvedUserId,
+      amount: n,
+      type: "deposit",
+      status: "pending",
+      metadata: {
+        paystack_ref: reference,
+        source: "wallet_deposit",
+        currency: "NGN",
+        wallet_id: wallet?.id ?? null,
+        amount_kobo: amountKobo,
+        deposit_currency: currency,
+        usd_amount: usdEquiv,
+        ngn_rate: ngnRate,
+        ngn_rate_source: "server",
+        channel,
+      },
+    });
+    if (txInsertError) throw new Error(`Could not save deposit intent: ${txInsertError.message}`);
 
-        // Also log payment intent
-        await sb.from("payment_intents").upsert(
-          {
-            user_id: resolvedUserId,
-            product_id: "00000000-0000-0000-0000-000000000000",
-            idempotency_key: reference,
-            provider: "paystack",
-            provider_session: paystackData.data.reference,
-            amount_cents: amountKobo,
-            currency: "NGN",
-            status: "redirected",
-            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-            metadata: {
-              user_id: resolvedUserId,
-              type: "wallet_deposit",
-              amount_ngn: n,
-              email: resolvedEmail,
-              deposit_currency: currency,
-              usd_amount: usdEquiv,
-              ngn_rate: ngnRate,
-            },
-          },
-          { onConflict: "idempotency_key" },
-        );
-      }
-    } catch (logErr) {
-      console.warn("[deposit-paystack-init] Failed to log intent:", logErr);
-      // Non-fatal — user proceeds to payment
+    const { error: paymentIntentError } = await sb.from("payment_intents").upsert(
+      {
+        user_id: resolvedUserId,
+        product_id: "00000000-0000-0000-0000-000000000000",
+        idempotency_key: reference,
+        provider: "paystack",
+        provider_session: paystackData.data.reference,
+        amount_cents: amountKobo,
+        currency: "NGN",
+        status: "redirected",
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        metadata: {
+          user_id: resolvedUserId,
+          type: "wallet_deposit",
+          amount_ngn: n,
+          email: resolvedEmail,
+          deposit_currency: currency,
+          usd_amount: usdEquiv,
+          ngn_rate: ngnRate,
+          ngn_rate_source: "server",
+        },
+      },
+      { onConflict: "idempotency_key" },
+    );
+    if (paymentIntentError) {
+      console.warn("[deposit-paystack-init] Could not save payment intent:", paymentIntentError.message);
     }
 
     // ── 8. Return success ──────────────────────────────────────────────────

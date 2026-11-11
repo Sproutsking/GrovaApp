@@ -17,6 +17,10 @@ import {
   DepositChainType,
   EVM_DEPOSIT_CHAINS,
   ERC20_TRANSFER_TOPIC,
+  isValidRequestedUsdAmount,
+  meetsRequestedDepositAmount,
+  minimumAssetAmount,
+  normalizeDepositTransactionHash,
   normalizeWalletAddress,
   rawAmountToNumber,
   SOLANA_TOKENS,
@@ -29,11 +33,12 @@ const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const MAX_CHALLENGES_PER_USER = 10;
 
 type RequestBody = {
-  action?: "challenge" | "verify";
+  action?: "challenge" | "verify" | "quote";
   chainType?: string;
   chain?: string;
   asset?: string;
   walletAddress?: string;
+  requestedUsdAmount?: number;
   challengeId?: string;
   signature?: string;
   cardanoKey?: string;
@@ -48,6 +53,7 @@ type Challenge = {
   chain_name: string;
   asset_symbol: DepositAsset;
   wallet_address: string;
+  requested_usd_amount: number;
   message: string;
   expires_at: string;
   consumed_at: string | null;
@@ -59,6 +65,13 @@ type VerificationResult = {
   walletAddress: string;
   confirmations: number;
   metadata: Record<string, unknown>;
+};
+
+type LiveMarketQuote = {
+  unitPriceUsd: number;
+  unitPriceNgn: number;
+  priceChange24hPercent: number;
+  quotedAt: string;
 };
 
 class RequestError extends Error {
@@ -141,6 +154,68 @@ function parseSelection(body: RequestBody) {
   };
 }
 
+const MARKET_ASSET_IDS: Record<DepositAsset, string> = {
+  USDC: "usd-coin",
+  USDT: "tether",
+  ADA: "cardano",
+};
+
+async function fetchLiveMarketQuote(asset: DepositAsset): Promise<LiveMarketQuote> {
+  const assetId = MARKET_ASSET_IDS[asset];
+  const response = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${assetId}&vs_currencies=usd%2Cngn&include_24hr_change=true&include_last_updated_at=true`,
+    { signal: AbortSignal.timeout(5_000) },
+  );
+  if (!response.ok) throw new Error(`Live ${asset} market quote returned HTTP ${response.status}.`);
+  const priceData = await response.json() as Record<string, {
+    usd?: number;
+    ngn?: number;
+    usd_24h_change?: number;
+    last_updated_at?: number;
+  }>;
+  const quote = priceData[assetId];
+  const timestamp = Number(quote?.last_updated_at);
+  const quoteAge = Date.now() - timestamp * 1000;
+  if (
+    !Number.isFinite(timestamp) || timestamp <= 0 ||
+    quoteAge < -5 * 60 * 1000 || quoteAge > 24 * 60 * 60 * 1000
+  ) {
+    throw new Error(`Live ${asset} quote is missing or older than 24 hours.`);
+  }
+  if (
+    !Number.isFinite(quote?.usd) || !quote.usd || quote.usd <= 0 ||
+    !Number.isFinite(quote?.ngn) || !quote.ngn || quote.ngn <= 0 ||
+    !Number.isFinite(quote?.usd_24h_change)
+  ) {
+    throw new Error(`Live ${asset}/USD and ${asset}/NGN market data is temporarily unavailable.`);
+  }
+  return {
+    unitPriceUsd: quote.usd,
+    unitPriceNgn: quote.ngn,
+    priceChange24hPercent: quote.usd_24h_change,
+    quotedAt: new Date(timestamp * 1000).toISOString(),
+  };
+}
+
+async function getDepositQuote(body: RequestBody) {
+  const { chainType, chain, asset } = parseSelection(body);
+  getChainDetails(chainType, chain, asset);
+  const marketQuote = await fetchLiveMarketQuote(asset);
+  const unitPriceUsd = marketQuote.unitPriceUsd;
+  const decimals = chainType === "EVM"
+    ? EVM_DEPOSIT_CHAINS[chain].tokens[asset as "USDC" | "USDT"].decimals
+    : 6;
+  return {
+    minimumUsdAmount: MIN_DEPOSIT_USD,
+    unitPriceUsd,
+    unitPriceNgn: marketQuote.unitPriceNgn,
+    priceChange24hPercent: marketQuote.priceChange24hPercent,
+    quotedAt: marketQuote.quotedAt,
+    quoteProvider: "CoinGecko",
+    minimumAssetAmount: minimumAssetAmount(MIN_DEPOSIT_USD, unitPriceUsd, decimals),
+  };
+}
+
 function validateTreasury(
   chainType: DepositChainType,
   treasuryAddress: string | undefined,
@@ -166,6 +241,16 @@ async function createChallenge(
 ) {
   const { chainType, chain, asset } = parseSelection(body);
   const rawWalletAddress = requireText(body.walletAddress, "Wallet address");
+  const requestedUsdAmount = Number(body.requestedUsdAmount);
+  if (!isValidRequestedUsdAmount(requestedUsdAmount)) {
+    if (!Number.isFinite(requestedUsdAmount) || requestedUsdAmount < MIN_DEPOSIT_USD) {
+      throw new RequestError(`Enter a deposit amount of at least $${MIN_DEPOSIT_USD}.`);
+    }
+    if (requestedUsdAmount > 1_000_000) {
+      throw new RequestError("The requested deposit amount is above the supported limit.");
+    }
+    throw new RequestError("Enter the requested deposit amount to no more than 2 decimal places.");
+  }
   let walletAddress = normalizeWalletAddress(chainType, chain, rawWalletAddress);
   if (chainType === "CARDANO") {
     const parsed = parseCardanoAddress(rawWalletAddress);
@@ -186,6 +271,7 @@ async function createChallenge(
     `Wallet: ${walletAddress}`,
     `Network: ${chainType}:${chain}`,
     `Asset: ${asset}`,
+    `Minimum USD value: ${requestedUsdAmount.toFixed(2)}`,
     `Nonce: ${crypto.randomUUID()}`,
     `Expires: ${expiresAt}`,
     "",
@@ -217,6 +303,7 @@ async function createChallenge(
       chain_name: chain,
       asset_symbol: asset,
       wallet_address: walletAddress,
+      requested_usd_amount: requestedUsdAmount,
       message,
       expires_at: expiresAt,
     });
@@ -252,7 +339,8 @@ async function verifyWalletProof(
   body: RequestBody,
 ): Promise<void> {
   const rawWalletAddress = requireText(body.walletAddress, "Wallet address");
-  const { chainType, chain } = challenge;
+  const chainType = challenge.chain_type;
+  const chain = challenge.chain_name;
   const walletAddress = normalizeWalletAddress(chainType, chain, rawWalletAddress);
   if (chainType === "CARDANO") {
     const parsed = parseCardanoAddress(rawWalletAddress);
@@ -297,9 +385,11 @@ async function verifyWalletProof(
   const publicKey = decodeBase58(walletAddress);
   const signatureBytes = decodeHex(signature, "Solana wallet signature", 64);
   try {
+    const publicKeyBuffer = new Uint8Array(publicKey).buffer;
+    const signatureBuffer = new Uint8Array(signatureBytes).buffer;
     const key = await crypto.subtle.importKey(
       "raw",
-      publicKey,
+      publicKeyBuffer,
       { name: "Ed25519" },
       false,
       ["verify"],
@@ -307,7 +397,7 @@ async function verifyWalletProof(
     const valid = await crypto.subtle.verify(
       "Ed25519",
       key,
-      signatureBytes,
+      signatureBuffer,
       encoder.encode(challenge.message),
     );
     if (!valid) throw new RequestError("Solana wallet signature is invalid.", 401);
@@ -401,12 +491,22 @@ async function verifyEvmDeposit(
   }
 
   const assetAmount = rawAmountToNumber(rawReceived, token.decimals);
+  const marketQuote = await fetchLiveMarketQuote(asset);
   return {
     assetAmount,
-    usdAmount: assetAmount,
+    usdAmount: assetAmount * marketQuote.unitPriceUsd,
     walletAddress,
     confirmations,
-    metadata: { chain_id: chain.chainId, confirmations, token_address: token.address },
+    metadata: {
+      chain_id: chain.chainId,
+      confirmations,
+      token_address: token.address,
+      unit_price_usd: marketQuote.unitPriceUsd,
+      unit_price_ngn: marketQuote.unitPriceNgn,
+      price_change_24h_percent: marketQuote.priceChange24hPercent,
+      price_quoted_at: marketQuote.quotedAt,
+      quote_provider: "CoinGecko",
+    },
   };
 }
 
@@ -485,12 +585,21 @@ async function verifySolanaDeposit(
   }
 
   const assetAmount = rawAmountToNumber(gained, SOLANA_TOKENS[challenge.asset_symbol as "USDC" | "USDT"].decimals);
+  const marketQuote = await fetchLiveMarketQuote(challenge.asset_symbol);
   return {
     assetAmount,
-    usdAmount: assetAmount,
+    usdAmount: assetAmount * marketQuote.unitPriceUsd,
     walletAddress: challenge.wallet_address,
     confirmations: 1,
-    metadata: { mint, commitment: "finalized" },
+    metadata: {
+      mint,
+      commitment: "finalized",
+      unit_price_usd: marketQuote.unitPriceUsd,
+      unit_price_ngn: marketQuote.unitPriceNgn,
+      price_change_24h_percent: marketQuote.priceChange24hPercent,
+      price_quoted_at: marketQuote.quotedAt,
+      quote_provider: "CoinGecko",
+    },
   };
 }
 
@@ -552,23 +661,21 @@ async function verifyCardanoDeposit(
   }
 
   const adaAmount = rawAmountToNumber(receivedLovelace, 6);
-  const priceResponse = await fetch(
-    "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
-    { signal: AbortSignal.timeout(5_000) },
-  );
-  if (!priceResponse.ok) throw new Error(`ADA price provider returned HTTP ${priceResponse.status}.`);
-  const priceData = await priceResponse.json() as { cardano?: { usd?: number } };
-  const adaUsd = priceData.cardano?.usd;
-  if (!Number.isFinite(adaUsd) || !adaUsd || adaUsd <= 0) {
-    throw new Error("ADA/USD price is temporarily unavailable.");
-  }
+  const marketQuote = await fetchLiveMarketQuote("ADA");
 
   return {
     assetAmount: adaAmount,
-    usdAmount: adaAmount * adaUsd,
+    usdAmount: adaAmount * marketQuote.unitPriceUsd,
     walletAddress,
     confirmations: latestBlock.height - txInfo.block_height + 1,
-    metadata: { block_height: txInfo.block_height, ada_usd: adaUsd },
+    metadata: {
+      block_height: txInfo.block_height,
+      ada_usd: marketQuote.unitPriceUsd,
+      unit_price_ngn: marketQuote.unitPriceNgn,
+      price_change_24h_percent: marketQuote.priceChange24hPercent,
+      price_quoted_at: marketQuote.quotedAt,
+      quote_provider: "CoinGecko",
+    },
   };
 }
 
@@ -584,7 +691,7 @@ async function verifyDeposit(
   const admin = supabaseAdmin();
   const { data: challenge, error: challengeError } = await admin
     .from("web3_wallet_deposit_challenges")
-    .select("id,user_id,chain_type,chain_name,asset_symbol,wallet_address,message,expires_at,consumed_at")
+    .select("id,user_id,chain_type,chain_name,asset_symbol,wallet_address,requested_usd_amount,message,expires_at,consumed_at")
     .eq("id", challengeId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -623,14 +730,23 @@ async function verifyDeposit(
   if (!Number.isFinite(verified.usdAmount) || verified.usdAmount < MIN_DEPOSIT_USD) {
     throw new RequestError(`The verified deposit must be worth at least $${MIN_DEPOSIT_USD}.`);
   }
+  if (!meetsRequestedDepositAmount(
+    verified.usdAmount,
+    Number(challenge.requested_usd_amount),
+  )) {
+    throw new RequestError(
+      `The confirmed transaction is worth $${verified.usdAmount.toFixed(2)}; send at least $${Number(challenge.requested_usd_amount).toFixed(2)} as selected.`,
+    );
+  }
   const epAmount = Math.floor(verified.usdAmount * EP_PER_USD);
   if (!Number.isSafeInteger(epAmount) || epAmount < MIN_DEPOSIT_USD * EP_PER_USD) {
     throw new RequestError("The verified deposit amount is outside the supported range.");
   }
 
-  const normalizedTxHash = challenge.chain_type === "EVM"
-    ? txHash.toLowerCase()
-    : txHash;
+  const normalizedTxHash = normalizeDepositTransactionHash(
+    challenge.chain_type,
+    txHash,
+  );
   const { data: settlement, error: settlementError } = await admin.rpc(
     "settle_web3_wallet_deposit",
     {
@@ -688,6 +804,9 @@ serve(async (req: Request) => {
   }
 
   try {
+    if (body.action === "quote") {
+      return jsonResponse(await getDepositQuote(body));
+    }
     if (body.action === "challenge") {
       return jsonResponse(await createChallenge(userId, body));
     }
@@ -695,7 +814,7 @@ serve(async (req: Request) => {
       const result = await verifyDeposit(userId, body);
       return response(result, result.status === "pending" ? 202 : 200);
     }
-    throw new RequestError("Action must be 'challenge' or 'verify'.");
+    throw new RequestError("Action must be 'quote', 'challenge', or 'verify'.");
   } catch (error) {
     if (error instanceof RequestError) {
       return errorResponse(error.message, error.status, "DEPOSIT_REQUEST_FAILED");

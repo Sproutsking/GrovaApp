@@ -41,7 +41,7 @@ describe("buildVerificationDashboardSections", () => {
       },
     ];
 
-    const sections = buildVerificationDashboardSections(items, { username: "alex" });
+    const sections = buildVerificationDashboardSections(items, { username: "alex", isOwner: true });
 
     expect(sections.find((section) => section.id === "bio")).toBeDefined();
     expect(sections.find((section) => section.id === "socials").items[0]).toMatchObject({
@@ -50,6 +50,18 @@ describe("buildVerificationDashboardSections", () => {
     });
     expect(sections.find((section) => section.id === "reports").items[0].title).toBe("Client delivery report");
     expect(sections.find((section) => section.id === "comments").items[0].evidence_type).toBe("comment");
+  });
+
+  it("keeps engagement private and only publishes explicitly visible verified evidence", () => {
+    const sections = buildVerificationDashboardSections([
+      { id: "public-social", provider: "x", evidence_type: "profile", verified: true, metadata: { visibility: "PUBLIC" } },
+      { id: "private-social", provider: "github", evidence_type: "profile", verified: true, metadata: { visibility: "PRIVATE" } },
+      { id: "public-comment", provider: "x", evidence_type: "activity", verified: true, metadata: { kind: "comment", visibility: "PUBLIC" } },
+      { id: "public-like", provider: "x", evidence_type: "like", verified: true, metadata: { visibility: "PUBLIC" } },
+    ], { isOwner: false });
+
+    expect(sections.map((section) => section.id)).not.toEqual(expect.arrayContaining(["comments", "replies", "likes"]));
+    expect(sections.find((section) => section.id === "socials").items.map((item) => item.id)).toEqual(["public-social"]);
   });
 
   it("adds proof labels for identity evidence", () => {

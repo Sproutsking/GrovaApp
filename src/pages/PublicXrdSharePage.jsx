@@ -25,21 +25,14 @@ const PublicXrdSharePage = ({ username, currentUser }) => {
   }, [username]);
 
   const close = () => window.location.assign("/");
-  const openXrc = (xrdRecordId, section) => {
-    try {
-      const path = buildXrcDeepLink({
-        username: share.profile.username,
-        profileId: share.profile.id,
-        section: section || (xrdRecordId ? "Records" : "Overview"),
-        xrdRecordId,
-      });
-      window.location.assign(path);
-    } catch (navigationError) {
-      console.error("[XRD] Could not open XRC provenance:", navigationError);
-      setError(navigationError?.message || "XRC provenance could not be opened.");
-    }
+  const openXRC = (recordId = null, section = "Overview") => {
+    window.location.assign(buildXrcDeepLink({
+      username: share.profile.username,
+      profileId: share.profile.id,
+      section: section || "Overview",
+      xrdRecordId: recordId || undefined,
+    }));
   };
-
   if (loading) {
     return <main className="xrd-share-state" role="status"><LoaderCircle size={20} />Loading public XRD…</main>;
   }
@@ -65,8 +58,10 @@ const PublicXrdSharePage = ({ username, currentUser }) => {
       targetId={share.profile.id}
       verificationItems={share.evidenceItems}
       publicSnapshot={share}
-      initialSection="Overview"
-      onOpenXRC={openXrc}
+      forcePublicView
+      presentation="page"
+      notice={share.linksWarning}
+      onOpenXRC={openXRC}
       onClose={close}
     />
   );

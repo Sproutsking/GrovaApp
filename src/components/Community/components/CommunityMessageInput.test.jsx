@@ -5,11 +5,9 @@ import CommunityMessageInput from "./CommunityMessageInput";
 describe("CommunityMessageInput keyboard submission", () => {
   it("sends on Enter and preserves Shift+Enter for a newline", async () => {
     const onSend = jest.fn().mockResolvedValue(true);
-    const { container } = render(<CommunityMessageInput value="Hello" onChange={jest.fn()} onSend={onSend} />);
+    render(<CommunityMessageInput value="Hello" onChange={jest.fn()} onSend={onSend} />);
 
     const input = screen.getByPlaceholderText("Type a message...");
-    expect(container.querySelector(".comm-msg-input-bar")).toBeTruthy();
-    expect(container.querySelector("style").textContent).toContain("linear-gradient(115deg, rgba(132,204,22,.58)");
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
 

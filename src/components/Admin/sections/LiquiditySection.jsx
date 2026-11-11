@@ -1,23 +1,8 @@
 // src/components/Admin/sections/LiquiditySection.jsx
 // ============================================================================
-// ADMIN — LIQUIDITY ENGINE PANEL  (v2 — rebuilt against real schema/rules)
-//
-// CHANGES vs v1:
-//   • Controls tab fully replaced. The old per-tier fee model
-//     (tier1/2/3_fee_pct, tier1/2_max_ep, ecosystem_fee_pct) does not match
-//     the confirmed business rules and has been removed entirely:
-//       - Platform fee is a SINGLE flat rate (default 2%), burned on every
-//         withdrawal — not three separate tier fees.
-//       - Withdrawal limits are gated by profiles.reward_level (silver/
-//         gold/diamond), expressed in USD, converted to EP via the
-//         ep_per_usd peg (default 100) — not raw EP cutoffs.
-//   • Queue breakdown now labels tiers by their reward-level meaning
-//     ("Tier 1 · Silver", "Tier 2 · Gold", "Tier 3 · Diamond") instead of
-//     showing opaque tier numbers.
-//   • Everything else (sparkline, metric cards, state banner, history,
-//     injection form, snapshot/refresh buttons) is unchanged — those were
-//     already correctly designed; only the data contract underneath them
-//     was broken, which liquidityService.js v2 now fixes.
+// ADMIN — liquidity reserve reporting and configuration.
+// Reward level controls withdrawal eligibility and request limits, not payout
+// priority. New withdrawals bypass the historical liquidity queue.
 // ============================================================================
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -419,8 +404,6 @@ export default function LiquiditySection({ adminData }) {
   const [injectReason, setInjectReason] = useState("");
   const [injecting, setInjecting] = useState(false);
 
-  const [releasing, setReleasing] = useState(false);
-
   const [queueStats, setQueueStats] = useState(null);
 
   const showToast = (text, ok = true) => {
@@ -437,9 +420,10 @@ export default function LiquiditySection({ adminData }) {
         liquidityService.getLiquidityDashboard(),
         liquidityService.getSnapshotHistory({ hours: 24, limit: 48 }),
         (async () => {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from("withdrawal_queue")
             .select("status,processing_tier,net_ep");
+          if (error) throw new Error(`Could not load legacy withdrawal records: ${error.message}`);
           if (!data) return null;
           const queued = data.filter((r) => r.status === "queued").length;
           const batched = data.filter((r) => r.status === "batched").length;
@@ -563,20 +547,6 @@ export default function LiquiditySection({ adminData }) {
       showToast(e.message, false);
     } finally {
       setInjecting(false);
-    }
-  };
-
-  // ── Release batch ───────────────────────────────────────────────────────────
-  const handleReleaseBatch = async () => {
-    setReleasing(true);
-    try {
-      const { released } = await liquidityService.releaseBatchedWithdrawals();
-      showToast(`✓ Released ${released} batched withdrawals to queue`);
-      await load();
-    } catch (e) {
-      showToast(e.message, false);
-    } finally {
-      setReleasing(false);
     }
   };
 
@@ -796,9 +766,9 @@ export default function LiquiditySection({ adminData }) {
           />
           <MetricCard
             icon={Layers}
-            label="Queue Length"
+            label="Payouts In Progress"
             value={fmtNum(snap.queue_length)}
-            sub={`${queueStats?.batched || 0} batched`}
+            sub={`${queueStats?.queued || 0} legacy queued · ${queueStats?.batched || 0} legacy batched`}
             color={snap.queue_length > 50 ? C.danger : C.accent}
           />
         </div>
@@ -943,10 +913,12 @@ export default function LiquiditySection({ adminData }) {
                   marginBottom: 4,
                 }}
               >
-                Withdrawal Queue
+                Legacy Withdrawal Records
               </div>
               <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>
-                Tier is derived from each user's reward level at request time
+                New requests bypass liquidity batching. These historical records
+                are retained for manual reconciliation; tier counts reflect the
+                policy recorded when each request was created.
               </div>
               <div
                 style={{
@@ -1037,36 +1009,6 @@ export default function LiquiditySection({ adminData }) {
                 ))}
               </div>
 
-              {queueStats.batched > 0 && (
-                <button
-                  onClick={handleReleaseBatch}
-                  disabled={releasing}
-                  style={{
-                    marginTop: 14,
-                    width: "100%",
-                    padding: "11px",
-                    borderRadius: 11,
-                    border: "none",
-                    background: releasing
-                      ? "#1a1a1a"
-                      : `linear-gradient(135deg, ${C.warn}, #d97706)`,
-                    color: releasing ? "#333" : "#0a0600",
-                    fontWeight: 800,
-                    fontSize: 13,
-                    cursor: releasing ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 7,
-                  }}
-                >
-                  <Layers size={13} />
-                  {releasing
-                    ? "Releasing…"
-                    : `Release ${queueStats.batched} Batched Withdrawals`}
-                </button>
-              )}
             </div>
           )}
 
@@ -1194,9 +1136,8 @@ export default function LiquiditySection({ adminData }) {
                 marginTop: 8,
               }}
             >
-              <strong style={{ color: C.success }}>Diamond priority:</strong>{" "}
-              Tier 3 (Diamond) withdrawals continue processing even during a
-              Critical liquidity state — Tier 1/2 are batched until recovery.
+              Payouts are not prioritized by reward level. Reward level controls
+              eligibility and the per-request cap only.
             </div>
           </div>
 

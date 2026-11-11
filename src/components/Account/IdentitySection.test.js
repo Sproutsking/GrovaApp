@@ -1,6 +1,7 @@
 jest.mock("../../services/config/supabase", () => ({ supabase: {} }));
 jest.mock("../../services/distribution/socialConnectService", () => ({ __esModule: true, default: {} }));
 jest.mock("../../services/connectors/connectorRegistry", () => ({ CONNECTOR_DEFINITIONS: {} }));
+jest.mock("../../services/identity/walletIdentityService", () => ({ __esModule: true, default: {} }));
 
 const { getIdentityConnectionStatus } = require("./IdentitySection");
 

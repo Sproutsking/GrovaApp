@@ -173,7 +173,7 @@ const MessageList = ({
 
   const getInitial = (user) => {
     if (!user) return "?";
-    return (user.full_name || user.username || "?").charAt(0).toUpperCase();
+    return (user.full_name || user.fullName || user.username || "?").charAt(0).toUpperCase();
   };
 
   const allMessages = [...messages, ...pendingMessages];
@@ -309,8 +309,17 @@ const MessageList = ({
           ));
           const showMessageBody = !(hasMessageMedia && messageBody.trim().toLowerCase() === "attachment");
           const externalUrls = getExternalUrls(messageBody);
-          const showAvatar = !isDirectMessage && (isAnnouncementMessage || (Boolean(msg.user) && !isWithinCluster));
-          const showSenderHeader = isAnnouncementMessage || (!isDirectMessage && Boolean(msg.user) && !isWithinCluster);
+          const communityMember = communityMembers.find((member) => String(member.user_id || member.user?.id) === String(msg.user_id));
+          const senderProfile = msg.user || communityMember?.user || (isMe ? currentUser : null);
+          const senderName = senderProfile?.full_name
+            || senderProfile?.fullName
+            || senderProfile?.name
+            || senderProfile?.username
+            || communityMember?.full_name
+            || communityMember?.username
+            || (isMe ? "You" : `Member ${String(msg.user_id || "").slice(0, 8)}`);
+          const showAvatar = !isDirectMessage && (isAnnouncementMessage || !isWithinCluster);
+          const showSenderHeader = isAnnouncementMessage || (!isDirectMessage && !isWithinCluster);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
           const hasReactionRow = isReactionChannel || canAddReactions
             || Object.values(msg.reactions || {}).some((reaction) => Number(reaction?.count) > 0);
@@ -332,10 +341,10 @@ const MessageList = ({
           const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, originalReply?.user?.boost_selections?.fontId, originalReply?.user?.boost_selections?.colorId).color?.color || "#9cff00";
           const avatarFootprint = isDirectMessage ? 0 : avatarSize;
           
-          const avatarUrl = getAvatar(msg.user);
-          const initial = getInitial(msg.user);
-          const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
-          const communityRole = communityMembers.find((member) => String(member.user_id || member.user?.id) === String(msg.user_id))?.role;
+          const avatarUrl = getAvatar(senderProfile);
+          const initial = getInitial(senderProfile);
+          const nameDesign = getBoostNameDesign(senderProfile?.subscription_tier, senderProfile?.boost_selections?.fontId, senderProfile?.boost_selections?.colorId);
+          const communityRole = communityMember?.role;
           const communityNameColor = nameDesign.color?.color || communityRole?.color;
 
           return (
@@ -381,7 +390,7 @@ const MessageList = ({
                 onClick={(event) => { event.stopPropagation(); if (canSelectMessage) onToggleMessageSelection?.(msg); }}
               >{selectedIds.has(String(messageId)) ? <span>✓</span> : null}</button>}
               {!isDirectMessage && showAvatar && (
-                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(msg.user); }} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
+                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint }} onPointerUp={(event) => { event.stopPropagation(); onProfileClick?.(senderProfile); }} onClick={(event) => { event.stopPropagation(); onProfileClick?.(senderProfile); }} role="button" tabIndex={0} aria-label={`View ${senderName}'s profile`}>
                   {avatarUrl ? <img src={avatarUrl} alt="" /> : <span className="msg-avatar-fallback">{initial}</span>}
                 </div>
               )}
@@ -400,9 +409,9 @@ const MessageList = ({
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? `has-tail ${isDirectMessage ? "tail-bottom" : "tail-top"}` : ""}${hasAttachments ? " has-attachments" : ""}${hasVisualAttachments ? " has-visual-attachments" : ""}${showMessageBody ? " has-message-body" : ""}${externalUrls.length ? " has-external-preview" : ""}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {!isDirectMessage && <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
-                      <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                        <span className="msg-user-name-text">{isMe ? (currentUser?.fullName || currentUser?.name || msg.user?.full_name || msg.user?.name || "You") : (msg.user?.full_name || msg.user?.name || msg.user?.username || "Unknown")}</span>
-                        {msg.user?.verified && <VerifiedBadgeCircle tier="silver" size={16} />}
+                      <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(senderProfile)}>
+                        <span className="msg-user-name-text">{senderName}</span>
+                        {senderProfile?.verified && <VerifiedBadgeCircle tier="silver" size={16} />}
                       </button>
                     )}
                     <button type="button" className={`msg-card-menu-btn ${isMe ? "me" : "them"}`} onClick={(event) => {
@@ -772,11 +781,10 @@ const MessageList = ({
         .announcement-title{font-size:calc((18px) + 1px);line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
-        .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px)); max-width: min(320px, calc(100% - 40px)); }
+        .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px)); max-width: min(320px, calc(100% - 40px)); }
         .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; box-sizing: border-box; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
-        .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments { width: min(320px, 84%); max-width: min(320px, 84%); }
         .mra-ann { align-items: flex-start; width: min(70%, 760px); max-width: min(70%, 760px); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
@@ -1036,9 +1044,7 @@ const MessageList = ({
           .msg-list-wrapper:not(.direct-message-list) { padding-left: 10px; padding-right: 10px; }
           .msg-list-wrapper.direct-message-list .msg-bubble { padding: 2px; }
           .msg-list-wrapper .msg-item .mra-wrapper.has-external-preview { width: min(420px, 100%) !important; }
-          .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments { flex: 0 1 auto; width: min(320px, calc(100% - 40px)); max-width: min(320px, calc(100% - 40px)); }
           .msg-list-wrapper .msg-item .mra-wrapper .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; }
-          .msg-list-wrapper.direct-message-list .msg-item .mra-wrapper.has-visual-attachments { flex: 0 1 84%; width: min(320px, 84%); max-width: min(320px, 84%); }
 
         }
       `}</style>

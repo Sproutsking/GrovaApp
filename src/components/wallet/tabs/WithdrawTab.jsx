@@ -1,27 +1,20 @@
-// src/components/wallet/tabs/WithdrawTab.jsx  v13
-// ════════════════════════════════════════════════════════════════════════════
-// CHANGES vs v12:
-//   • Tier cards: T1/T2/T3 moved to top-right corner badge (small pill tag)
-//   • Tier cards: fee % is the single large focal point
-//   • Tier cards: horizontal layout — range and ETA on one line below
-//   • Overall: tighter spacing, premium feel
-//   • liquidityService calls remain fully defensive (try/catch)
-// ════════════════════════════════════════════════════════════════════════════
+// Bank payouts are submitted immediately; reward level controls eligibility
+// and request caps, not payout priority.
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Clock,
   ChevronDown, RefreshCw, Info, ArrowUpToLine, Layers,
   Building2, Bitcoin, Mail, Shield, Eye, EyeOff, Loader,
-  TrendingDown, Zap, Lock, Unlock,
+  TrendingDown, Lock, Unlock,
 } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 import {
-  initiateWithdrawal as queueWithdrawal,
+  queueWithdrawal,
   getWithdrawalHistory,
   subscribeToWithdrawals,
-  cancelWithdrawal,
   requiresPin,
+  retryWithdrawalPayout,
   verifyWithdrawalPin,
   getDailyWithdrawalUsage,
   getWithdrawalPreview,
@@ -29,36 +22,14 @@ import {
   epToNGN,
   epToUSD,
   getWithdrawRate,
-  refreshWithdrawRate,
   MIN_WITHDRAWAL_EP,
   PIN_REQUIRED_EP,
 } from "../../../services/wallet/withdrawServiceV2";
-import { WITHDRAWAL_TIERS } from "../../../services/wallet/epService";
-import liquidityService from "../../../services/economy/liquidityService";
-
-// ── System state config ───────────────────────────────────────────────────────
-const STATE_CFG = {
-  healthy:  { label: "Live",   color: "#4ade80", dot: "#22c55e" },
-  warning:  { label: "Slow",   color: "#fbbf24", dot: "#f59e0b" },
-  critical: { label: "Busy",   color: "#f87171", dot: "#ef4444" },
-};
-
-// Safe WITHDRAWAL_TIERS fallback
-const TIERS = Array.isArray(WITHDRAWAL_TIERS) && WITHDRAWAL_TIERS.length === 3
-  ? WITHDRAWAL_TIERS
-  : [
-      { tier: 1, feePct: 4, minEp: 100,   maxEp: 1000,    estimatedHours: 72 },
-      { tier: 2, feePct: 3, minEp: 1001,  maxEp: 10000,   estimatedHours: 24 },
-      { tier: 3, feePct: 2, minEp: 10001, maxEp: Infinity, estimatedHours: 2  },
-    ];
-
-const TIER_COLOR = { 1: "#f87171", 2: "#fbbf24", 3: "#4ade80" };
-const TIER_ICON  = { 1: "⚡", 2: "⚖️", 3: "🚀" };
 
 const METHODS = [
-  { id: "bank",   label: "Bank",   Icon: Building2 },
-  { id: "crypto", label: "Crypto", Icon: Bitcoin   },
-  { id: "paypal", label: "PayPal", Icon: Mail       },
+  { id: "bank",   label: "Bank",   Icon: Building2, available: true },
+  { id: "crypto", label: "Crypto", Icon: Bitcoin,   available: false },
+  { id: "paypal", label: "PayPal", Icon: Mail,      available: false },
 ];
 
 const STATUS_MAP = {
@@ -177,6 +148,8 @@ const CSS = `
 .wd-methods { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:14px }
 .wd-method  { display:flex; align-items:center; justify-content:center; gap:7px; padding:10px 6px; border-radius:10px; cursor:pointer; border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.02); font-family:'Inter',sans-serif; transition:all .2s }
 .wd-method:hover { border-color:rgba(255,255,255,.14); background:rgba(255,255,255,.05) }
+.wd-method:disabled { opacity:.4; cursor:not-allowed }
+.wd-method:disabled:hover { border-color:rgba(255,255,255,.07); background:rgba(255,255,255,.02) }
 .wd-method.on { border-color:rgba(163,230,53,.4); background:rgba(163,230,53,.08) }
 .wd-mico    { flex-shrink:0; color:rgba(255,255,255,.3) }
 .wd-method.on .wd-mico { color:#a3e635 }
@@ -231,8 +204,8 @@ const CSS = `
 .wd-hrow:last-child { border-bottom:none }
 .wd-hico   { width:36px; height:36px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center }
 .wd-chip   { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:20px; font-size:calc((8px) + 1px); font-weight:700; letter-spacing:.06em; text-transform:uppercase; border:1px solid; white-space:nowrap }
-.wd-cncl   { font-size:calc((9px) + 1px); font-weight:600; color:rgba(248,113,113,.6); cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; padding:2px 0; transition:color .15s }
-.wd-cncl:hover { color:#f87171 }
+.wd-retry  { font-size:calc((9px) + 1px); font-weight:600; color:rgba(163,230,53,.7); cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; padding:2px 0; transition:color .15s }
+.wd-retry:hover { color:#a3e635 }
 
 .wd-skel   { background:rgba(255,255,255,.06); border-radius:8px; animation:wd-skel 1.5s ease infinite }
 
@@ -267,68 +240,10 @@ function StatusChip({ status }) {
   );
 }
 
-// ── Tier Cards — T1/T2/T3 as top-right corner badge ──────────────────────────
-function TierCards({ activeTier }) {
-  return (
-    <div className="wd-tiers">
-      {TIERS.map(t => {
-        const color    = TIER_COLOR[t.tier];
-        const isActive = activeTier === t.tier;
-        const hrs      = t.estimatedHours || 72;
-        const eta      = hrs >= 24 ? `~${hrs / 24}d` : `~${hrs}h`;
-        const range    = `${t.minEp.toLocaleString()}–${t.maxEp === Infinity ? "∞" : t.maxEp.toLocaleString()}`;
-
-        return (
-          <div
-            key={t.tier}
-            className={`wd-tc${isActive ? " on" : ""}`}
-            style={{
-              "--tc-glow":  `${color}20`,
-              borderColor:  isActive ? `${color}40` : "rgba(255,255,255,.08)",
-              background:   isActive ? `${color}0c` : "rgba(255,255,255,.02)",
-              boxShadow:    isActive ? `0 4px 24px ${color}14, inset 0 1px 0 ${color}18` : "none",
-            }}
-          >
-            {/* ── Top-right corner badge: T1 / T2 / T3 ── */}
-            <span
-              className="wd-tc-badge"
-              style={{
-                color,
-                borderColor:     `${color}40`,
-                background:      `${color}14`,
-              }}
-            >
-              T{t.tier}
-            </span>
-
-            {/* ── Icon ── */}
-            <span className="wd-tc-icon">{TIER_ICON[t.tier]}</span>
-
-            {/* ── Fee % — main focal point ── */}
-            <div className="wd-tc-pct" style={{ color }}>{t.feePct}%</div>
-            <div className="wd-tc-fee" style={{ color }}>fee</div>
-
-            {/* ── Divider ── */}
-            <div className="wd-tc-div" style={{ background: `${color}18` }} />
-
-            {/* ── Range + ETA ── */}
-            <div className="wd-tc-bot">
-              <span className="wd-tc-range" style={{ color }}>{range}</span>
-              <span className="wd-tc-eta"   style={{ color }}>{eta}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Breakdown ─────────────────────────────────────────────────────────────────
 function Breakdown({ preview, method }) {
   if (!preview) return null;
-  const color = TIER_COLOR[preview.tier];
   const rate  = getWithdrawRate();
-  const hrs   = preview.estimatedHours || 72;
   return (
     <div className="wd-brkdn">
       <div className="wd-brow">
@@ -337,19 +252,12 @@ function Breakdown({ preview, method }) {
       </div>
       <div className="wd-brow">
         <span className="wd-bkey">
-          Fee
-          <span className="wd-bbadge" style={{ color, background: `${color}15` }}>
-            T{preview.tier} · {preview.feePct}%
+          Platform fee
+          <span className="wd-bbadge" style={{ color: "#fbbf24", background: "rgba(251,191,36,.12)" }}>
+            {preview.feePct}%
           </span>
         </span>
         <span className="wd-bval y">−{fmtEP(preview.feeAmount)} EP</span>
-      </div>
-      <div className="wd-brow">
-        <span className="wd-bkey">Est. time</span>
-        <span className="wd-bval b">
-          <Clock size={10} style={{ display:"inline", verticalAlign:"middle", marginRight:4 }} />
-          {hrs >= 24 ? `~${hrs / 24}d` : `~${hrs}h`}
-        </span>
       </div>
       <div className="wd-brow">
         <span className="wd-bkey" style={{ fontWeight:600, color:"rgba(255,255,255,.65)" }}>You receive</span>
@@ -377,10 +285,17 @@ function DestForm({ method, onMethodChange, fields, setFields }) {
     <div className="wd-card">
       <div className="wd-clbl">Destination</div>
       <div className="wd-methods">
-        {METHODS.map(({ id, label, Icon }) => (
-          <button key={id} className={`wd-method${method === id ? " on" : ""}`} onClick={() => onMethodChange(id)}>
+        {METHODS.map(({ id, label, Icon, available }) => (
+          <button
+            key={id}
+            type="button"
+            className={`wd-method${method === id ? " on" : ""}`}
+            onClick={() => available && onMethodChange(id)}
+            disabled={!available}
+            aria-label={available ? label : `${label}, coming soon`}
+          >
             <span className="wd-mico"><Icon size={14} /></span>
-            <span className="wd-mlbl">{label}</span>
+            <span className="wd-mlbl">{available ? label : `${label} · Soon`}</span>
           </button>
         ))}
       </div>
@@ -400,19 +315,20 @@ function DestForm({ method, onMethodChange, fields, setFields }) {
       {method === "paypal" && <>
         <div className="wd-field"><span className="wd-flbl">PayPal Email</span>{inp("email","you@example.com",{type:"email"})}</div>
         <div className="wd-field"><span className="wd-flbl">Full Name (on PayPal)</span>{inp("fullName","Your full legal name")}</div>
-        <div className="wd-fnote">🅿 100 EP = $1.00 USD · Processed within 1–2 business days</div>
       </>}
+      {method === "bank" && (
+        <div className="wd-fnote">Crypto and PayPal payouts are not available yet. Bank payouts use Paystack.</div>
+      )}
     </div>
   );
 }
 
 // ── History Row ───────────────────────────────────────────────────────────────
-function HistRow({ item, onCancel }) {
-  const color    = TIER_COLOR[item.processing_tier] || "#60a5fa";
-  const rate     = getWithdrawRate();
+function HistRow({ item, onRetry }) {
+  const color    = item.status === "completed" ? "#4ade80" : item.status === "failed" ? "#f87171" : "#a3e635";
   const M        = METHODS.find(d => d.id === item.destination_type);
   const DestIcon = M ? M.Icon : Building2;
-  const canCancel = ["queued","batched"].includes(item.status);
+  const canRetry = item.status === "processing" && item.metadata?.payout_state === "ready";
   return (
     <div className="wd-hrow">
       <div className="wd-hico" style={{ background:`${color}12`, border:`1px solid ${color}20` }}>
@@ -422,13 +338,22 @@ function HistRow({ item, onCancel }) {
         <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:3 }}>
           <span style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,.8)" }}>Withdrawal</span>
           <StatusChip status={item.status} />
-          <span style={{ fontSize:9, fontWeight:700, color, padding:"2px 5px", borderRadius:4, background:`${color}12` }}>T{item.processing_tier}</span>
         </div>
         <div style={{ fontSize:11, color:"rgba(255,255,255,.3)", display:"flex", gap:5, fontFamily:"'JetBrains Mono',monospace", alignItems:"center" }}>
           <span style={{ display:"flex", alignItems:"center", gap:3 }}><DestIcon size={10}/> {item.destination_type}</span>
           <span>·</span><span>{ago(item.requested_at)}</span>
         </div>
-        {canCancel && <button className="wd-cncl" onClick={() => onCancel(item.id)}>Cancel & refund</button>}
+        {canRetry && <button className="wd-retry" onClick={() => onRetry(item.id)}>Retry payout initiation</button>}
+        {item.metadata?.payout_state === "reconciliation_required" && (
+          <div style={{ marginTop:5, color:"#fbbf24", fontSize:10 }}>
+            Payout status is being reconciled. Do not submit a duplicate request.
+          </div>
+        )}
+        {item.metadata?.payout_state === "initiating" && (
+          <div style={{ marginTop:5, color:"#fbbf24", fontSize:10 }}>
+            Payout initiation is in progress. Do not submit a duplicate request.
+          </div>
+        )}
       </div>
       <div style={{ textAlign:"right", flexShrink:0 }}>
         <div style={{ fontSize:14, fontWeight:700, color:"#f87171", fontVariantNumeric:"tabular-nums" }}>
@@ -439,7 +364,7 @@ function HistRow({ item, onCancel }) {
         </div>
         {item.destination_type === "bank" && item.status === "completed" && (
           <div style={{ fontSize:10, color:"rgba(255,255,255,.25)", fontFamily:"'JetBrains Mono',monospace" }}>
-            ₦{epToNGN(item.net_ep, rate).toLocaleString()}
+            ₦{Number(item.netNGN ?? epToNGN(item.net_ep)).toLocaleString()}
           </div>
         )}
       </div>
@@ -451,10 +376,9 @@ function HistRow({ item, onCancel }) {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 export default function WithdrawTab({ userId, balance, setActiveTab }) {
-  const [sysState,    setSysState]    = useState("healthy");
-  const [sysLoading,  setSysLoading]  = useState(true);
   const [epBalance,   setEpBalance]   = useState(Math.floor(balance?.points ?? 0));
   const [dailyUsage,  setDailyUsage]  = useState(null);
+  const [policyError, setPolicyError] = useState(null);
 
   const [amount,      setAmount]      = useState("");
   const [method,      setMethod]      = useState("bank");
@@ -471,12 +395,16 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
   const [toast,       setToast]       = useState(null);
 
   const [history,     setHistory]     = useState([]);
+  const [historyError,setHistoryError]= useState(null);
   const [histLoading, setHistLoading] = useState(true);
   const [showHist,    setShowHist]    = useState(false);
+  const idempotencyKeyRef = useRef(null);
 
   const amtNum     = parseFloat(amount) || 0;
-  const preview    = useMemo(() => getWithdrawalPreview(amtNum, method), [amtNum, method]);
-  const activeTier = preview?.tier ?? null;
+  const preview    = useMemo(
+    () => getWithdrawalPreview(amtNum, method, dailyUsage?.feePct),
+    [amtNum, method, dailyUsage?.feePct],
+  );
   const needsPin   = requiresPin(amtNum);
 
   useEffect(() => { setEpBalance(Math.floor(balance?.points ?? 0)); }, [balance?.points]);
@@ -485,44 +413,42 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
     setMethod(m); setFields({}); setError(null); setPinOk(false);
   }, []);
 
-  // Fully defensive liquidityService calls
-  useEffect(() => {
-    setSysLoading(true);
-    if (typeof liquidityService?.getLatestSnapshot === "function") {
-      liquidityService.getLatestSnapshot()
-        .then(s => setSysState(s?.system_state ?? "healthy"))
-        .catch(() => setSysState("healthy"))
-        .finally(() => setSysLoading(false));
-    } else {
-      setSysState("healthy"); setSysLoading(false);
-    }
-    let unsub = () => {};
-    try {
-      if (typeof liquidityService?.subscribeLiquidity === "function") {
-        unsub = liquidityService.subscribeLiquidity(
-          s => setSysState(s?.system_state ?? "healthy")
-        ) ?? (() => {});
-      }
-    } catch { /* silent */ }
-    return unsub;
-  }, []);
-
   const refreshBalance = useCallback(async () => {
     if (!userId) return;
-    const { data } = await supabase.from("wallets").select("engagement_points").eq("user_id", userId).maybeSingle();
+    const { data, error: balanceError } = await supabase
+      .from("wallets")
+      .select("engagement_points")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (balanceError) {
+      setError(`Withdrawal may be recorded, but the balance could not be refreshed: ${balanceError.message}`);
+      return;
+    }
     if (data) setEpBalance(Math.floor(data.engagement_points || 0));
   }, [userId]);
 
   const loadDailyUsage = useCallback(async () => {
     if (!userId) return;
-    try { setDailyUsage(await getDailyWithdrawalUsage(userId)); } catch { /* silent */ }
+    try {
+      setDailyUsage(await getDailyWithdrawalUsage(userId));
+      setPolicyError(null);
+    } catch (e) {
+      setDailyUsage(null);
+      setPolicyError(e.message || "Withdrawal limits are temporarily unavailable.");
+    }
   }, [userId]);
 
   const loadHistory = useCallback(async () => {
     if (!userId) return;
     setHistLoading(true);
-    try { setHistory(await getWithdrawalHistory(userId, 10)); } catch { /* silent */ }
-    setHistLoading(false);
+    try {
+      setHistory(await getWithdrawalHistory(userId, 10));
+      setHistoryError(null);
+    } catch (e) {
+      setHistoryError(e.message || "Could not load withdrawal history.");
+    } finally {
+      setHistLoading(false);
+    }
   }, [userId]);
 
   useEffect(() => { loadHistory(); loadDailyUsage(); }, [loadHistory, loadDailyUsage]);
@@ -530,24 +456,32 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
   useEffect(() => {
     if (!userId) return;
     return subscribeToWithdrawals(userId, async () => {
-      await loadHistory(); await loadDailyUsage(); await refreshBalance();
+      await loadHistory();
+      await loadDailyUsage();
+      await refreshBalance();
     });
   }, [userId, loadHistory, loadDailyUsage, refreshBalance]);
 
   const validation = useMemo(() => {
+    if (policyError) return { ok: false, msg: policyError };
+    if (!dailyUsage) return { ok: false, msg: "Loading withdrawal limits…" };
+    if (!dailyUsage.eligible) return { ok: false, msg: "Reach Silver reward level to withdraw." };
+    if (!Number.isSafeInteger(amtNum)) return { ok: false, msg: "Enter a whole EP amount." };
     if (!amtNum || amtNum < MIN_WITHDRAWAL_EP)
       return { ok: false, msg: `Min ${MIN_WITHDRAWAL_EP} EP` };
     if (amtNum > epBalance)
       return { ok: false, msg: "Insufficient EP balance" };
     if (!preview)
       return { ok: false, msg: "Invalid amount" };
-    if (dailyUsage && amtNum > dailyUsage.remaining)
+    if (amtNum > dailyUsage.maxPerRequest)
+      return { ok: false, msg: `Per-request limit: ${dailyUsage.maxPerRequest.toLocaleString()} EP` };
+    if (amtNum > dailyUsage.remaining)
       return { ok: false, msg: `Daily limit: ${dailyUsage.remaining.toLocaleString()} EP remaining` };
     const destErr = validateDestination(method, fields);
     if (destErr) return { ok: false, msg: destErr };
     if (needsPin && !pinOk) return { ok: false, msg: "PIN required" };
     return { ok: true, msg: null };
-  }, [amtNum, epBalance, preview, dailyUsage, method, fields, needsPin, pinOk]);
+  }, [amtNum, epBalance, preview, dailyUsage, method, fields, needsPin, pinOk, policyError]);
 
   const showToast = (type, text) => {
     setToast({ type, text });
@@ -571,30 +505,45 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
     }
     setSubmitting(true); setError(null);
     try {
-      const result = await queueWithdrawal({ userId, epAmount: amtNum, method, fields, pin: pinOk ? pin : null });
+      if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
+      const result = await queueWithdrawal({
+        userId,
+        epAmount: amtNum,
+        method,
+        fields,
+        pin: pinOk ? pin : null,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+      idempotencyKeyRef.current = null;
       setAmount(""); setFields({}); setPin(""); setPinOk(false);
-      const val = method === "bank"
-        ? `₦${result.netNGN?.toLocaleString() ?? "—"}`
-        : `$${result.netUSD?.toFixed(2) ?? "—"}`;
-      showToast("ok", result.batched
-        ? "⏳ Batched — system busy. Will auto-process on recovery."
-        : `✅ Queued! ${fmtEP(result.netEp)} EP → ${val}`);
+      const val = `₦${Number(result.netNGN).toLocaleString()}`;
+      showToast(result.refunded ? "err" : result.payoutWarning ? "err" : "ok", result.refunded
+        ? `Payout could not be started; ${fmtEP(result.grossEP)} EP has been refunded. ${result.payoutWarning}`
+        : result.payoutWarning
+        ? `Request recorded; payout needs attention. ${result.payoutWarning}`
+        : `Withdrawal submitted: ${fmtEP(result.netEp)} EP → ${val}`);
       setShowHist(true);
-      await loadHistory(); await loadDailyUsage(); await refreshBalance();
+      await loadHistory();
+      await loadDailyUsage();
+      await refreshBalance();
     } catch (e) {
       setError(e.message || "Withdrawal failed. Please try again.");
     } finally { setSubmitting(false); }
   };
 
-  const handleCancel = async (id) => {
+  const handleRetry = async (id) => {
     try {
-      await cancelWithdrawal(id, userId);
-      showToast("ok", "Cancelled. EP refunded to your wallet.");
-      await loadHistory(); await loadDailyUsage(); await refreshBalance();
-    } catch (e) { showToast("err", e.message || "Cancel failed"); }
+      await retryWithdrawalPayout(id);
+      showToast("ok", "Payout initiation submitted. Check the withdrawal status below.");
+    } catch (e) {
+      showToast("err", e.message || "Payout retry failed.");
+    } finally {
+      await loadHistory();
+      await loadDailyUsage();
+      await refreshBalance();
+    }
   };
 
-  const sc      = STATE_CFG[sysState] || STATE_CFG.healthy;
   const btnCls  = !validation.ok ? "off" : submitting ? "busy" : "ok";
 
   return (
@@ -606,14 +555,8 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
         <button className="wd-back" onClick={() => setActiveTab?.("overview")}><ArrowLeft size={14}/></button>
         <div>
           <div className="wd-htitle">Withdraw EP</div>
-          <div className="wd-hsub">Xeevia Wallet · Secure Withdrawal</div>
+          <div className="wd-hsub">Bank payout · Paystack</div>
         </div>
-        {!sysLoading && (
-          <div className="wd-spill" style={{ color: sc.color, borderColor:`${sc.color}30`, background:`${sc.color}08` }}>
-            <div className="wd-sdot" style={{ background: sc.dot }} />
-            {sc.label}
-          </div>
-        )}
       </div>
 
       {/* Hero Balance */}
@@ -655,26 +598,22 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
         )}
       </div>
 
-      {/* System warning */}
-      {sysState === "critical" && (
-        <div className="wd-syswarn">
-          <AlertTriangle size={13} style={{ flexShrink:0, marginTop:1 }}/>
-          <span><strong>High demand:</strong> Tier 1 & 2 withdrawals are batched. Tier 3 (10k+ EP) processes normally.</span>
-        </div>
-      )}
-
-      {/* Tier Cards */}
-      <TierCards activeTier={activeTier} />
-
       {/* Amount */}
       <div className="wd-card">
         <div className="wd-clbl">Withdrawal Amount</div>
         <div className={`wd-amtwrap${amtErr ? " err" : ""}`}>
-          <input className="wd-amtinp" type="number" min="100" step="1"
+          <input className="wd-amtinp" type="number" min={MIN_WITHDRAWAL_EP} step="1"
             value={amount} placeholder={`Min ${MIN_WITHDRAWAL_EP} EP`}
             onChange={e => { setAmount(e.target.value); setError(null); setPinOk(false); }}/>
           <span className="wd-amtunit">EP</span>
         </div>
+        {dailyUsage && (
+          <div className="wd-fnote">
+            {dailyUsage.rewardLevel[0].toUpperCase() + dailyUsage.rewardLevel.slice(1)} reward level ·
+            max {fmtEP(dailyUsage.maxPerRequest)} EP per request · {dailyUsage.feePct}% flat fee
+          </div>
+        )}
+        {policyError && <div className="wd-err"><AlertTriangle size={13}/>{policyError}</div>}
         <div className="wd-amtrow">
           <button className="wd-maxbtn" onClick={() => setAmount(String(Math.floor(epBalance)))}>
             <ArrowUpToLine size={9}/> Max {fmtEP(epBalance)} EP
@@ -684,6 +623,12 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
           )}
           {amtNum > epBalance && amtNum >= MIN_WITHDRAWAL_EP && (
             <span className="wd-inerr"><AlertTriangle size={11}/> Exceeds balance</span>
+          )}
+          {dailyUsage && amtNum > dailyUsage.maxPerRequest && (
+            <span className="wd-inerr"><AlertTriangle size={11}/> Per-request limit {fmtEP(dailyUsage.maxPerRequest)} EP</span>
+          )}
+          {dailyUsage && amtNum <= dailyUsage.maxPerRequest && amtNum > dailyUsage.remaining && (
+            <span className="wd-inerr"><AlertTriangle size={11}/> Daily limit {fmtEP(dailyUsage.remaining)} EP remaining</span>
           )}
         </div>
         <Breakdown preview={preview} method={method}/>
@@ -706,7 +651,7 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
             <>
               <div className="wd-pinrow">
                 <input className="wd-pininp" type={showPin?"text":"password"} inputMode="numeric"
-                  maxLength={6} placeholder="Enter your PIN" value={pin}
+                  maxLength={12} placeholder="Enter your PIN" value={pin}
                   onChange={e => setPin(e.target.value.replace(/\D/g,""))}
                   onKeyDown={e => e.key==="Enter" && handleVerifyPin()}/>
                 <button className="wd-pintgl" onClick={() => setShowPin(v=>!v)}>
@@ -739,7 +684,7 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
 
       <div className="wd-info">
         <Info size={13} style={{ flexShrink:0, marginTop:1 }}/>
-        <span>Higher amounts = lower fees + faster processing. Tier 3 (10k+ EP) processes in ~2h. Transfers are initiated immediately on submission.</span>
+        <span>Eligible bank withdrawals are submitted for payout immediately. Your reward level sets eligibility and the per-request limit; no account receives payout priority.</span>
       </div>
 
       {/* History */}
@@ -758,6 +703,8 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {[1,2,3].map(i => <div key={i} className="wd-skel" style={{ height:52 }}/>)}
               </div>
+            ) : historyError ? (
+              <div className="wd-err"><AlertTriangle size={13}/>{historyError}</div>
             ) : history.length === 0 ? (
               <div style={{ textAlign:"center", padding:"28px 0", color:"rgba(255,255,255,.2)" }}>
                 <TrendingDown size={28} style={{ margin:"0 auto 10px", display:"block", opacity:.3 }}/>
@@ -766,7 +713,7 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
               </div>
             ) : (
               <>
-                {history.map((item, idx) => <HistRow key={item.id} item={item} onCancel={handleCancel} idx={idx}/>)}
+                {history.map(item => <HistRow key={item.id} item={item} onRetry={handleRetry}/>)}
                 <div style={{ textAlign:"center", marginTop:12 }}>
                   <button onClick={() => { loadHistory(); loadDailyUsage(); }}
                     style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"6px 14px", borderRadius:8, border:"1px solid rgba(255,255,255,.09)", background:"transparent", color:"rgba(255,255,255,.35)", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>
@@ -781,7 +728,7 @@ export default function WithdrawTab({ userId, balance, setActiveTab }) {
 
       {toast && (
         <div className={`wd-toast ${toast.type}`}>
-          {toast.type==="ok" ? <Zap size={14} style={{flexShrink:0}}/> : <AlertTriangle size={14} style={{flexShrink:0}}/>}
+          {toast.type==="ok" ? <CheckCircle2 size={14} style={{flexShrink:0}}/> : <AlertTriangle size={14} style={{flexShrink:0}}/>}
           <span>{toast.text}</span>
         </div>
       )}
