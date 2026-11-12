@@ -161,6 +161,18 @@
         background: #000000;
       }
 
+      #xv-boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        opacity: 1;
+        transition: opacity 250ms ease;
+      }
+      #xv-boot-splash.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
       .unified-loader {
         display: flex;
         flex-direction: column;
@@ -496,7 +508,8 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
-    <div id="root">
+    <div id="root"></div>
+    <div id="xv-boot-splash">
       <div class="unified-loader app-init fullscreen" role="status" aria-label="Initializing Xeevia">
         <div class="liquid-loader" style="--liquid-k: 1.5">
           <svg class="liquid-defs" width="0" height="0" aria-hidden="true" focusable="false">
@@ -521,6 +534,17 @@
         </div>
       </div>
     </div>
+    <script>
+      window.__xvHideBootSplash = function () {
+        var splash = document.getElementById("xv-boot-splash");
+        if (!splash || splash.classList.contains("is-hidden")) return;
+        splash.classList.add("is-hidden");
+        window.setTimeout(function () {
+          splash.remove();
+          delete window.__xvHideBootSplash;
+        }, 250);
+      };
+    </script>
 
     <!-- Update card — smart snooze flow -->
     <div id="xv-update-card" role="complementary" aria-label="Update Xeevia">

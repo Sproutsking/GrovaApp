@@ -64,7 +64,7 @@ import { ToastProvider }           from "./contexts/ToastContext";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
-import AuthWall, { Splash }      from "./components/Auth/AuthWall";
+import AuthWall                  from "./components/Auth/AuthWall";
 import LinkIdentityCallback      from "./components/Auth/LinkIdentityCallback";
 import { AccountLinkingProvider } from "./contexts/AccountLinkingContext";
 
@@ -1713,11 +1713,15 @@ function StartupRecovery({
   );
 }
 
-const STARTUP_ANIMATION_CYCLE_MS = 3600;
+function releaseBootSplash() {
+  window.__xvHideBootSplash?.();
+}
 
-function getBootAnimationElapsedMs() {
-  const startedAt = window.__xvBootStartedAt;
-  return Number.isFinite(startedAt) ? Math.max(0, performance.now() - startedAt) : 0;
+function BootSplashRelease() {
+  useEffect(() => {
+    releaseBootSplash();
+  }, []);
+  return null;
 }
 
 function AppRouter() {
@@ -1731,11 +1735,9 @@ function AppRouter() {
 
   const [authLoadStalled, setAuthLoadStalled] = useState(false);
   const [initialHomeReady, setInitialHomeReady] = useState(false);
-  const [startupCycleComplete, setStartupCycleComplete] = useState(false);
   const [startupTimedOut, setStartupTimedOut] = useState(false);
-  const [startupCurtainMounted, setStartupCurtainMounted] = useState(true);
-  const [startupCurtainVisible, setStartupCurtainVisible] = useState(true);
   const markInitialHomeReady = useCallback(() => setInitialHomeReady(true), []);
+  const hasAuthUser = Boolean(user);
   const hasStartupSession = Boolean(user && profile);
   hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
@@ -1779,27 +1781,39 @@ function AppRouter() {
   useEffect(() => {
     if (!hasStartupSession) return undefined;
 
-    const elapsedAtReady = getBootAnimationElapsedMs();
-    const nextCycleBoundary = Math.ceil(elapsedAtReady / STARTUP_ANIMATION_CYCLE_MS) * STARTUP_ANIMATION_CYCLE_MS;
-    const cycleTimer = setTimeout(
-      () => setStartupCycleComplete(true),
-      Math.max(0, nextCycleBoundary - elapsedAtReady),
-    );
     const startupTimer = setTimeout(() => setStartupTimedOut(true), 30_000);
     return () => {
-      clearTimeout(cycleTimer);
       clearTimeout(startupTimer);
     };
   }, [hasStartupSession, user?.id]);
 
   useEffect(() => {
-    if (startupCycleComplete && initialHomeReady) {
-      setStartupCurtainVisible(false);
-      const timer = setTimeout(() => setStartupCurtainMounted(false), 350);
-      return () => clearTimeout(timer);
+    const isLazyPublicRoute =
+      pathname === "/terms" ||
+      pathname === "/privacy" ||
+      /^\/xrd\/[^/]+\/?$/.test(pathname) ||
+      /^\/xrc\/[^/]+\/?$/.test(pathname);
+
+    if (
+      pathname === "/auth/link-callback" ||
+      (!isLazyPublicRoute &&
+        (authLoadStalled ||
+          (startupTimedOut && !initialHomeReady) ||
+          (!loading &&
+            (!hasAuthUser || (hasStartupSession && initialHomeReady) || profileLoadError))))
+    ) {
+      releaseBootSplash();
     }
-    return undefined;
-  }, [initialHomeReady, startupCycleComplete]);
+  }, [
+    authLoadStalled,
+    initialHomeReady,
+    hasAuthUser,
+    hasStartupSession,
+    loading,
+    pathname,
+    profileLoadError,
+    startupTimedOut,
+  ]);
 
   useEffect(() => {
     if (!loading) {
@@ -1815,14 +1829,16 @@ function AppRouter() {
   // ── Handle public pages (no auth required) ────────────────────────────────
   if (pathname === "/terms") {
     return (
-      <Suspense fallback={<Splash />}>
+      <Suspense fallback={null}>
+        <BootSplashRelease />
         <TermsOfService />
       </Suspense>
     );
   }
   if (pathname === "/privacy") {
     return (
-      <Suspense fallback={<Splash />}>
+      <Suspense fallback={null}>
+        <BootSplashRelease />
         <PrivacyPolicy />
       </Suspense>
     );
@@ -1832,7 +1848,8 @@ function AppRouter() {
 
   if (publicXrdMatch) {
     return (
-      <Suspense fallback={<Splash />}>
+      <Suspense fallback={null}>
+        <BootSplashRelease />
         <PublicXrdSharePage username={decodeRouteSegment(publicXrdMatch[1])} currentUser={user} />
       </Suspense>
     );
@@ -1848,17 +1865,18 @@ function AppRouter() {
           onRetry={() => window.location.reload()}
         />
       )
-      : <Splash />;
+      : null;
   }
   if (!user) return <AuthWall />;
   if (xrcProfileMatch) {
     return (
-      <Suspense fallback={<Splash />}>
+      <Suspense fallback={null}>
+        <BootSplashRelease />
         <XrcProfileRoute username={decodeRouteSegment(xrcProfileMatch[1])} currentUser={user} />
       </Suspense>
     );
   }
-  if (!profile && !profileLoadError) return <Splash />;
+  if (!profile && !profileLoadError) return null;
   if (!profile) {
     return (
       <StartupRecovery
@@ -1879,26 +1897,7 @@ function AppRouter() {
       />
     );
   }
-  return (
-    <>
-      <MainApp onInitialHomeReady={markInitialHomeReady} />
-      {startupCurtainMounted && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 10001,
-            opacity: startupCurtainVisible ? 1 : 0,
-            pointerEvents: startupCurtainVisible ? "auto" : "none",
-            transition: "opacity 350ms ease",
-          }}
-        >
-          <Splash />
-        </div>
-      )}
-    </>
-  );
+  return <MainApp onInitialHomeReady={markInitialHomeReady} />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────

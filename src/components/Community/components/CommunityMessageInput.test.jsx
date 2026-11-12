@@ -31,4 +31,17 @@ describe("CommunityMessageInput keyboard submission", () => {
     fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
     expect(screen.getByText("How your post will appear")).not.toBeNull();
   });
+
+  it("keeps the message field dark while animating only its gradient border", () => {
+    render(<CommunityMessageInput value="" onChange={jest.fn()} onSend={jest.fn()} />);
+
+    expect(screen.getByPlaceholderText("Type a message...").classList.contains("comm-textarea")).toBe(true);
+
+    const componentStyles = Array.from(document.querySelectorAll("style"))
+      .map((style) => style.textContent)
+      .join("\n");
+    expect(componentStyles).toContain("linear-gradient(#080b09, #080b09) padding-box");
+    expect(componentStyles).toContain("@keyframes commInputBorderDrift");
+    expect(componentStyles).toContain("@media (prefers-reduced-motion: reduce)");
+  });
 });

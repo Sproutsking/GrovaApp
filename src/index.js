@@ -206,6 +206,7 @@ class AppErrorBoundary extends React.Component {
     const stack = String(error?.stack ?? "");
     if (isExtensionError(msg) || isExtensionError(stack)) return;
     if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg)) return;
+    window.__xvHideBootSplash?.();
     if (/ChunkLoadError|Loading (CSS )?chunk|Failed to fetch dynamically imported module/i.test(`${msg} ${stack}`)) {
       this.recoverFromStaleBuild();
       return;
@@ -333,7 +334,10 @@ class AppErrorBoundary extends React.Component {
 
 // ── 4. RENDER ─────────────────────────────────────────────────────────────────
 const rootElement = document.getElementById("root");
-const bootAnimation = rootElement?.querySelector(".liquid-core")?.getAnimations?.()[0];
+const bootAnimation = document
+  .getElementById("xv-boot-splash")
+  ?.querySelector(".liquid-core")
+  ?.getAnimations?.()[0];
 if (Number.isFinite(bootAnimation?.currentTime)) {
   window.__xvBootStartedAt = performance.now() - bootAnimation.currentTime;
 }

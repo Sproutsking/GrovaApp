@@ -639,10 +639,12 @@ const CommunityMessageInput = ({
           flex: 1;
           min-width: 0;
           background:
-            linear-gradient(var(--surface), var(--surface)) padding-box,
+            linear-gradient(#080b09, #080b09) padding-box,
             linear-gradient(115deg, rgba(132,204,22,.58), rgba(56,189,248,.26) 52%, rgba(132,204,22,.22)) border-box;
           border: 1px solid transparent;
           border-radius: 20px;
+          background-size: 100% 100%, 220% 220%;
+          background-position: 0 0, 0% 50%;
           padding: 10px 16px;
           color: var(--text);
           font-size: calc((14px) + 1px);
@@ -653,15 +655,24 @@ const CommunityMessageInput = ({
           max-height: 140px;
           overflow-y: hidden;
           box-sizing: border-box;
-          transition: box-shadow 0.2s;
+          animation: commInputBorderDrift 18s ease-in-out infinite alternate;
+          transition: box-shadow 0.2s, border-color 0.2s;
         }
 
         .comm-textarea:focus {
-          box-shadow: 0 0 12px var(--accent-shadow);
+          box-shadow: 0 0 0 1px rgba(132,204,22,.12), 0 0 10px rgba(132,204,22,.08);
         }
 
         .comm-textarea::placeholder {
           color: var(--text-muted);
+        }
+
+        @keyframes commInputBorderDrift {
+          to { background-position: 0 0, 100% 50%; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .comm-textarea { animation: none; }
         }
 
         .comm-send-btn {
