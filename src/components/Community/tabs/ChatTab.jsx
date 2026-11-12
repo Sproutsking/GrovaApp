@@ -39,6 +39,7 @@ import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
 import OfficialLinksPanel from "../links/OfficialLinksPanel";
 import { supabase } from "../../../services/config/supabase";
 import { useUserBoostTier } from "../../../hooks/useUserBoostTier";
+import { getChannelDraft, setChannelDraft } from "./channelDrafts";
 
 const ChatTab = ({
   community,
@@ -65,7 +66,11 @@ const ChatTab = ({
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [olderMessagesError, setOlderMessagesError] = useState("");
-  const [messageInput, setMessageInput] = useState("");
+  const [messageDrafts, setMessageDrafts] = useState({});
+  const messageInput = getChannelDraft(messageDrafts, selectedChannel?.id);
+  const setMessageInput = useCallback((value) => {
+    setMessageDrafts((drafts) => setChannelDraft(drafts, selectedChannel?.id, value));
+  }, [selectedChannel?.id]);
   const [showMenu, setShowMenu] = useState(false);
   const [sending, setSending] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
