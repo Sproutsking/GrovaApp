@@ -653,7 +653,7 @@ const MessageList = ({
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:18px; padding-top:1px; margin-bottom:1px; box-sizing:border-box; gap:6px; }
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:18px; padding-top:1px; margin-bottom:1px; box-sizing:border-box; gap:12px; }
         .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
         .msg-card-header .msg-user-name { order:1; }
         .msg-card-header .msg-card-menu-btn { order:2; }
