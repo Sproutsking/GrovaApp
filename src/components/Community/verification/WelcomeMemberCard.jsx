@@ -22,12 +22,12 @@ const DEFAULTS = {
 };
 
 const AVATAR_SIZE_BY_CRAFT = {
-  "banner-hero": 88,
-  "side-rail": 80,
-  spotlight: 64,
-  "minimal-row": 48,
-  poster: 108,
-  "ticket-stub": 64,
+  "banner-hero": 76,
+  "side-rail": 68,
+  spotlight: 60,
+  "minimal-row": 44,
+  poster: 84,
+  "ticket-stub": 58,
 };
 
 const getBrowseDismissalKey = (communityId, memberId, viewerId) => (
@@ -140,6 +140,7 @@ export default function WelcomeMemberCard({ communityId, memberId, viewerId, com
     topRight={config.showMemberCount ? <small><UserPlus size={12} /> New member</small> : null}
     heading={<button type="button" className="wc-heading-btn" onClick={() => onProfileClick?.(member)} style={{ color: roleColor, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight }}>{name}</button>}
     description={config.description}
+    avatarTier={member?.subscription_tier}
     avatar={<button type="button" onClick={() => onProfileClick?.(member)} aria-label={`Open ${name}'s profile`} style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex" }}><BoostAvatarRing tier={member?.subscription_tier} themeId={member?.boost_selections?.themeId} accentColor={nameDesign.color?.color || roleColor} size={avatarSize} src={avatar} letter={name.charAt(0).toUpperCase()} showBadge /></button>}
     meta={<>{role && <span style={{ color: roleColor, borderColor: `${roleColor}66` }}><ShieldCheck size={12} /> {role.name}</span>}{member?.verified && <span><Check size={12} /> Verified</span>}{member?.subscription_tier && <span>{member.subscription_tier} boost</span>}{config.showFeatures && config.features?.map((feature, index) => feature?.trim() && <span key={`${feature}-${index}`}><ShieldCheck size={11} /> {feature}</span>)}</>}
     actions={(config.showPrimaryAction || showBrowseAction) && <>{config.showPrimaryAction && <button type="button" onClick={() => onIntroduce?.(config.introChannelId)} disabled={!config.introChannelId}><UserPlus size={14} />{config.primaryLabel}</button>}{showBrowseAction && <button type="button" onClick={browseChannels}>{config.secondaryLabel}</button>}</>}

@@ -141,6 +141,35 @@ describe("MessageList presentation", () => {
     );
   });
 
+  it("adds the image-only header inset only to messages containing images without text", () => {
+    const imageOnly = renderList([makeMessage({
+      content: "attachment",
+      attachments: [{ type: "image", url: "https://example.test/photo.png" }],
+    })]);
+    const imageBubble = imageOnly.container.querySelector(".msg-bubble");
+    const imageStyles = imageOnly.container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(imageBubble.classList.contains("has-image-only")).toBe(true);
+    expect(imageStyles).toContain(".msg-bubble.has-image-only .msg-card-header { padding-left: 2px; }");
+    imageOnly.unmount();
+
+    const imageWithText = renderList([makeMessage({
+      content: "Photo from today",
+      attachments: [{ type: "image", url: "https://example.test/photo.png" }],
+    })]);
+    expect(imageWithText.container.querySelector(".msg-bubble").classList.contains("has-image-only")).toBe(false);
+  });
+
+  it("reduces standard, direct, and announcement message corner radii by 2px", () => {
+    const { container } = renderList([makeMessage()]);
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain("border-radius: 10px;");
+    expect(styles).toContain("border-radius: 14px;");
+    expect(styles).not.toContain("border-radius: 12px;");
+    expect(styles).toContain(".msg-list-wrapper.direct-message-list .msg-bubble.them,\n        .msg-list-wrapper.direct-message-list .msg-bubble.me { border-radius: 10px; }");
+  });
+
   it("keeps text-only message widths natural and applies the media width rule to video messages", () => {
     const textOnly = renderList([makeMessage({ content: "A long text-only message should retain its normal sizing." })]);
     expect(textOnly.container.querySelector(".mra-wrapper").classList.contains("has-visual-attachments")).toBe(false);
@@ -152,6 +181,36 @@ describe("MessageList presentation", () => {
     })]);
     expect(video.container.querySelector(".mra-wrapper").classList.contains("has-visual-attachments")).toBe(true);
     expect(video.container.querySelector(".msg-bubble").classList.contains("has-visual-attachments")).toBe(true);
+  });
+
+  it("uses a consistent responsive width for visual-attachment bubbles on mobile", () => {
+    const { container } = renderList([
+      makeMessage({
+        content: "attachment",
+        attachments: [{ type: "image", url: "https://example.test/portrait.png" }],
+      }),
+    ]);
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain("@media (max-width: 768px)");
+    expect(styles).toContain(
+      ".msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments {\n            flex: 0 1 auto;\n            width: min(320px, calc(100% - 40px));\n            max-width: min(320px, calc(100% - 40px));",
+    );
+    expect(container.querySelector(".mra-wrapper.has-visual-attachments")).not.toBeNull();
+    expect(container.querySelector(".mra-wrapper:not(.has-visual-attachments)")).toBeNull();
+  });
+
+  it("left-aligns outgoing message text without changing its right-side message layout", () => {
+    const { container } = renderList([
+      makeMessage({ id: "outgoing-text", user_id: "me", content: "Sent from my account" }),
+    ]);
+
+    const outgoingMessage = container.querySelector(".msg-item.me");
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(outgoingMessage).not.toBeNull();
+    expect(styles).toContain(".msg-item.me {");
+    expect(styles).toContain(".msg-item.me:not(.announcement) .msg-content { text-align: left; }");
   });
 
   it("lays out multi-image messages as balanced grids with a remaining-image count", () => {

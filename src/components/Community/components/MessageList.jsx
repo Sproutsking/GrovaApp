@@ -304,6 +304,8 @@ const MessageList = ({
           const messageAttachments = getMessageAttachments(msg);
           const hasMessageMedia = messageAttachments.length > 0;
           const hasAttachments = hasMessageMedia;
+          const hasImageOnlyAttachments = messageAttachments.length > 0
+            && messageAttachments.every((attachment) => attachment?.type === "image");
           const hasVisualAttachments = messageAttachments.some((attachment) => (
             attachment?.type === "image" || attachment?.type === "video"
           ));
@@ -406,7 +408,7 @@ const MessageList = ({
                 </div>
               ) : null}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? `has-tail ${isDirectMessage ? "tail-bottom" : "tail-top"}` : ""}${hasAttachments ? " has-attachments" : ""}${hasVisualAttachments ? " has-visual-attachments" : ""}${showMessageBody ? " has-message-body" : ""}${externalUrls.length ? " has-external-preview" : ""}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? `has-tail ${isDirectMessage ? "tail-bottom" : "tail-top"}` : ""}${hasAttachments ? " has-attachments" : ""}${hasImageOnlyAttachments && !showMessageBody ? " has-image-only" : ""}${hasVisualAttachments ? " has-visual-attachments" : ""}${showMessageBody ? " has-message-body" : ""}${externalUrls.length ? " has-external-preview" : ""}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {!isDirectMessage && <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(senderProfile)}>
@@ -585,6 +587,7 @@ const MessageList = ({
         .msg-bubble.has-attachments:not(.has-message-body) { padding-top: 2px; }
         .msg-bubble.has-attachments .msg-content { margin: 0 0 1px; }
         .msg-bubble.has-attachments .msg-card-header { padding-top: 1px; margin-bottom: 1px; }
+        .msg-bubble.has-image-only .msg-card-header { padding-left: 2px; }
         .msg-bubble.has-attachments .msg-footer { margin-top: 1px; }
         .msg-attachments { display:grid; gap:1px; width:100%; min-width:0; margin-top:1px; }
         .msg-image-grid { display:grid; width:100%; min-width:0; max-height:360px; aspect-ratio:1 / 1; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:1px; overflow:hidden; border-radius:8px; background:rgba(255,255,255,.07); }
@@ -754,7 +757,7 @@ const MessageList = ({
         .msg-bubble {
           max-width: 70%;
           padding: 0 2px 2px;
-          border-radius: 12px;
+          border-radius: 10px;
           backdrop-filter: blur(10px);
           position: relative;
           box-shadow: 0 4px 16px rgba(0,0,0,.12);
@@ -766,7 +769,7 @@ const MessageList = ({
           width: 100%;
           max-width: min(760px, 100%);
           padding: 0 10px 4px;
-          border-radius: 16px;
+          border-radius: 14px;
           background: linear-gradient(145deg, rgba(14,18,14,.94), rgba(8,12,9,.98));
           border: 1px solid rgba(156,255,0,.28);
           box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
@@ -776,8 +779,8 @@ const MessageList = ({
         .msg-inline-code { padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.08); color: #d9ffaf; font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; }
         .msg-item.announcement .msg-meta { margin-top: 5px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
-        .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 16px; border-bottom-right-radius: 0; }
-        .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 16px; }
+        .msg-item.announcement.me .msg-bubble { border-bottom-left-radius: 14px; border-bottom-right-radius: 0; }
+        .msg-item.announcement.them .msg-bubble { border-bottom-left-radius: 0; border-bottom-right-radius: 14px; }
         .announcement-title{font-size:calc((18px) + 1px);line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; overflow: visible; }
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
@@ -801,7 +804,7 @@ const MessageList = ({
         .msg-bubble.them {
           border-top-left-radius: 2px;
         }
-        .msg-item.clustered .msg-bubble.them { border-top-left-radius: 12px; }
+        .msg-item.clustered .msg-bubble.them { border-top-left-radius: 10px; }
 
         .msg-bubble.me {
           --message-tail-fill: #183728;
@@ -811,12 +814,12 @@ const MessageList = ({
           border: 1px solid var(--bubble-border);
           border-top-right-radius: 2px;
         }
-        .msg-item.clustered .msg-bubble.me { border-top-right-radius: 12px; }
+        .msg-item.clustered .msg-bubble.me { border-top-right-radius: 10px; }
 
         .msg-list-wrapper.text-channel .msg-bubble.them,
         .msg-list-wrapper.text-channel .msg-bubble.me {
-          border-top-left-radius: 12px;
-          border-top-right-radius: 12px;
+          border-top-left-radius: 10px;
+          border-top-right-radius: 10px;
         }
 
         .msg-bubble.me .msg-content { color: #f1f9e8; }
@@ -830,6 +833,11 @@ const MessageList = ({
           .msg-item.announcement .mra-wrapper { max-width: 84%; }
           .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 40px); }
           .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
+          .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments {
+            flex: 0 1 auto;
+            width: min(320px, calc(100% - 40px));
+            max-width: min(320px, calc(100% - 40px));
+          }
           .msg-list-wrapper.announcement-channel .msg-item.me { padding-left: 10px; padding-right: 4px; }
           .msg-list-wrapper.announcement-channel .msg-item.them { padding-left: 4px; padding-right: 10px; }
           .msg-list-wrapper.announcement-channel .msg-item.announcement .msg-bubble { padding-left: 10px; padding-right: 4px; }
@@ -881,9 +889,9 @@ const MessageList = ({
         }
 
         .msg-list-wrapper.direct-message-list .msg-bubble.them,
-        .msg-list-wrapper.direct-message-list .msg-bubble.me { border-radius: 12px; }
-        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail { border-top-left-radius: 12px; border-bottom-left-radius: 3px; }
-        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail { border-top-right-radius: 12px; border-bottom-right-radius: 3px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.me { border-radius: 10px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail { border-top-left-radius: 10px; border-bottom-left-radius: 3px; }
+        .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail { border-top-right-radius: 10px; border-bottom-right-radius: 3px; }
         .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::before,
         .msg-list-wrapper.direct-message-list .msg-bubble.them.has-tail::after,
         .msg-list-wrapper.direct-message-list .msg-bubble.me.has-tail::before,
@@ -921,7 +929,7 @@ const MessageList = ({
           word-break: break-word;
           margin-inline: 1px;
         }
-        .msg-item.me:not(.announcement) .msg-content { text-align: right; }
+        .msg-item.me:not(.announcement) .msg-content { text-align: left; }
         .msg-item.me:not(.announcement) .msg-reply-quote { text-align: right; }
         .msg-item.announcement .mra-wrapper { align-items: flex-start !important; }
         .msg-item.announcement.me .mra-wrapper { margin-left: auto !important; margin-right: 0 !important; }
@@ -1018,7 +1026,7 @@ const MessageList = ({
             max-width: 100%;
             min-width: 0;
             padding: 5px 9px 6px;
-            border-radius: 12px;
+            border-radius: 10px;
           }
 
           .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper {
