@@ -220,7 +220,7 @@ describe("MessageList presentation", () => {
     const styles = container.querySelector(".msg-list-wrapper style").textContent;
 
     expect(styles).toContain(".msg-card-header.outgoing .msg-card-menu-btn { order:1; }");
-    expect(styles).toContain(".msg-card-header.outgoing .msg-user-name { order:2; flex-direction:row; justify-content:flex-start; text-align:left; }");
+    expect(styles).toContain(".msg-card-header.outgoing .msg-user-name { order:2; flex:0 1 auto; flex-direction:row; justify-content:flex-start; text-align:left; }");
     expect(styles).toContain(".msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0; min-height:18px; padding-top:1px; margin-bottom:1px; box-sizing:border-box; gap:12px; }");
   });
 

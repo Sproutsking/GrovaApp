@@ -660,7 +660,7 @@ const MessageList = ({
         .msg-card-header.outgoing,
         .msg-card-header.incoming { justify-content:space-between; }
         .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
-        .msg-card-header.outgoing .msg-user-name { order:2; flex-direction:row; justify-content:flex-start; text-align:left; }
+        .msg-card-header.outgoing .msg-user-name { order:2; flex:0 1 auto; flex-direction:row; justify-content:flex-start; text-align:left; }
         .msg-card-header .msg-user-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
