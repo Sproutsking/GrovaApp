@@ -1,9 +1,11 @@
 // components/Community/modals/InviteModal.jsx
 // Unique codes via communityService._generateInviteCode (base62 timestamp + entropy)
 import React, { useState, useEffect } from "react";
-import { X, Copy, CheckCircle, Link2, RefreshCw, Clock, Users, Share2, Search, UserPlus } from "lucide-react";
+import { X, Copy, CheckCircle, Link2, RefreshCw, Clock, Users, Share2, Search, Send } from "lucide-react";
 import communityService from "../../../services/community/communityService";
 import FollowModel from "../../../models/FollowModel";
+import dmMessageService from "../../../services/messages/dmMessageService";
+import { createCommunityInviteMessage } from "../../../utils/communityInviteMessage";
 
 const EXPIRY_OPTIONS = [
   { label:"Never",   value:null },
@@ -31,6 +33,9 @@ const InviteModal = ({ community, userId, onClose }) => {
   const [friends, setFriends] = useState([]);
   const [friendQuery, setFriendQuery] = useState("");
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [sendingFriendId, setSendingFriendId] = useState(null);
+  const [sentFriendIds, setSentFriendIds] = useState([]);
+  const [friendSendError, setFriendSendError] = useState("");
 
   const APP_URL = window.location.origin;
 
@@ -76,6 +81,26 @@ const InviteModal = ({ community, userId, onClose }) => {
     }
   };
 
+  const sendInviteToFriend = async (friend) => {
+    if (!inviteLink || !friend?.id || sendingFriendId) return;
+    setFriendSendError("");
+    setSendingFriendId(friend.id);
+    try {
+      const conversation = await dmMessageService.createConversation(userId, friend.id);
+      await dmMessageService.sendMessage(
+        conversation.id,
+        createCommunityInviteMessage(community, inviteLink),
+        userId,
+      );
+      setSentFriendIds((current) => current.includes(friend.id) ? current : [...current, friend.id]);
+    } catch (sendError) {
+      console.error("Could not send community invite by DM:", sendError);
+      setFriendSendError(sendError.message || "The invite could not be sent. Please try again.");
+    } finally {
+      setSendingFriendId(null);
+    }
+  };
+
   const icon = community?.icon;
 
   return (
@@ -88,7 +113,7 @@ const InviteModal = ({ community, userId, onClose }) => {
 
         <div className="inv-tabs" role="tablist">
           <button className={panel === "details" ? "active" : ""} onClick={() => setPanel("details")}><Link2 size={13} /> Invite link</button>
-          <button className={panel === "friends" ? "active" : ""} onClick={() => setPanel("friends")}><Users size={13} /> Share with friends</button>
+          <button className={panel === "friends" ? "active" : ""} onClick={() => setPanel("friends")}><Users size={13} /> Send by message</button>
         </div>
 
         {/* Community pill */}
@@ -163,12 +188,24 @@ const InviteModal = ({ community, userId, onClose }) => {
         <p className="inv-note">Anyone with this link joins the community immediately.</p>
         </> : <div className="friends-panel">
           <div className="friend-search"><Search size={15} /><input value={friendQuery} onChange={(event) => setFriendQuery(event.target.value)} placeholder="Search mutual friends" /></div>
+          {error && <div className="inv-error" role="alert">{error}</div>}
+          {friendSendError && <div className="inv-error" role="alert">{friendSendError}</div>}
           {friendsLoading && <div className="friends-empty">Finding your mutual friends…</div>}
           {!friendsLoading && friends.filter((friend) => `${friend.full_name || ""} ${friend.username || ""}`.toLowerCase().includes(friendQuery.toLowerCase())).map((friend) => (
             <div className="friend-row" key={friend.id}>
               <div className="friend-avatar">{friend.username?.[0]?.toUpperCase() || "U"}</div>
               <div className="friend-info"><strong>{friend.full_name || friend.username || "User"}</strong><span>@{friend.username || "user"}</span></div>
-              <button className="friend-share" disabled={!invite} onClick={() => navigator.share?.({ title: `Join ${community.name}`, url: inviteLink }) || copyLink()}><UserPlus size={14} /> Share</button>
+              <button
+                className={`friend-share${sentFriendIds.includes(friend.id) ? " sent" : ""}`}
+                disabled={!invite || Boolean(sendingFriendId) || sentFriendIds.includes(friend.id)}
+                onClick={() => sendInviteToFriend(friend)}
+              >
+                {sentFriendIds.includes(friend.id)
+                  ? <><CheckCircle size={14} /> Sent</>
+                  : sendingFriendId === friend.id
+                    ? "Sending…"
+                    : <><Send size={14} /> Send invite</>}
+              </button>
             </div>
           ))}
           {!friendsLoading && !friends.length && <div className="friends-empty">Mutual friends will appear here.</div>}
@@ -219,7 +256,7 @@ const InviteModal = ({ community, userId, onClose }) => {
         .friend-row{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
         .friend-avatar{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#9cff00,#667eea);color:#000;font-weight:900;font-size:calc((12px) + 1px)}
         .friend-info{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.friend-info strong{color:#ddd;font-size:calc((12px) + 1px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friend-info span{color:#666;font-size:calc((10px) + 1px)}
-        .friend-share{display:flex;align-items:center;gap:4px;padding:7px 8px;border-radius:7px;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.25);color:#9cff00;font-size:calc((10px) + 1px);font-weight:800;cursor:pointer}.friend-share:disabled{opacity:.4;cursor:not-allowed}
+        .friend-share{display:flex;align-items:center;gap:4px;padding:7px 8px;border-radius:7px;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.25);color:#9cff00;font-size:calc((10px) + 1px);font-weight:800;cursor:pointer}.friend-share:disabled{opacity:.4;cursor:not-allowed}.friend-share.sent{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25);color:#34d399}
         .friends-empty{padding:24px 8px;text-align:center;color:#666;font-size:calc((12px) + 1px)}
       `}</style>
     </div>

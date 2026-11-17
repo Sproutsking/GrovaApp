@@ -1486,7 +1486,6 @@ const ChatTab = ({
           }}
           onDelete={async () => {
             setChannelDeleteConfirm(channelContextMenu.channel);
-            setChannelContextMenu(null);
           }}
           onTogglePrivacy={async () => {
             try {
@@ -1524,11 +1523,12 @@ const ChatTab = ({
               alert(error.message || "Failed to wipe channel messages");
             }
           }}
+          suspended={Boolean(channelDeleteConfirm)}
         />
       )}
 
       {channelDeleteConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 100000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setChannelDeleteConfirm(null)}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 100000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={(event) => { event.stopPropagation(); setChannelDeleteConfirm(null); }}>
           <div style={{ width: "min(380px, calc(100vw - 32px))", background: "#111", border: "1px solid rgba(239,68,68,0.24)", borderRadius: 18, padding: 20, boxShadow: "0 18px 50px rgba(0,0,0,0.7)" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: 23, marginBottom: 10, textAlign: "center" }}>🗑️</div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 8 }}>Delete #{channelDeleteConfirm.name}?</div>
@@ -1549,6 +1549,7 @@ const ChatTab = ({
                   alert(error.message || "Failed to delete channel");
                 } finally {
                   setChannelDeleteConfirm(null);
+                  setChannelContextMenu(null);
                 }
               }} style={{ flex: 1, borderRadius: 10, padding: "11px 12px", background: "linear-gradient(135deg, #ef4444, #dc2626)", border: "1px solid rgba(239,68,68,0.3)", color: "#fff", fontWeight: 800, cursor: "pointer" }}>Delete</button>
             </div>

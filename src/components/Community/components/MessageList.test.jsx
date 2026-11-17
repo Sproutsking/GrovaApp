@@ -213,6 +213,21 @@ describe("MessageList presentation", () => {
     expect(styles).toContain(".msg-item.me:not(.announcement) .msg-content { text-align: left; }");
   });
 
+  it("hides outgoing community avatars on mobile and gives the bubble a balanced width", () => {
+    const { container } = renderList([
+      makeMessage({ id: "outgoing-mobile", user_id: "me", content: "Sent from my account" }),
+    ]);
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(container.querySelector(".msg-item.me .msg-avatar")).not.toBeNull();
+    expect(styles).toContain(
+      ".msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .msg-avatar-spacer {\n            display: none;",
+    );
+    expect(styles).toContain(
+      ".msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .mra-wrapper {\n            max-width: min(88%, 520px);",
+    );
+  });
+
   it("lays out multi-image messages as balanced grids with a remaining-image count", () => {
     const attachments = Array.from({ length: 6 }, (_, index) => ({
       type: "image",

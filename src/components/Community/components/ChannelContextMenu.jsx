@@ -16,6 +16,7 @@ const ChannelContextMenu = ({
   onToggleMute,
   onWipeChannel,
   onPermissions,  // NEW
+  suspended = false,
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const menuRef = useRef(null);
@@ -38,7 +39,7 @@ const ChannelContextMenu = ({
     menu.style.opacity = "1";
   }, [position]);
 
-  if (!position || !channel) return null;
+  if (!position || !channel || suspended) return null;
 
   const handleAction = (action, requiresConfirm = false) => {
     if (requiresConfirm) {
@@ -119,7 +120,7 @@ const ChannelContextMenu = ({
               <>
                 <div className="ctx-divider" />
                 <div className="ctx-section">
-                  <button className="ctx-item danger" onClick={() => handleAction(() => onDelete?.(), true)}>
+                  <button className="ctx-item danger" onClick={() => onDelete?.()}>
                     <Trash2 size={15} /><span>Delete Channel</span>
                   </button>
                 </div>

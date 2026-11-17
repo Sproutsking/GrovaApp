@@ -27,6 +27,7 @@ import MessageList from "../Community/components/MessageList";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
 import MessageDeletionControls from "./MessageDeletionControls";
 import { VerifiedBadgeCircle } from "../Shared/VerifiedBadges";
+import { parseCommunityInviteMessage } from "../../utils/communityInviteMessage";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -255,6 +256,33 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
       return <span className="cv-bad">[message unavailable]</span>;
     if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:12,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>{`"${m[1]}"`}</em>:c}</span>);}
     if(c.startsWith("↗ Forwarded message")){const lines=c.split("\n");return(<span className="cv-forwarded"><span className="cv-forwarded-label">↗ Forwarded message</span><span className="cv-forwarded-body">{lines.slice(1).join("\n")}</span></span>);}
+    const communityInvite = parseCommunityInviteMessage(c);
+    if (communityInvite) {
+      const iconBorder = communityInvite.iconBorder === "none"
+        ? "none"
+        : communityInvite.iconBorder === "lime"
+          ? "2px solid rgba(156,255,0,.7)"
+          : communityInvite.iconBorder === "dashed"
+            ? "2px dashed rgba(156,255,0,.65)"
+            : "1px solid rgba(255,255,255,.25)";
+      return (
+        <div className="cv-community-invite">
+          <div className="cv-community-invite-preview" style={{ background: communityInvite.bannerGradient || "linear-gradient(135deg,#203b28,#101a13)" }}>
+            <div className="cv-community-invite-icon" style={{ border: iconBorder }}>
+              {communityInvite.icon.startsWith("http")
+                ? <img src={communityInvite.icon} alt="" />
+                : communityInvite.icon || "🌟"}
+            </div>
+            <div className="cv-community-invite-copy">
+              <span>COMMUNITY INVITE</span>
+              <strong>{communityInvite.name}</strong>
+              {communityInvite.description && <small>{communityInvite.description}</small>}
+            </div>
+          </div>
+          <a className="cv-community-invite-join" href={communityInvite.inviteLink}>Join community</a>
+        </div>
+      );
+    }
     if(c.startsWith("__GIF__:")){
       const gifUrl = c.replace("__GIF__:","").trim();
       if(!gifUrl) return null;
@@ -803,6 +831,17 @@ export const CV_CSS = `
 .cv-root .direct-message-list .msg-reply-quote-preview{align-items:flex-start;}
 .cv-root .direct-message-list .msg-time{color:#a1aaa2;}
 .cv-root .direct-message-list .msg-bubble{backdrop-filter:none;}
+.cv-community-invite{width:min(280px,100%);overflow:hidden;border:1px solid rgba(156,255,0,.22);border-radius:12px;background:#0b100d;}
+.cv-community-invite-preview{display:flex;align-items:center;gap:10px;min-height:84px;padding:12px;color:#fff;background-size:cover;background-position:center;}
+.cv-community-invite-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;overflow:hidden;border-radius:12px;background:rgba(0,0,0,.36);font-size:24px;}
+.cv-community-invite-icon img{width:100%;height:100%;object-fit:cover;}
+.cv-community-invite-copy{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.cv-community-invite-copy span{color:#c3ef9b;font-size:9px;font-weight:900;letter-spacing:.08em;}
+.cv-community-invite-copy strong,.cv-community-invite-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cv-community-invite-copy strong{font-size:13px;}
+.cv-community-invite-copy small{max-width:205px;color:rgba(255,255,255,.74);font-size:11px;}
+.cv-community-invite-join{display:flex;align-items:center;justify-content:center;min-height:38px;border-top:1px solid rgba(156,255,0,.12);background:rgba(156,255,0,.08);color:#b6ed87;font-size:12px;font-weight:800;text-decoration:none;}
+.cv-community-invite-join:hover{background:rgba(156,255,0,.15);color:#d8ffbb;}
 .cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;padding: 0 10px;}
 .cv-back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}

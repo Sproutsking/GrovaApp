@@ -24,10 +24,15 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
           ? reactionPanelRef.current
           : panelRef.current;
       if (activePanel && !activePanel.contains(event.target)) {
-        onClose?.();
+        if (showDeleteConfirm) setShowDeleteConfirm(false);
+        else onClose?.();
       }
     };
-    const handleKeyDown = (event) => event.key === "Escape" && onClose?.();
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (showDeleteConfirm) setShowDeleteConfirm(false);
+      else onClose?.();
+    };
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -79,14 +84,27 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
   const canDelete = canEdit || permissions.manageMessages || isOwner;
   const handle = (action) => { action?.(); onClose?.(); };
   const confirmDelete = async () => {
-    setShowDeleteConfirm(false);
-    await onDelete?.();
     onClose?.();
+    await onDelete?.();
   };
 
   return ReactDOM.createPortal((
     <div className="message-context-backdrop" onClick={(event) => { event.stopPropagation(); onClose?.(); }}>
-      {showReactionPanel ? (
+      {showDeleteConfirm ? (
+        <div className="message-delete-dialog-backdrop" onClick={(event) => { event.stopPropagation(); setShowDeleteConfirm(false); }}>
+          <div ref={deleteDialogRef} className="message-delete-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-message-title">
+            <div className="message-delete-icon"><Trash2 size={18} /></div>
+            <div>
+              <h3 id="delete-message-title">Delete message?</h3>
+              <p>This message will be removed from the conversation.</p>
+            </div>
+            <div className="message-delete-actions">
+              <button className="message-delete-cancel" onClick={() => setShowDeleteConfirm(false)}>Keep message</button>
+              <button className="message-delete-confirm" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      ) : showReactionPanel ? (
         <EmojiPanel
           panelRef={reactionPanelRef}
           managePosition={false}
@@ -108,21 +126,6 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         {canDelete && <button className="message-context-item danger" onClick={() => onBeginDeleteSelection ? handle(onBeginDeleteSelection) : setShowDeleteConfirm(true)}><Trash2 size={14} /><span>Delete message</span></button>}
         <button className="message-context-item" onClick={() => handle(onReport)}><Flag size={14} /><span>Report message</span></button>
       </div>}
-      {showDeleteConfirm && (
-        <div className="message-delete-dialog-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-          <div ref={deleteDialogRef} className="message-delete-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-message-title">
-            <div className="message-delete-icon"><Trash2 size={18} /></div>
-            <div>
-              <h3 id="delete-message-title">Delete message?</h3>
-              <p>This message will be removed from the conversation.</p>
-            </div>
-            <div className="message-delete-actions">
-              <button className="message-delete-cancel" onClick={() => setShowDeleteConfirm(false)}>Keep message</button>
-              <button className="message-delete-confirm" onClick={confirmDelete}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
       <style>{`
         .message-context-backdrop{position:fixed;inset:0;z-index:200000;background:transparent;pointer-events:auto}
         .message-context-menu{position:fixed;width:238px;max-height:calc(100vh - 24px);overflow-y:auto;padding:7px;background:rgba(12,14,18,.98);border:1px solid rgba(156,255,0,.2);border-radius:13px;box-shadow:0 18px 46px rgba(0,0,0,.75),0 0 24px rgba(156,255,0,.06);animation:messageMenuIn .14s ease;z-index:200001}

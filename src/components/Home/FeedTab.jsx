@@ -7,8 +7,8 @@
 //           Every pipeline injection (Discovery, Follows, Reels, News)
 //           seamlessly mixed into the unified stream.
 //
-// [ARCH-2]  Three-tier media preload engine with a small mobile runway.
-//           Nearby cards render ahead, but offscreen images/videos stay lazy.
+// [ARCH-2]  Three-tier preload engine: CRITICAL (12 slots), URGENT (8),
+//           BATCH (4). Connection-aware RENDER_RADIUS (40/24/14).
 //           Deterministic placeholder gradients (never black).
 //
 // [ARCH-3]  Smart height estimation per item type. ResizeObserver tracks
@@ -40,8 +40,6 @@ import ReelCard from "./ReelCard";
 import { FeedPipeline, useFeedInjections } from "./FeedPipelines";
 import { rankItems, recordSignal } from "../../services/discovery/discoveryPersonalizationModel";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import adCampaignService from "../../services/ads/adCampaignService";
-import SponsoredAdCard from "../Ads/SponsoredAdCard";
 
 const NewsVideoStrip = lazy(() => import("./NewsVideoStrip"));
 
@@ -55,12 +53,9 @@ const IS_FAST = !IS_SLOW && !IS_MID;
 const IS_MOBILE = window.innerWidth <= 768;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_MOBILE ? 3 : IS_SLOW ? 4 : IS_MID ? 6 : 8;
-const PRELOAD_WINDOW = IS_MOBILE ? 1 : IS_SLOW ? 12 : IS_MID ? 20 : 30;
+const RENDER_RADIUS  = IS_MOBILE ? (IS_SLOW ? 3 : 5) : IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const PRELOAD_WINDOW = IS_MOBILE ? (IS_SLOW ? 2 : 4) : IS_SLOW ? 12 : IS_MID ? 20 : 30;
 const VIDEO_PRELOAD_W = IS_MOBILE ? 1 : IS_SLOW ? 2 : IS_MID ? 3 : 4;
-const FEED_ROOT_MARGIN = IS_SLOW ? "1000px 0px 1000px 0px"
-                       : IS_MID  ? "800px 0px 800px 0px"
-                       :           "600px 0px 600px 0px";
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
@@ -154,6 +149,23 @@ function getCld() {
   );
 }
 
+// [ARCH-2] Deterministic placeholder gradient
+const PH_GRADS = [
+  "linear-gradient(145deg,#0d1a00,#1a2e05)",
+  "linear-gradient(145deg,#0f1a2e,#1a2a45)",
+  "linear-gradient(145deg,#1a0d00,#2e1a05)",
+  "linear-gradient(145deg,#0d0020,#1a0535)",
+  "linear-gradient(145deg,#001a15,#002e25)",
+  "linear-gradient(145deg,#1a1500,#2e2500)",
+  "linear-gradient(145deg,#1a000d,#2e0015)",
+  "linear-gradient(145deg,#001020,#001830)",
+];
+function getPlaceholderGradient(item) {
+  const seed = (item?.user_id || item?.id || "x")
+    .split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  return PH_GRADS[seed % PH_GRADS.length];
+}
+
 // [ARCH-3] Smart height estimate
 function estimateItemHeight(item) {
   if (!item) return 480;
@@ -173,7 +185,7 @@ const NewPostBanner = ({ isActive, count, onShow }) => {
         <ArrowUp size={13} />{count} new post{count !== 1 ? "s" : ""}
       </button>
       <style>{`
-        .npb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(84,163,10,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:calc((13px) + 1px);font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(84,163,10,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:npbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
+        .npb-pill{position:fixed;left:50%;transform:translateX(-50%);z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:9px 22px;border-radius:999px;background:rgba(84,163,10,0.97);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;box-shadow:0 6px 30px rgba(84,163,10,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:npbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;}
         .npb-pill:hover{background:rgba(74,143,8,1);transform:translateX(-50%) scale(1.04);}
         @keyframes npbIn{from{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.88);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
       `}</style>
@@ -215,12 +227,15 @@ const VideoPreloadRunway = React.memo(({ items, anchorIndex }) => {
 VideoPreloadRunway.displayName = "VideoPreloadRunway";
 
 // ─── Placeholder ──────────────────────────────────────────────────────────────
-const Placeholder = React.memo(({ height, item, index, placeholderRef }) => (
-  <div ref={placeholderRef} data-vfidx={index} data-vfkey={`${item.type}:${item.id}`} className="vf-placeholder" aria-hidden="true" style={{
+const Placeholder = React.memo(({ height, item, index, layoutKey, placeholderRef }) => (
+  <div ref={placeholderRef} data-vfidx={index} data-vfkey={layoutKey || `${item.type}:${item.id}`} className="vf-placeholder" aria-hidden="true" style={{
     width:        "100%",
     height:       Math.max(120, height || estimateItemHeight(item)),
     flexShrink:   0,
     contain:      "layout paint style",
+    background:   getPlaceholderGradient(item),
+    borderRadius: 12,
+    border:       "1px solid var(--surface-border)",
   }} />
 ));
 Placeholder.displayName = "Placeholder";
@@ -228,16 +243,15 @@ Placeholder.displayName = "Placeholder";
 // ─── ScrollSentinel ───────────────────────────────────────────────────────────
 const ScrollSentinel = ({ onVisible, disabled }) => {
   const ref = useRef(null);
-  const cool = useRef(false);
   useEffect(() => {
-    if (disabled || !ref.current) return;
+    if (disabled || !ref.current) return undefined;
+    let requestStarted = false;
     const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !cool.current) {
-        cool.current = true;
+      if (e.isIntersecting && !requestStarted) {
+        requestStarted = true;
         onVisible();
-        setTimeout(() => { cool.current = false; }, 2500);
       }
-    }, { rootMargin: "2500px", threshold: 0 });
+    }, { rootMargin: "800px 0px", threshold: 0 });
     obs.observe(ref.current);
     return () => obs.disconnect();
   }, [disabled, onVisible]);
@@ -245,7 +259,7 @@ const ScrollSentinel = ({ onVisible, disabled }) => {
 };
 
 const EndOfFeed = () => (
-  <div style={{ display:"flex",alignItems:"center",gap:12,padding:"28px 20px",color:"rgba(255,255,255,0.2)",fontSize:13,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase" }}>
+  <div style={{ display:"flex",alignItems:"center",gap:12,padding:"28px 20px",color:"rgba(255,255,255,0.2)",fontSize:12,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase" }}>
     <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.06)" }}/>
     You're all caught up
     <div style={{ flex:1,height:1,background:"rgba(255,255,255,0.06)" }}/>
@@ -315,7 +329,7 @@ const ScrollFAB = () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const VirtualFeed = React.memo(({
   items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen, onProfileClick,
-  onAnchorChange, onPipelineNavigate, injections, isLoadingMore, sponsoredAds = [], onSponsoredHidden,
+  onAnchorChange, onPipelineNavigate, injections, isLoadingMore,
 }) => {
   const [anchorIndex, setAnchorIndex] = useState(0);
   const heightMap  = useRef({});
@@ -323,16 +337,15 @@ const VirtualFeed = React.memo(({
   const ioRef      = useRef(null);
   const roMap      = useRef({});
   const refCallbacks = useRef(new Map());
-  const sponsoredByIndex = useMemo(
-    () => new Map(sponsoredAds.map((ad, index) => [5 + index * 8, ad])),
-    [sponsoredAds],
-  );
 
   useEffect(() => { onAnchorChange?.(anchorIndex); }, [anchorIndex, onAnchorChange]);
 
+  const ROOT_MARGIN = IS_SLOW ? "1000px 0px 1000px 0px"
+                    : IS_MID  ? "800px 0px 800px 0px"
+                    :           "600px 0px 600px 0px";
+
   useEffect(() => {
     ioRef.current?.disconnect();
-    const scrollRoot = document.querySelector(".main-content-mobile, .main-content-desktop");
     ioRef.current = new IntersectionObserver(entries => {
       let best = null, bestDistance = Infinity;
       for (const e of entries) {
@@ -343,7 +356,7 @@ const VirtualFeed = React.memo(({
         if (!isNaN(idx) && distance < bestDistance) { bestDistance = distance; best = idx; }
       }
       if (best !== null) setAnchorIndex(prev => Math.abs(prev - best) >= 1 ? best : prev);
-    }, { root: scrollRoot, rootMargin: FEED_ROOT_MARGIN, threshold: 0 });
+    }, { rootMargin: ROOT_MARGIN, threshold: 0 });
     Object.values(wrapperMap.current).forEach(el => { if (el) ioRef.current.observe(el); });
     return () => ioRef.current?.disconnect();
   }, [items.length]);
@@ -376,46 +389,40 @@ const VirtualFeed = React.memo(({
     <div className="vf-list">
       {items.map((item, index) => {
         const key = `${item.type}:${item.id}`;
+        const pipeType = injections.get(index);
+        const layoutKey = `${key}:${pipeType || "base"}`;
         if (index < renderStart || index > renderEnd) {
-          const injectedHeight = (injections.get(index) ? 220 : 0) + (sponsoredByIndex.has(index) ? 520 : 0);
-          const height = heightMap.current[key] || estimateItemHeight(item) + injectedHeight;
-          return <Placeholder key={key} index={index} item={item} height={height} placeholderRef={makeRef(index)} />;
+          const injectedHeight = injections.get(index) ? 220 : 0;
+          const height = heightMap.current[layoutKey] || estimateItemHeight(item) + injectedHeight;
+          return <Placeholder key={key} index={index} item={item} layoutKey={layoutKey} height={height} placeholderRef={makeRef(index)} />;
         }
 
-        const pipeType = injections.get(index);
         return (
-          <div key={key} ref={makeRef(index)} className="vf-item" data-vfkey={key}>
+          <div key={key} ref={makeRef(index)} className="vf-item" data-vfkey={layoutKey}>
             {pipeType && <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />}
             {item.type === "reel" ? (
               <ReelCard reel={item} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} onComment={onComment} onOpenFullScreen={onOpenFullScreen} onProfileClick={onProfileClick} index={index} />
             ) : (
               <PostCard post={item} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} onComment={onComment} onOpenFullScreen={onOpenFullScreen} onProfileClick={onProfileClick} feedIndex={index} />
             )}
-            {sponsoredByIndex.has(index) && <SponsoredAdCard
-              key={sponsoredByIndex.get(index).campaign_id}
-              ad={sponsoredByIndex.get(index)}
-              onHidden={onSponsoredHidden}
-            />}
           </div>
         );
       })}
-      {isLoadingMore && (
-        <div className="vf-loading-more" role="status">
-          <span aria-hidden="true" />
-          Loading more posts
-        </div>
-      )}
+      {isLoadingMore && Array.from({ length: 4 }, (_, index) => {
+        const source = items[items.length - 1] || { type: "post", id: "loading", content: "" };
+        const item = { ...source, id: `loading-${index}` };
+        return <Placeholder key={item.id} item={item} height={estimateItemHeight(source)} />;
+      })}
       <style>{`
         .vf-list{--vf-item-gap:8px;display:flex;flex-direction:column;position:relative;contain:layout paint;width:100%;min-width:0;}
         .vf-item,.vf-placeholder{width:100%;min-width:0;max-width:100%;margin-bottom:var(--vf-item-gap);}
         .vf-item{contain:layout style;}
         .vf-item .gvp-card{margin-bottom:0;}
-        .vf-placeholder{position:relative;overflow:hidden;background:transparent;}
-        .vf-loading-more{display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;color:var(--text-secondary,#8b8b8b);font-size:13px;font-weight:600;}
-        .vf-loading-more span{width:14px;height:14px;border:2px solid rgba(255,255,255,.16);border-top-color:var(--accent,#84cc16);border-radius:50%;animation:vf-loading-spin .8s linear infinite;}
-        @keyframes vf-loading-spin{to{transform:rotate(360deg);}}
+        .vf-placeholder{position:relative;overflow:hidden;}
+        .vf-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.045) 48%,transparent 68%);background-size:220% 100%;animation:vf-placeholder-shimmer 1.8s linear infinite;pointer-events:none;}
+        @keyframes vf-placeholder-shimmer{to{background-position-x:-220%;}}
         @media(max-width:768px){.vf-list{--vf-item-gap:0;}}
-        @media(prefers-reduced-motion:reduce){.vf-loading-more span{animation:none;}}
+        @media(prefers-reduced-motion:reduce){.vf-placeholder::after{animation:none;}}
       `}</style>
     </div>
   );
@@ -454,13 +461,9 @@ const FeedTab = React.forwardRef(function FeedTab(
   
   const [pendingCount, setPendingCount] = useState(0);
   const [anchorIndex, setAnchorIndex] = useState(0);
-  const [sponsoredAds, setSponsoredAds] = useState([]);
 
   const pendingRef   = useRef([]);
-  const loadingRef   = useRef(false);
   const lastBatchLen = useRef(0);
-  const fortyFired   = useRef(false);
-  const seventyFired = useRef(false);
   const rafRef       = useRef(null);
 
   useEffect(() => {
@@ -473,21 +476,6 @@ const FeedTab = React.forwardRef(function FeedTab(
 
   const injections = useFeedInjections(localItems.length);
 
-  useEffect(() => {
-    if (!isActive || !currentUser?.id) return;
-    let active = true;
-    adCampaignService.getSponsoredAds(3).then((ads) => {
-      if (active) setSponsoredAds(ads);
-    }).catch((error) => {
-      console.error("[Ads] Sponsored feed inventory could not be loaded:", error);
-    });
-    return () => { active = false; };
-  }, [isActive, currentUser?.id]);
-
-  const handleSponsoredHidden = useCallback((campaignId) => {
-    setSponsoredAds((ads) => ads.filter((ad) => ad.campaign_id !== campaignId));
-  }, []);
-
   // [ARCH-5] Pipeline navigate with video deep linking
   const handlePipelineNavigate = useCallback((dest, entityId) => {
     if (typeof setActiveHomeTab === "function") {
@@ -499,8 +487,8 @@ const FeedTab = React.forwardRef(function FeedTab(
   useLayoutEffect(() => {
     if (!localItems.length) return;
     preloadPreview(localItems[0], TIER.CRITICAL);
-    for (let i = 1; i <= Math.min(PRELOAD_WINDOW, localItems.length - 1); i++) {
-      preloadPreview(localItems[i], i === 1 ? TIER.CRITICAL : TIER.URGENT);
+    for (let i = 1; i < Math.min(PRELOAD_WINDOW, localItems.length); i++) {
+      preloadPreview(localItems[i], i < 8 ? TIER.CRITICAL : TIER.URGENT);
     }
     lastBatchLen.current = localItems.length;
   }, []);
@@ -509,14 +497,11 @@ const FeedTab = React.forwardRef(function FeedTab(
   useEffect(() => {
     const prev = lastBatchLen.current;
     if (localItems.length <= prev) return;
-    const batchLimit = IS_MOBILE ? 2 : 24;
-    for (let i = prev; i < localItems.length && i < prev + batchLimit; i++) {
+    for (let i = prev; i < localItems.length && i < prev + 24; i++) {
       const tier = i - prev < 8 ? TIER.URGENT : TIER.BATCH;
       preloadPreview(localItems[i], tier);
     }
     lastBatchLen.current = localItems.length;
-    fortyFired.current   = false;
-    seventyFired.current = false;
   }, [localItems.length]);
 
   // Scroll-ahead preload
@@ -531,11 +516,11 @@ const FeedTab = React.forwardRef(function FeedTab(
         if (!item) continue;
         if (item.type === "post" && item.image_ids?.length) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPreview(item, dist <= 1 ? TIER.CRITICAL : dist <= 2 ? TIER.URGENT : TIER.BATCH);
+          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
         }
         if (item.type === "reel" && item.thumbnail_id) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPreview(item, dist <= 1 ? TIER.CRITICAL : dist <= 2 ? TIER.URGENT : TIER.BATCH);
+          preloadPreview(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
         }
       }
       const visible = localItems[anchorIndex];
@@ -543,21 +528,6 @@ const FeedTab = React.forwardRef(function FeedTab(
     });
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [anchorIndex, localItems]);
-
-  // Load more at 40% and 70%
-  useEffect(() => {
-    if (!hasMore || loadingRef.current || isLoadingMore || !onLoadMore || !localItems.length) return;
-    const fortyMark   = Math.floor(localItems.length * 0.4);
-    const seventyMark = Math.floor(localItems.length * 0.7);
-    if (anchorIndex >= fortyMark && !fortyFired.current) {
-      fortyFired.current = true; loadingRef.current = true; onLoadMore();
-    } else if (anchorIndex >= seventyMark && !seventyFired.current) {
-      seventyFired.current = true;
-      if (!loadingRef.current) { loadingRef.current = true; onLoadMore(); }
-    }
-  }, [anchorIndex, localItems.length, hasMore, isLoadingMore, onLoadMore]);
-
-  useEffect(() => { if (!isLoadingMore) loadingRef.current = false; }, [isLoadingMore]);
 
   useImperativeHandle(ref, () => ({
     prependPost: (p) => {
@@ -600,8 +570,6 @@ const FeedTab = React.forwardRef(function FeedTab(
         onPipelineNavigate={handlePipelineNavigate}
         injections={injections}
         isLoadingMore={isLoadingMore && hasMore}
-        sponsoredAds={sponsoredAds}
-        onSponsoredHidden={handleSponsoredHidden}
       />
       <VideoPreloadRunway items={localItems} anchorIndex={anchorIndex} />
       {!hasMore && <EndOfFeed />}

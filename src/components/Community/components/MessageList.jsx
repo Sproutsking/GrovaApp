@@ -1055,6 +1055,20 @@ const MessageList = ({
           .msg-list-wrapper .msg-item .mra-wrapper .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; }
 
         }
+
+        @media (max-width: 768px) {
+          .msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .msg-avatar,
+          .msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .msg-avatar-spacer {
+            display: none;
+          }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .mra-wrapper {
+            max-width: min(88%, 520px);
+          }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item.me:not(.announcement) .mra-wrapper.has-visual-attachments {
+            width: min(320px, 88%);
+            max-width: min(320px, 88%);
+          }
+        }
       `}</style>
     </div>
   );
