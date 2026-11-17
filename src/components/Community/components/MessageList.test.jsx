@@ -213,6 +213,16 @@ describe("MessageList presentation", () => {
     expect(styles).toContain(".msg-item.me:not(.announcement) .msg-content { text-align: left; }");
   });
 
+  it("places the action menu before the sender name on outgoing community messages", () => {
+    const { container } = renderList([
+      makeMessage({ id: "outgoing-menu", user_id: "me", content: "Sent from my account" }),
+    ]);
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain(".msg-card-header.outgoing .msg-card-menu-btn { order:1; }");
+    expect(styles).toContain(".msg-card-header.outgoing .msg-user-name { order:2; flex-direction:row; justify-content:flex-start; text-align:left; }");
+  });
+
   it("hides outgoing community avatars on mobile and gives the bubble a balanced width", () => {
     const { container } = renderList([
       makeMessage({ id: "outgoing-mobile", user_id: "me", content: "Sent from my account" }),
