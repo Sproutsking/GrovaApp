@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom";
 import { ArrowLeft, Crown, Gift, MessageCircle, Plus, Shield, UserCheck, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
@@ -214,13 +215,18 @@ const CommunityProfileModal = ({
     const next = !isFollowing;
     setIsFollowing(next);
     setFollowLoading(true);
+    setRoleActionError("");
     try {
       const result = next
         ? await followService.followUser(currentUserId, user.id)
         : await followService.unfollowUser(currentUserId, user.id);
-      if (result?.success === false) setIsFollowing(!next);
-    } catch {
+      if (result?.success === false) {
+        setIsFollowing(!next);
+        setRoleActionError(result.error || `Could not ${next ? "follow" : "unfollow"} this member.`);
+      }
+    } catch (error) {
       setIsFollowing(!next);
+      setRoleActionError(error?.message || `Could not ${next ? "follow" : "unfollow"} this member.`);
     } finally {
       setFollowLoading(false);
     }
@@ -307,7 +313,7 @@ const CommunityProfileModal = ({
     }, new Map()).values(),
   ).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-  return (
+  return ReactDOM.createPortal((
     <div className="community-profile-overlay" onClick={onClose}>
       <section className="community-profile-card" onClick={(event) => event.stopPropagation()}>
         <button className="community-profile-close" onClick={onClose} aria-label="Close profile"><X size={16} /></button>
@@ -357,7 +363,7 @@ const CommunityProfileModal = ({
               {isFollowing ? <UserCheck size={14} /> : <UserPlus size={14} />}
               {isOwnProfile ? "You" : followLoading ? "..." : isFollowing ? "Following" : "Follow"}
             </button>
-            <button className="primary" onClick={() => onOpenDm?.(user)}><MessageCircle size={14} /> DM</button>
+            <button className="primary" onClick={() => onOpenDm?.(user)} disabled={isOwnProfile}><MessageCircle size={14} /> DM</button>
             <button className="gift-action" onClick={handleGift} disabled={isOwnProfile}><Gift size={14} /> Gift</button>
             <button className="profile-action" onClick={() => onOpenProfile?.(user)}><Users size={14} /> Profile</button>
           </div>
@@ -438,13 +444,14 @@ const CommunityProfileModal = ({
           .community-profile-card,.community-profile-relationship-modal,.community-profile-relationship-item,.community-profile-heading,.community-profile-stats,.community-profile-membership>div,.community-profile-role,.community-profile-connections button,.community-profile-actions button,.community-role-picker{box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 24px rgba(0,0,0,.18)!important}
           .community-profile-heading{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 8px 20px rgba(0,0,0,.2)}.community-profile-stats{background:rgba(5,8,7,.94)!important;border-color:rgba(255,255,255,.08)!important;color:#b4c9b2}.community-profile-membership>div{background:rgba(7,11,10,.94)!important}.community-profile-role{background:rgba(7,11,10,.9)!important;color:var(--role-color)}.community-profile-connections{position:relative;z-index:20;pointer-events:auto}.community-profile-connections button{position:relative;z-index:21;background:rgba(7,11,10,.94)!important;color:#e8f5e7;pointer-events:auto}.community-profile-connections button:hover{background:rgba(18,34,21,.98)!important}.community-profile-actions button{background:rgba(7,11,10,.94)!important;color:#e8f5e7}.community-profile-actions button.primary{background:linear-gradient(135deg,#1f7a38,#17612e)!important;border-color:rgba(132,204,22,.55)!important;box-shadow:0 7px 18px rgba(16,84,36,.28)}.community-profile-actions button.following{background:rgba(18,42,24,.96)!important;color:#cfff9b}
           @keyframes communityProfileIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+          @media(min-width:701px) and (max-width:900px){.community-profile-card{width:min(calc(100vw - 32px),480px);max-height:calc(100dvh - 32px);overflow-y:auto}}
           @media(max-width:700px){.community-profile-overlay{align-items:flex-end;padding:0}.community-profile-card{width:100%;max-width:none;height:min(88dvh,760px);border:0;border-radius:20px 20px 0 0;overflow-y:auto}.community-profile-card::before{content:"";display:block;position:absolute;top:8px;left:50%;width:42px;height:4px;border-radius:999px;transform:translateX(-50%);background:rgba(255,255,255,.58);box-shadow:0 0 10px rgba(156,255,0,.35);z-index:4}.community-profile-relationship-overlay{align-items:flex-end;padding:0}.community-profile-relationship-modal{width:100%;max-height:88dvh;height:auto;border:0;border-radius:20px 20px 0 0}.community-profile-relationship-modal::before{content:"";display:block;width:42px;height:4px;margin:8px auto 0;border-radius:999px;background:rgba(255,255,255,.58)}}
         .relationship-community-icon{width:30px;height:30px;display:grid;place-items:center;overflow:hidden;border-radius:8px;background:#1f4f89;color:#fff;font-size:calc((11px) + 1px);font-weight:900}.relationship-community-icon img{width:100%;height:100%;object-fit:cover}
         `}</style>
         <style>{`.community-profile-role-remove{color:var(--role-color)!important;background:rgba(0,0,0,.2)!important}.community-profile-role-remove:hover:not(:disabled){color:#ff8585!important;border-color:#ff8585!important}.community-profile-role-feedback{background:transparent!important;border:0!important;box-shadow:none!important}`}</style>
       </section>
     </div>
-  );
+  ), document.body);
 };
 
 export default CommunityProfileModal;

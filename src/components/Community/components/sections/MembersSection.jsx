@@ -436,8 +436,14 @@ const MembersSection = ({ community, userId }) => {
             await roleService.updateMemberRole(memberId, roleId);
             await loadData();
           }}
-          onOpenProfile={(user) => setAppProfileTarget(user)}
-          onOpenDm={(user) => window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: user.id } }))}
+          onOpenProfile={(user) => {
+            setSelectedMember(null);
+            setAppProfileTarget(user);
+          }}
+          onOpenDm={(user) => {
+            window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: user.id } }));
+            setSelectedMember(null);
+          }}
           onClose={() => setSelectedMember(null)}
         />
       )}

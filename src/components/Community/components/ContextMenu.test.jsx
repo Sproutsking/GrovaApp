@@ -51,4 +51,12 @@ describe("message action menu confirmation flow", () => {
     expect(screen.queryByRole("dialog", { name: "Delete message?" })).toBeNull();
     expect(screen.getByRole("button", { name: "Reply" })).toBeTruthy();
   });
+
+  it("uses compact vertical spacing for action menu items", () => {
+    renderMenu();
+
+    expect(document.body.querySelector(".message-context-backdrop style").textContent).toContain(
+      ".message-context-item{width:100%;display:flex;align-items:center;gap:9px;padding:7px 10px;",
+    );
+  });
 });
