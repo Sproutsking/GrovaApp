@@ -27,8 +27,12 @@ describe("VerificationDashboardPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Xeevia Record Dashboard (XRD)" })).toBeTruthy();
+    expect(screen.queryByText("Xeevia proof layer")).toBeNull();
+    expect(screen.queryByText(/A structured view of Sprouts King's identity/)).toBeNull();
+    expect(screen.getByRole("heading", { name: "Sprouts King's bio" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /open xrc/i })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /bio/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Sprouts King's bio/i }));
+    expect(screen.getByRole("heading", { name: "Sprouts King's bio" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /open xrc/i })).toBeNull();
     expect(openXrc).not.toHaveBeenCalled();
   });
