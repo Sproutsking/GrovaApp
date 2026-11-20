@@ -130,7 +130,7 @@ export const walletService = {
   async getWallet(userId) {
     const { data, error } = await supabase
       .from("wallets")
-      .select("*")
+      .select("id,user_id,xev_tokens,engagement_points,created_at,updated_at,daily_withdrawal_limit,paywave_balance,usdt_balance")
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
@@ -149,7 +149,7 @@ export const walletService = {
           engagement_points: 0,
           paywave_balance:   0,
         })
-        .select()
+        .select("id,user_id,xev_tokens,engagement_points,paywave_balance,usdt_balance")
         .single();
       if (error) throw error;
       w = data;

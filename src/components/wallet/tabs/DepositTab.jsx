@@ -137,31 +137,31 @@ const CSS = `
 }
 
 /* ── CURRENCY TOGGLE ── */
-.dt-choice { padding: clamp(8px,2vw,22px) 0 24px; animation:dt-choice-in .32s ease both; }
-.dt-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-.dt-choice-card { position:relative; isolation:isolate; display:flex; flex-direction:column; align-items:stretch; min-width:0; min-height:244px; padding:17px; overflow:hidden; border:1px solid rgba(255,255,255,.1); border-radius:17px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014) 65%),#080a08; color:inherit; text-align:left; cursor:pointer; font:inherit; transition:transform .2s,border-color .2s,background .2s,box-shadow .2s; }
+.dt-choice { padding: 8px 0 18px; animation:dt-choice-in .32s ease both; }
+.dt-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.dt-choice-card { position:relative; isolation:isolate; display:flex; flex-direction:column; align-items:stretch; min-width:0; min-height:176px; padding:14px; overflow:hidden; border:1px solid rgba(255,255,255,.1); border-radius:14px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.014) 65%),#080a08; color:inherit; text-align:left; cursor:pointer; font:inherit; transition:transform .2s,border-color .2s,background .2s,box-shadow .2s; }
 .dt-choice-card:hover { transform:translateY(-3px); border-color:rgba(163,230,53,.42); background:linear-gradient(145deg,rgba(163,230,53,.09),rgba(255,255,255,.025) 70%),#080a08; box-shadow:0 18px 42px rgba(0,0,0,.34),0 0 24px rgba(163,230,53,.06); }
 .dt-choice-card:focus-visible { outline:2px solid #a3e635; outline-offset:3px; }
 .dt-choice-card::after { content:""; position:absolute; z-index:-1; width:190px; height:190px; right:-112px; top:-118px; border-radius:50%; background:rgba(163,230,53,.13); filter:blur(3px); pointer-events:none; }
 .dt-choice-card.crypto::after { background:rgba(45,212,191,.13); }
 .dt-choice-topline,.dt-choice-content,.dt-choice-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.dt-choice-topline { margin-bottom:22px; }
+.dt-choice-topline { margin-bottom:14px; }
 .dt-choice-eyebrow { color:rgba(255,255,255,.42); font:700 9px/1.3 'JetBrains Mono',monospace; letter-spacing:.13em; }
 .dt-choice-status { display:inline-flex; align-items:center; padding:5px 8px; border:1px solid rgba(163,230,53,.2); border-radius:999px; background:rgba(163,230,53,.055); color:#bef264; font:700 9px/1 'JetBrains Mono',monospace; letter-spacing:.04em; white-space:nowrap; }
 .dt-choice-card.crypto .dt-choice-status { border-color:rgba(45,212,191,.24); background:rgba(45,212,191,.06); color:#5eead4; }
-.dt-choice-content { justify-content:flex-start; margin-bottom:10px; }
+.dt-choice-content { justify-content:flex-start; margin-bottom:8px; }
 .dt-choice-icon { display:grid; place-items:center; width:43px; height:43px; flex:none; border:1px solid rgba(163,230,53,.22); border-radius:13px; background:linear-gradient(145deg,rgba(163,230,53,.14),rgba(163,230,53,.035)); color:#bef264; box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
 .dt-choice-card.crypto .dt-choice-icon { border-color:rgba(45,212,191,.25); background:linear-gradient(145deg,rgba(45,212,191,.15),rgba(45,212,191,.035)); color:#5eead4; }
 .dt-choice-copy { min-width:0; }
 .dt-choice-label { margin:0; color:rgba(255,255,255,.94); font-size:17px; font-weight:800; letter-spacing:-.02em; }
 .dt-choice-currency { display:block; margin-top:4px; color:rgba(255,255,255,.43); font:600 9px/1.4 'JetBrains Mono',monospace; letter-spacing:.06em; text-transform:uppercase; }
-.dt-choice-description { min-height:38px; margin:0; color:rgba(255,255,255,.59); font-size:11px; line-height:1.6; }
+.dt-choice-description { min-height:0; margin:0; color:rgba(255,255,255,.56); font-size:11px; line-height:1.4; }
 .dt-choice-chips { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 15px; }
 .dt-choice-chip-group { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
 .dt-choice-chip-label { margin-right:2px; color:rgba(255,255,255,.34); font:700 8px/1 'JetBrains Mono',monospace; letter-spacing:.08em; }
 .dt-choice-chip { padding:5px 8px; border:1px solid rgba(255,255,255,.09); border-radius:7px; background:rgba(255,255,255,.035); color:rgba(255,255,255,.74); font:650 9px/1 'JetBrains Mono',monospace; }
 .dt-choice-card.crypto .dt-choice-chip-group:first-child .dt-choice-chip { border-color:rgba(45,212,191,.22); color:#99f6e4; }
-.dt-choice-footer { min-height:34px; margin-top:auto; padding-top:11px; border-top:1px solid rgba(255,255,255,.075); }
+.dt-choice-footer { min-height:28px; margin-top:auto; padding-top:8px; border-top:1px solid rgba(255,255,255,.075); }
 .dt-choice-note { display:inline-flex; align-items:center; gap:6px; min-width:0; color:rgba(255,255,255,.42); font-size:9px; line-height:1.4; }
 .dt-choice-note svg { flex:none; color:rgba(163,230,53,.75); }
 .dt-choice-card.crypto .dt-choice-note svg { color:#5eead4; }
@@ -169,8 +169,8 @@ const CSS = `
 .dt-choice-card.crypto .dt-choice-action { color:#5eead4; }
 .dt-choice-action svg { transition:transform .18s; }
 .dt-choice-card:hover .dt-choice-action svg { transform:translateX(3px); }
-@media(max-width:560px) { .dt-choice-grid { grid-template-columns:1fr; } .dt-choice-card { min-height:232px; } }
-@media(max-width:380px) { .dt-choice-card { padding:14px; } .dt-choice-topline { margin-bottom:18px; } .dt-choice-note { font-size:8px; } .dt-choice-action { font-size:9px; } }
+@media(max-width:560px) { .dt-choice-grid { grid-template-columns:1fr; } .dt-choice-card { min-height:160px; } }
+@media(max-width:380px) { .dt-choice-card { padding:12px; } .dt-choice-topline { margin-bottom:12px; } .dt-choice-action { font-size:9px; } }
 
 /* ── METHOD TABS ── */
 .dt-methods {
@@ -962,14 +962,9 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
                   <span className="dt-choice-currency">Nigerian naira</span>
                 </span>
               </span>
-              <span className="dt-choice-description">Choose an amount in naira, then pay by card or bank transfer through checkout.</span>
-              <span className="dt-choice-chips" aria-label="Available payment methods">
-                <span className="dt-choice-chip">Card</span>
-                <span className="dt-choice-chip">Bank transfer</span>
-              </span>
+              <span className="dt-choice-description">Card · bank transfer</span>
               <span className="dt-choice-footer">
-                <span className="dt-choice-note"><Shield size={12}/>Amount shown before checkout</span>
-                <span className="dt-choice-action">Choose fiat <ChevronRight size={14}/></span>
+                <span className="dt-choice-action">Continue <ChevronRight size={14}/></span>
               </span>
             </button>
             <button
@@ -985,18 +980,13 @@ export default function DepositTab({ setActiveTab, userId: userIdProp, balance, 
               <span className="dt-choice-content">
                 <span className="dt-choice-icon"><Wallet size={20}/></span>
                 <span className="dt-choice-copy">
-                  <span className="dt-choice-label">Crypto deposits</span>
-                  <span className="dt-choice-currency">Choose asset & network</span>
+                  <span className="dt-choice-label">Crypto</span>
+                  <span className="dt-choice-currency">USDC · USDT · ADA</span>
                 </span>
               </span>
-              <span className="dt-choice-description">Review the live minimum, send a supported asset, and submit its transaction for verification.</span>
-              <span className="dt-choice-chips" aria-label="Supported crypto assets and networks">
-                <span className="dt-choice-chip-group"><span className="dt-choice-chip-label">ASSETS</span><span className="dt-choice-chip">USDC</span><span className="dt-choice-chip">USDT</span><span className="dt-choice-chip">ADA</span></span>
-                <span className="dt-choice-chip-group"><span className="dt-choice-chip-label">NETWORKS</span><span className="dt-choice-chip">EVM</span><span className="dt-choice-chip">Solana</span><span className="dt-choice-chip">Cardano</span></span>
-              </span>
+              <span className="dt-choice-description">EVM · Solana · Cardano</span>
               <span className="dt-choice-footer">
-                <span className="dt-choice-note"><Shield size={12}/>Live quote · network fees may apply</span>
-                <span className="dt-choice-action">Review crypto <ChevronRight size={14}/></span>
+                <span className="dt-choice-action">Continue <ChevronRight size={14}/></span>
               </span>
             </button>
           </div>

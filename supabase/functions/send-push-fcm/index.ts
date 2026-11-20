@@ -23,7 +23,7 @@
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
@@ -98,7 +98,10 @@ async function getFirebaseAccessToken(): Promise<string> {
       throw new Error(`FCM token fetch failed: ${res.status}`);
     }
 
-    const data = (await res.json()) as { access_token: string };
+    const data = (await res.json()) as { access_token?: unknown };
+    if (typeof data.access_token !== "string" || !data.access_token) {
+      throw new Error("OAuth response did not contain an access token");
+    }
     return data.access_token;
   } catch (err) {
     console.error("[FCM] getFirebaseAccessToken error:", err);
@@ -108,16 +111,16 @@ async function getFirebaseAccessToken(): Promise<string> {
 
 // ── RSA-SHA256 JWT signing ────────────────────────────────────────────────────
 async function signJwt(payload: string, privateKeyPem: string): Promise<string> {
-  // Import private key (PKCS8 format expected from Firebase service account)
+  const pemBody = privateKeyPem
+    .replace(/\\n/g, "\n")
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s/g, "");
+  const der = Uint8Array.from(atob(pemBody), (character) => character.charCodeAt(0));
+
   const key = await crypto.subtle.importKey(
     "pkcs8",
-    new TextEncoder().encode(
-      privateKeyPem
-        .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-        .replace(/-----END PRIVATE KEY-----/g, "")
-        .replace(/\\n/g, "\n")
-        .replace(/\n/g, ""),
-    ),
+    der,
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"],
@@ -160,6 +163,31 @@ function buildTitle(type: string, d: Record<string, unknown>): string {
   return map[type] ?? "Xeevia";
 }
 
+function buildBody(type: string, d: Record<string, unknown>): string {
+  const actor = cleanText(d.actorName ?? "Someone", 80) || "Someone";
+  switch (type) {
+    case "incoming_call":
+      return `${cleanText(d.callerName ?? actor, 80) || "Someone"} is calling you`;
+    case "dm":
+    case "payment_confirmed":
+      return cleanText(d.message, 500);
+    case "like":
+      return `${actor} liked your content`;
+    case "comment":
+      return `${actor} commented on your content`;
+    case "comment_reply":
+      return `${actor} replied to your comment`;
+    case "follow":
+      return `${actor} started following you`;
+    case "share":
+      return `${actor} shared your content`;
+    case "unlock":
+      return `${actor} unlocked your story`;
+    default:
+      return "";
+  }
+}
+
 function buildDeepLink(
   type: string,
   entityId: string | null,
@@ -199,8 +227,30 @@ function buildDeepLink(
   }
 }
 
+function normalizeDeepLink(value: string): string {
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return "/";
+  }
+
+  try {
+    const url = new URL(value, "https://app.xeevia.com");
+    if (url.origin !== "https://app.xeevia.com") return "/";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
+function cleanText(value: unknown, maxLength: number): string {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function getDedupTtlMs(type: string): number | null {
-  if (type === "incoming_call" || type === "dm") return null;
+  if (type === "dm") return null;
+  if (type === "incoming_call") return 30 * 1000;
   if (
     ["like", "comment", "comment_reply", "follow", "mention", "profile_view"].includes(type)
   )
@@ -347,6 +397,251 @@ async function sendFcmNotification(
   }
 }
 
+const EVENT_FRESHNESS_MS = 5 * 60 * 1000;
+
+async function hasRecentRow(
+    query: PromiseLike<{ data: unknown; error: { message: string } | null }>,
+    label: string,
+): Promise<unknown | null> {
+    const { data, error } = await query;
+    if (error) {
+      console.error(`[FCM] Could not verify ${label}:`, error.message);
+      return null;
+    }
+    return data ?? null;
+}
+
+async function contentOwnerMatches(
+    supa: SupabaseClient<any, "public", "public">,
+    table: string,
+    entityId: string,
+    recipientId: string,
+): Promise<boolean> {
+    const { data, error } = await supa
+      .from(table)
+      .select("user_id")
+      .eq("id", entityId)
+      .maybeSingle();
+    if (error) {
+      console.error(`[FCM] Could not verify owner for ${table}:`, error.message);
+      return false;
+    }
+    return data?.user_id === recipientId;
+}
+
+async function authorizePushEvent(
+    supa: SupabaseClient<any, "public", "public">,
+    input: {
+      actorId: string;
+      recipientId: string;
+      type: string;
+      entityId: string | null;
+      metadata: Record<string, unknown>;
+    },
+): Promise<boolean> {
+    const { actorId, recipientId, type, entityId, metadata } = input;
+    const recentAfter = new Date(Date.now() - EVENT_FRESHNESS_MS).toISOString();
+
+    if (type === "payment_confirmed" && entityId && actorId === recipientId) {
+      return Boolean(
+        await hasRecentRow(
+          supa
+            .from("payments")
+            .select("id")
+            .eq("id", entityId)
+            .eq("user_id", actorId)
+            .eq("status", "completed")
+            .gte("created_at", recentAfter)
+            .limit(1)
+            .maybeSingle(),
+          "completed-payment event",
+        ),
+      );
+    }
+    if (type === "follow") {
+      return Boolean(
+        await hasRecentRow(
+          supa
+            .from("follows")
+            .select("id")
+            .eq("follower_id", actorId)
+            .eq("following_id", recipientId)
+            .gte("created_at", recentAfter)
+            .limit(1)
+            .maybeSingle(),
+          "follow event",
+        ),
+      );
+    }
+
+    if (type === "like" && entityId) {
+      const contentTypes = [
+        { table: "posts", likes: "post_likes", foreignKey: "post_id" },
+        { table: "reels", likes: "reel_likes", foreignKey: "reel_id" },
+        { table: "stories", likes: "story_likes", foreignKey: "story_id" },
+      ];
+      for (const content of contentTypes) {
+        if (!(await contentOwnerMatches(supa, content.table, entityId, recipientId))) continue;
+        return Boolean(
+          await hasRecentRow(
+            supa
+              .from(content.likes)
+              .select("id")
+              .eq(content.foreignKey, entityId)
+              .eq("user_id", actorId)
+              .gte("created_at", recentAfter)
+              .limit(1)
+              .maybeSingle(),
+            "like event",
+          ),
+        );
+      }
+      return false;
+    }
+
+    if ((type === "comment" || type === "comment_reply") && entityId) {
+      const contentTypes = [
+        { table: "posts", foreignKey: "post_id" },
+        { table: "reels", foreignKey: "reel_id" },
+        { table: "stories", foreignKey: "story_id" },
+      ];
+      for (const content of contentTypes) {
+        let commentQuery = supa
+          .from("comments")
+          .select("id, parent_id")
+          .eq("user_id", actorId)
+          .eq(content.foreignKey, entityId)
+          .gte("created_at", recentAfter);
+        commentQuery = type === "comment"
+          ? commentQuery.is("parent_id", null)
+          : commentQuery.not("parent_id", "is", null);
+        const { data: comment, error } = await commentQuery.limit(1).maybeSingle();
+        if (error) {
+          console.error("[FCM] Could not verify comment event:", error.message);
+          return false;
+        }
+        if (!comment) continue;
+
+        if (type === "comment" && comment.parent_id === null) {
+          return contentOwnerMatches(supa, content.table, entityId, recipientId);
+        }
+        if (type === "comment_reply" && comment.parent_id) {
+          const { data: parent, error: parentError } = await supa
+            .from("comments")
+            .select("user_id, post_id, reel_id, story_id")
+            .eq("id", comment.parent_id)
+            .maybeSingle();
+          if (parentError) {
+            console.error("[FCM] Could not verify reply recipient:", parentError.message);
+            return false;
+          }
+          const parentContentId = content.foreignKey === "post_id"
+            ? parent?.post_id
+            : content.foreignKey === "reel_id"
+            ? parent?.reel_id
+            : parent?.story_id;
+          return (
+            parent?.user_id === recipientId &&
+            parentContentId === entityId
+          );
+        }
+      }
+      return false;
+    }
+
+    if (type === "share" && entityId) {
+      const contentTypes = [
+        { type: "post", table: "posts" },
+        { type: "reel", table: "reels" },
+        { type: "story", table: "stories" },
+      ];
+      for (const content of contentTypes) {
+        if (!(await contentOwnerMatches(supa, content.table, entityId, recipientId))) continue;
+        return Boolean(
+          await hasRecentRow(
+            supa
+              .from("shares")
+              .select("id")
+              .eq("user_id", actorId)
+              .eq("content_type", content.type)
+              .eq("content_id", entityId)
+              .gte("created_at", recentAfter)
+              .limit(1)
+              .maybeSingle(),
+            "share event",
+          ),
+        );
+      }
+      return false;
+    }
+
+    if (type === "unlock" && entityId) {
+      if (!(await contentOwnerMatches(supa, "stories", entityId, recipientId))) return false;
+      return Boolean(
+        await hasRecentRow(
+          supa
+            .from("unlocked_stories")
+            .select("id")
+            .eq("user_id", actorId)
+            .eq("story_id", entityId)
+            .gte("created_at", recentAfter)
+            .limit(1)
+            .maybeSingle(),
+          "story unlock event",
+        ),
+      );
+    }
+
+    if (type === "dm" && entityId) {
+      const message = await hasRecentRow(
+        supa
+          .from("messages")
+          .select("id")
+          .eq("conversation_id", entityId)
+          .eq("sender_id", actorId)
+          .gte("created_at", recentAfter)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        "direct-message event",
+      );
+      if (!message) return false;
+
+      const { data: conversation, error } = await supa
+        .from("conversations")
+        .select("user1_id, user2_id")
+        .eq("id", entityId)
+        .maybeSingle();
+      if (error) {
+        console.error("[FCM] Could not verify conversation:", error.message);
+        return false;
+      }
+      return (
+        (conversation?.user1_id === actorId && conversation?.user2_id === recipientId) ||
+        (conversation?.user2_id === actorId && conversation?.user1_id === recipientId)
+      );
+    }
+
+    if (type === "incoming_call") {
+      const callId = String(entityId || metadata.callId || metadata.call_id || "");
+      if (!callId) return false;
+      const call = await hasRecentRow(
+        supa
+          .from("active_calls")
+          .select("callee_ids")
+          .eq("id", callId)
+          .eq("caller_id", actorId)
+          .eq("status", "ringing")
+          .gte("created_at", recentAfter)
+          .maybeSingle(),
+        "incoming-call event",
+      ) as { callee_ids?: string[] } | null;
+      return Array.isArray(call?.callee_ids) && call.callee_ids.includes(recipientId);
+    }
+
+    return false;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN HANDLER
 // ════════════════════════════════════════════════════════════════════════════
@@ -389,20 +684,6 @@ serve(async (req: Request) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  // Health / test via POST
-  if (body?.health === true || body?.test === true) {
-    if (!FIREBASE_PROJECT_ID || !FIREBASE_PRIVATE_KEY || !FIREBASE_CLIENT_EMAIL) {
-      return json(
-        {
-          ok: false,
-          error: "Firebase credentials not configured",
-        },
-        500,
-      );
-    }
-    return json({ ok: true, message: "FCM delivery is configured" });
-  }
-
   if (!FIREBASE_PROJECT_ID || !FIREBASE_PRIVATE_KEY || !FIREBASE_CLIENT_EMAIL) {
     console.error("[FCM] Firebase credentials not configured");
     return json(
@@ -418,18 +699,72 @@ serve(async (req: Request) => {
     );
   }
 
-  const {
-    recipient_user_id,
-    actor_user_id,
-    type = "general",
-    title: titleOverride,
-    message: messageOverride,
-    entity_id: entityId = null,
-    metadata = {} as Record<string, unknown>,
-    data: extraData = {} as Record<string, unknown>,
-  } = body;
+  const authHeader = req.headers.get("Authorization");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
+    console.error("[FCM] Supabase authentication configuration is incomplete");
+    return json({ error: "Authentication unavailable" }, 503);
+  }
 
-  if (!recipient_user_id) return json({ error: "recipient_user_id is required" }, 400);
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: authError } = await authClient.auth.getUser();
+  if (authError || !user) return json({ error: "Unauthorized" }, 401);
+
+  const supa = createClient(supabaseUrl, serviceRoleKey);
+
+  // This admin-only probe validates the service account without sending a push.
+  if (body?.health === true || body?.test === true) {
+    const { data: profile, error: profileError } = await supa
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileError) {
+      console.error("[FCM] Could not verify health-check role:", profileError.message);
+      return json({ error: "Could not verify access" }, 503);
+    }
+    if (profile?.is_admin !== true) return json({ error: "Forbidden" }, 403);
+
+    try {
+      await getFirebaseAccessToken();
+      return json({
+        ok: true,
+        message: "Firebase service-account authentication succeeded; no push was sent",
+      });
+    } catch (err) {
+      console.error("[FCM] Service-account health check failed:", err);
+      return json({ error: "Firebase service-account authentication failed" }, 503);
+    }
+  }
+
+  const recipientUserId = typeof body.recipient_user_id === "string"
+    ? body.recipient_user_id
+    : "";
+  const actorUserId = typeof body.actor_user_id === "string"
+    ? body.actor_user_id
+    : "";
+  const type = typeof body.type === "string" ? body.type : "general";
+  const titleOverride = body.title;
+  const messageOverride = body.message;
+  const entityId = typeof body.entity_id === "string" ? body.entity_id : null;
+  const metadata = body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
+    ? body.metadata as Record<string, unknown>
+    : {};
+  const extraData = body.data && typeof body.data === "object" && !Array.isArray(body.data)
+    ? body.data as Record<string, unknown>
+    : {};
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(recipientUserId)) {
+    return json({ error: "A valid recipient_user_id is required" }, 400);
+  }
+  if (actorUserId !== user.id) {
+    return json({ error: "actor_user_id must match the authenticated user" }, 403);
+  }
 
   // Self-notification guard
   const socialTypes = [
@@ -446,27 +781,124 @@ serve(async (req: Request) => {
     "unlock",
   ];
   if (
-    socialTypes.includes(type as string) &&
-    actor_user_id &&
-    actor_user_id === recipient_user_id
+    socialTypes.includes(type) &&
+    actorUserId === recipientUserId
   ) {
     return json({ sent: 0, reason: "self_notification_skipped" });
   }
 
-  const supa = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  const eventIsAuthorized = await authorizePushEvent(supa, {
+    actorId: user.id,
+    recipientId: recipientUserId,
+    type,
+    entityId,
+    metadata,
+  });
+  if (!eventIsAuthorized) {
+    return json({ error: "No matching authorized notification event" }, 403);
+  }
+
+  const { data: actorProfile, error: profileError } = await supa
+    .from("profiles")
+    .select("full_name, username, avatar_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError) {
+    console.error("[FCM] Could not resolve notification actor:", profileError.message);
+    return json({ error: "Could not prepare notification" }, 503);
+  }
+  const actorName = cleanText(
+    actorProfile?.full_name || actorProfile?.username || "Someone",
+    80,
+  ) || "Someone";
+
+  // ── Fetch FCM tokens ───────────────────────────────────────────────────────
+  const { data: subs, error: subErr } = await supa
+    .from("push_subscriptions")
+    .select("id, fcm_token")
+    .eq("user_id", recipientUserId)
+    .eq("provider", "fcm")
+    .eq("is_active", true);
+
+  if (subErr) {
+    console.error("[FCM] DB error fetching subscriptions:", subErr.message);
+    return json({ error: subErr.message }, 500);
+  }
+
+  if (!subs || subs.length === 0) {
+    console.log(`[FCM] No active FCM subscriptions for user ${recipientUserId}`);
+    return json({ sent: 0, reason: "no_active_subscriptions" });
+  }
+
+  console.log(`[FCM] type=${type} recipients=${subs.length} user=${recipientUserId}`);
+
+  // ── Build payload ──────────────────────────────────────────────────────────
+  const merged: Record<string, unknown> = {
+    ...metadata,
+    ...extraData,
+    actorName,
+    senderName: actorName,
+    callerName: actorName,
+    actorId: user.id,
+    actor_id: user.id,
+    caller_name: actorName,
+    caller_avatar_id: actorProfile?.avatar_id || "",
+  };
+
+  if (type === "dm") {
+    const { data: latestMessage, error: messageError } = await supa
+      .from("messages")
+      .select("content")
+      .eq("conversation_id", entityId)
+      .eq("sender_id", user.id)
+      .gte("created_at", new Date(Date.now() - EVENT_FRESHNESS_MS).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (messageError) {
+      console.error("[FCM] Could not resolve direct-message preview:", messageError.message);
+      return json({ error: "Could not prepare notification" }, 503);
+    }
+    if (!latestMessage) return json({ error: "No matching direct message" }, 403);
+    merged.message = latestMessage.content;
+    merged.conversation_id = entityId;
+  } else if (type === "incoming_call") {
+    merged.callId = entityId;
+    merged.call_id = entityId;
+  } else if (type === "payment_confirmed" && messageOverride != null) {
+    merged.message = messageOverride;
+  }
+
+  const notifId =
+    cleanText(merged.notification_id ?? `${type}_${Date.now()}`, 128) ||
+    `${type}_${Date.now()}`;
+  const isCall = type === "incoming_call";
+
+  const notifTitle = cleanText(
+    type === "payment_confirmed" ? titleOverride ?? buildTitle(type, merged) : buildTitle(type, merged),
+    100,
   );
+  const notifBody = buildBody(type, merged);
 
-  // ── Deduplication ──────────────────────────────────────────────────────────
-  const dedupTtlMs = getDedupTtlMs(type as string);
+  const deeplink = normalizeDeepLink(buildDeepLink(type, entityId, merged));
 
+  // ── Get Firebase access token ──────────────────────────────────────────────
+  let accessToken: string;
+  try {
+    accessToken = await getFirebaseAccessToken();
+  } catch (err) {
+    console.error("[FCM] Failed to get access token:", err);
+    return json({ error: "Failed to authenticate with Firebase" }, 500);
+  }
+
+  // Reserve the notification only after authorization, token lookup, and OAuth succeed.
+  const dedupTtlMs = getDedupTtlMs(type);
   if (dedupTtlMs !== null) {
     const dedupKey = [
-      String(type),
-      String(actor_user_id || "none"),
+      type,
+      actorUserId,
       String(entityId || "none"),
-      String(recipient_user_id),
+      recipientUserId,
     ]
       .join(":")
       .slice(0, 500);
@@ -478,70 +910,21 @@ serve(async (req: Request) => {
         expires_at: new Date(Date.now() + dedupTtlMs).toISOString(),
       });
 
+    if (insertErr?.code === "23505") {
+      return json({ sent: 0, reason: "duplicate_prevented" });
+    }
     if (insertErr) {
-      if (insertErr.code === "23505") {
-        console.log(`[FCM] Duplicate blocked: ${dedupKey}`);
-        return json({ sent: 0, reason: "duplicate_prevented" });
-      }
-      console.warn("[FCM] Dedup insert error (non-blocking):", insertErr.message);
+      console.error("[FCM] Could not reserve notification delivery:", insertErr.message);
+      return json({ error: "Could not verify notification delivery status" }, 503);
     }
 
-    // Async cleanup
-    supa
+    const { error: dedupCleanupError } = await supa
       .from("notification_dedup")
       .delete()
-      .lt("expires_at", new Date().toISOString())
-      .catch(() => {});
-  }
-
-  // ── Fetch FCM tokens ───────────────────────────────────────────────────────
-  const { data: subs, error: subErr } = await supa
-    .from("push_subscriptions")
-    .select("id, fcm_token")
-    .eq("user_id", recipient_user_id)
-    .eq("provider", "fcm")
-    .eq("is_active", true);
-
-  if (subErr) {
-    console.error("[FCM] DB error fetching subscriptions:", subErr.message);
-    return json({ error: subErr.message }, 500);
-  }
-
-  if (!subs || subs.length === 0) {
-    console.log(`[FCM] No active FCM subscriptions for user ${recipient_user_id}`);
-    return json({ sent: 0, reason: "no_active_subscriptions" });
-  }
-
-  console.log(`[FCM] type=${type} recipients=${subs.length} user=${recipient_user_id}`);
-
-  // ── Build payload ──────────────────────────────────────────────────────────
-  const merged = {
-    ...(metadata as object),
-    ...(extraData as object),
-  } as Record<string, unknown>;
-
-  const notifId = String(merged.notification_id ?? `${type}_${Date.now()}`);
-  const isCall = type === "incoming_call";
-
-  const notifTitle = String(
-    titleOverride ?? buildTitle(type as string, merged),
-  );
-  const notifBody = String(
-    messageOverride ??
-      (isCall
-        ? `${String(merged.callerName ?? merged.caller_name ?? "Someone")} is calling`
-        : String(merged.message ?? "")),
-  );
-
-  const deeplink = buildDeepLink(type as string, entityId as string | null, merged);
-
-  // ── Get Firebase access token ──────────────────────────────────────────────
-  let accessToken: string;
-  try {
-    accessToken = await getFirebaseAccessToken();
-  } catch (err) {
-    console.error("[FCM] Failed to get access token:", err);
-    return json({ error: "Failed to authenticate with Firebase" }, 500);
+      .lt("expires_at", new Date().toISOString());
+    if (dedupCleanupError) {
+      console.warn("[FCM] Dedup cleanup failed:", dedupCleanupError.message);
+    }
   }
 
   // ── Send to all FCM tokens ────────────────────────────────────────────────
@@ -551,13 +934,13 @@ serve(async (req: Request) => {
         s.fcm_token,
         buildFcmMessage({
           token: s.fcm_token,
-          type: type as string,
+          type,
           title: notifTitle,
           body: notifBody,
           deeplink,
           notifId,
-          entityId: entityId as string | null,
-          actorUserId: actor_user_id as string | null,
+          entityId,
+          actorUserId: actorUserId,
           merged,
           isCall,
         }),
@@ -589,11 +972,13 @@ serve(async (req: Request) => {
 
   // ── Clean up expired tokens ────────────────────────────────────────────────
   if (expiredIds.length > 0) {
-    await supa
+    const { error: deactivateError } = await supa
       .from("push_subscriptions")
       .update({ is_active: false })
-      .in("id", expiredIds)
-      .catch((e) => console.warn("[FCM] Deactivate error:", e));
+      .in("id", expiredIds);
+    if (deactivateError) {
+      console.warn("[FCM] Could not deactivate expired tokens:", deactivateError.message);
+    }
   }
 
   if (errors.length > 0) {

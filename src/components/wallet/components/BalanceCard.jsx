@@ -105,38 +105,49 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         }
         .fiat-btn:hover { background: rgba(132,204,22,0.09); }
         .fiat-btn:active { background: rgba(132,204,22,0.16); }
+        .wallet-balance-context {
+          width: 100%;
+          box-sizing: border-box;
+          margin: 8px 0 0;
+          background: linear-gradient(110deg, rgba(13,20,14,.98), rgba(13,16,14,.98) 55%, rgba(19,18,9,.98));
+          border-color: rgba(163,230,53,.2);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+        }
+        @media (max-width: 480px) {
+          .wallet-balance-context { grid-template-columns: 1fr 1px 1fr 1px 1fr; }
+        }
       `}</style>
 
       {/* ────── CARD ────── */}
       <div
         ref={cardRef}
+        className="balance-card wallet-balance-hero"
         style={{
-          margin: "20px 18px 0",
+          width: "100%",
+          boxSizing: "border-box",
+          margin: "0",
+          padding: 0,
           borderRadius: 15,
           position: "relative",
           isolation: "isolate",
           overflow: "hidden",
+          background: "linear-gradient(125deg, #121b13 0%, #101512 45%, #1a1809 100%)",
+          border: "1px solid rgba(163,230,53,0.32)",
+          boxShadow: "0 12px 34px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.07)",
           animation: "cardIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both",
         }}
       >
-        {/* dark base */}
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: 15,
-          background: "linear-gradient(135deg, #111 0%, #0b0b0b 45%, #0d0e00 78%, #090a00 100%)",
-          border: "1px solid rgba(132,204,22,0.15)",
-        }} />
-
         {/* ambient glows */}
         <div style={{ position:"absolute", top:"-70%", left:"-20%", width:"65%", height:"160%",
-          background:"radial-gradient(ellipse, rgba(132,204,22,0.15) 0%, transparent 65%)", pointerEvents:"none" }} />
+          background:"radial-gradient(ellipse, rgba(132,204,22,0.22) 0%, transparent 65%)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:"-60%", right:"-8%", width:"50%", height:"140%",
-          background:"radial-gradient(ellipse, rgba(201,162,39,0.12) 0%, transparent 60%)", pointerEvents:"none" }} />
+          background:"radial-gradient(ellipse, rgba(201,162,39,0.17) 0%, transparent 60%)", pointerEvents:"none" }} />
 
         {/* grid lines */}
         <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", borderRadius:15, pointerEvents:"none", opacity:0.75 }}>
           <defs>
             <pattern id="cg" width="34" height="34" patternUnits="userSpaceOnUse">
-              <path d="M 34 0 L 0 0 0 34" fill="none" stroke="rgba(132,204,22,0.038)" strokeWidth="1"/>
+              <path d="M 34 0 L 0 0 0 34" fill="none" stroke="rgba(163,230,53,0.06)" strokeWidth="1"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#cg)" />
@@ -171,8 +182,8 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
           position: "relative", zIndex: 2,
           display: "flex",
           alignItems: "center",
-          padding: "15px 17px",
-          gap: 14,
+          padding: "18px 20px",
+          gap: 16,
         }}>
 
           {/* LEFT — EP mark + live */}
@@ -192,7 +203,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 
           {/* CENTER — balance */}
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, letterSpacing:"0.26em", color:"rgba(132,204,22,0.45)", textTransform:"uppercase", marginBottom:4 }}>
+            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, fontWeight:700, letterSpacing:"0.2em", color:"rgba(190,242,100,0.82)", textTransform:"uppercase", marginBottom:5 }}>
               Engagement Points
             </div>
 
@@ -201,7 +212,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
               {loading ? (
                 <div style={{ height:36, width:130, borderRadius:5, background:"linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%)", backgroundSize:"200% 100%", animation:"skelShim 1.4s infinite" }} />
               ) : (
-                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:39, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.16)" }}>
+                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:42, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.24)" }}>
                   {hideBalance ? "••••••" : epDisplay}
                 </span>
               )}
@@ -214,23 +225,26 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
                 marginBottom:5, flexShrink:0,
               }}>EP</span>
             </div>
-            <span style={{ fontFamily:"JetBrains Mono,monospace",fontSize:10,color:"rgba(255,255,255,.27)" }}>Internal Xeevia balance</span>
+            <span style={{ fontFamily:"JetBrains Mono,monospace",fontSize:11,color:"rgba(255,255,255,.64)" }}>Internal Xeevia balance</span>
           </div>
 
           {/* RIGHT — visibility control */}
           <div style={{ display:"flex",alignItems:"center",flexShrink:0 }}>
             <button
               onClick={onToggleHide}
+              type="button"
+              aria-label={hideBalance ? "Show balance" : "Hide balance"}
+              title={hideBalance ? "Show balance" : "Hide balance"}
               style={{
-                background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.06)",
-                borderRadius:5, color:"rgba(255,255,255,0.25)", cursor:"pointer",
-                width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center",
+                background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.18)",
+                borderRadius:7, color:"rgba(255,255,255,0.7)", cursor:"pointer",
+                width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center",
                 transition:"all 0.13s", flexShrink:0,
               }}
               onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}
-              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.25)"}
+              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.7)"}
             >
-              {hideBalance ? <EyeOff size={11} /> : <Eye size={11} />}
+              {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
 
@@ -239,19 +253,19 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 
       {/* ── EP context strip ── */}
       <div style={{
-        margin: "8px 18px 0",
         display: "grid",
         gridTemplateColumns: "1fr 1px 1fr 1px 1fr",
-        background: "#0c0c0c",
-        border: "1px solid rgba(255,255,255,0.05)",
+        background: "linear-gradient(110deg, rgba(13,20,14,.98), rgba(13,16,14,.98) 55%, rgba(19,18,9,.98))",
+        border: "1px solid rgba(163,230,53,.2)",
         borderRadius: 10,
-        padding: "8px 0",
+        padding: "10px 0",
         overflow: "hidden",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.035)",
         animation: "cardIn 0.4s 0.09s cubic-bezier(0.34,1.56,0.64,1) both",
-      }}>
-        <StatCol label="EP Balance" value={loading || hideBalance ? "—" : epDisplay} color="#a3e635" sub="Earned points" />
+      }} className="wallet-balance-context">
+        <StatCol label="EP Balance" value={loading || hideBalance ? "—" : epDisplay} color="#bef264" sub="Earned points" />
         <div style={{ background:"rgba(255,255,255,0.05)", margin:"2px 0" }} />
-        <StatCol label="Transfer" value="Internal" color="#a3e635" sub="@username" />
+        <StatCol label="Transfer" value="Internal" color="#bef264" sub="@username" />
         <div style={{ background:"rgba(255,255,255,0.05)", margin:"2px 0" }} />
         <StatCol label="Unit" value="EP" color="#fff" sub="Xeevia" />
       </div>
@@ -262,9 +276,9 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 function StatCol({ label, value, color, sub }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"0 4px" }}>
-      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.17em", textTransform:"uppercase", color:"rgba(255,255,255,0.18)" }}>{label}</span>
-      <span style={{ fontFamily:"Bebas Neue,sans-serif",   fontSize:18, lineHeight:1, letterSpacing:"0.04em", color }}>{value}</span>
-      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, color:"rgba(255,255,255,0.17)" }}>{sub}</span>
+      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.64)" }}>{label}</span>
+      <span style={{ fontFamily:"Bebas Neue,sans-serif",   fontSize:20, lineHeight:1.05, letterSpacing:"0.04em", color }}>{value}</span>
+      <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:9, color:"rgba(255,255,255,0.52)" }}>{sub}</span>
     </div>
   );
 }

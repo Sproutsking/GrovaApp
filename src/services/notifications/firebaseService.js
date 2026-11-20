@@ -15,6 +15,8 @@
 // push notification system. This is the PRIMARY notification delivery method.
 // ============================================================================
 
+import { supabase } from "../config/supabase";
+
 function hasMeaningfulEnv(value) {
   if (typeof value !== "string") return false;
   const cleaned = value.trim();
@@ -33,21 +35,81 @@ function hasMeaningfulEnv(value) {
   ].some((token) => lowered.includes(token));
 }
 
-const FIREBASE_CONFIG = {
+let FIREBASE_CONFIG = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "",
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "",
   messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "",
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "",
 };
 
-const VAPID_KEY = process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY || "";
+let VAPID_KEY = process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY || "";
 
 let _messaging = null;
 let _initialized = false;
 let _initPromise = null;
 let _firebaseSDKPromise = null;
+let _configPromise = null;
+let _configLoaded = false;
 let _lastUserId = null;
 let _lastError = null;
+
+function hasFirebaseConfig() {
+  return (
+    hasMeaningfulEnv(FIREBASE_CONFIG.apiKey) &&
+    hasMeaningfulEnv(FIREBASE_CONFIG.projectId) &&
+    hasMeaningfulEnv(FIREBASE_CONFIG.messagingSenderId) &&
+    hasMeaningfulEnv(FIREBASE_CONFIG.appId) &&
+    hasMeaningfulEnv(VAPID_KEY)
+  );
+}
+
+async function loadFirebaseConfig() {
+  if (_configLoaded) return hasFirebaseConfig();
+  if (_configPromise) return _configPromise;
+
+  _configPromise = (async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("get-push-config", {
+        body: {},
+      });
+
+      if (error) {
+        throw new Error(error.message || "Could not load Firebase configuration");
+      }
+
+      const config = data?.firebase;
+      const vapidKey = data?.vapidKey;
+      if (
+        !hasMeaningfulEnv(config?.apiKey) ||
+        !hasMeaningfulEnv(config?.projectId) ||
+        !hasMeaningfulEnv(config?.messagingSenderId) ||
+        !hasMeaningfulEnv(config?.appId) ||
+        !hasMeaningfulEnv(vapidKey)
+      ) {
+        throw new Error("Firebase public configuration is incomplete");
+      }
+
+      FIREBASE_CONFIG = {
+        apiKey: config.apiKey,
+        projectId: config.projectId,
+        messagingSenderId: config.messagingSenderId,
+        appId: config.appId,
+      };
+      VAPID_KEY = vapidKey;
+      _configLoaded = true;
+      _lastError = null;
+      return true;
+    } catch (err) {
+      _lastError = err?.message || String(err);
+      console.error("[Firebase] Public configuration could not be loaded:", _lastError);
+      return false;
+    } finally {
+      _configPromise = null;
+    }
+  })();
+
+  return _configPromise;
+}
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -130,16 +192,29 @@ async function waitForFirebaseSDK() {
 function getFirebaseApp() {
   if (!isBrowser()) return null;
   try {
-    return window?.firebase?.app?.();
-  } catch {
-    try {
-      const firebase = window?.firebase;
-      if (!firebase?.initializeApp) return null;
-      return firebase.initializeApp(FIREBASE_CONFIG);
-    } catch (err) {
-      console.debug("[Firebase] initializeApp failed:", err);
-      return null;
+    const firebase = window?.firebase;
+    if (!firebase?.initializeApp) return null;
+
+    const existingApp = firebase.apps?.find((app) => app.name === "[DEFAULT]");
+    if (existingApp) {
+      const options = existingApp.options || {};
+      if (
+        options.projectId !== FIREBASE_CONFIG.projectId ||
+        options.messagingSenderId !== FIREBASE_CONFIG.messagingSenderId ||
+        options.appId !== FIREBASE_CONFIG.appId
+      ) {
+        _lastError = "An existing Firebase app uses a different project configuration";
+        console.error("[Firebase]", _lastError);
+        return null;
+      }
+      return existingApp;
     }
+
+    return firebase.initializeApp(FIREBASE_CONFIG);
+  } catch (err) {
+    _lastError = err?.message || String(err);
+    console.error("[Firebase] initializeApp failed:", _lastError);
+    return null;
   }
 }
 
@@ -222,21 +297,13 @@ async function _waitForFcmToken(userId = null, timeoutMs = 20000) {
 }
 
 async function _ensureInitialized(userId = null) {
-  installFirebaseDebug(userId);
   if (!isSupported()) return false;
 
-  const hasFirebaseKey = hasMeaningfulEnv(FIREBASE_CONFIG.apiKey);
-  const hasFirebaseProject = hasMeaningfulEnv(FIREBASE_CONFIG.projectId);
-  const hasFirebaseSenderId = hasMeaningfulEnv(FIREBASE_CONFIG.messagingSenderId);
-  const hasFirebaseAppId = hasMeaningfulEnv(FIREBASE_CONFIG.appId);
-  const hasFirebaseVapid = hasMeaningfulEnv(VAPID_KEY);
-
-  if (!hasFirebaseKey || !hasFirebaseProject || !hasFirebaseSenderId || !hasFirebaseAppId || !hasFirebaseVapid) {
-    console.warn(
-      "[Firebase] Missing or placeholder REACT_APP_FIREBASE_* or REACT_APP_FIREBASE_MESSAGING_VAPID_KEY config; skipping initialization"
-    );
+  if (!(await loadFirebaseConfig())) {
+    installFirebaseDebug(userId);
     return false;
   }
+  installFirebaseDebug(userId);
 
   if (_initialized && (!userId || _lastUserId === userId)) {
     return true;
@@ -384,6 +451,10 @@ export async function isSubscribed() {
   return Notification.permission === "granted";
 }
 
+export function isFirebaseConfigured() {
+  return _configLoaded && hasFirebaseConfig();
+}
+
 export async function onMessageReceived(callback) {
   if (!isSupported()) return () => {};
 
@@ -407,6 +478,7 @@ export { isSupported as isFirebaseSupported };
 
 export default {
   initializeFirebase,
+  isFirebaseConfigured,
   requestPermission,
   enablePushNotifications,
   getFcmToken,

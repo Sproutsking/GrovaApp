@@ -533,6 +533,7 @@ export async function sendERC20Transfer({
 // --- Full automated EVM payment -----------------------------------------------
 export async function requestWalletPayment({
   productId,
+  foundersOrderId,
   amountUSD,
   chainId,
   chainName,
@@ -612,6 +613,7 @@ export async function requestWalletPayment({
         txHash: txHash,
         claimedSenderWallet: from,
         productId: productId,
+        founders_order_id: foundersOrderId,
         idempotencyKey: idempotencyKey,
         amountOverrideUSD: amountUSD,
       }),
@@ -628,9 +630,19 @@ export async function requestWalletPayment({
       pending: true,
       message: verifyResult.message || "Payment pending confirmation.",
       txHash: txHash,
+      senderWallet: from,
+      chainName,
     };
+  if (verifyResult.status === "refund_required") {
+    clearIdempotencyKey();
+    return {
+      refundRequired: true,
+      message: verifyResult.message || "Payment was verified after the card reservation expired.",
+      txHash,
+    };
+  }
   clearIdempotencyKey();
-  return { success: true, txHash: txHash, result: verifyResult };
+  return { success: true, txHash: txHash, senderWallet: from, chainName, result: verifyResult };
 }
 
 // --- Full automated Solana payment --------------------------------------------
@@ -907,6 +919,7 @@ export async function verifyWeb3Payment({
   txHash,
   claimedSenderWallet,
   productId,
+  foundersOrderId,
   amountOverrideUSD,
   inviteCodeId,
 }) {
@@ -919,6 +932,7 @@ export async function verifyWeb3Payment({
     txHash: txHash.trim(),
     claimedSenderWallet: claimedSenderWallet.trim(),
     productId: productId,
+    founders_order_id: foundersOrderId,
     idempotencyKey: idempotencyKey,
   };
   if (amountOverrideUSD != null) body.amountOverrideUSD = amountOverrideUSD;
@@ -944,14 +958,13 @@ export async function verifyWeb3Payment({
 }
 
 // --- Paystack -----------------------------------------------------------------
-// FIX: Edge fn (paystack-create-transaction v7) expects snake_case fields:
-//   product_id, idempotency_key, callback_url, amount_override_cents
-// NOT camelCase. amount must be converted USD → cents.
+// The server resolves product and invitation pricing; client-supplied prices
+// are never sent as payment authority.
 // callback_url must be provided so Paystack knows where to redirect after payment.
 // email is NOT sent — edge fn reads it from the JWT via requireAuth().
 export async function createPaystackTransaction({
   productId,
-  amountUSD,
+  foundersOrderId,
   inviteCodeId,
 }) {
   var token = await getAuthToken();
@@ -962,12 +975,9 @@ export async function createPaystackTransaction({
 
   var body = {
     product_id: productId,
+    founders_order_id: foundersOrderId,
     idempotency_key: idempotencyKey,
     callback_url: callbackUrl,
-    amount_override_cents:
-      amountUSD != null && !isNaN(Number(amountUSD))
-        ? Math.round(Number(amountUSD) * 100)
-        : null,
   };
   if (inviteCodeId) body.invite_code_id = inviteCodeId;
 

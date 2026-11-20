@@ -50,6 +50,7 @@ export const ALL_SECTIONS = [
   "founder",
   "models",
   "premium",
+  "foundersCards",
 ];
 
 // ── Section visibility by role ────────────────────────────────────────────────
@@ -327,7 +328,7 @@ export function getVisibleSections(adminData) {
     adminData.permissions.includes("all") &&
     role !== "support"
   ) {
-    return ALL_SECTIONS.filter((section) => section !== "premium");
+    return ALL_SECTIONS.filter((section) => !["premium", "foundersCards"].includes(section));
   }
 
   // Role-based sections, fallback to support-level for unknown roles

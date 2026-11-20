@@ -5,6 +5,14 @@ describe("Community Premium admin access", () => {
     expect(getVisibleSections({ role: "ceo_owner" })).toContain("premium");
   });
 
+  describe("Founders Cards admin access", () => {
+    test("shows the section only to the CEO", () => {
+      expect(getVisibleSections({ role: "ceo_owner" })).toContain("foundersCards");
+      expect(getVisibleSections({ role: "super_admin", permissions: ["all"] })).not.toContain("foundersCards");
+      expect(getVisibleSections({ role: "admin", permissions: ["manage_settings"] })).not.toContain("foundersCards");
+    });
+  });
+
   test("does not grant the section to other roles, including admins with all permissions", () => {
     expect(getVisibleSections({ role: "super_admin", permissions: ["all"] })).not.toContain("premium");
     expect(getVisibleSections({ role: "admin", permissions: ["manage_settings"] })).not.toContain("premium");

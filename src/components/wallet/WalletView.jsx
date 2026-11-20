@@ -19,31 +19,53 @@ import DepositTab     from "./tabs/DepositTab";
 import ReceiveTab     from "./tabs/ReceiveTab";
 import SettingsTab    from "./tabs/SettingsTab";
 import WithdrawTab    from "./tabs/WithdrawTab";
+import FoundersCardsTab from "./tabs/FoundersCardsTab";
 import PayWave        from "./paywave/PayWaveWrapper";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import { walletService } from "../../services/wallet/walletService";
-import { CurrencyProvider } from "../../contexts/CurrencyContext";
+import { CurrencyProvider, CURRENCIES, useCurrency } from "../../contexts/CurrencyContext";
 import { useAuth } from "../Auth/AuthContext";
 import { supabase } from "../../services/config/supabase";
 import useTrinitylens from "../../hooks/useTrinitylens";
+import { isPayWaveEligible } from "./walletEligibility";
 
-// ── Nigerian / OPay region detection ────────────────────────────
-function isNigerianUser(profile) {
-  if (!profile) return false;
-  if (profile?.region) {
-    const r = profile.region.toLowerCase();
-    if (r === "ng" || r.includes("nigeria")) return true;
-  }
-  if (profile?.phone) {
-    const clean = profile.phone.replace(/[\s\-()\+]/g, "");
-    if (clean.startsWith("234")) return true;
-    if (/^0[789][01]/.test(clean)) return true;
-  }
+const NATIVE_CURRENCY_KEY = "xeevia_native_currency";
+
+function readNativeCurrency(userId) {
+  if (!userId) return null;
   try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz.toLowerCase().includes("lagos")) return true;
-  } catch {}
-  return false;
+    const code = localStorage.getItem(`${NATIVE_CURRENCY_KEY}:${userId}`);
+    return CURRENCIES.some((currency) => currency.code === code) ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+function NativeCurrencySetup({ onContinue }) {
+  const { currency, setCurrency } = useCurrency();
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
+
+  const continueWithCurrency = () => {
+    setCurrency(selectedCurrency);
+    onContinue(selectedCurrency);
+  };
+
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="native-currency-title" style={{ position: "fixed", inset: 0, zIndex: 100000, display: "grid", placeItems: "center", padding: 18, background: "rgba(0,0,0,.82)", backdropFilter: "blur(10px)" }}>
+      <section style={{ width: "min(100%, 420px)", padding: 20, border: "1px solid rgba(163,230,53,.22)", borderRadius: 18, background: "#0b0d0a", color: "#f4f6f1", boxShadow: "0 24px 80px rgba(0,0,0,.55)" }}>
+        <h1 id="native-currency-title" style={{ margin: "0 0 16px", fontSize: 22 }}>Choose your native currency</h1>
+        <label style={{ display: "grid", gap: 8, fontSize: 13, fontWeight: 700 }}>
+          Currency
+          <select value={selectedCurrency} onChange={(event) => setSelectedCurrency(event.target.value)} style={{ width: "100%", minHeight: 46, padding: "0 12px", border: "1px solid rgba(255,255,255,.14)", borderRadius: 10, background: "#121510", color: "inherit", font: "inherit" }}>
+            {CURRENCIES.map((item) => <option key={item.code} value={item.code}>{item.flag} {item.name} · {item.code}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={continueWithCurrency} style={{ width: "100%", minHeight: 44, marginTop: 16, border: 0, borderRadius: 10, background: "#a3e635", color: "#10130b", font: "inherit", fontWeight: 850, cursor: "pointer" }}>
+          Continue
+        </button>
+      </section>
+    </div>
+  );
 }
 
 // ── EP Earn rates ─────────────────────────────────────────────
@@ -181,6 +203,7 @@ const LAYOUT_CSS = `
 
   /* ── Right sidebar ── */
   .wv-sidebar { display: none; }
+  .wv-shell.wv-founders-mode .wv-sidebar { display: none !important; }
 
   @media (min-width: 1120px) {
     .wv-sidebar {
@@ -477,9 +500,10 @@ const WalletView = ({
   isMobile,
   userId,
   refreshTrigger,
+  walletDestination,
+  onWalletDestinationHandled,
 }) => {
   const { profile } = useAuth();
-  const showPayWave = isNigerianUser(profile);
 
   const shellRef = useRef(null);           // ← for useMobileTop
   useMobileTop(shellRef);                  // ← measures real header height
@@ -487,11 +511,32 @@ const WalletView = ({
   const [activeTab,      setActiveTab]      = useState("overview");
   const [showPayWaveV,   setShowPayWaveV]   = useState(false);
   const [walletNotice,   setWalletNotice]   = useState("");
+  const [nativeCurrency, setNativeCurrency] = useState(() => readNativeCurrency(userId));
   const [balance,        setBalance]        = useState(
     initialBalance || { tokens: 0, points: 0 }
   );
   const [loading,        setLoading]        = useState(false);
   const [transactions,   setTransactions]   = useState([]);
+  const [foundersInitialScreen, setFoundersInitialScreen] = useState("collection");
+  const [foundersRequestId, setFoundersRequestId] = useState(0);
+  const showPayWave = isPayWaveEligible(profile, nativeCurrency);
+
+  useEffect(() => {
+    setNativeCurrency(readNativeCurrency(userId));
+    setShowPayWaveV(false);
+  }, [userId]);
+
+  const saveNativeCurrency = useCallback((code) => {
+    if (!userId || !CURRENCIES.some((item) => item.code === code)) {
+      throw new Error("Choose a supported currency.");
+    }
+    setNativeCurrency(code);
+    try {
+      localStorage.setItem(`${NATIVE_CURRENCY_KEY}:${userId}`, code);
+    } catch {
+      setWalletNotice("Currency selected for this session, but could not be saved on this device.");
+    }
+  }, [userId]);
 
   // ── Stable setter: ONLY accept updates that belong to this user ──
   const safeSetBalance = useCallback((nb, sourceUserId) => {
@@ -598,6 +643,12 @@ const WalletView = ({
   }, [userId]);
 
   const handleTabChange = (tab) => {
+    if (tab === "assets") {
+      setFoundersInitialScreen("collection");
+      setFoundersRequestId((current) => current + 1);
+      setActiveTab("foundersCards");
+      return;
+    }
     if (["swap", "trade"].includes(tab)) {
       setWalletNotice("Token swap and trading are hidden to keep Wallet focused on EP.");
       return;
@@ -610,6 +661,14 @@ const WalletView = ({
     setActiveTab(tab);
   };
 
+  useEffect(() => {
+    if (walletDestination !== "collections") return;
+    setFoundersInitialScreen("marketplace");
+    setFoundersRequestId((current) => current + 1);
+    setActiveTab("foundersCards");
+    onWalletDestinationHandled?.();
+  }, [walletDestination, onWalletDestinationHandled]);
+
   const sharedProps = {
     setActiveTab: handleTabChange,
     userId,
@@ -620,11 +679,21 @@ const WalletView = ({
     username:        profile?.username,
     showPayWave,
     currentUser:     profile,
+    nativeCurrency,
+    onNativeCurrencyChange: saveNativeCurrency,
   };
+
+  if (userId && !nativeCurrency) {
+    return (
+      <CurrencyProvider key={userId} userId={userId}>
+        <NativeCurrencySetup onContinue={saveNativeCurrency} />
+      </CurrencyProvider>
+    );
+  }
 
   if (showPayWaveV) {
     return (
-      <CurrencyProvider>
+      <CurrencyProvider key={userId} userId={userId}>
         <PayWave
           userId={userId}
           epBalance={balance.points}
@@ -636,7 +705,7 @@ const WalletView = ({
   }
 
   return (
-    <CurrencyProvider>
+    <CurrencyProvider key={userId} userId={userId}>
       <style>{LAYOUT_CSS}</style>
       {walletNotice && (
         <div role="status" style={{ margin: "0 20px 10px", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(163,230,53,.22)", background: "rgba(163,230,53,.06)", color: "#a3e635", fontSize: 13, fontWeight: 700 }}>
@@ -645,10 +714,11 @@ const WalletView = ({
         </div>
       )}
       {/* shellRef is used by useMobileTop to exclude its own children from measurement */}
-      <div className="wv-shell" ref={shellRef}>
+      <div className={`wv-shell${activeTab === "foundersCards" ? " wv-founders-mode" : ""}`} ref={shellRef}>
         <div className="wv-center">
           <div className="wv-content-pad">
             {activeTab === "overview"  && <OverviewTab  {...sharedProps} loading={loading} />}
+            {activeTab === "foundersCards" && <FoundersCardsTab key={foundersRequestId} {...sharedProps} initialScreen={foundersInitialScreen} />}
             {activeTab === "send"      && <SendTab      {...sharedProps} />}
             {activeTab === "deposit"   && <DepositTab   {...sharedProps} />}
             {activeTab === "receive"   && <ReceiveTab   {...sharedProps} />}

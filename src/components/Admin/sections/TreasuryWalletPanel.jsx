@@ -12,6 +12,7 @@ const fmt = (value) => Number(value || 0).toLocaleString(undefined, { maximumFra
 export default function TreasuryWalletPanel({ adminData }) {
   const adminId = adminData?.user_id || adminData?.id;
   const [balances, setBalances] = useState({});
+  const [categorySummary, setCategorySummary] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -29,16 +30,20 @@ export default function TreasuryWalletPanel({ adminData }) {
 
   const load = useCallback(async () => {
     try {
-      const [nextBalances, nextLedger, profile, wallet] = await Promise.all([
+      const [nextBalances, nextCategories, nextLedger, profile, wallet] = await Promise.all([
         epTreasuryService.getBalances(true),
+        epTreasuryService.getCategorySummary(),
         epTreasuryService.getLedger({ limit: 12 }),
         supabase.from("profiles").select("require_2fa").eq("id", adminId).maybeSingle(),
-        supabase.from("wallets").select("withdrawal_pin_hash").eq("user_id", adminId).maybeSingle(),
+        supabase.rpc("get_transaction_pin_status"),
       ]);
+      if (profile.error) throw profile.error;
+      if (wallet.error) throw wallet.error;
       setBalances(nextBalances || {});
+      setCategorySummary(nextCategories || []);
       setLedger(nextLedger || []);
       setHasTwoFa(Boolean(profile.data?.require_2fa));
-      setHasPin(Boolean(wallet.data?.withdrawal_pin_hash));
+      setHasPin(Boolean(wallet.data?.has_pin));
     } catch (error) {
       setMessage({ ok: false, text: error.message });
     }
@@ -50,12 +55,16 @@ export default function TreasuryWalletPanel({ adminData }) {
     const term = query.replace(/^@/, "").trim();
     if (recipient || term.length < 2) { setResults([]); return undefined; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.from("profiles")
+      const { data, error } = await supabase.from("profiles")
         .select("id, username, full_name, account_status, avatar_url, avatar, profile_image_url")
         .eq("account_status", "active")
         .ilike("username", `${term}%`)
         .neq("id", adminId)
         .limit(8);
+      if (error) {
+        setMessage({ ok: false, text: `Could not search users: ${error.message}` });
+        return;
+      }
       setResults(data || []);
     }, 250);
     return () => clearTimeout(timer);
@@ -72,6 +81,12 @@ export default function TreasuryWalletPanel({ adminData }) {
   };
 
   const confirmPin = async (pin) => {
+    const { data, error } = await supabase.rpc("verify_withdrawal_pin", {
+      p_user_id: adminId,
+      p_pin: pin,
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "PIN verification failed.");
     setPendingPin(pin);
     setPinOpen(false);
     setTwoFaOpen(true);
@@ -106,13 +121,21 @@ export default function TreasuryWalletPanel({ adminData }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.text, fontWeight: 900 }}><Wallet size={17} color={C.accent} /> Platform treasury wallet</div>
-          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Protocol fees and platform commissions are partitioned here. Balances can only move through audited server RPCs.</div>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Protocol fees, successful withdrawal fees, and platform commissions are tracked by source. Balances can only move through audited server RPCs.</div>
         </div>
         <div style={{ color: C.accent, fontWeight: 900, whiteSpace: "nowrap" }}>{fmt(total)} EP</div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 7, marginBottom: 18 }}>
         {PARTITIONS.map((name) => <div key={name} style={{ padding: "10px 8px", border: "1px solid #182018", borderRadius: 9 }}><div style={{ color: C.muted, fontSize: 10, textTransform: "uppercase" }}>{name.replace("_", " ")}</div><strong style={{ color: C.text, fontSize: 14 }}>{fmt(balances[name]?.balance)} EP</strong></div>)}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 7, marginBottom: 16 }}>
+        {categorySummary.map((row) => <div key={row.source_category} style={{ padding: "9px 10px", border: "1px solid #182018", borderRadius: 9 }}>
+          <div style={{ color: C.muted, fontSize: 10, textTransform: "uppercase" }}>{row.source_category.replaceAll("_", " ")}</div>
+          <strong style={{ color: C.text, fontSize: 13 }}>{fmt(row.credited_total)} EP</strong>
+          <div style={{ color: C.muted, fontSize: 10 }}>credited · {Number(row.entry_count || 0).toLocaleString()} ledger entries</div>
+        </div>)}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.info, fontSize: 11, marginBottom: 12 }}><ShieldCheck size={14} /> CEO-only sending requires transaction PIN and enabled 2FA.</div>
@@ -141,7 +164,7 @@ export default function TreasuryWalletPanel({ adminData }) {
 
       <div style={{ marginTop: 18, borderTop: "1px solid #182018", paddingTop: 12 }}>
         <div style={{ color: C.text, fontSize: 12, fontWeight: 800, marginBottom: 8 }}>Recent treasury activity</div>
-        {ledger.map((row) => <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", color: C.muted, fontSize: 11 }}><span>{row.reason} · {row.partition}</span><strong style={{ color: row.direction === "credit" ? C.success : C.warn }}>{row.direction === "credit" ? "+" : "-"}{fmt(row.amount)} EP</strong></div>)}
+        {ledger.map((row) => <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", color: C.muted, fontSize: 11 }}><span>{row.reason} · {row.source_category?.replaceAll("_", " ") || "other"} · {row.partition}</span><strong style={{ color: row.direction === "credit" ? C.success : C.warn }}>{row.direction === "credit" ? "+" : "-"}{fmt(row.amount)} EP</strong></div>)}
         {!ledger.length && <div style={{ color: C.muted, fontSize: 11 }}>No treasury ledger entries yet.</div>}
       </div>
 

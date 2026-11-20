@@ -146,15 +146,18 @@ class CallService extends Emitter {
     // Send realtime invite first (for online callee)
     await this._broadcastToUser(calleeId, "incoming_call", invitePayload);
 
-    // [PUSH-1][PUSH-2] Push notification for offline/backgrounded callee
-    this._sendCallPush({ calleeId, callId, callerName, callerAvId, callType });
-
-    dbWrite(() =>
-      supabase.from("active_calls").upsert({
-        id: callId, caller_id: this._userId,
-        callee_ids: [calleeId], call_type: callType, status: "ringing",
-      })
-    );
+    const { error: activeCallError } = await supabase.from("active_calls").upsert({
+      id: callId,
+      caller_id: this._userId,
+      callee_ids: [calleeId],
+      call_type: callType,
+      status: "ringing",
+    });
+    if (activeCallError) {
+      console.warn("[callService] Could not persist call before push:", activeCallError.message);
+    } else {
+      this._sendCallPush({ calleeId, callId, callerName, callerAvId, callType });
+    }
 
     // 30s ring timeout
     this._ringTimeout = setTimeout(() => {
@@ -626,6 +629,7 @@ class CallService extends Emitter {
       recipientUserId: calleeId,
       actorUserId:     this._userId,
       type:            "incoming_call",
+      entityId:        callId,
       title:           `📞 ${callerName} is calling`,
       message:         `Incoming ${callType === "video" ? "video" : "voice"} call — tap to answer`,
       metadata: {

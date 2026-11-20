@@ -1,140 +1,50 @@
 // src/components/wallet/tabs/SettingsTab.jsx
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  ArrowLeft, Lock, Shield, Bell, Key,
-  ChevronRight, Eye, EyeOff, CheckCircle, Globe,
+  Lock, Shield, Bell, Key, ChevronRight,
 } from "lucide-react";
-import { useCurrency, CURRENCIES } from "../../../contexts/CurrencyContext";
+import { useCurrency } from "../../../contexts/CurrencyContext";
+import { supabase } from "../../../services/config/supabase";
+import PinSetupModal from "../../Modals/PinSetupModal";
 import CurrencyPicker from "../components/CurrencyPicker";
 
-const SettingsTab = ({ setActiveTab, userId }) => {
-  const [subView,    setSubView]    = useState(null);
-  const [pinForm,    setPinForm]    = useState({ old: "", new: "", confirm: "" });
-  const [showPhrase, setShowPhrase] = useState(false);
-  const [biometrics, setBiometrics] = useState(false);
-  const [txAlerts,   setTxAlerts]   = useState(true);
-  const [saving,     setSaving]     = useState(false);
-  const [saved,      setSaved]      = useState(false);
+const SettingsTab = ({ setActiveTab, onNativeCurrencyChange, userId }) => {
+  const [pinStatus, setPinStatus] = useState(null);
+  const [pinError, setPinError] = useState("");
+  const [pinModalOpen, setPinModalOpen] = useState(false);
   const [currPicker, setCurrPicker] = useState(false);
 
-  const { currency, setCurrency, getCurrencyObj } = useCurrency();
+  const { currency, getCurrencyObj } = useCurrency();
   const cur = getCurrencyObj();
 
-  const handleSave = async () => {
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 700));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => { setSaved(false); setSubView(null); }, 1200);
-  };
+  const loadPinStatus = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase.rpc("get_transaction_pin_status");
+    if (error) {
+      setPinError(error.message || "Could not load transaction PIN status.");
+      return;
+    }
+    setPinError("");
+    setPinStatus(data || { has_pin: false, pin_length: 6 });
+  }, [userId]);
 
-  const Toggle = ({ on, onToggle }) => (
-    <button
-      onClick={onToggle}
-      style={{
-        width: 40, height: 22, borderRadius: 100,
-        background: on ? "var(--lime)" : "rgba(255,255,255,0.06)",
-        border: `1px solid ${on ? "rgba(132,204,22,0.4)" : "rgba(255,255,255,0.08)"}`,
-        position: "relative", cursor: "pointer",
-        transition: "all 0.2s", flexShrink: 0,
-      }}
-    >
-      <div style={{
-        position: "absolute", top: 2,
-        left: on ? 20 : 2,
-        width: 16, height: 16, borderRadius: "50%",
-        background: on ? "#0c1800" : "#555",
-        transition: "left 0.2s",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
-      }} />
-    </button>
-  );
-
-  /* ── Change PIN sub-view ── */
-  if (subView === "changePin") return (
-    <div className="view-enter">
-      <div className="view-header">
-        <button className="back-btn" onClick={() => setSubView(null)}><ArrowLeft size={18} /></button>
-        <div>
-          <div className="view-title">Change PIN</div>
-          <div className="view-subtitle">Update your wallet PIN</div>
-        </div>
-      </div>
-      <div className="form-body">
-        {["old","new","confirm"].map(f => (
-          <div className="field-group" key={f}>
-            <label className="field-label">
-              {f === "old" ? "Current PIN" : f === "new" ? "New PIN" : "Confirm PIN"}
-            </label>
-            <input
-              type="password"
-              className="field-input"
-              placeholder="••••"
-              maxLength={6}
-              value={pinForm[f]}
-              onChange={e => setPinForm(p => ({ ...p, [f]: e.target.value }))}
-            />
-          </div>
-        ))}
-      </div>
-      {saved && (
-        <div style={{ margin:"0 22px 16px", padding:"12px 14px", background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.16)", borderRadius:8, display:"flex", gap:8, alignItems:"center" }}>
-          <CheckCircle size={15} color="#22c55e" />
-          <span style={{ fontSize:14, color:"#22c55e", fontWeight:600 }}>PIN updated successfully</span>
-        </div>
-      )}
-      <button
-        className="btn-lime"
-        disabled={saving || !pinForm.old || !pinForm.new || pinForm.new !== pinForm.confirm}
-        onClick={handleSave}
-      >
-        {saving ? "Saving…" : <><Lock size={15} /> Update PIN</>}
-      </button>
-    </div>
-  );
-
-  /* ── Recovery sub-view ── */
-  if (subView === "recovery") return (
-    <div className="view-enter">
-      <div className="view-header">
-        <button className="back-btn" onClick={() => setSubView(null)}><ArrowLeft size={18} /></button>
-        <div>
-          <div className="view-title">Recovery Phrase</div>
-          <div className="view-subtitle">Keep this absolutely secret</div>
-        </div>
-      </div>
-      <div style={{ padding:"0 22px" }}>
-        <div style={{ padding:"13px 15px", background:"rgba(239,68,68,0.05)", border:"1px solid rgba(239,68,68,0.13)", borderRadius:8, marginBottom:16, fontSize:13, color:"#f87171", lineHeight:1.6 }}>
-          ⚠️ Never share your recovery phrase. Anyone with it has full access to your wallet.
-        </div>
-        {!showPhrase ? (
-          <button className="btn-lime" onClick={() => setShowPhrase(true)}>
-            <Eye size={15} /> Reveal Phrase
-          </button>
-        ) : (
-          <>
-            <div style={{ background:"var(--b2)", border:"1px solid var(--br1)", borderRadius:12, padding:16, marginBottom:16 }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6 }}>
-                {Array.from({length:12},(_,i) => `word${i+1}`).map((w,i) => (
-                  <div key={w} style={{ padding:"7px 10px", background:"var(--black)", borderRadius:7, fontSize:12, color:"var(--t2)", fontFamily:"JetBrains Mono,monospace" }}>
-                    <span style={{ color:"var(--t3)", fontSize:10 }}>{i+1}. </span>{w}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button className="btn-ghost" onClick={() => setShowPhrase(false)}>
-              <EyeOff size={15} /> Hide Phrase
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    loadPinStatus();
+  }, [loadPinStatus]);
 
   /* ── Main settings view ── */
   return (
     <div className="view-enter">
-      <CurrencyPicker open={currPicker} onClose={() => setCurrPicker(false)} />
+      <CurrencyPicker open={currPicker} onClose={() => setCurrPicker(false)} onSelect={onNativeCurrencyChange} />
+      {pinModalOpen && pinStatus && (
+        <PinSetupModal
+          userId={userId}
+          hasPin={Boolean(pinStatus.has_pin)}
+          currentPinLength={pinStatus.pin_length}
+          onClose={() => setPinModalOpen(false)}
+          onSuccess={loadPinStatus}
+        />
+      )}
 
       <div className="view-header">
         <button className="back-btn" onClick={() => setActiveTab("overview")}><ArrowLeft size={18} /></button>
@@ -153,7 +63,7 @@ const SettingsTab = ({ setActiveTab, userId }) => {
         <button className="settings-item" onClick={() => setCurrPicker(true)}>
           <div className="settings-item-icon" style={{ fontSize:19 }}>{cur.flag}</div>
           <div className="settings-item-info">
-            <div className="settings-item-title">Display Currency</div>
+            <div className="settings-item-title">Native Currency</div>
             <div className="settings-item-sub">{cur.name} · {cur.symbol} ({cur.code})</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -164,56 +74,51 @@ const SettingsTab = ({ setActiveTab, userId }) => {
           </div>
         </button>
 
-        <div style={{ padding:"8px 4px" }}>
-          <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"var(--t3)", lineHeight:1.6 }}>
-            Fiat values are displayed as a reference equivalent. Auto-detected from your region — you can always change it above.
-          </div>
-        </div>
-
         {/* ── SECURITY ── */}
         <div className="settings-group-title">Security</div>
 
-        <button className="settings-item" onClick={() => setSubView("changePin")}>
+        <button className="settings-item" onClick={() => setPinModalOpen(true)} disabled={!pinStatus}>
           <div className="settings-item-icon"><Lock size={17} /></div>
           <div className="settings-item-info">
-            <div className="settings-item-title">Change PIN</div>
-            <div className="settings-item-sub">Update your transaction PIN</div>
+            <div className="settings-item-title">{pinStatus?.has_pin ? "Change PIN" : "Set transaction PIN"}</div>
+            <div className="settings-item-sub">{pinStatus?.has_pin ? `${pinStatus.pin_length}-digit PIN` : "Required for protected transactions"}</div>
           </div>
           <ChevronRight size={15} color="var(--t3)" />
         </button>
+        {pinError && <div role="alert" style={{ padding: "0 22px 10px", color: "#f87171", fontSize: 12 }}>{pinError}</div>}
 
-        <div className="settings-item" style={{ cursor:"default" }}>
+        <div className="settings-item" style={{ cursor:"default" }} aria-disabled="true">
           <div className="settings-item-icon"><Shield size={17} /></div>
           <div className="settings-item-info">
             <div className="settings-item-title">Biometrics</div>
-            <div className="settings-item-sub">Fingerprint / Face ID</div>
+            <div className="settings-item-sub">Not available for wallet authorization</div>
           </div>
-          <Toggle on={biometrics} onToggle={() => setBiometrics(b => !b)} />
+          <span style={{ color: "var(--t3)", fontSize: 11 }}>Unavailable</span>
         </div>
 
         {/* ── NOTIFICATIONS ── */}
         <div className="settings-group-title">Notifications</div>
 
-        <div className="settings-item" style={{ cursor:"default" }}>
+        <div className="settings-item" style={{ cursor:"default" }} aria-disabled="true">
           <div className="settings-item-icon"><Bell size={17} /></div>
           <div className="settings-item-info">
             <div className="settings-item-title">Transaction Alerts</div>
-            <div className="settings-item-sub">Notify on every transaction</div>
+            <div className="settings-item-sub">Transaction notifications are not configured</div>
           </div>
-          <Toggle on={txAlerts} onToggle={() => setTxAlerts(t => !t)} />
+          <span style={{ color: "var(--t3)", fontSize: 11 }}>Unavailable</span>
         </div>
 
         {/* ── ADVANCED ── */}
         <div className="settings-group-title">Advanced</div>
 
-        <button className="settings-item" onClick={() => setSubView("recovery")}>
+        <div className="settings-item" style={{ cursor:"default" }} aria-disabled="true">
           <div className="settings-item-icon"><Key size={17} /></div>
           <div className="settings-item-info">
-            <div className="settings-item-title">Recovery Phrase</div>
-            <div className="settings-item-sub">Backup your wallet</div>
+            <div className="settings-item-title">Recovery phrase</div>
+            <div className="settings-item-sub">This in-app wallet has no self-custody recovery phrase</div>
           </div>
-          <ChevronRight size={15} color="var(--t3)" />
-        </button>
+          <span style={{ color: "var(--t3)", fontSize: 11 }}>Not applicable</span>
+        </div>
 
       </div>
     </div>

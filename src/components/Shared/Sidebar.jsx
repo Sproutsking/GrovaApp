@@ -75,6 +75,7 @@ const Sidebar = ({
   xrcService,
   setActiveHomeTab,
   onOpenAdsCentre,
+  onOpenCollections,
   onPrefetchCommunity,
   unreadCounts = {},
 }) => {
@@ -273,6 +274,7 @@ const Sidebar = ({
           currentUser={currentUser || user}
           xrcService={xrcService}
           onOpenAdsCentre={onOpenAdsCentre}
+          onOpenCollections={onOpenCollections}
         />
       )}
 

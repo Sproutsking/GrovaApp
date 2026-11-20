@@ -27,3 +27,6 @@ yarn-error.log*
 
 # Ignore Supabase export SQL
 supabase_export.sql
+
+# Local founders-card package contains private claim codes and incomplete artwork.
+/founders_charter_complete/

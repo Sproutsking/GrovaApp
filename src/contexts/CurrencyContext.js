@@ -25,6 +25,18 @@ export const CURRENCIES = [
 const STORAGE_KEY = "xeevia_currency";
 const DEFAULT     = "NGN";
 
+function getStorageKey(userId) {
+  return userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
+}
+
+function readStoredCurrency(storageKey) {
+  try {
+    const saved = localStorage.getItem(storageKey) || localStorage.getItem(STORAGE_KEY);
+    if (saved && CURRENCIES.find(c => c.code === saved)) return saved;
+  } catch {}
+  return detectRegion();
+}
+
 /* ── detect region via Intl ── */
 function detectRegion() {
   try {
@@ -71,19 +83,17 @@ export function fullFiat(amount, currency) {
 ───────────────────────────────────────────────────────────── */
 const CurrencyContext = createContext(null);
 
-export function CurrencyProvider({ children }) {
-  const [currency, _setCurrency] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved && CURRENCIES.find(c => c.code === saved)) return saved;
-    } catch {}
-    return detectRegion();
-  });
+export function CurrencyProvider({ children, userId }) {
+  const storageKey = getStorageKey(userId);
+  const [currency, _setCurrency] = useState(() => readStoredCurrency(storageKey));
+  useEffect(() => {
+    _setCurrency(readStoredCurrency(storageKey));
+  }, [storageKey]);
 
   const setCurrency = useCallback((code) => {
     _setCurrency(code);
-    try { localStorage.setItem(STORAGE_KEY, code); } catch {}
-  }, []);
+    try { localStorage.setItem(storageKey, code); } catch {}
+  }, [storageKey]);
 
   const getCurrencyObj = useCallback(
     () => CURRENCIES.find(c => c.code === currency) || CURRENCIES[0],

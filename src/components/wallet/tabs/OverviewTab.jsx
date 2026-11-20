@@ -33,10 +33,10 @@ import {
   Settings,
   Wifi,
   Zap,
-  ChevronRight,
   Flame,
   Clock,
   ArrowUpToLine,
+  WalletCards,
 } from "lucide-react";
 import BalanceCard from "../components/BalanceCard";
 import ProfilePreview from "../../Shared/ProfilePreview";
@@ -273,9 +273,9 @@ function TxDirectionChip({ isIn, isPending }) {
 // Two clean rows, no "More" panel needed, flex-wrap safe.
 // ─────────────────────────────────────────────────────────────────
 const CSS = `
-  .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
-  .ov-section-title{font-size:calc((10.5px) + 1px);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
-  .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);} .ov-section-title:empty{display:none;}
+  .ov-section-head{display:flex;align-items:center;gap:10px;margin:22px 0 12px;justify-content:center;}
+  .ov-section-title{font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.48);white-space:nowrap;flex-shrink:0;}
+  .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);} .ov-section-title:empty{display:none;}
   .ov-overview{width:100%;min-height:100%;padding:12px 20px 32px;box-sizing:border-box;}
   @media(max-width:767px){.ov-overview{padding:10px 14px 28px;}}
 
@@ -285,20 +285,19 @@ const CSS = `
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
-    margin: 10px 0 0;
+    margin: 8px 0 0;
   }
 
   /* Row 2: secondary actions — up to 4, flex so PayWave slot appears/disappears cleanly */
   .ov-actions-secondary {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    margin: 8px 0 0;
+    margin: 7px 0 0;
   }
 
-  /* When PayWave is hidden and only 3 secondary buttons exist, keep equal widths */
-  .ov-actions-secondary.three-cols {
-    grid-template-columns: repeat(3, 1fr);
+  .ov-actions-secondary.two-cols {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   /* On very small screens (< 360px) allow wrapping in primary row too */
@@ -314,15 +313,15 @@ const CSS = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 12px 6px 10px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,0.07);
-    background: rgba(255,255,255,0.03);
+    gap: 5px;
+    padding: 9px 5px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.17);
+    background: rgba(255,255,255,0.045);
     cursor: pointer;
     transition: all .18s;
-    color: rgba(255,255,255,0.55);
-    font-size: calc((11px) + 1px);
+    color: rgba(255,255,255,0.78);
+    font-size: 12px;
     font-weight: 600;
     font-family: inherit;
     letter-spacing: 0.01em;
@@ -330,59 +329,64 @@ const CSS = `
     min-width: 0;
   }
   .ov-act-btn:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.12);
-    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.09);
+    border-color: rgba(255,255,255,0.3);
+    color: #fff;
     transform: translateY(-1px);
+  }
+  .ov-act-btn:focus-visible {
+    outline: 2px solid #bef264;
+    outline-offset: 2px;
   }
 
   /* Primary: Send */
   .ov-act-btn.primary {
     background: rgba(163,230,53,0.08);
-    border-color: rgba(163,230,53,0.22);
-    color: #a3e635;
+    border-color: rgba(163,230,53,0.4);
+    color: #bef264;
   }
   .ov-act-btn.primary:hover {
     background: rgba(163,230,53,0.13);
-    border-color: rgba(163,230,53,0.35);
+    border-color: rgba(163,230,53,0.58);
   }
 
   /* Withdraw: red-orange */
   .ov-act-btn.withdraw {
     background: rgba(248,113,113,0.06);
-    border-color: rgba(248,113,113,0.18);
-    color: #f87171;
+    border-color: rgba(248,113,113,0.34);
+    color: #ff8e8e;
   }
   .ov-act-btn.withdraw:hover {
     background: rgba(248,113,113,0.12);
-    border-color: rgba(248,113,113,0.32);
+    border-color: rgba(248,113,113,0.52);
   }
 
   /* PayWave: cyan */
   .ov-act-btn.paywave {
     background: rgba(34,211,238,0.05);
-    border-color: rgba(34,211,238,0.18);
-    color: #22d3ee;
+    border-color: rgba(34,211,238,0.32);
+    color: #67e8f9;
   }
   .ov-act-btn.paywave:hover {
     background: rgba(34,211,238,0.10);
-    border-color: rgba(34,211,238,0.32);
+    border-color: rgba(34,211,238,0.5);
   }
 
   /* Icon circle */
   .ov-act-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.1);
     flex-shrink: 0;
   }
-  .ov-act-btn.primary .ov-act-icon  { background: rgba(163,230,53,0.12); }
-  .ov-act-btn.withdraw .ov-act-icon { background: rgba(248,113,113,0.10); }
-  .ov-act-btn.paywave .ov-act-icon  { background: rgba(34,211,238,0.08); }
+  .ov-act-btn.primary .ov-act-icon  { background: rgba(163,230,53,0.16); border-color: rgba(163,230,53,0.22); }
+  .ov-act-btn.withdraw .ov-act-icon { background: rgba(248,113,113,0.14); border-color: rgba(248,113,113,0.2); }
+  .ov-act-btn.paywave .ov-act-icon  { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.2); }
 
   /* Button label */
   .ov-act-label {
@@ -397,25 +401,25 @@ const CSS = `
   }
 
   /* ── EP balance card ────────────────────────────────────────── */
-  .ov-asset-card{display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:15px;margin-bottom:8px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);transition:background .18s;position:relative;overflow:visible;}
-  .ov-asset-card:hover{background:rgba(255,255,255,0.04);}
-  .ov-asset-card.xev{border-color:rgba(163,230,53,0.12);background:rgba(163,230,53,0.03);}
-  .ov-asset-card.ep{border-color:rgba(34,211,238,0.1);background:rgba(34,211,238,0.025);}
+  .ov-asset-card{display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:15px;margin-bottom:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);transition:background .18s;position:relative;overflow:visible;}
+  .ov-asset-card:hover{background:rgba(255,255,255,0.065);}
+  .ov-asset-card.xev{border-color:rgba(163,230,53,0.25);background:rgba(163,230,53,0.045);}
+  .ov-asset-card.ep{border-color:rgba(34,211,238,0.24);background:rgba(34,211,238,0.045);}
   .ov-asset-card.flash-xev{animation:ovWaveXEV 0.7s ease;}
   .ov-asset-card.flash-ep{animation:ovWaveEP 0.7s ease;}
   @keyframes ovWaveXEV{0%{box-shadow:0 0 0 0 rgba(163,230,53,0);border-color:rgba(163,230,53,0.12);}30%{box-shadow:0 0 0 6px rgba(163,230,53,0.15);border-color:rgba(163,230,53,0.6);}60%{box-shadow:0 0 0 12px rgba(163,230,53,0.05);border-color:rgba(163,230,53,0.35);}100%{box-shadow:0 0 0 0 rgba(163,230,53,0);border-color:rgba(163,230,53,0.12);}}
   @keyframes ovWaveEP{0%{box-shadow:0 0 0 0 rgba(34,211,238,0);border-color:rgba(34,211,238,0.1);}30%{box-shadow:0 0 0 6px rgba(34,211,238,0.15);border-color:rgba(34,211,238,0.55);}60%{box-shadow:0 0 0 12px rgba(34,211,238,0.05);border-color:rgba(34,211,238,0.3);}100%{box-shadow:0 0 0 0 rgba(34,211,238,0);border-color:rgba(34,211,238,0.1);}}
   .ov-asset-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .ov-asset-icon.xev{background:rgba(163,230,53,0.1);color:#a3e635;}
-  .ov-asset-icon.ep{background:rgba(34,211,238,0.1);color:#22d3ee;}
-  .ov-asset-name{font-size:calc((14px) + 1px);font-weight:700;color:rgba(255,255,255,0.85);line-height:1.3;}
-  .ov-asset-desc{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.28);margin-top:2px;}
+  .ov-asset-icon.ep{background:rgba(34,211,238,0.16);color:#67e8f9;}
+  .ov-asset-name{font-size:calc((14px) + 1px);font-weight:700;color:rgba(255,255,255,0.94);line-height:1.3;}
+  .ov-asset-desc{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.58);margin-top:2px;}
   .ov-asset-right{margin-left:auto;text-align:right;position:relative;}
   .ov-asset-amount{font-size:calc((19px) + 1px);font-weight:800;font-family:"DM Mono",monospace;letter-spacing:-0.04em;transition:color 0.3s;}
   .ov-asset-amount.xev{color:#a3e635;}
-  .ov-asset-amount.ep{color:#22d3ee;}
+  .ov-asset-amount.ep{color:#67e8f9;}
   .ov-asset-fiat{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.25);margin-top:3px;font-family:"DM Mono",monospace;}
-  .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);font-size:calc((9px) + 1px);font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;}
+  .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.14);border:1px solid rgba(34,211,238,0.3);font-size:calc((9px) + 1px);font-weight:800;color:#67e8f9;letter-spacing:0.08em;margin-top:4px;}
   .ov-paywave-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(34,211,238,0.07) 0%,rgba(59,130,246,0.05) 100%);border:1px solid rgba(34,211,238,0.15);cursor:pointer;transition:all .2s;margin-bottom:0;}
   .ov-paywave-card:hover{background:linear-gradient(135deg,rgba(34,211,238,0.11) 0%,rgba(59,130,246,0.08) 100%);border-color:rgba(34,211,238,0.28);transform:translateY(-1px);}
   .ov-pw-logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0ea5e9,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(14,165,233,0.3);}
@@ -531,8 +535,10 @@ function AssetCard({
 function ActionBtn({ icon: Icon, label, tab, variant = "default", onClick }) {
   return (
     <button
+      type="button"
       className={`ov-act-btn ${variant}`}
       onClick={() => onClick(tab)}
+      aria-label={label}
     >
       <div className="ov-act-icon">
         <Icon size={18} />
@@ -579,11 +585,12 @@ export default function OverviewTab({
 
   // ── Secondary action definitions ───────────────────────────────
   const secondaryActions = [
+    { icon: WalletCards, label: "Assets", tab: "assets", variant: "default" },
     ...(showPayWave ? [{ icon: Wifi, label: "PayWave", tab: "paywave", variant: "paywave" }] : []),
     { icon: Settings, label: "Settings", tab: "settings", variant: "default" },
   ];
 
-  const secondaryCols = secondaryActions.length === 3 ? "three-cols" : "";
+  const secondaryCols = secondaryActions.length === 2 ? "two-cols" : "";
 
   return (
     <div className="view-enter ov-overview">
@@ -611,7 +618,7 @@ export default function OverviewTab({
         ))}
       </div>
 
-      {/* ── Secondary actions: [PayWave] / Settings ── */}
+      {/* ── Secondary actions ── */}
       <div className={`ov-actions-secondary ${secondaryCols}`}>
         {secondaryActions.map(({ icon, label, tab, variant }) => (
           <ActionBtn
@@ -644,76 +651,6 @@ export default function OverviewTab({
         currency="EP"
         isInteger={true}
       />
-
-      {/* Withdraw EP shortcut strip */}
-      <div
-        onClick={() => setActiveTab("withdraw")}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && setActiveTab("withdraw")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "11px 14px",
-          borderRadius: 12,
-          marginTop: -4,
-          background: "rgba(248,113,113,0.04)",
-          border: "1px solid rgba(248,113,113,0.12)",
-          cursor: "pointer",
-          transition: "all .18s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(248,113,113,0.08)";
-          e.currentTarget.style.borderColor = "rgba(248,113,113,0.24)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(248,113,113,0.04)";
-          e.currentTarget.style.borderColor = "rgba(248,113,113,0.12)";
-        }}
-      >
-        <ArrowUpToLine size={14} color="#f87171" style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>
-            Withdraw EP
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: "rgba(255,255,255,0.3)",
-              marginTop: 1,
-            }}
-          >
-            Tiered fees: 4% · 3% · 2% — higher amounts cost less
-          </div>
-        </div>
-        <ChevronRight size={14} color="rgba(248,113,113,0.5)" />
-      </div>
-
-      {showPayWave && (
-        <>
-          <div className="ov-section-head" style={{ marginTop: 8 }}>
-            <div className="ov-section-line" />
-            <span className="ov-section-title">Quick Pay</span>
-            <div className="ov-section-line" />
-          </div>
-          <div
-            className="ov-paywave-card"
-            onClick={() => setActiveTab("paywave")}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="ov-pw-logo">
-              <Wifi size={22} color="#fff" />
-            </div>
-            <div>
-              <div className="ov-pw-name">PayWave</div>
-              <div className="ov-pw-desc">Send money · Zero fees · Instant</div>
-            </div>
-            <ChevronRight size={18} className="ov-pw-arrow" />
-          </div>
-        </>
-      )}
 
       {/* ── Recent Activity ── */}
       <div className="ov-section-head" style={{ marginTop: 24 }}>

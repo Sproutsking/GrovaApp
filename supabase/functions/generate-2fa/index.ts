@@ -10,7 +10,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as OTPAuth from "https://esm.sh/otpauth@9.1.4";
-import QRCode from "https://esm.sh/qrcode@1.5.3";
+import * as QRCode from "https://esm.sh/qrcode@1.5.3";
+import {
+  encryptTwoFactorSecret,
+  getConfiguredTwoFactorKey,
+  requireStrongTwoFactorKey,
+} from "../_shared/twoFactor.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -78,14 +83,21 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const encryptionKey = requireStrongTwoFactorKey(getConfiguredTwoFactorKey());
 
     // Check if 2FA is already enabled
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: existingError } = await supabaseAdmin
       .from("two_factor_auth")
       .select("enabled")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (existingError) {
+      console.error("[generate-2fa] Could not check existing authenticator:", existingError.message);
+      return new Response(JSON.stringify({ error: "Could not check authenticator status." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (existing?.enabled) {
       return new Response(JSON.stringify({ error: "2FA is already enabled on this account." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -118,14 +130,7 @@ serve(async (req) => {
     // Generate backup codes
     const { plain: backupCodesPlain, hashed: backupCodesHashed } = await generateBackupCodes(8);
 
-    // Encrypt secret for storage (XOR with environment key)
-    // In production, use a proper KMS. This provides basic obfuscation.
-    const encryptionKey = Deno.env.get("TWO_FA_ENCRYPTION_KEY") || "xeevia-2fa-default-key-change-me";
-    const encryptedSecret = btoa(
-      secret.split("").map((c, i) =>
-        String.fromCharCode(c.charCodeAt(0) ^ encryptionKey.charCodeAt(i % encryptionKey.length))
-      ).join("")
-    );
+    const encryptedSecret = await encryptTwoFactorSecret(secret, encryptionKey);
 
     // Upsert into two_factor_auth — NOT enabled yet (enabled=false until verified)
     const { error: upsertErr } = await supabaseAdmin
@@ -146,12 +151,13 @@ serve(async (req) => {
     }
 
     // Log setup started
-    await supabaseAdmin.from("security_events").insert({
+    const { error: eventError } = await supabaseAdmin.from("security_events").insert({
       user_id:    user.id,
       event_type: "2fa_setup_started",
       severity:   "info",
       metadata:   {},
-    }).catch(() => {});
+    });
+    if (eventError) console.error("[generate-2fa] Could not record setup event:", eventError.message);
 
     // Return QR code, manual entry key, and backup codes (only time plain codes shown)
     return new Response(

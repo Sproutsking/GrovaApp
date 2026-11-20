@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowUpRight, Download, ArrowDownLeft, MoreHorizontal,
   TrendingUp, Repeat, Settings, Wifi, Coins, Zap,
-  ChevronRight, Flame, Clock, ArrowUpToLine,
+  Flame, Clock, ArrowUpToLine, WalletCards,
 } from "lucide-react";
 import BalanceCard from "../components/BalanceCard";
 import { useCurrency } from "../../../contexts/CurrencyContext";
@@ -129,13 +129,6 @@ const CSS = `
   .ov-asset-amount.ep{color:#22d3ee;}
   .ov-asset-fiat{font-size:calc((11px) + 1px);color:rgba(255,255,255,0.25);margin-top:3px;font-family:"DM Mono",monospace;}
   .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);font-size:calc((9px) + 1px);font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;}
-  .ov-paywave-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(34,211,238,0.07) 0%,rgba(59,130,246,0.05) 100%);border:1px solid rgba(34,211,238,0.15);cursor:pointer;transition:all .2s;margin-bottom:0;}
-  .ov-paywave-card:hover{background:linear-gradient(135deg,rgba(34,211,238,0.11) 0%,rgba(59,130,246,0.08) 100%);border-color:rgba(34,211,238,0.28);transform:translateY(-1px);}
-  .ov-pw-logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0ea5e9,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(14,165,233,0.3);}
-  .ov-pw-name{font-size:calc((16px) + 1px);font-weight:800;color:rgba(255,255,255,0.9);}
-  .ov-pw-desc{font-size:calc((12px) + 1px);color:rgba(255,255,255,0.32);margin-top:2px;}
-  .ov-pw-arrow{margin-left:auto;opacity:0.3;transition:all .2s;}
-  .ov-paywave-card:hover .ov-pw-arrow{opacity:0.7;transform:translateX(3px);}
   .ov-tx-list{display:flex;flex-direction:column;gap:6px;}
   .ov-tx-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:13px;background:rgba(255,255,255,0.022);border:1px solid rgba(255,255,255,0.05);transition:background .15s;animation:txIn .3s ease both;}
   .ov-tx-row:hover{background:rgba(255,255,255,0.04);}
@@ -251,6 +244,7 @@ export default function OverviewTab({ balance, setActiveTab, loading, transactio
       {showMore && (
         <div className="ov-more-panel">
           {[
+            { icon: WalletCards, label: "Assets", tab: "assets" },
             { icon: Repeat,     label: "Swap",     tab: "swap"     },
             { icon: TrendingUp, label: "Trade",    tab: "trade"    },
             ...(showPayWave ? [{ icon: Wifi, label: "PayWave", tab: "paywave" }] : []),
@@ -269,19 +263,6 @@ export default function OverviewTab({ balance, setActiveTab, loading, transactio
 
       <AssetCard type="xev" icon={<Coins size={20} />} name="$XEV Token" desc="Transferable · On-chain" value={xev} fiatLine={loading ? "—" : `≈ ${format(xev, false)}`} loading={loading} delta={xevDelta} currency="$XEV" />
       <AssetCard type="ep" icon={<Zap size={20} />} name="Engagement Points" desc="Platform currency · Withdraw any time" value={ep} chip="WITHDRAWABLE" loading={loading} delta={epDelta} currency="EP" isInteger={true} />
-
-      {showPayWave && (
-        <>
-          <div className="ov-section-head" style={{ marginTop: 8 }}>
-            <div className="ov-section-line" /><span className="ov-section-title">Quick Pay</span><div className="ov-section-line" />
-          </div>
-          <div className="ov-paywave-card" onClick={() => setActiveTab("paywave")} role="button" tabIndex={0}>
-            <div className="ov-pw-logo"><Wifi size={22} color="#fff" /></div>
-            <div><div className="ov-pw-name">PayWave</div><div className="ov-pw-desc">Send money · Zero fees · Instant</div></div>
-            <ChevronRight size={18} className="ov-pw-arrow" />
-          </div>
-        </>
-      )}
 
       <div className="ov-section-head" style={{ marginTop: 24 }}>
         <div className="ov-section-line" /><span className="ov-section-title">Recent Activity</span><div className="ov-section-line" />

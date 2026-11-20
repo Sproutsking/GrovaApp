@@ -82,6 +82,7 @@ import xrcService from "./services/xrc";
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
+const PushPermissionNudge = lazy(() => import("./components/Shared/PushPermissionNudge"));
 const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitchPrompt"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
 const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
@@ -328,6 +329,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
   const [userBalance,        setUserBalance]        = useState({ tokens: 0, points: 0 });
   const [profileData,        setProfileData]        = useState(null);
   const [activeTab,          setActiveTab]          = useState("home");
+  const [walletDestination,  setWalletDestination]  = useState(null);
   const [exploreSearchRequest, setExploreSearchRequest] = useState(null);
   const [hasRoomForTrending, setHasRoomForTrending] = useState(true);
   const [overlayTab,         setOverlayTab]         = useState(null);
@@ -916,6 +918,15 @@ const MainApp = memo(({ onInitialHomeReady }) => {
     setMountedTabs((p) => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
   }, [isAdmin, isMobile]);
 
+  const openWalletCollections = useCallback(() => {
+    setWalletDestination("collections");
+    handleTabChange("wallet");
+  }, [handleTabChange]);
+
+  const handleWalletDestinationHandled = useCallback(() => {
+    setWalletDestination(null);
+  }, []);
+
   useEffect(() => {
     const openIdentitySection = () => {
       setAccountSection("identity");
@@ -1133,6 +1144,8 @@ const MainApp = memo(({ onInitialHomeReady }) => {
               isMobile={isMobile}
               userId={user.id}
               refreshTrigger={refreshTrigger}
+              walletDestination={walletDestination}
+              onWalletDestinationHandled={handleWalletDestinationHandled}
             />
           </Suspense>
         ),
@@ -1308,6 +1321,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
           xrcService={xrcService}
           setActiveHomeTab={setActiveHomeTab}
           onOpenAdsCentre={() => setShowAdsCentre(true)}
+          onOpenCollections={openWalletCollections}
           unreadCounts={unreadSnapshot}
         />
       </Suspense>
@@ -1441,6 +1455,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
             currentUser={currentUser}
             xrcService={xrcService}
             onOpenAdsCentre={() => setShowAdsCentre(true)}
+            onOpenCollections={openWalletCollections}
             unreadCounts={unreadSnapshot}
           />
         </Suspense>
@@ -1537,6 +1552,12 @@ const MainApp = memo(({ onInitialHomeReady }) => {
           addToastRef={addToastRef}
         />
       </Suspense>
+
+      {user?.id && (
+        <Suspense fallback={null}>
+          <PushPermissionNudge userId={user.id} />
+        </Suspense>
+      )}
 
       <Suspense fallback={null}>
         <AccountSwitchPrompt

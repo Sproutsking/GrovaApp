@@ -3,7 +3,7 @@
 //  CHANGES vs v2:
 //  [1] SOLANA verification — RPC-based SPL token transfer validation
 //  [2] CARDANO verification — Blockfrost UTxO validation + ADA/USD price
-//  [3] amountOverrideUSD respected for invite-price payments
+//  [3] Server-resolved invitation pricing; client prices are never trusted
 //  [4] activateAccount sets payment_status="paid" so isPaidProfile() works
 //  [5] All field names aligned: chainType, txHash, claimedSenderWallet
 //  [6] Replay protection via UNIQUE(provider_payment_id) on payments table
@@ -19,6 +19,7 @@ import {
   activateAccount,
   withRetry,
   validateEnv,
+  resolvePaymentPrice,
 } from "../_shared/payments.ts";
 
 // ── EVM chains registry ───────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ async function verifyEVM(opts: {
   senderWallet: string;
   expectedUSD: number;
   treasuryWallet: string;
+  tolerance?: number;
 }): Promise<{ ok: boolean; message: string; pendingConfirmations?: number }> {
   const { chain, txHash, senderWallet, expectedUSD, treasuryWallet } = opts;
   const cfg = EVM_CHAINS[chain.toLowerCase()];
@@ -114,12 +116,14 @@ async function verifyEVM(opts: {
   // Decode ERC-20 Transfer log
   // Transfer(address indexed from, address indexed to, uint256 value)
   const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+  const fromPadded    = `0x000000000000000000000000${senderWallet.toLowerCase().replace("0x", "")}`;
   const toPadded     = `0x000000000000000000000000${treasuryWallet.toLowerCase().replace("0x", "")}`;
-  const minAccept    = expectedUSD * (1 - AMOUNT_TOLERANCE);
+  const minAccept    = expectedUSD * (1 - (opts.tolerance ?? AMOUNT_TOLERANCE));
 
   for (const log of receipt.logs) {
     if (
       log.topics?.[0]?.toLowerCase() !== TRANSFER_SIG.toLowerCase() ||
+      log.topics?.[1]?.toLowerCase() !== fromPadded.toLowerCase() ||
       log.topics?.[2]?.toLowerCase() !== toPadded.toLowerCase()
     ) continue;
 
@@ -144,6 +148,7 @@ async function verifySolana(opts: {
   senderWallet: string;
   expectedUSD: number;
   treasuryWallet: string;
+  tolerance?: number;
 }): Promise<{ ok: boolean; message: string }> {
   const { txHash, senderWallet, expectedUSD, treasuryWallet } = opts;
   const rpcUrl = Deno.env.get("SOLANA_RPC_URL") ?? "https://api.mainnet-beta.solana.com";
@@ -173,7 +178,7 @@ async function verifySolana(opts: {
   const preBals  = (meta?.preTokenBalances  ?? []) as TokenBalance[];
   const postBals = (meta?.postTokenBalances ?? []) as TokenBalance[];
 
-  const minAccept = expectedUSD * (1 - AMOUNT_TOLERANCE);
+  const minAccept = expectedUSD * (1 - (opts.tolerance ?? AMOUNT_TOLERANCE));
 
   for (const token of SOL_TOKENS) {
     const treasuryPre  = preBals.find(b  => b.mint === token.mint && b.owner === treasuryWallet);
@@ -185,13 +190,25 @@ async function verifySolana(opts: {
       return { ok: false, message: `Insufficient ${token.symbol}. Expected ~$${expectedUSD}, treasury gained $${gained.toFixed(2)}.` };
     }
 
-    // Confirm sender was involved
+    type AccountKey = string | { pubkey: string; signer?: boolean };
+    const message = (tx.transaction as { message?: { accountKeys?: AccountKey[] } } | undefined)?.message;
+    const senderSigned = (message?.accountKeys ?? []).some((key) =>
+      typeof key === "string"
+        ? key === senderWallet
+        : key.pubkey === senderWallet && key.signer === true
+    );
+    if (!senderSigned) {
+      return { ok: false, message: "The linked sender wallet did not sign this Solana transaction." };
+    }
+
     const senderPre  = preBals.find(b  => b.mint === token.mint && b.owner === senderWallet);
     const senderPost = postBals.find(b => b.mint === token.mint && b.owner === senderWallet);
-    if (!senderPre && !senderPost) {
-      // Sender may have used an associated token account we can check via accountKeys
-      // Allow if treasury gained the correct amount — this is the definitive proof
-      console.log("[solana] sender ATA not in balance list; treasury gain is definitive.");
+    if (!senderPre || !senderPost) {
+      return { ok: false, message: `Could not confirm a ${token.symbol} balance change for the linked sender wallet.` };
+    }
+    const sent = (senderPre.uiTokenAmount?.uiAmount ?? 0) - (senderPost.uiTokenAmount?.uiAmount ?? 0);
+    if (sent < minAccept) {
+      return { ok: false, message: `The linked sender wallet did not send enough ${token.symbol}.` };
     }
 
     return { ok: true, message: "Solana payment verified." };
@@ -206,6 +223,7 @@ async function verifyCardano(opts: {
   senderWallet: string;
   expectedUSD: number;
   treasuryWallet: string;
+  tolerance?: number;
 }): Promise<{ ok: boolean; message: string }> {
   const { txHash, senderWallet, expectedUSD, treasuryWallet } = opts;
 
@@ -239,24 +257,29 @@ async function verifyCardano(opts: {
   const adaReceived = lovelace / 1_000_000;
 
   // Fetch live ADA/USD price
-  let adaUSD = 0.5; // safe fallback
   try {
     const pr = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd");
-    const pd = await pr.json() as { cardano?: { usd: number } };
-    if (pd?.cardano?.usd && pd.cardano.usd > 0) adaUSD = pd.cardano.usd;
-  } catch { /* use fallback */ }
-
-  const usdReceived = adaReceived * adaUSD;
-  const minAccept   = expectedUSD * (1 - AMOUNT_TOLERANCE);
-
-  if (usdReceived < minAccept) {
+    if (!pr.ok) throw new Error(`Price service returned HTTP ${pr.status}`);
+    const pd = await pr.json() as { cardano?: { usd?: number } };
+    const adaUSD = pd.cardano?.usd;
+    if (typeof adaUSD !== "number" || !Number.isFinite(adaUSD) || adaUSD <= 0) {
+      throw new Error("Price service returned an invalid ADA quote");
+    }
+    const usdReceived = adaReceived * adaUSD;
+    const minAccept = expectedUSD * (1 - (opts.tolerance ?? AMOUNT_TOLERANCE));
+    if (usdReceived < minAccept) {
+      return {
+        ok: false,
+        message: `Insufficient ADA. Received ${adaReceived.toFixed(4)} ADA ≈ $${usdReceived.toFixed(2)} (@ $${adaUSD.toFixed(4)}/ADA). Expected ~$${expectedUSD}.`,
+      };
+    }
+    return { ok: true, message: `Cardano payment verified at $${adaUSD.toFixed(4)}/ADA.` };
+  } catch (error) {
     return {
       ok: false,
-      message: `Insufficient ADA. Received ${adaReceived.toFixed(4)} ADA ≈ $${usdReceived.toFixed(2)} (@ $${adaUSD.toFixed(4)}/ADA). Expected ~$${expectedUSD}.`,
+      message: error instanceof Error ? `Could not obtain a reliable ADA price: ${error.message}` : "Could not obtain a reliable ADA price.",
     };
   }
-
-  return { ok: true, message: "Cardano payment verified." };
 }
 
 // ── Main serve ────────────────────────────────────────────────────────────────
@@ -264,11 +287,8 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   // Env check first — turn "Invalid JWT" into a clear server error
-  try {
-    validateEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "TREASURY_WALLET_ADDRESS"]);
-  } catch (e: unknown) {
-    return errorResponse((e as Error).message, 500, "SERVER_MISCONFIGURED");
-  }
+  const envError = validateEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "TREASURY_WALLET_ADDRESS"]);
+  if (envError) return envError;
 
   // Auth
   let userId: string;
@@ -285,6 +305,7 @@ serve(async (req: Request) => {
     txHash?: string;
     claimedSenderWallet?: string;
     productId?: string;
+    founders_order_id?: string;
     idempotencyKey?: string;
     amountOverrideUSD?: number;
     inviteCodeId?: string;
@@ -297,34 +318,73 @@ serve(async (req: Request) => {
 
   const {
     chainType, chain, txHash, claimedSenderWallet,
-    productId, idempotencyKey, amountOverrideUSD, inviteCodeId,
+    productId, founders_order_id: foundersOrderId, idempotencyKey, inviteCodeId,
   } = body;
 
-  if (!chainType)           return errorResponse("Missing chainType (EVM | SOLANA | CARDANO)", 400, "MISSING_FIELD");
-  if (!txHash)              return errorResponse("Missing txHash", 400, "MISSING_FIELD");
-  if (!claimedSenderWallet) return errorResponse("Missing claimedSenderWallet", 400, "MISSING_FIELD");
-  if (!productId)           return errorResponse("Missing productId", 400, "MISSING_FIELD");
-  if (!idempotencyKey)      return errorResponse("Missing idempotencyKey", 400, "MISSING_FIELD");
+  if (typeof chainType !== "string" || !["EVM", "SOLANA", "CARDANO"].includes(chainType.toUpperCase())) {
+    return errorResponse("Missing or unsupported chainType (EVM | SOLANA | CARDANO)", 400, "UNSUPPORTED_CHAIN");
+  }
+  if (typeof txHash !== "string" || !txHash) {
+    return errorResponse("Missing or invalid txHash", 400, "MISSING_FIELD");
+  }
+  if (typeof claimedSenderWallet !== "string" || !claimedSenderWallet) {
+    return errorResponse("Missing or invalid claimedSenderWallet", 400, "MISSING_FIELD");
+  }
+  if (txHash.length > 128 || claimedSenderWallet.length > 256) {
+    return errorResponse("Transaction details exceed the allowed length.", 400, "INVALID_PAYMENT_DETAILS");
+  }
+  if ((!productId && !foundersOrderId) || typeof idempotencyKey !== "string") {
+    return errorResponse("Missing productId or founders_order_id and idempotencyKey.", 400, "MISSING_FIELD");
+  }
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(idempotencyKey)
+    || (productId != null && (typeof productId !== "string" || !UUID_RE.test(productId)))
+    || (foundersOrderId != null && (typeof foundersOrderId !== "string" || !UUID_RE.test(foundersOrderId)))) {
+    return errorResponse("Payment identifiers must be valid UUID v4 values.", 400, "INVALID_PAYMENT_DETAILS");
+  }
 
   const db = supabaseAdmin();
+  if (foundersOrderId) {
+    const { error: expiryError } = await db.rpc("expire_founders_card_orders");
+    if (expiryError) {
+      console.error("[web3-verify-payment] Could not expire stale founders-card reservations:", expiryError.message);
+      return errorResponse("Could not verify the card reservation. Please retry shortly.", 503, "RESERVATION_CHECK_FAILED");
+    }
+  }
 
   // ── Idempotency: already completed? ─────────────────────────────────────────
-  const { data: existingIntent } = await db.from("payment_intents")
-    .select("id,status")
-    .eq("idempotency_key", idempotencyKey)
-    .eq("user_id", userId)
-    .maybeSingle();
+  if (!foundersOrderId) {
+    const { data: existingIntent, error: existingIntentError } = await db.from("payment_intents")
+      .select("id,user_id,status,provider,product_id")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
 
-  if (existingIntent?.status === "completed") {
-    return jsonResponse({ status: "already_processed", message: "Payment already completed." });
+    if (existingIntentError) {
+      console.error("[web3-verify-payment] Could not check payment intent:", existingIntentError.message);
+      return errorResponse("Could not verify the payment attempt. Please retry.", 503, "INTENT_LOOKUP_FAILED");
+    }
+    if (existingIntent && (
+      existingIntent.user_id !== userId ||
+      existingIntent.provider !== "web3" ||
+      existingIntent.product_id !== productId
+    )) {
+      return errorResponse("This payment idempotency key is already associated with another payment.", 409, "IDEMPOTENCY_CONFLICT");
+    }
+    if (existingIntent?.status === "completed") {
+      return jsonResponse({ status: "already_processed", message: "Payment already completed." });
+    }
   }
 
   // ── Replay: tx already used? ─────────────────────────────────────────────────
-  const { data: existingPayment } = await db.from("payments")
+  const { data: existingPayment, error: existingPaymentError } = await db.from("payments")
     .select("id,status,user_id")
     .eq("provider_payment_id", txHash)
     .maybeSingle();
 
+  if (existingPaymentError) {
+    console.error("[web3-verify-payment] Could not check transaction replay:", existingPaymentError.message);
+    return errorResponse("Could not verify whether this transaction was already used. Please retry.", 503, "REPLAY_CHECK_FAILED");
+  }
   if (existingPayment) {
     if (existingPayment.user_id !== userId) {
       return errorResponse("This transaction has already been used by another account.", 409, "TX_ALREADY_USED");
@@ -334,60 +394,260 @@ serve(async (req: Request) => {
     }
   }
 
-  // ── Fetch product ─────────────────────────────────────────────────────────────
-  const { data: product } = await db.from("payment_products")
-    .select("id,amount_usd,tier,metadata")
-    .eq("id", productId)
-    .eq("is_active", true)
-    .maybeSingle();
+  let founderOrder: {
+    id: string;
+    user_id: string;
+    tier: string;
+    quantity: number;
+    status: string;
+    provider: string;
+    total_price: number;
+    currency: string;
+    expires_at: string;
+  } | null = null;
+  let founderOrderExpired = false;
+  let product: {
+    id: string;
+    amount_usd: number;
+    tier: string | null;
+    metadata: Record<string, unknown> | null;
+  } | null = null;
+  let expectedUSD: number;
 
-  if (!product) return errorResponse("Product not found or inactive.", 404, "PRODUCT_NOT_FOUND");
-
-  // Amount: invite price > product price
-  const expectedUSD = (typeof amountOverrideUSD === "number" && amountOverrideUSD >= 0)
-    ? amountOverrideUSD
-    : product.amount_usd;
-
-  // If free (0), skip chain verification — just activate
-  if (expectedUSD === 0) {
-    try {
-      await withRetry(() => activateAccount(userId, product.tier ?? "standard", product.metadata ?? {}));
-      // Update invite uses if code provided
-      if (inviteCodeId) {
-        await db.rpc("increment_invite_uses", { p_invite_id: inviteCodeId }).catch(() => {});
-      }
-      await db.from("payments").insert({
-        user_id: userId, provider: "free_code", provider_payment_id: `free_${idempotencyKey}`,
-        status: "completed", amount_usd: 0, product_id: productId,
-        created_at: new Date().toISOString(),
-      }).catch(() => {});
-      return jsonResponse({ status: "success", message: "Free access activated." });
-    } catch (e: unknown) {
-      return errorResponse((e as Error).message, 500, "ACTIVATION_FAILED");
+  if (foundersOrderId) {
+    const { data: order, error: orderErr } = await db
+      .from("founders_card_orders")
+      .select("id,user_id,tier,quantity,status,provider,total_price,currency,expires_at")
+      .eq("id", foundersOrderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (orderErr || !order) return errorResponse("Founders-card order not found.", 404, "ORDER_NOT_FOUND");
+    if (order.status === "paid") {
+      return jsonResponse({ status: "already_processed", message: "Founders-card payment already completed." });
     }
+    if (!["pending", "expired"].includes(order.status) || order.provider !== "web3"
+      || order.currency !== "USD") {
+      return errorResponse("This founders-card reservation is not available for crypto payment.", 409, "ORDER_NOT_PAYABLE");
+    }
+    if (typeof chainType !== "string" || chainType.toUpperCase() !== "EVM") {
+      return errorResponse("Founders-card crypto checkout currently supports verified EVM wallet transfers only.", 400, "UNSUPPORTED_CARD_CHAIN");
+    }
+    if (
+      typeof chain !== "string" ||
+      !Object.prototype.hasOwnProperty.call(EVM_CHAINS, chain.toLowerCase()) ||
+      typeof txHash !== "string" ||
+      !/^0x[0-9a-f]{64}$/i.test(txHash) ||
+      typeof claimedSenderWallet !== "string" ||
+      !/^0x[0-9a-f]{40}$/i.test(claimedSenderWallet)
+    ) {
+      return errorResponse("Provide a valid EVM chain, transaction hash, and sender wallet.", 400, "INVALID_CARD_CRYPTO_DETAILS");
+    }
+    const { data: linkedWallet, error: linkedWalletError } = await db
+      .from("identity_wallets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("chain", "ethereum")
+      .eq("address_key", claimedSenderWallet.toLowerCase())
+      .maybeSingle();
+    if (linkedWalletError) {
+      console.error("[web3-verify-payment] Could not verify linked founders-card wallet:", linkedWalletError.message);
+      return errorResponse("Could not verify the linked wallet. Please retry shortly.", 503, "WALLET_IDENTITY_CHECK_FAILED");
+    }
+    if (!linkedWallet) {
+      return errorResponse("Link and verify this EVM wallet to your Xeevia account before paying for a founders card.", 403, "WALLET_NOT_LINKED");
+    }
+    founderOrder = order;
+    founderOrderExpired = order.status === "expired" || new Date(order.expires_at) <= new Date();
+    expectedUSD = Number(order.total_price);
+  } else {
+    const { data: paymentProduct, error: productError } = await db.from("payment_products")
+      .select("id,amount_usd,tier,metadata")
+      .eq("id", productId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (productError) {
+      console.error("[web3-verify-payment] Could not load payment product:", productError.message);
+      return errorResponse("Could not load the payment product. Please retry.", 503, "PRODUCT_LOOKUP_FAILED");
+    }
+    if (!paymentProduct) return errorResponse("Product not found or inactive.", 404, "PRODUCT_NOT_FOUND");
+    product = paymentProduct;
+    try {
+      const resolvedPrice = await resolvePaymentPrice(db, Number(paymentProduct.amount_usd), inviteCodeId);
+      expectedUSD = resolvedPrice.amountUSD;
+    } catch (priceError) {
+      return errorResponse(
+        priceError instanceof Error ? priceError.message : "Could not verify the payment price.",
+        400,
+        "INVALID_PAYMENT_PRICE",
+      );
+    }
+
+    const normalizedChainType = chainType.toUpperCase();
+    const identityChain = normalizedChainType === "EVM"
+      ? "ethereum"
+      : normalizedChainType === "SOLANA"
+        ? "solana"
+        : "cardano";
+    if (
+      typeof chain !== "string" ||
+      (normalizedChainType === "EVM" && !Object.prototype.hasOwnProperty.call(EVM_CHAINS, chain.toLowerCase())) ||
+      (normalizedChainType === "SOLANA" && chain.toLowerCase() !== "solana") ||
+      (normalizedChainType === "CARDANO" && chain.toLowerCase() !== "cardano")
+    ) {
+      return errorResponse("The selected payment network does not match the payment type.", 400, "INVALID_CHAIN");
+    }
+    if (normalizedChainType === "EVM" && (
+      !/^0x[0-9a-f]{64}$/i.test(txHash) ||
+      typeof claimedSenderWallet !== "string" ||
+      !/^0x[0-9a-f]{40}$/i.test(claimedSenderWallet)
+    )) {
+      return errorResponse("Provide a valid EVM transaction hash and sender wallet.", 400, "INVALID_PAYMENT_DETAILS");
+    }
+    if (normalizedChainType === "CARDANO" && !/^[0-9a-f]{64}$/i.test(txHash)) {
+      return errorResponse("Provide a valid Cardano transaction hash.", 400, "INVALID_PAYMENT_DETAILS");
+    }
+    if (normalizedChainType === "SOLANA" && !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(txHash)) {
+      return errorResponse("Provide a valid Solana transaction signature.", 400, "INVALID_PAYMENT_DETAILS");
+    }
+
+    let linkedWalletQuery = db
+      .from("identity_wallets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("chain", identityChain);
+    linkedWalletQuery = normalizedChainType === "EVM"
+      ? linkedWalletQuery.eq("address_key", claimedSenderWallet.toLowerCase())
+      : linkedWalletQuery.eq("address", claimedSenderWallet);
+    const { data: linkedWallet, error: linkedWalletError } = await linkedWalletQuery.maybeSingle();
+    if (linkedWalletError) {
+      console.error("[web3-verify-payment] Could not verify linked payment wallet:", linkedWalletError.message);
+      return errorResponse("Could not verify the linked wallet. Please retry.", 503, "WALLET_IDENTITY_CHECK_FAILED");
+    }
+    if (!linkedWallet) {
+      return errorResponse("Link and verify the payment wallet to your Xeevia account before paying.", 403, "WALLET_NOT_LINKED");
+    }
+  }
+
+  if (!Number.isFinite(expectedUSD) || expectedUSD <= 0) {
+    return errorResponse("This payment flow requires a positive server-verified price.", 400, "INVALID_AMOUNT");
   }
 
   const treasuryEVM = Deno.env.get("TREASURY_WALLET_ADDRESS") ?? "";
   const treasurySOL = Deno.env.get("TREASURY_WALLET_SOL")     ?? "";
   const treasuryADA = Deno.env.get("TREASURY_WALLET_ADA")     ?? "";
 
+  let founderPaymentId: string | null = null;
+  if (founderOrder) {
+    const amountMinor = Math.round(expectedUSD * 100);
+    const { data: existingCardPayment, error: cardPaymentLookupError } = await db
+      .from("founders_card_payments")
+      .select("id,provider_reference,status")
+      .eq("order_id", founderOrder.id)
+      .eq("provider", "web3")
+      .maybeSingle();
+    if (cardPaymentLookupError) {
+      return errorResponse("Could not load the founders-card crypto payment.", 500, "PAYMENT_LOOKUP_FAILED");
+    }
+    if (existingCardPayment?.status === "completed") {
+      return jsonResponse({ status: "already_processed", message: "Founders-card payment already completed." });
+    }
+    if (existingCardPayment?.status === "refund_required") {
+      return jsonResponse({
+        status: "refund_required",
+        message: "Payment was verified after the reservation expired. No card was issued; contact support with the transaction hash for a manual refund.",
+        txHash,
+      });
+    }
+    if (["pending", "late_crypto_review"].includes(existingCardPayment?.status || "")
+      && existingCardPayment?.provider_reference !== txHash) {
+      return errorResponse("A crypto transaction is already being verified for this order.", 409, "PAYMENT_ALREADY_PENDING");
+    }
+
+    if (!founderOrderExpired && (!existingCardPayment || existingCardPayment.status === "failed")) {
+      const { data: policy, error: policyError } = await db
+        .from("founders_card_policy")
+        .select("reservation_hours")
+        .eq("singleton", true)
+        .maybeSingle();
+      if (policyError || !policy) {
+        console.error("[web3-verify-payment] Could not load founders-card reservation policy:", policyError?.message);
+        return errorResponse("Could not load the card reservation policy.", 503, "POLICY_LOOKUP_FAILED");
+      }
+
+      const { data: updatedOrder, error: orderUpdateError } = await db
+        .from("founders_card_orders")
+        .update({
+          expires_at: new Date(Date.now() + Number(policy.reservation_hours) * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", founderOrder.id)
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .select("id")
+        .maybeSingle();
+      if (orderUpdateError || !updatedOrder) {
+        console.error("[web3-verify-payment] Could not refresh founders-card reservation expiry:", orderUpdateError?.message);
+        return errorResponse("The card reservation expired before crypto verification could begin.", 409, "ORDER_EXPIRED");
+      }
+    }
+
+    const { data: cardPayment, error: cardPaymentError } = await db
+      .from("founders_card_payments")
+      .upsert({
+        ...(existingCardPayment?.id ? { id: existingCardPayment.id } : {}),
+        order_id: founderOrder.id,
+        provider: "web3",
+        provider_reference: txHash,
+        amount_minor: amountMinor,
+        currency: "USD",
+        status: founderOrderExpired ? "late_crypto_review" : "pending",
+        failure_reason: founderOrderExpired
+          ? "Crypto payment is being verified after reservation expiry; a confirmed payment requires a manual refund."
+          : null,
+        metadata: {
+          payment_purpose: "founders_card_purchase",
+          founders_order_id: founderOrder.id,
+          tier: founderOrder.tier,
+          quantity: founderOrder.quantity,
+          chainType,
+          chain,
+          claimedSenderWallet,
+        },
+      }, { onConflict: "order_id,provider" })
+      .select("id")
+      .single();
+    if (cardPaymentError || !cardPayment) {
+      console.error("[web3-verify-payment] Founders-card payment record failed:", cardPaymentError?.message);
+      return errorResponse("Could not record this founders-card crypto payment.", 500, "PAYMENT_RECORD_FAILED");
+    }
+    founderPaymentId = cardPayment.id;
+  }
+
   // ── Create/upsert payment intent ──────────────────────────────────────────────
   const intentExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
-  await db.from("payment_intents").upsert({
-    idempotency_key: idempotencyKey,
-    user_id: userId,
-    product_id: productId,
-    amount_usd: expectedUSD,
-    status: "pending",
-    expires_at: intentExpiry,
-    provider: "web3",
-    metadata: { chainType, chain, txHash },
-  }, { onConflict: "idempotency_key" }).catch(() => {});
+  if (!founderOrder) {
+    const { error: intentSaveError } = await db.from("payment_intents").upsert({
+      idempotency_key: idempotencyKey,
+      user_id: userId,
+      product_id: productId,
+      amount_cents: Math.round(expectedUSD * 100),
+      currency: "USD",
+      status: "created",
+      expires_at: intentExpiry,
+      provider: "web3",
+      metadata: { chainType, chain, txHash, invite_code_id: inviteCodeId ?? null },
+    }, { onConflict: "idempotency_key" });
+    if (intentSaveError) {
+      console.error("[web3-verify-payment] Could not store priced payment intent:", intentSaveError.message);
+      return errorResponse("Could not safely record this payment attempt. Please retry.", 503, "INTENT_STORE_FAILED");
+    }
+  }
 
   // ── Create or update payment record ──────────────────────────────────────────
   let paymentId: string | null = existingPayment?.id ?? null;
-  if (!paymentId) {
-    const { data: newPayment } = await db.from("payments").insert({
+  if (!founderOrder && !paymentId) {
+    const { data: newPayment, error: paymentInsertError } = await db.from("payments").insert({
       user_id: userId,
       provider: "web3",
       provider_payment_id: txHash,
@@ -398,6 +658,10 @@ serve(async (req: Request) => {
       wallet_address: claimedSenderWallet,
       created_at: new Date().toISOString(),
     }).select("id").single();
+    if (paymentInsertError || !newPayment) {
+      console.error("[web3-verify-payment] Could not record pending payment:", paymentInsertError?.message);
+      return errorResponse("Could not safely record this payment attempt. Please retry.", 503, "PAYMENT_RECORD_FAILED");
+    }
     paymentId = newPayment?.id ?? null;
   }
 
@@ -406,38 +670,55 @@ serve(async (req: Request) => {
 
   try {
     const upper = chainType.toUpperCase();
+    const tolerance = founderOrder ? 0 : undefined;
     if (upper === "EVM") {
       if (!treasuryEVM) return errorResponse("EVM treasury wallet not configured. Contact support.", 500, "SERVER_MISCONFIGURED");
       verifyResult = await withRetry(() =>
-        verifyEVM({ chain: chain ?? "", txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasuryEVM })
+        verifyEVM({ chain: chain ?? "", txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasuryEVM, tolerance })
       );
     } else if (upper === "SOLANA") {
       if (!treasurySOL) return errorResponse("SOL treasury wallet not configured. Contact support.", 500, "SERVER_MISCONFIGURED");
       verifyResult = await withRetry(() =>
-        verifySolana({ txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasurySOL })
+        verifySolana({ txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasurySOL, tolerance })
       );
     } else if (upper === "CARDANO") {
       if (!treasuryADA) return errorResponse("ADA treasury wallet not configured. Contact support.", 500, "SERVER_MISCONFIGURED");
       verifyResult = await withRetry(() =>
-        verifyCardano({ txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasuryADA })
+        verifyCardano({ txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasuryADA, tolerance })
       );
     } else {
       return errorResponse(`Unknown chainType: "${chainType}". Use EVM, SOLANA, or CARDANO.`, 400, "UNSUPPORTED_CHAIN");
     }
   } catch (e: unknown) {
     // RPC/network error — mark payment as pending for retry
-    await db.from("payments").update({ status: "pending", updated_at: new Date().toISOString() })
-      .eq("provider_payment_id", txHash).catch(() => {});
+    if (!founderOrder) {
+      const { error: pendingUpdateError } = await db.from("payments")
+        .update({ status: "pending", updated_at: new Date().toISOString() })
+        .eq("provider_payment_id", txHash);
+      if (pendingUpdateError) {
+        console.error("[web3-verify-payment] Could not preserve pending payment after RPC failure:", pendingUpdateError.message);
+      }
+    }
     return errorResponse(`Verification RPC error: ${(e as Error).message}. Payment saved as pending — we'll retry.`, 503, "RPC_ERROR");
   }
 
   // ── Pending confirmations ─────────────────────────────────────────────────────
   if (!verifyResult.ok && verifyResult.pendingConfirmations !== undefined) {
-    await db.from("payments").update({
-      status: "pending",
-      block_confirmations: null,
-      updated_at: new Date().toISOString(),
-    }).eq("provider_payment_id", txHash).catch(() => {});
+    if (founderOrder && founderOrderExpired && founderPaymentId) {
+      await db.from("founders_card_payments").update({
+        status: "late_crypto_review",
+        failure_reason: "Crypto transaction is awaiting confirmation after reservation expiry; refund manually if confirmed.",
+      }).eq("id", founderPaymentId);
+    } else if (!founderOrder) {
+      const { error: pendingUpdateError } = await db.from("payments").update({
+        status: "pending",
+        block_confirmations: null,
+        updated_at: new Date().toISOString(),
+      }).eq("provider_payment_id", txHash);
+      if (pendingUpdateError) {
+        console.error("[web3-verify-payment] Could not update pending confirmation status:", pendingUpdateError.message);
+      }
+    }
     return jsonResponse({
       status: "pending",
       message: verifyResult.message,
@@ -447,17 +728,101 @@ serve(async (req: Request) => {
 
   // ── Verification failed ───────────────────────────────────────────────────────
   if (!verifyResult.ok) {
-    await db.from("payments").update({
-      status: "failed",
-      failure_reason: verifyResult.message,
-      updated_at: new Date().toISOString(),
-    }).eq("provider_payment_id", txHash).catch(() => {});
+    if (founderOrder && founderPaymentId) {
+      await db.from("founders_card_payments")
+        .update({ status: "failed", failure_reason: verifyResult.message })
+        .eq("id", founderPaymentId);
+    } else {
+      const { error: failedUpdateError } = await db.from("payments").update({
+        status: "failed",
+        failure_reason: verifyResult.message,
+        updated_at: new Date().toISOString(),
+      }).eq("provider_payment_id", txHash);
+      if (failedUpdateError) {
+        console.error("[web3-verify-payment] Could not mark failed crypto payment:", failedUpdateError.message);
+      }
+    }
     return errorResponse(verifyResult.message, 400, "VERIFICATION_FAILED");
+  }
+
+  const paymentPurpose = founderOrder ? "founders_card" : "product";
+  const claimReference = founderOrder
+    ? founderOrder.id
+    : `${productId}:${idempotencyKey}`;
+  const { data: transactionClaimed, error: transactionClaimError } = await db.rpc(
+    "claim_web3_payment",
+    {
+      p_chain: `${String(chainType).toLowerCase()}:${String(chain || "").toLowerCase()}`,
+      p_tx_hash: txHash,
+      p_user_id: userId,
+      p_payment_purpose: paymentPurpose,
+      p_reference_id: claimReference,
+    },
+  );
+  if (transactionClaimError) {
+    console.error("[web3-verify-payment] Could not claim verified transaction:", transactionClaimError.message);
+    return errorResponse("Could not safely finalize this transaction. Please retry shortly.", 503, "TRANSACTION_CLAIM_FAILED");
+  }
+  if (!transactionClaimed) {
+    if (founderPaymentId) {
+      const { error: paymentUpdateError } = await db.from("founders_card_payments")
+        .update({
+          status: "failed",
+          failure_reason: "This transaction has already been claimed for another payment.",
+        })
+        .eq("id", founderPaymentId)
+        .in("status", ["pending", "late_crypto_review"]);
+      if (paymentUpdateError) {
+        console.error("[web3-verify-payment] Could not release conflicting card payment attempt:", paymentUpdateError.message);
+        return errorResponse("This transaction was already claimed, but the order status could not be updated. Contact support.", 500, "PAYMENT_CONFLICT_UPDATE_FAILED");
+      }
+    }
+    return errorResponse("This blockchain transaction has already been used for another payment.", 409, "TX_ALREADY_CLAIMED");
+  }
+
+  if (founderOrder) {
+    if (founderOrderExpired) {
+      if (!founderPaymentId) {
+        return errorResponse("Could not locate the late crypto payment record. Contact support with the transaction hash.", 500, "LATE_PAYMENT_RECORD_MISSING");
+      }
+      const { error: refundFlagError } = await db
+        .from("founders_card_payments")
+        .update({
+          status: "refund_required",
+          failure_reason: "Crypto payment verified after reservation expiry; manual refund required.",
+        })
+        .eq("id", founderPaymentId);
+      if (refundFlagError) {
+        console.error("[web3-verify-payment] Could not flag late founders-card payment:", refundFlagError.message);
+        return errorResponse("Payment verified after reservation expiry, but support status could not be recorded. Contact support with the transaction hash.", 500, "LATE_PAYMENT_RECORD_FAILED");
+      }
+      return jsonResponse({
+        status: "refund_required",
+        message: "Payment was verified after the reservation expired. No card was issued; contact support with the transaction hash for a manual refund.",
+        txHash,
+      });
+    }
+    const { error: settleError } = await db.rpc("settle_founders_card_order", {
+      p_order_id: founderOrder.id,
+      p_provider: "web3",
+      p_provider_reference: txHash,
+      p_amount_minor: Math.round(expectedUSD * 100),
+      p_currency: "USD",
+    });
+    if (settleError) {
+      console.error("[web3-verify-payment] Founders-card settlement failed:", settleError.message);
+      return errorResponse("Crypto payment was verified but the card could not be issued. Contact support with the transaction hash.", 500, "CARD_SETTLEMENT_FAILED");
+    }
+    return jsonResponse({
+      status: "success",
+      message: "Crypto payment verified and founders card issued.",
+      txHash,
+    });
   }
 
   // ── Verification passed — activate account ────────────────────────────────────
   try {
-    await withRetry(() => activateAccount(userId, product.tier ?? "standard", product.metadata ?? {}));
+    await withRetry(() => activateAccount(userId, product?.tier ?? "standard", product?.metadata ?? {}));
   } catch (e: unknown) {
     return errorResponse(
       `Payment verified but activation failed: ${(e as Error).message}. Contact support with TX: ${txHash}`,
@@ -466,21 +831,32 @@ serve(async (req: Request) => {
   }
 
   // ── Mark payment completed ────────────────────────────────────────────────────
-  await db.from("payments").update({
+  const { error: paymentCompleteError } = await db.from("payments").update({
     status: "completed",
     updated_at: new Date().toISOString(),
-  }).eq("provider_payment_id", txHash).catch(() => {});
+  }).eq("provider_payment_id", txHash);
+  if (paymentCompleteError) {
+    console.error("[web3-verify-payment] Could not mark payment complete:", paymentCompleteError.message);
+    return errorResponse("Payment was verified and account activation completed, but payment status could not be saved. Contact support.", 500, "PAYMENT_STATUS_UPDATE_FAILED");
+  }
 
   // ── Mark intent completed ─────────────────────────────────────────────────────
-  await db.from("payment_intents").update({
+  const { error: intentCompleteError } = await db.from("payment_intents").update({
     status: "completed",
     payment_id: paymentId,
     updated_at: new Date().toISOString(),
-  }).eq("idempotency_key", idempotencyKey).eq("user_id", userId).catch(() => {});
+  }).eq("idempotency_key", idempotencyKey).eq("user_id", userId);
+  if (intentCompleteError) {
+    console.error("[web3-verify-payment] Could not mark payment intent complete:", intentCompleteError.message);
+    return errorResponse("Payment was verified and account activation completed, but the payment record needs reconciliation.", 500, "INTENT_STATUS_UPDATE_FAILED");
+  }
 
   // ── Increment invite code uses ────────────────────────────────────────────────
   if (inviteCodeId) {
-    await db.rpc("increment_invite_uses", { p_invite_id: inviteCodeId }).catch(() => {});
+    const { error: inviteUseError } = await db.rpc("increment_invite_uses", { p_invite_id: inviteCodeId });
+    if (inviteUseError) {
+      console.error("[web3-verify-payment] Invite code usage count could not be updated:", inviteUseError.message);
+    }
   }
 
   // ── Grant EP if product metadata has ep_grant ─────────────────────────────────
@@ -489,7 +865,7 @@ serve(async (req: Request) => {
   return jsonResponse({
     status: "success",
     message: "Payment verified. Account activated.",
-    tier: product.tier ?? "standard",
+    tier: product?.tier ?? "standard",
     txHash,
   });
 });

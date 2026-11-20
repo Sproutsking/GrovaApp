@@ -20,23 +20,19 @@ jest.mock("../../../services/wallet/depositFundService", () => ({
 }));
 
 describe("DepositTab payment methods", () => {
-  it("explains the fiat and crypto options and opens the selected deposit flow", async () => {
+  it("keeps the fiat and crypto choices concise and opens the selected deposit flow", async () => {
     await act(async () => {
       render(<DepositTab setActiveTab={jest.fn()} />);
     });
 
     expect(screen.getByText("LOCAL CURRENCY")).toBeInTheDocument();
     expect(screen.getByText("Nigerian naira")).toBeInTheDocument();
-    expect(screen.getByText("Bank transfer")).toBeInTheDocument();
-    expect(screen.getByText("Amount shown before checkout")).toBeInTheDocument();
+    expect(screen.getByText("Card · bank transfer")).toBeInTheDocument();
 
     expect(screen.getByText("ON-CHAIN")).toBeInTheDocument();
-    expect(screen.getByText("Review the live minimum, send a supported asset, and submit its transaction for verification.")).toBeInTheDocument();
-    expect(screen.getByText("USDC")).toBeInTheDocument();
-    expect(screen.getByText("USDT")).toBeInTheDocument();
-    expect(screen.getByText("ADA")).toBeInTheDocument();
-    expect(screen.getByText("Solana")).toBeInTheDocument();
-    expect(screen.getByText("Cardano")).toBeInTheDocument();
+    expect(screen.getByText("EVM · Solana · Cardano")).toBeInTheDocument();
+    expect(screen.getByText("USDC · USDT · ADA")).toBeInTheDocument();
+    expect(screen.getByText("EVM · Solana · Cardano")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Deposit with crypto or Web3" }));
     expect(screen.getByTestId("web3-deposit-view")).toBeInTheDocument();

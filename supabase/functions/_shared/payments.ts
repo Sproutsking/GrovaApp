@@ -145,6 +145,54 @@ export const supabaseAdmin = () =>
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
+export async function resolvePaymentPrice(
+  db: ReturnType<typeof supabaseAdmin>,
+  productAmountUSD: number,
+  inviteCodeId?: unknown,
+): Promise<{ amountUSD: number; inviteCodeId: string | null }> {
+  if (!Number.isFinite(productAmountUSD) || productAmountUSD <= 0) {
+    throw new Error("The payment product has an invalid price.");
+  }
+  if (inviteCodeId == null || inviteCodeId === "") {
+    return { amountUSD: productAmountUSD, inviteCodeId: null };
+  }
+  if (typeof inviteCodeId !== "string"
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inviteCodeId)) {
+    throw new Error("The invitation code is invalid.");
+  }
+
+  const { data: invite, error } = await db
+    .from("invite_codes")
+    .select("id,status,expires_at,max_uses,uses_count,entry_price,price_override,metadata")
+    .eq("id", inviteCodeId)
+    .maybeSingle();
+  if (error) throw new Error(`Could not verify the invitation price: ${error.message}`);
+  if (!invite || invite.status !== "active") {
+    throw new Error("This invitation code is no longer active.");
+  }
+  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) {
+    throw new Error("This invitation code has expired.");
+  }
+  if (invite.max_uses != null && Number(invite.uses_count) >= Number(invite.max_uses)) {
+    throw new Error("This invitation code has reached its usage limit.");
+  }
+
+  const metadata = invite.metadata && typeof invite.metadata === "object"
+    ? invite.metadata as Record<string, unknown>
+    : {};
+  const priceValue = invite.price_override != null
+    ? invite.price_override
+    : metadata.entry_price_cents != null
+      ? Number(metadata.entry_price_cents) / 100
+      : invite.entry_price;
+  const amountUSD = Number(priceValue);
+  if (!Number.isFinite(amountUSD) || amountUSD <= 0 || amountUSD > productAmountUSD * 10) {
+    throw new Error("This invitation does not have a valid paid entry price.");
+  }
+
+  return { amountUSD, inviteCodeId: invite.id };
+}
+
 // ── 5. Response helpers ───────────────────────────────────────────────────────
 export function jsonResponse(
   data:    unknown,

@@ -12,19 +12,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as OTPAuth from "https://esm.sh/otpauth@9.1.4";
+import {
+  decryptTwoFactorSecret,
+  encryptTwoFactorSecret,
+  getConfiguredTwoFactorKey,
+  requireStrongTwoFactorKey,
+} from "../_shared/twoFactor.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Decrypt the stored secret
-function decryptSecret(encryptedSecret: string, key: string): string {
-  const decoded = atob(encryptedSecret);
-  return decoded.split("").map((c, i) =>
-    String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length))
-  ).join("");
-}
 
 // Constant-time string comparison to prevent timing attacks
 function safeCompare(a: string, b: string): boolean {
@@ -77,12 +75,19 @@ serve(async (req) => {
 
     // Rate limit check — max 5 attempts per 5 minutes
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { count: recentAttempts } = await supabaseAdmin
+    const { count: recentAttempts, error: rateLimitError } = await supabaseAdmin
       .from("security_events")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .in("event_type", ["2fa_failed", "2fa_verified"])
       .gte("created_at", fiveMinAgo);
+
+    if (rateLimitError) {
+      console.error("[verify-2fa-setup] Could not verify rate limit:", rateLimitError.message);
+      return new Response(JSON.stringify({ error: "Could not verify account security status. Try again shortly." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if ((recentAttempts || 0) >= 5) {
       return new Response(
@@ -111,8 +116,9 @@ serve(async (req) => {
     }
 
     // Decrypt and verify
-    const encryptionKey = Deno.env.get("TWO_FA_ENCRYPTION_KEY") || "xeevia-2fa-default-key-change-me";
-    const secret        = decryptSecret(tfaRow.secret, encryptionKey);
+    const encryptionKey = getConfiguredTwoFactorKey();
+    const decrypted = await decryptTwoFactorSecret(tfaRow.secret, encryptionKey);
+    const secret = decrypted.secret;
 
     const totp  = new OTPAuth.TOTP({
       algorithm: "SHA1",
@@ -127,22 +133,28 @@ serve(async (req) => {
 
     if (!isValid) {
       // Log failed attempt
-      await supabaseAdmin.from("security_events").insert({
+      const { error: failedEventError } = await supabaseAdmin.from("security_events").insert({
         user_id:    user.id,
         event_type: "2fa_failed",
         severity:   "warning",
         metadata:   { context: "setup" },
-      }).catch(() => {});
+      });
+      if (failedEventError) console.error("[verify-2fa-setup] Could not record failed verification:", failedEventError.message);
 
       return new Response(JSON.stringify({ success: false, error: "Invalid code. Check your authenticator app and try again." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const encryptedSecret = decrypted.legacy
+      ? await encryptTwoFactorSecret(secret, requireStrongTwoFactorKey(encryptionKey))
+      : tfaRow.secret;
+
     // Enable 2FA
     const { error: enableErr } = await supabaseAdmin
       .from("two_factor_auth")
       .update({
+        secret:      encryptedSecret,
         enabled:     true,
         verified_at: new Date().toISOString(),
         last_used:   new Date().toISOString(),
@@ -157,19 +169,25 @@ serve(async (req) => {
     }
 
     // Update profiles to require 2FA
-    await supabaseAdmin
+    const { error: profileUpdateError } = await supabaseAdmin
       .from("profiles")
       .update({ require_2fa: true, updated_at: new Date().toISOString() })
-      .eq("id", user.id)
-      .catch(() => {});
+      .eq("id", user.id);
+    if (profileUpdateError) {
+      console.error("[verify-2fa-setup] Could not require 2FA on profile:", profileUpdateError.message);
+      return new Response(JSON.stringify({ error: "2FA is enabled, but account security settings could not be updated. Contact support." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Log success
-    await supabaseAdmin.from("security_events").insert({
+    const { error: enabledEventError } = await supabaseAdmin.from("security_events").insert({
       user_id:    user.id,
       event_type: "2fa_enabled",
       severity:   "info",
       metadata:   { context: "setup_complete" },
-    }).catch(() => {});
+    });
+    if (enabledEventError) console.error("[verify-2fa-setup] Could not record successful setup:", enabledEventError.message);
 
     return new Response(
       JSON.stringify({ success: true, message: "2FA enabled successfully." }),

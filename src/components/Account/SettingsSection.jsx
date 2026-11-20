@@ -252,6 +252,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
     if (!userId) return;
     try {
       setLoading(true);
+      const pushProvider = await pushService.getProvider(userId);
 
       const [profileRes, boostRes, pushRes] = await Promise.allSettled([
         supabase.from("profiles")
@@ -266,6 +267,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
         supabase.from("push_subscriptions")
           .select("id")
           .eq("user_id", userId)
+          .eq("provider", pushProvider)
           .eq("is_active", true)
           .limit(1),
       ]);

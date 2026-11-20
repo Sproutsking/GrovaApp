@@ -100,6 +100,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const db = supabaseAdmin();
+  const { error: expiryError } = await db.rpc("expire_founders_card_orders");
+  if (expiryError) {
+    console.error("[paystack-webhook] Could not expire stale founders-card reservations:", expiryError.message);
+  }
 
   // ── 4. Extract fields ─────────────────────────────────────────────────────
   const reference     = String(eventData.reference ?? "");
@@ -152,6 +156,176 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response("ok", { status: 200 });
   }
 
+  // Founders cards are assets, not account subscriptions. Fulfill this branch
+  // only from the order and amount captured when Paystack checkout was created.
+  const purchaseKind = String(metadata.purchase_kind ?? "");
+  const paymentPurpose = String(metadata.payment_purpose ?? "");
+  const foundersOrderId = String(metadata.founders_order_id ?? "");
+  const isFoundersCardPurchase = purchaseKind === "founders_card"
+    || paymentPurpose === "founders_card_purchase"
+    || Boolean(foundersOrderId);
+  if (isFoundersCardPurchase) {
+    if (
+      !foundersOrderId
+      || (purchaseKind !== "founders_card" && paymentPurpose !== "founders_card_purchase")
+    ) {
+      console.error(`[paystack-webhook] Incomplete founders-card metadata ref=${reference}`);
+      await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+      return new Response("ok", { status: 200 });
+    }
+
+    const { data: order, error: orderErr } = await db
+      .from("founders_card_orders")
+      .select("id,user_id,status,provider,provider_reference,expires_at")
+      .eq("id", foundersOrderId)
+      .maybeSingle();
+    if (orderErr || !order || order.user_id !== resolvedUserId
+      || order.provider !== "paystack" || order.provider_reference !== reference) {
+      console.error(`[paystack-webhook] Founders-card order mismatch ref=${reference}`, orderErr?.message);
+      await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+      return new Response("ok", { status: 200 });
+    }
+
+    const { data: cardPayment, error: cardPaymentErr } = await db
+      .from("founders_card_payments")
+      .select("id,amount_minor,currency,status")
+      .eq("order_id", order.id)
+      .eq("provider", "paystack")
+      .eq("provider_reference", reference)
+      .maybeSingle();
+    if (cardPaymentErr || !cardPayment
+      || Number(cardPayment.amount_minor) !== amountCents
+      || cardPayment.currency !== currency
+      || !["initializing", "pending", "completed", "failed", "refund_required", "refund_pending", "refunded"].includes(cardPayment.status)) {
+      console.error(`[paystack-webhook] Founders-card amount/payment mismatch ref=${reference}`, cardPaymentErr?.message);
+      await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+      return new Response("ok", { status: 200 });
+    }
+
+    if (order.status === "paid") {
+      await logWebhookEvent(db, eventType, reference, eventData, true, null, resolvedUserId);
+      return new Response("ok", { status: 200 });
+    }
+
+    if (order.status !== "pending" || new Date(order.expires_at) <= new Date()) {
+      if (cardPayment.status === "refunded" || cardPayment.status === "refund_pending") {
+        await logWebhookEvent(db, eventType, reference, eventData, true, null, resolvedUserId);
+        return new Response("ok", { status: 200 });
+      }
+
+      let refundStatus = "refund_required";
+      let refundFailure = "Reservation expired after payment; refund needs manual follow-up.";
+      let followupRecorded = false;
+      const { data: policy, error: policyError } = await db
+        .from("founders_card_policy")
+        .select("late_paystack_action")
+        .eq("singleton", true)
+        .maybeSingle();
+      if (policyError || !policy) {
+        refundFailure = `Could not load the late-payment policy; manual refund follow-up required. ${policyError?.message ?? ""}`.trim();
+      } else if (policy.late_paystack_action === "manual_review") {
+        refundFailure = "Reservation expired after payment; manual refund requested by founders-card policy.";
+        followupRecorded = true;
+      } else {
+        try {
+          const refundResponse = await fetch("https://api.paystack.co/refund", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              transaction: reference,
+              amount: amountCents,
+              customer_note: "Founders Card reservation expired before payment was confirmed.",
+            }),
+          });
+          const refundResult = await refundResponse.json() as {
+            status?: boolean;
+            message?: string;
+            data?: { status?: string };
+          };
+          const providerStatus = String(refundResult.data?.status ?? "").toLowerCase();
+          if (refundResponse.ok && refundResult.status) {
+            if (providerStatus === "processed") {
+              refundStatus = "refunded";
+              refundFailure = "";
+            } else if (providerStatus === "failed" || providerStatus === "needs-attention") {
+              refundFailure = `Paystack refund status: ${providerStatus}.`;
+            } else {
+              refundStatus = "refund_pending";
+              refundFailure = `Paystack refund status: ${providerStatus || "pending confirmation"}.`;
+            }
+          } else {
+            refundFailure = refundResult.message || `Paystack refund request failed (${refundResponse.status}).`;
+          }
+        } catch (refundError) {
+          refundFailure = refundError instanceof Error
+            ? `Paystack refund request failed: ${refundError.message}`
+            : "Paystack refund request failed.";
+        }
+      }
+
+      const { error: refundUpdateError } = await db
+        .from("founders_card_payments")
+        .update({
+          status: refundStatus,
+          failure_reason: refundFailure || null,
+        })
+        .eq("id", cardPayment.id);
+      if (refundUpdateError) {
+        console.error(`[paystack-webhook] Could not save late-payment refund status ref=${reference}:`, refundUpdateError.message);
+        await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+      } else {
+        await logWebhookEvent(db, eventType, reference, eventData, refundStatus !== "refund_required" || followupRecorded, null, resolvedUserId);
+      }
+      console.error(`[paystack-webhook] Late founders-card payment ref=${reference}; status=${refundStatus}; ${refundFailure}`);
+      return new Response("ok", { status: 200 });
+    }
+
+    const { error: settleError } = await db.rpc("settle_founders_card_order", {
+      p_order_id: order.id,
+      p_provider: "paystack",
+      p_provider_reference: reference,
+      p_amount_minor: amountCents,
+      p_currency: currency,
+    });
+    if (settleError) {
+      console.error(`[paystack-webhook] Founders-card settlement failed ref=${reference}:`, settleError.message);
+      await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+      return new Response("ok", { status: 200 });
+    }
+
+    await logWebhookEvent(db, eventType, reference, eventData, true, null, resolvedUserId);
+    console.log(`[paystack-webhook] ✅ Founders card order=${order.id} settled ref=${reference}`);
+    return new Response("ok", { status: 200 });
+  }
+
+  const { data: paymentIntent, error: paymentIntentError } = await db
+    .from("payment_intents")
+    .select("user_id,product_id,provider,provider_session,amount_cents,currency,status,metadata")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (paymentIntentError) {
+    console.error(`[paystack-webhook] Could not verify payment intent ref=${reference}:`, paymentIntentError.message);
+    return new Response("Temporary payment verification failure.", { status: 503 });
+  }
+  if (
+    !paymentIntent ||
+    paymentIntent.user_id !== resolvedUserId ||
+    paymentIntent.product_id !== productId ||
+    paymentIntent.provider !== "paystack" ||
+    paymentIntent.provider_session !== reference ||
+    !["created", "redirected", "completed"].includes(paymentIntent.status) ||
+    Number(paymentIntent.amount_cents) !== amountCents ||
+    String(paymentIntent.currency).toUpperCase() !== currency.toUpperCase() ||
+    currency.toUpperCase() !== "NGN"
+  ) {
+    console.error(`[paystack-webhook] Payment intent mismatch ref=${reference}`);
+    await logWebhookEvent(db, eventType, reference, eventData, false, null, resolvedUserId);
+    return new Response("ok", { status: 200 });
+  }
+
   // ── 7. Resolve product ────────────────────────────────────────────────────
   let resolvedProductId = productId;
   let productMeta: Record<string, unknown> = {};
@@ -200,6 +374,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         paystack_reference: reference,
         customer_email:     customerEmail,
         tier:               resolvedTier,
+        invite_code_id:     paymentIntent.metadata?.invite_code_id ?? null,
       },
     };
     if (resolvedProductId) payRecord["product_id"] = resolvedProductId;
@@ -235,16 +410,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // DON'T return error — Paystack would retry → duplicate payments
   }
 
+  if (!activationError && typeof paymentIntent.metadata?.invite_code_id === "string") {
+    const { error: inviteUseError } = await db.rpc("increment_invite_uses", {
+      p_invite_id: paymentIntent.metadata.invite_code_id,
+    });
+    if (inviteUseError) {
+      console.error(`[paystack-webhook] Could not update invite usage for ref=${reference}:`, inviteUseError.message);
+    }
+  }
+
   // ── 10. Mark payment_intent completed ────────────────────────────────────
-  await db
+  const { error: intentUpdateError } = await db
     .from("payment_intents")
     .update({ status: "completed" })
     .eq("idempotency_key", idempotencyKey)
-    .eq("user_id", resolvedUserId)
-    .then(() => {})
-    .catch((e) =>
-      console.warn("[paystack-webhook] Intent update non-fatal:", e)
-    );
+    .eq("user_id", resolvedUserId);
+  if (intentUpdateError) {
+    console.error("[paystack-webhook] Could not mark payment intent complete:", intentUpdateError.message);
+  }
 
   // ── 11. Log webhook event ─────────────────────────────────────────────────
   await logWebhookEvent(

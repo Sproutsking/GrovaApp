@@ -26,7 +26,7 @@ class ProfileService {
       // Get wallet data
       const { data: walletData, error: walletError } = await supabase
         .from("wallets")
-        .select("*")
+        .select("user_id,xev_tokens,engagement_points")
         .eq("user_id", userId)
         .single();
 

@@ -572,14 +572,14 @@ export async function grantDepositEP(userId, ngnAmount, paymentId = null) {
     // [PUSH-1] Push wallet credit notification to user
     try {
       const epGranted = result.ep_granted ?? result.epGranted ?? 0;
-      if (epGranted > 0) {
+      if (epGranted > 0 && paymentId) {
         await pushService.sendPushToUser({
           recipientUserId: userId,
-          actorUserId:     'system',
+          actorUserId:     userId,
           type:            'payment_confirmed',
           title:           '💳 Deposit confirmed',
           message:         `Your deposit of ₦${ngnAmount.toLocaleString()} was successful. ${epGranted} EP added.`,
-          entityId:        null,
+          entityId:        paymentId,
           metadata: {
             notification_id: `deposit_${userId}_${Date.now()}`,
             url:             '/account',

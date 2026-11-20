@@ -1,18 +1,8 @@
 // src/components/Modals/PinSetupModal.jsx
-// ============================================================================
-// FIXES:
-//  [PIN-1] supabase .update().eq() returns a thenable, NOT a Promise with .catch()
-//          All DB calls now use async/await + try/catch — never .catch() chaining
-//  [PIN-2] PIN hash uses a proper PBKDF2-style approach (userId salt + pin)
-//          instead of raw btoa which is trivially reversible
-//  [PIN-3] Old PIN verification reads the stored hash and compares correctly
-//  [PIN-4] Security event insert also uses try/catch not .catch()
-//  [PIN-5] After successful save, wallet re-queried to confirm write
-// ============================================================================
-
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Lock, X, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import TwoFactorSetupModal from "./TwoFactorSetupModal";
 
 const PIN_OPTS = [
   { n: 4,  label: "Basic",    bars: 1 },
@@ -20,17 +10,6 @@ const PIN_OPTS = [
   { n: 8,  label: "Strong",   bars: 3 },
   { n: 12, label: "Max",      bars: 4 },
 ];
-
-// [PIN-2] Deterministic but salted hash — not cryptographic gold but
-// far better than raw btoa. In production swap for bcrypt via edge function.
-async function hashPin(pin, userId) {
-  const salt   = userId.replace(/-/g, "").slice(0, 16).padEnd(16, "x");
-  const data   = new TextEncoder().encode(pin + salt);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export default function PinSetupModal({ userId, hasPin, currentPinLength, onClose, onSuccess }) {
   const [step, setStep]   = useState("choose");
@@ -42,6 +21,11 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
   const [busy, setBusy]   = useState(false);
   const [done, setDone]   = useState(false);
   const [shake, setShake] = useState(false);
+  const [stepUpCode, setStepUpCode] = useState("");
+  const [stepUpToken, setStepUpToken] = useState("");
+  const [stepUpEnabled, setStepUpEnabled] = useState(false);
+  const [stepUpBusy, setStepUpBusy] = useState(false);
+  const [twoFactorSetupOpen, setTwoFactorSetupOpen] = useState(false);
   const hidRef            = useRef(null);
   const mountedRef        = useRef(true);
 
@@ -65,7 +49,6 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
   const steps  = hasPin ? 3 : 2;
   const stepN  = phase === "old" ? 1 : phase === "new" ? (hasPin ? 2 : 1) : (hasPin ? 3 : 2);
 
-  // [PIN-1] Main advance function — pure async/await, no .catch() chaining
   const advance = useCallback(async (arr) => {
     if (phase === "old")    { setPhase("new");     return; }
     if (phase === "new")    { setPhase("confirm");  return; }
@@ -85,69 +68,33 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
     try {
       setBusy(true);
       setErr("");
-
-      // [PIN-3] Verify old PIN if changing
-      if (hasPin && vals.old.length > 0) {
-        const { data: wallet, error: wErr } = await supabase
-          .from("wallets")
-          .select("withdrawal_pin_hash")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (wErr) throw new Error("Could not verify current PIN. Please try again.");
-
-        if (wallet?.withdrawal_pin_hash) {
-          const oldHash = await hashPin(vals.old.join(""), userId);
-          if (wallet.withdrawal_pin_hash !== oldHash) {
-            setErr("Current PIN is incorrect");
-            doShake();
-            setVals((p) => ({ ...p, old: [] }));
-            setPhase("old");
-            setBusy(false);
-            return;
-          }
-        }
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || authData.user?.id !== userId) {
+        throw new Error("Your session changed. Sign in again before updating your PIN.");
       }
-
-      // [PIN-2] Hash the new PIN
-      const newHash = await hashPin(newStr, userId);
-
-      // [PIN-1] Update wallet — await, no .catch()
-      const { error: updateErr } = await supabase
-        .from("wallets")
-        .update({
-          withdrawal_pin_hash: newHash,
-          pin_length:          len,
-          pin_attempts:        0,
-          pin_locked_until:    null,
-          updated_at:          new Date().toISOString(),
-        })
-        .eq("user_id", userId);
-
-      if (updateErr) throw updateErr;
-
-      // [PIN-4] Log security event — await, no .catch()
-      const { error: evtErr } = await supabase
-        .from("security_events")
-        .insert({
-          user_id:    userId,
-          event_type: "withdrawal_pin_set",
-          severity:   "info",
-          metadata:   { pin_length: len, changed: hasPin },
-        });
-
-      // Security event failure is non-fatal — log but continue
-      if (evtErr) console.warn("[PinSetup] Security event log failed:", evtErr.message);
-
-      // [PIN-5] Confirm the write succeeded
-      const { data: confirm } = await supabase
-        .from("wallets")
-        .select("withdrawal_pin_hash, pin_length")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (!confirm?.withdrawal_pin_hash) {
-        throw new Error("PIN was not saved correctly. Please try again.");
+      const { data, error: updateError } = await supabase.rpc("set_transaction_pin", {
+        p_new_pin: newStr,
+        p_current_pin: hasPin ? vals.old.join("") : null,
+        p_pin_length: len,
+        p_authorization_token: stepUpToken,
+      });
+      if (updateError) throw updateError;
+      if (!data?.success) {
+        if (data?.code === "STEP_UP_REQUIRED") {
+          setStepUpToken("");
+          setVals({ old: [], new: [], confirm: [] });
+          setStep("stepup");
+          setStepUpCode("");
+          setErr(data.error || "Verify again to continue changing your PIN.");
+          return;
+        }
+        setErr(data?.error || "Could not update the transaction PIN.");
+        if (hasPin) {
+          doShake();
+          setVals({ old: [], new: [], confirm: [] });
+          setPhase("old");
+        }
+        return;
       }
 
       if (mountedRef.current) {
@@ -168,7 +115,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
     } finally {
       if (mountedRef.current) setBusy(false);
     }
-  }, [phase, vals, len, hasPin, userId, onSuccess, onClose]); // eslint-disable-line
+  }, [phase, vals, len, hasPin, userId, onSuccess, onClose, stepUpToken]); // eslint-disable-line
 
   const push = (d) => {
     if (cur.length >= target || busy || done) return;
@@ -187,7 +134,120 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
   const phLabel = { old: "Current PIN", new: `New ${len}-digit PIN`, confirm: "Confirm New PIN" }[phase];
   const phSub   = { old: "Verify your identity", new: "Choose carefully — don't share this", confirm: "Re-enter to confirm" }[phase];
 
+  const beginPinFlow = async () => {
+    try {
+      setBusy(true);
+      setErr("");
+      const { data: twoFactor, error: twoFactorError } = await supabase
+        .from("two_factor_auth")
+        .select("enabled")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (twoFactorError) throw twoFactorError;
+      setStepUpEnabled(Boolean(twoFactor?.enabled));
+      setStep("stepup");
+    } catch (error) {
+      setErr(error.message || "Could not check authenticator status.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyStepUp = async () => {
+    if (!/^\d{6}$/.test(stepUpCode)) {
+      setErr("Enter the current 6-digit authenticator code.");
+      return;
+    }
+    try {
+      setStepUpBusy(true);
+      setErr("");
+      const { data, error } = await supabase.functions.invoke("verify-2fa-login", {
+        body: { token: stepUpCode, purpose: "transaction_pin_change" },
+      });
+      if (error) throw new Error(error.message || "Authenticator verification failed.");
+      if (!data?.success || !data.authorizationToken) {
+        throw new Error(data?.error || "Could not authorize this PIN change.");
+      }
+      setStepUpToken(data.authorizationToken);
+      setStep("enter");
+      setPhase(hasPin ? "old" : "new");
+      setStepUpCode("");
+    } catch (error) {
+      setErr(error.message || "Authenticator verification failed.");
+      setStepUpCode("");
+    } finally {
+      setStepUpBusy(false);
+    }
+  };
+
   // ── CHOOSE SCREEN ─────────────────────────────────────────────────────────
+  if (step === "stepup" && twoFactorSetupOpen) {
+    return (
+      <TwoFactorSetupModal
+        show
+        userId={userId}
+        onClose={() => setTwoFactorSetupOpen(false)}
+        onSuccess={() => {
+          setStepUpEnabled(true);
+          setStepUpCode("");
+          setErr("");
+        }}
+      />
+    );
+  }
+
+  if (step === "stepup") return (
+    <Wrap onClose={onClose}>
+      <Card>
+        <Hdr title="Confirm it’s you" sub="Authenticator confirmation required" onClose={onClose} />
+        <div style={{ padding: "16px" }}>
+          <div style={{ fontSize: 13, lineHeight: 1.6, color: "#b5b5b5", marginBottom: 14 }}>
+            You're authorizing a {hasPin ? "transaction PIN change" : "new transaction PIN"}. This one-time confirmation expires in five minutes and returns you to this step.
+          </div>
+          {!stepUpEnabled ? (
+            <>
+              <div role="alert" style={{ fontSize: 12, lineHeight: 1.6, color: "#fbbf24", marginBottom: 14 }}>
+                Set up an authenticator app first. Your PIN flow will remain here while you do.
+              </div>
+              <PBtn onClick={() => setTwoFactorSetupOpen(true)}>
+                <Lock size={13} /> Set up authenticator
+              </PBtn>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={stepUpCode}
+                onChange={(event) => {
+                  setStepUpCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                  setErr("");
+                }}
+                aria-label="Authenticator code"
+                placeholder="6-digit authenticator code"
+                style={{
+                  width: "100%", boxSizing: "border-box", padding: "13px 12px", marginBottom: 12,
+                  borderRadius: 9, border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.04)",
+                  color: "#fff", fontSize: 18, letterSpacing: ".35em", textAlign: "center",
+                }}
+              />
+              <PBtn onClick={verifyStepUp} disabled={stepUpBusy || stepUpCode.length !== 6}>
+                <Lock size={13} /> {stepUpBusy ? "Verifying…" : "Verify and continue"}
+              </PBtn>
+            </>
+          )}
+          {err && <div role="alert" style={{ marginTop: 10, color: "#f87171", fontSize: 12 }}>{err}</div>}
+          <button onClick={() => setStep("choose")} style={{
+            width: "100%", marginTop: 10, padding: 8, background: "transparent",
+            border: "1px solid rgba(255,255,255,.05)", borderRadius: 7, color: "#777", fontSize: 11,
+          }}>Back to PIN settings</button>
+        </div>
+      </Card>
+    </Wrap>
+  );
+
   if (step === "choose") return (
     <Wrap onClose={onClose}>
       <Card>
@@ -242,7 +302,7 @@ export default function PinSetupModal({ userId, hasPin, currentPinLength, onClos
             💡 Your PIN protects all wallet transactions. You'll need it every time you withdraw or transfer funds.
           </div>
 
-          <PBtn onClick={() => { setStep("enter"); setPhase(hasPin ? "old" : "new"); }}>
+          <PBtn onClick={beginPinFlow} disabled={busy}>
             <Lock size={13} /> Continue with {len}-digit PIN
           </PBtn>
         </div>
@@ -505,8 +565,8 @@ const Hdr = ({ title, sub, onClose }) => (
   </div>
 );
 
-const PBtn = ({ onClick, children }) => (
-  <button onClick={onClick} style={{
+const PBtn = ({ onClick, children, disabled = false }) => (
+  <button onClick={onClick} disabled={disabled} style={{
     width:          "100%",
     padding:        "12px",
     borderRadius:   11,
@@ -515,7 +575,8 @@ const PBtn = ({ onClick, children }) => (
     color:          "#000",
     fontSize:       13.5,
     fontWeight:     800,
-    cursor:         "pointer",
+    cursor:         disabled ? "not-allowed" : "pointer",
+    opacity:        disabled ? 0.6 : 1,
     display:        "flex",
     alignItems:     "center",
     justifyContent: "center",
@@ -523,8 +584,8 @@ const PBtn = ({ onClick, children }) => (
     boxShadow:      "0 4px 16px rgba(132,204,22,.28)",
     transition:     "all .15s",
   }}
-    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 22px rgba(132,204,22,.38)"; }}
-    onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(132,204,22,.28)"; }}
+    onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 22px rgba(132,204,22,.38)"; } }}
+    onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(132,204,22,.28)"; } }}
   >
     {children}
   </button>

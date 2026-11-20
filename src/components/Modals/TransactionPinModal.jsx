@@ -3,6 +3,7 @@
 // ============================================================================
 import React, { useState, useEffect, useRef } from "react";
 import { Lock, X, AlertCircle, CheckCircle } from "lucide-react";
+import { supabase } from "../../services/config/supabase";
 
 const TransactionPinModal = ({
   amount,
@@ -14,18 +15,45 @@ const TransactionPinModal = ({
   icon,
   title,
 }) => {
-  const [pin, setPin] = useState(["", "", "", ""]);
+  const [pin, setPin] = useState([]);
+  const [pinLength, setPinLength] = useState(null);
+  const [loadingPinStatus, setLoadingPinStatus] = useState(true);
   const [error, setError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const inputRefs = useRef([]);
+  const processingRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    supabase.rpc("get_transaction_pin_status").then(({ data, error: statusError }) => {
+      if (!active) return;
+      setLoadingPinStatus(false);
+      if (statusError) {
+        setError(statusError.message || "Could not check transaction PIN status.");
+        return;
+      }
+      if (!data?.has_pin) {
+        setError("Set a transaction PIN in Wallet Settings before confirming transactions.");
+        return;
+      }
+      const length = Math.min(12, Math.max(4, Number(data.pin_length) || 4));
+      setPinLength(length);
+      setPin(Array(length).fill(""));
+    }).catch((statusError) => {
+      if (!active) return;
+      setLoadingPinStatus(false);
+      setError(statusError.message || "Could not check transaction PIN status.");
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
-  }, []);
+  }, [pinLength]);
 
   const getTitle = () => {
     if (title) return title;
@@ -77,7 +105,7 @@ const TransactionPinModal = ({
     setError("");
 
     // Auto-focus next input
-    if (value && index < 3 && inputRefs.current[index + 1]) {
+    if (value && index < pin.length - 1 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1].focus();
     }
 
@@ -97,7 +125,7 @@ const TransactionPinModal = ({
     } else if (e.key === "ArrowLeft" && index > 0) {
       e.preventDefault();
       inputRefs.current[index - 1].focus();
-    } else if (e.key === "ArrowRight" && index < 3) {
+    } else if (e.key === "ArrowRight" && index < pin.length - 1) {
       e.preventDefault();
       inputRefs.current[index + 1].focus();
     }
@@ -107,7 +135,7 @@ const TransactionPinModal = ({
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").trim();
 
-    if (/^\d{4}$/.test(pasted)) {
+    if (pinLength && new RegExp(`^\\d{${pinLength}}$`).test(pasted)) {
       const digits = pasted.split("");
       setPin(digits);
       setError("");
@@ -116,11 +144,13 @@ const TransactionPinModal = ({
   };
 
   const handleSubmit = async (pinValue) => {
-    if (pinValue.length !== 4) {
+    if (processingRef.current) return;
+    if (!pinLength || pinValue.length !== pinLength) {
       setError("Please enter complete PIN");
       return;
     }
 
+    processingRef.current = true;
     setIsProcessing(true);
     setError("");
 
@@ -132,12 +162,17 @@ const TransactionPinModal = ({
       }, 1200);
     } catch (err) {
       setError(err.message || "Invalid PIN. Please try again.");
-      setPin(["", "", "", ""]);
+      setPin(Array(pinLength || 4).fill(""));
+      processingRef.current = false;
       setIsProcessing(false);
       if (inputRefs.current[0]) {
         inputRefs.current[0].focus();
       }
     }
+  };
+
+  const closeModal = () => {
+    if (!processingRef.current) onClose();
   };
 
   useEffect(() => {
@@ -150,10 +185,10 @@ const TransactionPinModal = ({
   const IconComponent = icon || Lock;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={closeModal}>
       <div className="transaction-modal" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
-        <button className="close-modal-btn" onClick={onClose}>
+        <button className="close-modal-btn" onClick={closeModal} disabled={isProcessing || success}>
           <X size={18} />
         </button>
 
@@ -176,9 +211,13 @@ const TransactionPinModal = ({
 
         {/* PIN Input */}
         <div className="pin-section">
-          <label className="pin-label">Enter PIN</label>
-          <div className="pin-inputs" onPaste={handlePaste}>
-            {pin.map((digit, index) => (
+          {loadingPinStatus ? (
+            <div className="pin-label" role="status">Checking transaction PIN…</div>
+          ) : pinLength ? (
+            <>
+              <label className="pin-label">Enter {pinLength}-digit PIN</label>
+              <div className="pin-inputs" onPaste={handlePaste}>
+                {pin.map((digit, index) => (
               <input
                 key={index}
                 ref={(el) => (inputRefs.current[index] = el)}
@@ -188,13 +227,18 @@ const TransactionPinModal = ({
                 maxLength={1}
                 autoComplete="one-time-code"
                 className={`pin-box ${digit ? "filled" : ""} ${error ? "error" : ""} ${success ? "success" : ""}`}
+                style={pinLength > 8 ? { width: 25, height: 40, fontSize: 18 } : pinLength > 6 ? { width: 36, height: 48, fontSize: 22 } : undefined}
                 value={digit}
                 onChange={(e) => handleInputChange(index, e.target.value)}
                 onKeyDown={(e) => handleInputKeyDown(index, e)}
                 disabled={isProcessing || success}
               />
-            ))}
-          </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="pin-label" role="alert">{error}</div>
+          )}
         </div>
 
         {/* Error */}
@@ -209,7 +253,7 @@ const TransactionPinModal = ({
         {success && (
           <div className="alert alert-success">
             <CheckCircle size={16} />
-            <span>Transaction successful!</span>
+            <span>PIN accepted.</span>
           </div>
         )}
 

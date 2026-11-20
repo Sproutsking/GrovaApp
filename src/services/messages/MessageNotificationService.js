@@ -233,6 +233,7 @@ class MessageNotificationService {
         recipientUserId: calleeId,
         actorUserId: this._userId,
         type: "incoming_call",
+        entityId: callId || null,
         title: `📞 ${callerName || "Someone"} is calling`,
         message: groupName
           ? `Group ${callType === "video" ? "video" : "voice"} call`

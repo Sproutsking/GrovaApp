@@ -21,14 +21,16 @@ const PushPermissionNudge = memo(({ userId }) => {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (!pushService.isSupported()) return;
     if (Notification.permission !== "default") return;
     if (!isPromptDue("push")) return;
 
-    const showNudge = () => {
-      setVisible(true);
+    const showNudge = async () => {
+      const provider = await pushService.getProvider(userId || window.__pushUserId);
+      if (provider !== "none") setVisible(true);
     };
 
     const handler = () => {
@@ -64,10 +66,19 @@ const PushPermissionNudge = memo(({ userId }) => {
       if (granted) {
         setVisible(false);
       } else {
-        handleDismiss();
+        const permission = pushService.getPermission();
+        setErrorMessage(
+          permission === "denied"
+            ? "Notifications are blocked in your browser settings."
+            : "Push notifications could not be enabled. Please try again or use Settings.",
+        );
       }
-    } catch {}
-    setRequesting(false);
+    } catch (error) {
+      console.error("[PushPermissionNudge] Could not enable notifications:", error);
+      setErrorMessage("Push notifications could not be enabled. Please try again or use Settings.");
+    } finally {
+      setRequesting(false);
+    }
   }, [effectiveUserId, requesting]);
 
   const handleDismiss = useCallback(() => {
@@ -137,6 +148,11 @@ const PushPermissionNudge = memo(({ userId }) => {
           <div style={{ fontSize: "calc((11px) + 1px)", color: "#555", lineHeight: 1.4 }}>
             Enable notifications for messages, calls and activity
           </div>
+          {errorMessage && (
+            <div role="alert" style={{ fontSize: "11px", color: "#fca5a5", marginTop: "5px" }}>
+              {errorMessage}
+            </div>
+          )}
         </div>
 
         <button

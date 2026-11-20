@@ -1,0 +1,57 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.119.2"
+  },
+  "remote": {
+    "https://deno.land/std@0.168.0/async/abortable.ts": "80b2ac399f142cc528f95a037a7d0e653296352d95c681e284533765961de409",
+    "https://deno.land/std@0.168.0/async/deadline.ts": "2c2deb53c7c28ca1dda7a3ad81e70508b1ebc25db52559de6b8636c9278fd41f",
+    "https://deno.land/std@0.168.0/async/debounce.ts": "60301ffb37e730cd2d6f9dadfd0ecb2a38857681bd7aaf6b0a106b06e5210a98",
+    "https://deno.land/std@0.168.0/async/deferred.ts": "77d3f84255c3627f1cc88699d8472b664d7635990d5358c4351623e098e917d6",
+    "https://deno.land/std@0.168.0/async/delay.ts": "5a9bfba8de38840308a7a33786a0155a7f6c1f7a859558ddcec5fe06e16daf57",
+    "https://deno.land/std@0.168.0/async/mod.ts": "7809ad4bb223e40f5fdc043e5c7ca04e0e25eed35c32c3c32e28697c553fa6d9",
+    "https://deno.land/std@0.168.0/async/mux_async_iterator.ts": "770a0ff26c59f8bbbda6b703a2235f04e379f73238e8d66a087edc68c2a2c35f",
+    "https://deno.land/std@0.168.0/async/pool.ts": "6854d8cd675a74c73391c82005cbbe4cc58183bddcd1fbbd7c2bcda42b61cf69",
+    "https://deno.land/std@0.168.0/async/retry.ts": "e8e5173623915bbc0ddc537698fa418cf875456c347eda1ed453528645b42e67",
+    "https://deno.land/std@0.168.0/async/tee.ts": "3a47cc4e9a940904fd4341f0224907e199121c80b831faa5ec2b054c6d2eff5e",
+    "https://deno.land/std@0.168.0/http/server.ts": "e99c1bee8a3f6571ee4cdeb2966efad465b8f6fe62bec1bdb59c1f007cc4d155",
+    "https://esm.sh/@supabase/supabase-js@2.119.2": "e7729dec88af13b1d17953717407c06705450383f619c26efa6d542b8f73f8c3"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@cloudflare/stream-react@^1.9.3",
+        "npm:@emailjs/browser@^4.4.1",
+        "npm:@emurgo/cardano-serialization-lib-browser@^15.0.3",
+        "npm:@fortawesome/fontawesome-free@^7.2.0",
+        "npm:@reown/appkit-adapter-ethers@^1.8.24",
+        "npm:@reown/appkit-adapter-solana@^1.8.24",
+        "npm:@reown/appkit-wallet-button@^1.8.24",
+        "npm:@reown/appkit@^1.8.24",
+        "npm:@solana/spl-token@~0.4.14",
+        "npm:@solana/web3.js@^1.98.4",
+        "npm:@supabase/supabase-js@^2.90.1",
+        "npm:@testing-library/dom@^10.4.1",
+        "npm:@testing-library/jest-dom@^6.9.1",
+        "npm:@testing-library/react@^16.3.1",
+        "npm:@testing-library/user-event@^13.5.0",
+        "npm:cross-env@^7.0.3",
+        "npm:crypto-js@^4.2.0",
+        "npm:ethers@^6.17.0",
+        "npm:js-sha256@~0.11.1",
+        "npm:lucide-react@0.562",
+        "npm:otpauth@^9.4.1",
+        "npm:qrcode@^1.5.4",
+        "npm:react-dom@^18.3.1",
+        "npm:react-icons@^5.7.0",
+        "npm:react-player@^3.4.0",
+        "npm:react-qr-code@^2.0.18",
+        "npm:react-scripts@^5.0.1",
+        "npm:react@^18.3.1",
+        "npm:viem@^2.55.13",
+        "npm:web-vitals@^2.1.4",
+        "npm:zustand@^5.0.15"
+      ]
+    }
+  }
+}

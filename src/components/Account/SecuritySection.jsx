@@ -15,7 +15,7 @@
 // ============================================================================
 import React, { useState, useEffect, useCallback, memo } from "react";
 import {
-  Shield, Smartphone, Key, Lock, AlertTriangle, CheckCircle, Loader,
+  Shield, Smartphone, Lock, AlertTriangle, CheckCircle, Loader,
   Eye, EyeOff, Fingerprint, ShieldCheck, Clock, Globe, Trash2,
   AlertOctagon, Info, ChevronDown, ChevronRight, XCircle, RefreshCw,
   Monitor, MapPin, Wifi, Phone,
@@ -27,7 +27,6 @@ import TwoFAModal          from "../Modals/TwoFAModal";
 import StatusModal         from "../Modals/StatusModal";
 import ConfirmModal        from "../Modals/ConfirmModal";
 import PinSetupModal       from "../Modals/PinSetupModal";
-import RecoveryPhraseModal        from "../Modals/RecoveryPhraseModal";
 import PhoneVerificationModal     from "../Modals/PhoneVerificationModal";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -155,12 +154,8 @@ async function computeSecurityLevel(userId, profileData) {
   if (profileData?.phone_verified) level = Math.min(level + 1, 5);
 
   // PIN set (+0.5 → round up at level 3)
-  const { data: wallet } = await supabase
-    .from("wallets")
-    .select("withdrawal_pin_hash")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (wallet?.withdrawal_pin_hash) level = Math.min(level + 1, 5);
+  const { data: wallet } = await supabase.rpc("get_transaction_pin_status");
+  if (wallet?.has_pin) level = Math.min(level + 1, 5);
 
   return Math.max(1, Math.min(level, 5));
 }
@@ -173,7 +168,6 @@ const SecuritySection = ({ userId }) => {
   const [has2FA,      set2FA]         = useState(false);
   const [hasKey,      setKey]         = useState(false);
   const [hasPin,      setPin]         = useState(false);
-  const [hasPhrase,   setHasPhrase]   = useState(false);
   const [pinLen,      setPinLen]      = useState(null);
   const [phoneVer,    setPhoneVer]    = useState(false);
   const [failed,      setFailed]      = useState(0);
@@ -214,7 +208,6 @@ const SecuritySection = ({ userId }) => {
   // Modals
   const [m2faSetup, set2FASetup] = useState(false);
   const [mPin,      setMPin]     = useState(false);
-  const [mRec,      setMRec]     = useState(false);
   const [mPhone,    setMPhone]   = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [status,    setStatus]   = useState({ show: false, type: "success", message: "" });
@@ -233,10 +226,10 @@ const SecuritySection = ({ userId }) => {
       const { data: { session: curSess } } = await supabase.auth.getSession();
       setCurrentToken(curSess?.access_token || null);
 
-      const [pR, fR, wR, dR, sR, eR] = await Promise.allSettled([
+      const [pR, fR, pinR, dR, sR, eR] = await Promise.allSettled([
         supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
         supabase.from("two_factor_auth").select("enabled").eq("user_id", userId).maybeSingle(),
-        supabase.from("wallets").select("withdrawal_pin_hash,pin_length,recovery_phrase_encrypted").eq("user_id", userId).maybeSingle(),
+        supabase.rpc("get_transaction_pin_status"),
         supabase.from("trusted_devices").select("*").eq("user_id", userId).eq("revoked", false),
         supabase.from("user_sessions").select("*").eq("user_id", userId).eq("is_active", true).order("last_activity", { ascending: false }),
         supabase.from("security_events").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(6),
@@ -262,10 +255,9 @@ const SecuritySection = ({ userId }) => {
       const tfa = fR.status === "fulfilled" ? fR.value.data : null;
       set2FA(tfa?.enabled || false);
 
-      const wallet = wR.status === "fulfilled" ? wR.value.data : null;
-      setPin(!!wallet?.withdrawal_pin_hash);
-      setPinLen(wallet?.pin_length || null);
-      setHasPhrase(!!wallet?.recovery_phrase_encrypted);
+      const pinStatus = pinR.status === "fulfilled" ? pinR.value.data : null;
+      setPin(Boolean(pinStatus?.has_pin));
+      setPinLen(pinStatus?.pin_length || null);
 
       if (dR.status === "fulfilled") setDevices(dR.value.data || []);
       if (sR.status === "fulfilled") setSessions(sR.value.data || []);
@@ -532,15 +524,10 @@ const SecuritySection = ({ userId }) => {
             <div><strong>{failed}</strong> failed login attempt{failed > 1 ? "s" : ""} on your account</div>
           </div>
         )}
-        {!hasPhrase && (
-          <div className="sa amb" style={{ cursor: "pointer" }} onClick={() => setMRec(true)}>
-            <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <strong>Action required:</strong> Set up your recovery phrase to protect your wallet.{" "}
-              <span style={{ color: "#fbbf24", textDecoration: "underline", fontWeight: 700 }}>Set up now →</span>
-            </div>
-          </div>
-        )}
+        <div className="sa">
+          <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>This Xeevia account wallet does not issue a crypto recovery phrase. Never enter an external wallet's seed phrase into Xeevia.</div>
+        </div>
 
         {/* ── Security Score ── */}
         <div className="sc">
@@ -562,7 +549,6 @@ const SecuritySection = ({ userId }) => {
               ["2FA",    has2FA],
               ["Passkey", hasKey],
               ["PIN",     hasPin],
-              ["Phrase",  hasPhrase],
               ["Phone",   phoneVer],
             ].map(([l, ok]) => (
               <span key={l} className={`ck ${ok ? "g" : "rr"}`}>
@@ -658,14 +644,12 @@ const SecuritySection = ({ userId }) => {
           </span>
         </div>
 
-        <div className={`sr click ${hasPhrase ? "on" : ""}`} onClick={() => setMRec(true)}>
-          <div className="si a"><Key size={15} /></div>
+        <div className="sr">
+          <div className="si"><Shield size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p className="sl">Recovery Phrase</p>
+            <p className="sl">Crypto recovery phrase</p>
           </div>
-          <span className={`ck ${hasPhrase ? "g" : "a"}`}>
-            {hasPhrase ? <CheckCircle size={7} /> : <AlertTriangle size={7} />} {hasPhrase ? "Set" : "Missing"}
-          </span>
+          <span className="ck a">Not applicable</span>
         </div>
 
         {/* ── Account ── */}
@@ -891,13 +875,6 @@ const SecuritySection = ({ userId }) => {
             showSt("success", `${nl}-digit PIN ${hasPin ? "updated" : "created"} successfully!`);
             load();
           }}
-        />
-      )}
-
-      {mRec && (
-        <RecoveryPhraseModal
-          userId={userId}
-          onClose={() => { setMRec(false); load(); }}
         />
       )}
 

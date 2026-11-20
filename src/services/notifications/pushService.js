@@ -11,39 +11,11 @@ import {
   enablePushNotifications as enableFirebase,
   getFcmToken as getFirebaseFcmToken,
   initializeFirebase,
+  isFirebaseConfigured,
   isFirebaseSupported,
   requestPermission as requestFirebasePermission,
   unsubscribe as unsubscribeFirebase,
 } from "./firebaseService";
-
-function hasMeaningfulEnv(value) {
-  if (typeof value !== "string") return false;
-  const cleaned = value.trim();
-  if (!cleaned) return false;
-  const lowered = cleaned.toLowerCase();
-  return ![
-    "placeholder",
-    "replace_me",
-    "your_firebase",
-    "your-project-id",
-    "example",
-    "test",
-    "dummy",
-    "changeme",
-    "<add-your"
-  ].some((token) => lowered.includes(token));
-}
-
-// ── Firebase config check ───────────────────────────────────────────────────
-function isFirebaseConfigured() {
-  return Boolean(
-    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_API_KEY) &&
-    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_PROJECT_ID) &&
-    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_SENDER_ID) &&
-    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_APP_ID) &&
-    hasMeaningfulEnv(process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY)
-  );
-}
 
 // ── Edge function invoker ───────────────────────────────────────────────────
 async function _invoke(body, functionName = "send-push-fcm") {
@@ -230,52 +202,19 @@ function _attachVisibilityCheck() {
 }
 
 // ── Save FCM token to Supabase ──────────────────────────────────────────────
-async function _saveFcmToken(userId, fcmToken) {
+async function _saveFcmToken(fcmToken) {
   if (!fcmToken) {
     throw new Error("FCM token is required");
   }
 
-  const record = {
-    user_id: userId,
-    fcm_token: fcmToken,
-    provider: "fcm",
-    user_agent: navigator.userAgent.slice(0, 500),
-    is_active: true,
-    updated_at: new Date().toISOString(),
-  };
+  const { error } = await supabase.rpc("register_fcm_push_subscription", {
+    p_fcm_token: fcmToken,
+    p_user_agent: navigator.userAgent.slice(0, 500),
+  });
 
-  // Clean up any inactive rows for this token first
-  await supabase
-    .from("push_subscriptions")
-    .delete()
-    .eq("user_id", userId)
-    .eq("fcm_token", fcmToken)
-    .eq("is_active", false)
-    .catch(() => {});
-
-  // Upsert
-  const { error: upsertErr } = await supabase
-    .from("push_subscriptions")
-    .upsert(record, { onConflict: "user_id,fcm_token" });
-
-  if (!upsertErr) {
-    console.log("[Push] ✅ FCM token saved to DB");
-    return;
+  if (error) {
+    throw new Error(`Could not save this device's push subscription: ${error.message}`);
   }
-
-  // Upsert failed — try delete+insert
-  console.warn("[Push] Upsert failed:", upsertErr.message, "— trying delete+insert");
-  await supabase
-    .from("push_subscriptions")
-    .delete()
-    .eq("user_id", userId)
-    .eq("fcm_token", fcmToken)
-    .catch(() => {});
-  const { error: insertErr } = await supabase
-    .from("push_subscriptions")
-    .insert(record);
-  if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
-  console.log("[Push] ✅ FCM token inserted to DB (fallback)");
 }
 
 // ── Save legacy VAPID subscription to Supabase ──────────────────────────────
@@ -296,43 +235,38 @@ async function _saveLegacySubscription(userId, subscription) {
     updated_at: new Date().toISOString(),
   };
 
-  // Clean up inactive rows
-  await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("push_subscriptions")
-    .delete()
+    .select("id")
     .eq("user_id", userId)
     .eq("endpoint", json.endpoint)
-    .eq("is_active", false)
-    .catch(() => {});
+    .maybeSingle();
 
-  const { error: upsertErr } = await supabase
-    .from("push_subscriptions")
-    .upsert(record, { onConflict: "user_id,endpoint" });
-
-  if (!upsertErr) {
-    console.log("[Push] ✅ Legacy subscription saved");
-    return;
+  if (lookupError) {
+    throw new Error(`Could not check the existing push subscription: ${lookupError.message}`);
   }
 
-  console.warn("[Push] Upsert failed — trying delete+insert");
-  await supabase
-    .from("push_subscriptions")
-    .delete()
-    .eq("user_id", userId)
-    .eq("endpoint", json.endpoint)
-    .catch(() => {});
-  const { error: insertErr } = await supabase
-    .from("push_subscriptions")
-    .insert(record);
-  if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
-  console.log("[Push] ✅ Legacy subscription inserted (fallback)");
+  const { data: saved, error: saveError } = existing
+    ? await supabase
+        .from("push_subscriptions")
+        .update(record)
+        .eq("id", existing.id)
+        .eq("user_id", userId)
+        .select("id")
+        .maybeSingle()
+    : await supabase.from("push_subscriptions").insert(record).select("id").maybeSingle();
+
+  if (saveError) {
+    throw new Error(`Could not save the push subscription: ${saveError.message}`);
+  }
+  if (!saved) throw new Error("The push subscription was not persisted");
 }
 
 async function _saveWithRetry(userId, data, attempt = 0) {
-  const delays = [3000, 10000, 30000];
+  const delays = [500, 1500, 3000];
   try {
     if (data?.fcmToken) {
-      await _saveFcmToken(userId, data.fcmToken);
+      await _saveFcmToken(data.fcmToken);
     } else {
       await _saveLegacySubscription(userId, data);
     }
@@ -344,7 +278,8 @@ async function _saveWithRetry(userId, data, attempt = 0) {
       await new Promise((r) => setTimeout(r, delays[attempt]));
       return _saveWithRetry(userId, data, attempt + 1);
     }
-    console.error("[Push] ❌ All save attempts failed:", err.message);
+    console.error("[Push] All push-subscription save attempts failed:", err.message);
+    throw err;
   }
 }
 
@@ -355,7 +290,7 @@ async function _doSubscribe(userId) {
 
   try {
     // Try Firebase FCM first (primary for mobile)
-    if (isFirebaseSupported() && isFirebaseConfigured()) {
+    if (isFirebaseSupported() && (await initializeFirebase(userId))) {
       const granted = await requestFirebasePermission(userId);
       if (!granted) {
         console.warn("[Push] Firebase permission not granted");
@@ -503,6 +438,12 @@ export const pushService = {
     }
   },
 
+  async getProvider(userId) {
+    if (isFirebaseSupported()) await initializeFirebase(userId || _userId);
+    if (isFirebaseConfigured()) return "fcm";
+    return getVapidKey() ? "legacy" : "none";
+  },
+
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
@@ -533,36 +474,49 @@ export const pushService = {
   },
 
   async unsubscribe(userId) {
+    const uid = userId || _userId;
+    if (!uid) throw new Error("User ID is required to unsubscribe");
     try {
-      const uid = userId || _userId;
       if (isFirebaseSupported() && isFirebaseConfigured()) {
-        await unsubscribeFirebase(uid);
-        if (uid) {
-          await supabase
-            .from("push_subscriptions")
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq("user_id", uid)
-            .eq("provider", "fcm");
+        const token = await getFirebaseFcmToken(uid);
+        if (!token) {
+          throw new Error("Could not identify this device's FCM subscription");
         }
-        console.log("[Push] ✅ Unsubscribed from Firebase FCM");
+
+        const { error } = await supabase
+          .from("push_subscriptions")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("user_id", uid)
+          .eq("provider", "fcm")
+          .eq("fcm_token", token);
+        if (error) throw error;
+
+        const removed = await unsubscribeFirebase(uid);
+        if (!removed) throw new Error("Firebase could not unsubscribe this device");
+
+        console.log("[Push] Unsubscribed this device from Firebase FCM");
         return;
       }
 
       const reg = await _getReg();
       const sub = await reg?.pushManager.getSubscription();
-      if (!sub) return;
-      const endpoint = sub.endpoint;
-      await sub.unsubscribe();
-      if (uid) {
-        await supabase
+      const endpoint = sub?.endpoint;
+      if (sub && !(await sub.unsubscribe())) {
+        throw new Error("The browser could not unsubscribe this device");
+      }
+      if (uid && endpoint) {
+        const { error } = await supabase
           .from("push_subscriptions")
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq("user_id", uid)
+          .eq("provider", "legacy")
           .eq("endpoint", endpoint);
+        if (error) throw error;
       }
-      console.log("[Push] ✅ Unsubscribed");
+      console.log("[Push] Unsubscribed this device");
     } catch (err) {
-      console.error("[Push] unsubscribe error:", err);
+      console.error("[Push] Unsubscribe failed:", err);
+      throw err;
     }
   },
 
@@ -632,9 +586,7 @@ export const pushService = {
     _userId = userId;
     _started = true;
 
-    if (isFirebaseConfigured()) {
-      await initializeFirebase(userId);
-    }
+    await initializeFirebase(userId);
 
     _attachBridge();
     _attachVisibilityCheck();

@@ -49,6 +49,7 @@ import FounderBriefingSection from "./sections/FounderBriefingSection.jsx";
 import SecurityCenterSection from "./sections/SecurityCenterSection.jsx";
 import PlatformModelsSection from "./sections/PlatformModelsSection.jsx";
 import CommunityPremiumSection from "./sections/CommunityPremiumSection.jsx";
+import FoundersCardsSection from "./sections/FoundersCardsSection.jsx";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -69,6 +70,7 @@ const NAV_ITEMS = [
   { id: "founder",     label: "Founder Briefing", icon: BookOpen },
   { id: "models",      label: "Platform Models",  icon: Activity },
   { id: "premium",     label: "Community Premium", icon: Crown },
+  { id: "foundersCards", label: "Founders Cards", icon: Crown },
 ];
 
 // Groups shown above nav items when sidebar is expanded
@@ -90,6 +92,7 @@ const NAV_GROUPS = {
   founder:       "Founder",
   models:        "Founder",
   premium:       "Platform",
+  foundersCards: "Founder",
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────
@@ -709,6 +712,9 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "premium":
         return adminData?.role === "ceo_owner" ? <CommunityPremiumSection /> : null;
+
+      case "foundersCards":
+        return adminData?.role === "ceo_owner" ? <FoundersCardsSection /> : null;
 
       default:
         return <div style={{ padding: 40, color: C.muted, textAlign: "center" }}>Section not found</div>;

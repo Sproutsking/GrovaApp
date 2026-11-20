@@ -156,7 +156,7 @@ class DashboardService {
     try {
       const { data, error } = await supabase
         .from('wallets')
-        .select('*')
+        .select('user_id,xev_tokens,engagement_points')
         .eq('user_id', userId)
         .single();
 

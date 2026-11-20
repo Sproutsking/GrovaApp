@@ -17,7 +17,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   X, Zap, Home, Search, Users, Wallet, TrendingUp, Hash,
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
-  Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy, Megaphone,
+  Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy, Megaphone, WalletCards,
 } from "lucide-react";
 import ComingSoonModal from "./ComingSoonModal";
 
@@ -28,6 +28,7 @@ const ALL_SERVICES = [
   { id:"search",    Icon:Search,     label:"Explore",    color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"Navigate", desc:"Discover content"  },
   { id:"community", Icon:Users,      label:"Community",  color:"#a78bfa", bg:"rgba(167,139,250,0.12)", section:"Navigate", desc:"Your communities"  },
   { id:"wallet",    Icon:Wallet,     label:"Wallet",     color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  section:"Navigate", desc:"GT & EP balance"   },
+  { id:"collections", Icon:WalletCards, label:"Collections", color:"#d5ff60", bg:"rgba(213,255,96,0.12)", section:"Discover", desc:"Digital collectibles" },
   { id:"news",      Icon:Newspaper,  label:"News",       color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"Discover", desc:"Headlines & updates" },
   { id:"sports",    Icon:Trophy,     label:"Sports",     color:"#fb7185", bg:"rgba(251,113,133,0.12)", section:"Discover", desc:"Live moments & scores" },
   { id:"oracle",    Icon:OracleIcon, label:"XRC Oracle", color:"#a855f7", bg:"rgba(168,85,247,0.14)",  section:"Discover", desc:"Chain explorer"    },
@@ -50,12 +51,14 @@ const SECTIONS = ["Navigate", "Discover", "Account", "More"];
 const LENS_SERVICES = {
   gaming: [
     ["wallet", "Item Markets", "Trade game assets with escrow"],
+    ["collections", "Collections", "Browse digital collectibles"],
     ["community", "Matchmaking Hubs", "Find players, teams and clans"],
     ["community", "Clan Tools", "Build and manage your clan"],
     ["stream", "Live Gaming", "Watch and join live sessions"],
     ["rewards", "Tournaments", "Track rewards and competitions"],
   ],
   web3: [
+    ["collections", "Collections", "Browse digital collectibles"],
     ["analytics", "Block Analytics", "Track wallet and network activity"],
     ["trending", "Market Watch", "Monitor token and protocol activity"],
     ["wallet", "Web3 Wallet", "Sign, stake and swap assets"],
@@ -63,6 +66,7 @@ const LENS_SERVICES = {
     ["oracle", "XRC Oracle", "On-chain data and protocol feeds"],
   ],
   streaming: [
+    ["collections", "Collections", "Browse digital collectibles"],
     ["stream", "Live Sessions", "Find broadcasts and join the event around them"],
     ["community", "Creator Communities", "Find the communities where creators gather"],
     ["analytics", "Creator Activity", "Review participation and distribution signals"],
@@ -82,7 +86,7 @@ function resolveTab(id) {
   return map[id] || id;
 }
 
-const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, xrcService, onOpenSaved, onOpenAdsCentre, trinityLens = "everyday" }) => {
+const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, xrcService, onOpenSaved, onOpenAdsCentre, onOpenCollections, trinityLens = "everyday" }) => {
   const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
@@ -172,6 +176,12 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
   };
 
   const navigate = (id) => {
+    if (id === "collections") {
+      if (onOpenCollections) onOpenCollections();
+      else setActiveTab("wallet");
+      close();
+      return;
+    }
     if (id === "stream" || id === "rewards") {
       setComingSoonFeature(id);
       return;

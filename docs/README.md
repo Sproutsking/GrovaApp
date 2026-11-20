@@ -21,8 +21,10 @@ This directory contains the canonical product and architecture documents. Root-l
 - [Ads Engine Foundation](AD_ENGINE_FOUNDATION.md) - trust-weighted campaign model and explicit build boundary.
 - [Help and FAQ](HELP_FAQ.md) - user-facing support content.
 - [Sports and News Pipelines](SPORTS_AND_NEWS_PIPELINES.md) - domain-specific pipeline notes.
+- [Push Notifications](PUSH_NOTIFICATIONS.md) - Firebase configuration, secure rollout, and no-send verification.
 - [Distribution README](../src/services/distribution/README.md) - cross-platform publishing implementation.
 - [Web3 Payment Reference](../WEB3_PAYMENT_SYSTEM_REFERENCE.md) - payment architecture and security model.
+- [Founders Cards](FOUNDERS_CARDS.md) - registry setup, CEO controls, reservation expiry, and payment/refund boundaries.
 
 ## Root Documentation
 

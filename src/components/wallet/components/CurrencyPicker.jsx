@@ -6,7 +6,7 @@ import React, { useEffect, useRef } from "react";
 import { X, Check } from "lucide-react";
 import { useCurrency, CURRENCIES } from "../../../contexts/CurrencyContext";
 
-export default function CurrencyPicker({ open, onClose }) {
+export default function CurrencyPicker({ open, onClose, onSelect }) {
   const { currency, setCurrency } = useCurrency();
   const ref = useRef(null);
 
@@ -32,6 +32,7 @@ export default function CurrencyPicker({ open, onClose }) {
 
   const handleSelect = (code) => {
     setCurrency(code);
+    onSelect?.(code);
     onClose();
   };
 
@@ -79,10 +80,10 @@ export default function CurrencyPicker({ open, onClose }) {
         }}>
           <div>
             <div style={{ fontFamily:"Rajdhani,sans-serif", fontSize:17, fontWeight:700, color:"#fff" }}>
-              Display Currency
+              Native Currency
             </div>
             <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"rgba(255,255,255,0.3)", letterSpacing:"0.18em", marginTop:2 }}>
-              FIAT EQUIVALENT
+              WALLET PREFERENCE
             </div>
           </div>
           <button onClick={onClose} style={{

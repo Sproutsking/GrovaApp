@@ -124,56 +124,10 @@ export const epTreasuryService = {
     return data;
   },
 
-  // ── Credit EP to treasury (direct inflow) ─────────────────────────────────
-  // Called on deposits, after the webhook confirms the Paystack charge.
-  // The amount is split across partitions per config.
-  async creditFromDeposit(userId, epAmount, reason, metadata = {}) {
-    // Get current config for split
-    const config = await this.getConfig();
-    const ops   = Math.round(epAmount * (config.operations_pct  / 100) * 100) / 100;
-    const grow  = Math.round(epAmount * (config.growth_pct      / 100) * 100) / 100;
-    const xev   = Math.round(epAmount * (config.xev_rewards_pct / 100) * 100) / 100;
-    const rsv   = epAmount - ops - grow - xev;
-
-    // Atomic update of all 4 partitions
-    const updates = [
-      supabase.from("ep_treasury").update({ balance: supabase.raw(`balance + ${ops}`),  total_received: supabase.raw(`total_received + ${ops}`),  last_updated_at: new Date().toISOString() }).eq("partition", "operations"),
-      supabase.from("ep_treasury").update({ balance: supabase.raw(`balance + ${grow}`), total_received: supabase.raw(`total_received + ${grow}`), last_updated_at: new Date().toISOString() }).eq("partition", "growth"),
-      supabase.from("ep_treasury").update({ balance: supabase.raw(`balance + ${xev}`),  total_received: supabase.raw(`total_received + ${xev}`),  last_updated_at: new Date().toISOString() }).eq("partition", "xev_rewards"),
-      supabase.from("ep_treasury").update({ balance: supabase.raw(`balance + ${rsv}`),  total_received: supabase.raw(`total_received + ${rsv}`),  last_updated_at: new Date().toISOString() }).eq("partition", "reserve"),
-    ];
-
-    await Promise.all(updates);
-
-    // Log each partition credit
-    const logEntries = [
-      { partition: "operations",  amount: ops  },
-      { partition: "growth",      amount: grow },
-      { partition: "xev_rewards", amount: xev  },
-      { partition: "reserve",     amount: rsv  },
-    ].filter(e => e.amount > 0).map(async e => {
-      const { data: bal } = await supabase.from("ep_treasury").select("balance").eq("partition", e.partition).single();
-      return {
-        tx_type:      "deposit_fee",
-        partition:    e.partition,
-        direction:    "credit",
-        amount:       e.amount,
-        balance_after: bal?.balance ?? 0,
-        ref_user_id:  userId,
-        reason,
-        metadata: { ...metadata, total_ep: epAmount, split: { ops, grow, xev, rsv } },
-      };
-    });
-
-    const resolvedEntries = await Promise.all(logEntries);
-    if (resolvedEntries.length > 0) {
-      await supabase.from("ep_treasury_ledger").insert(resolvedEntries).catch(e =>
-        console.warn("[epTreasury] ledger log failed:", e.message)
-      );
-    }
-
-    _balanceCache = null;
-    return { success: true, split: { ops, grow, xev, rsv } };
+  async getCategorySummary() {
+    const { data, error } = await supabase.rpc("get_ep_treasury_category_summary");
+    if (error) throw new Error(`[epTreasury] getCategorySummary: ${error.message}`);
+    return data || [];
   },
 
   // ── Disburse from treasury (admin only, fully logged) ─────────────────────
@@ -203,6 +157,7 @@ export const epTreasuryService = {
       p_notes: notes,
     });
     if (error) throw new Error(`[epTreasury] sendToUser: ${error.message}`);
+    if (data?.success === false) throw new Error(data.error || "Treasury transfer was not completed.");
     _balanceCache = null;
     return data;
   },
@@ -251,11 +206,12 @@ export const epTreasuryService = {
 
     // Last 24h inflow from ledger
     const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
-    const { data: recent } = await supabase
+    const { data: recent, error: recentError } = await supabase
       .from("ep_treasury_ledger")
       .select("amount")
       .eq("direction", "credit")
       .gte("created_at", oneDayAgo);
+    if (recentError) throw new Error(`[epTreasury] getSummary inflow: ${recentError.message}`);
 
     const inflow24h = (recent || []).reduce((s, r) => s + (r.amount || 0), 0);
 
@@ -276,24 +232,26 @@ export const epTreasuryService = {
   // Returns true if action is allowed, false if rate limited
   async checkRateLimit(userId, actionType, maxPerHour = 100) {
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from("ep_treasury_ledger")
       .select("id", { count: "exact", head: true })
       .eq("ref_user_id", userId)
       .gte("created_at", oneHourAgo);
+    if (error) throw new Error(`[epTreasury] checkRateLimit: ${error.message}`);
 
-    return (count || 0) < maxPerHour;
+    return (count ?? 0) < maxPerHour;
   },
 
   // ── Detect abnormal activity ──────────────────────────────────────────────
   async detectAnomalies(userId) {
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-    const { data: recent } = await supabase
+    const { data: recent, error: recentError } = await supabase
       .from("ep_treasury_ledger")
       .select("amount, created_at")
       .eq("ref_user_id", userId)
       .gte("created_at", oneHourAgo)
       .order("created_at", { ascending: false });
+    if (recentError) throw new Error(`[epTreasury] detectAnomalies: ${recentError.message}`);
 
     const rows = recent || [];
     const count = rows.length;
@@ -303,12 +261,13 @@ export const epTreasuryService = {
 
     if (isAbnormal) {
       console.warn(`[epTreasury] ANOMALY DETECTED user=${userId} count=${count} amount=${totalAmount}`);
-      await supabase.from("security_events").insert({
+      const { error } = await supabase.from("security_events").insert({
         user_id:    userId,
         event_type: "suspicious_activity",
         severity:   "warning",
         metadata:   { source: "ep_treasury", hourly_count: count, hourly_amount: totalAmount },
-      }).catch(() => {});
+      });
+      if (error) throw new Error(`[epTreasury] detectAnomalies audit log: ${error.message}`);
     }
 
     return { isAbnormal, count, totalAmount };
