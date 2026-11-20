@@ -334,13 +334,6 @@ class AppErrorBoundary extends React.Component {
 
 // ── 4. RENDER ─────────────────────────────────────────────────────────────────
 const rootElement = document.getElementById("root");
-const bootAnimation = document
-  .getElementById("xv-boot-splash")
-  ?.querySelector(".liquid-core")
-  ?.getAnimations?.()[0];
-if (Number.isFinite(bootAnimation?.currentTime)) {
-  window.__xvBootStartedAt = performance.now() - bootAnimation.currentTime;
-}
 const root = ReactDOM.createRoot(rootElement);
 
 const AppTree = (

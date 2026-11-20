@@ -45,6 +45,7 @@ const VAPID_KEY = process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY || "";
 let _messaging = null;
 let _initialized = false;
 let _initPromise = null;
+let _firebaseSDKPromise = null;
 let _lastUserId = null;
 let _lastError = null;
 
@@ -60,27 +61,70 @@ function isSupported() {
   );
 }
 
-async function waitForFirebaseSDK(timeoutMs = 15000) {
+function loadFirebaseScript(id, src, isReady) {
+  if (isReady()) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    let script = document.getElementById(id);
+    if (!script) {
+      script = document.createElement("script");
+      script.id = id;
+      script.src = src;
+      script.async = true;
+    }
+
+    const cleanup = () => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+    };
+    const handleLoad = () => {
+      cleanup();
+      if (isReady()) {
+        resolve();
+      } else {
+        script.remove();
+        reject(new Error(`Firebase SDK script loaded without expected API: ${id}`));
+      }
+    };
+    const handleError = () => {
+      cleanup();
+      script.remove();
+      reject(new Error(`Failed to load Firebase SDK script: ${src}`));
+    };
+
+    script.addEventListener("load", handleLoad, { once: true });
+    script.addEventListener("error", handleError, { once: true });
+    if (!script.isConnected) document.head.appendChild(script);
+  });
+}
+
+async function waitForFirebaseSDK() {
   if (!isBrowser()) return null;
 
-  if (typeof window?.firebase !== "undefined") {
+  if (typeof window?.firebase?.messaging === "function") {
     return window.firebase;
   }
 
-  return new Promise((resolve) => {
-    const startedAt = Date.now();
-    const interval = setInterval(() => {
-      if (typeof window?.firebase !== "undefined") {
-        clearInterval(interval);
-        resolve(window.firebase);
-        return;
-      }
-      if (Date.now() - startedAt > timeoutMs) {
-        clearInterval(interval);
-        resolve(null);
-      }
-    }, 250);
-  });
+  if (!_firebaseSDKPromise) {
+    _firebaseSDKPromise = (async () => {
+      await loadFirebaseScript(
+        "xv-firebase-app-sdk",
+        "https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js",
+        () => typeof window?.firebase?.initializeApp === "function",
+      );
+      await loadFirebaseScript(
+        "xv-firebase-messaging-sdk",
+        "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js",
+        () => typeof window?.firebase?.messaging === "function",
+      );
+      return window.firebase;
+    })().catch((error) => {
+      _firebaseSDKPromise = null;
+      throw error;
+    });
+  }
+
+  return _firebaseSDKPromise;
 }
 
 function getFirebaseApp() {

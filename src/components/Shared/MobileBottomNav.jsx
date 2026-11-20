@@ -123,7 +123,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           background: #000;
           backdrop-filter: none;
           -webkit-backdrop-filter: none;
-          padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
+          padding: 6px 8px calc(8px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
           border: 0;
           box-shadow: none;
           /* Controlled by DOM: display:none or display:flex */

@@ -26,7 +26,6 @@ import { fetchLiveStats } from "../../services/auth/paywallDataService";
 import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import { AppLoader } from "../Shared/UnifiedLoader";
 import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package, Globe, Wallet } from "lucide-react";
 import { walletConnectConfigured } from "../../services/wallet/walletConnectSettings";
 import { getDetectedWallets as discoverWallets } from "../../services/wallet/walletDiscovery";
@@ -2530,11 +2529,6 @@ function LoginView() {
       )}
     </div>
   );
-}
-
-// ─── SPLASH ───────────────────────────────────────────────────────────────────
-export function Splash({ message = "Initializing Xeevia..." }) {
-  return <AppLoader message={message} showOfflineDetection={false} />;
 }
 
 // ─── AUTH WALL — root export ──────────────────────────────────────────────────
