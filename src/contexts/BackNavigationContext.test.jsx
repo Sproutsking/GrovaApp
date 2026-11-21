@@ -44,6 +44,13 @@ describe("BackNavigationProvider", () => {
     expect(forwardSpy).toHaveBeenCalledTimes(1);
     expect(routeListener).not.toHaveBeenCalled();
 
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(routeListener).not.toHaveBeenCalled();
+
     removeRouteListener();
   });
 

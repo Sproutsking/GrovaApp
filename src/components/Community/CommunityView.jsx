@@ -19,9 +19,12 @@ import communityService from "../../services/community/communityService";
 import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
 import communityUnreadService from "../../services/community/communityUnreadService";
+import useRegisterBack from "../../hooks/useRegisterBack";
 import "../../styles/CommunityView.css";
 
-const CommunityView = ({ userId, currentUser, onNavigate }) => {
+const COMMUNITY_HISTORY_KEY = "__communityNavigation";
+
+const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
   const [view, setView] = useState("discover");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
@@ -64,6 +67,94 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const switchTimeoutRef    = useRef(null);
   const sidebarRef          = useRef(null);
   const communityViewRef    = useRef(null);
+
+  useRegisterBack(() => {
+    if (!isMobile || activeTab !== "community") return false;
+    if (showInviteModal) {
+      setShowInviteModal(false);
+      setInviteCommunity(null);
+      return true;
+    }
+    if (showCreateCommunity) {
+      setShowCreateCommunity(false);
+      return true;
+    }
+    if (confirmAction) {
+      setConfirmAction(null);
+      return true;
+    }
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+      return true;
+    }
+    return false;
+  }, [isMobile, activeTab, showInviteModal, showCreateCommunity, confirmAction, sidebarOpen]);
+
+  const pushCommunityHistory = (community, channel, nextView) => {
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {};
+    const previousEntry = currentState[COMMUNITY_HISTORY_KEY];
+    const entry = {
+      view: nextView,
+      community,
+      channel: channel || null,
+      depth: (Number(previousEntry?.depth) || 0) + 1,
+    };
+    window.history.pushState(
+      { ...currentState, [COMMUNITY_HISTORY_KEY]: entry },
+      "",
+      window.location.href,
+    );
+  };
+
+  const resetCommunityView = () => {
+    setSelectedCommunity(null);
+    setSelectedChannel(null);
+    setView("discover");
+    currentCommunityRef.current = null;
+  };
+
+  const restoreCommunityHistory = () => {
+    const entry = window.history.state?.[COMMUNITY_HISTORY_KEY];
+    if (!entry?.community?.id || !["channels", "chat"].includes(entry.view)) {
+      resetCommunityView();
+      return;
+    }
+
+    setSelectedCommunity(entry.community);
+    setSelectedChannel(entry.channel || null);
+    setView(entry.view);
+    currentCommunityRef.current = entry.community.id;
+  };
+
+  useEffect(() => {
+    restoreCommunityHistory();
+    window.addEventListener("popstate", restoreCommunityHistory);
+    return () => window.removeEventListener("popstate", restoreCommunityHistory);
+  }, []);
+
+  const navigateCommunityBack = () => {
+    if (window.history.state?.[COMMUNITY_HISTORY_KEY]) {
+      window.history.back();
+      return;
+    }
+    if (selectedCommunity && view === "chat") {
+      setSelectedChannel(null);
+      setView("channels");
+      return;
+    }
+    resetCommunityView();
+  };
+
+  const navigateCommunityHome = () => {
+    const depth = Number(window.history.state?.[COMMUNITY_HISTORY_KEY]?.depth) || 0;
+    if (depth > 0) {
+      window.history.go(-depth);
+      return;
+    }
+    resetCommunityView();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -138,13 +229,13 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       return undefined;
     }
 
-    const shouldHide = !!selectedCommunity && (view === "chat" || view === "channels");
+    const shouldHide = activeTab === "community" && !!selectedCommunity && (view === "chat" || view === "channels");
     document.body.classList.toggle("community-fullscreen", shouldHide);
 
     return () => {
       document.body.classList.remove("community-fullscreen");
     };
-  }, [isMobile, selectedCommunity, view]);
+  }, [isMobile, activeTab, selectedCommunity, view]);
 
   // ── User profile ──────────────────────────────────────────────────────────
   useEffect(() => { loadFullUserProfile(); }, [userId]);
@@ -254,7 +345,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   // ── Community actions ─────────────────────────────────────────────────────
-  const handleSelectCommunity = async (community) => {
+  const handleSelectCommunity = async (community, { pushHistory = true } = {}) => {
     if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
     const mobileViewport = window.innerWidth <= 768;
     if (currentCommunityRef.current !== community.id) {
@@ -264,6 +355,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     // Kick a prefetch off immediately too — covers touch devices / clicks
     // that land without a preceding hover.
     handlePrefetchCommunity(community.id);
+    if (pushHistory) pushCommunityHistory(community, null, mobileViewport ? "channels" : "chat");
     setSelectedCommunity(community);
     saveLocation(community.id, { view: mobileViewport ? "channels" : "chat", lastVisited: Date.now() });
     // On mobile, show channels view; on desktop, go straight to chat
@@ -279,6 +371,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const handleSelectChannel = async (channel) => {
+    if (selectedCommunity) pushCommunityHistory(selectedCommunity, channel, "chat");
     setSelectedChannel(channel);
     setView("chat"); // Move to chat when a channel is selected
     if (selectedCommunity?.id && channel?.id) saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
@@ -336,6 +429,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
     // Update navigation and sidebar state immediately; persistence continues in the background.
     const optimisticCommunity = { ...community, member_count: (community.member_count || 0) + 1 };
+    pushCommunityHistory(optimisticCommunity, null, isMobile ? "channels" : "chat");
     setMyCommunities((current) => [...current, optimisticCommunity]);
     setSelectedCommunity(optimisticCommunity);
     currentCommunityRef.current = communityId;
@@ -347,21 +441,21 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       await communityService.joinCommunity(communityId, userId);
       await loadCommunities();
       const joined = await communityService.fetchCommunityDetails(communityId);
-      if (joined) handleSelectCommunity(joined);
+      if (joined) handleSelectCommunity(joined, { pushHistory: false });
     } catch (error) {
       const alreadyJoined = /already\s+(a\s+)?member/i.test(error?.message || "");
       if (alreadyJoined) {
         const joined = await communityService.fetchCommunityDetails(communityId).catch(() => null);
-        if (joined) handleSelectCommunity(joined);
+        if (joined) handleSelectCommunity(joined, { pushHistory: false });
         return;
       }
 
       setMyCommunities((current) => current.filter((item) => item.id !== communityId));
       if (currentCommunityRef.current === communityId) {
-        setSelectedCommunity(null);
-        setSelectedChannel(null);
-        currentCommunityRef.current = null;
-        setView("discover");
+        const currentState = window.history.state || {};
+        const { [COMMUNITY_HISTORY_KEY]: _removed, ...state } = currentState;
+        window.history.replaceState(state, "", window.location.href);
+        resetCommunityView();
       }
       console.error("Error joining community:", error);
       alert(error.message || "Failed to join community");
@@ -394,8 +488,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         const locations = readLocations();
         delete locations[communityId];
         localStorage.setItem(lastLocationKey, JSON.stringify({ locations }));
-        setSelectedCommunity(null); setSelectedChannel(null);
-        setView("discover"); currentCommunityRef.current = null;
+        resetCommunityView();
       }
       await loadCommunities();
     } catch (error) {
@@ -414,8 +507,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       setMyCommunities((current) => current.filter((item) => item.id !== communityId));
       setAllCommunities((current) => current.filter((item) => item.id !== communityId));
       communityCache.clearCommunity(communityId);
-      setSelectedCommunity(null); setSelectedChannel(null);
-      setView("discover"); currentCommunityRef.current = null;
+      resetCommunityView();
       await loadCommunities();
     } catch (error) {
       await loadCommunities();
@@ -458,8 +550,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     if (!isSwiping || !isMobile) return;
     const diff = touchCurrent - touchStart;
     if (view === "chat" && !sidebarOpen && diff > 70 && touchStart > 30) {
-      setSelectedChannel(null);
-      setView("channels");
+      navigateCommunityBack();
     } else if (sidebarOpen && diff < -50) setSidebarOpen(false);
     else if (!sidebarOpen && diff > 50 && touchStart < 30) setSidebarOpen(true);
     else if (!sidebarOpen && diff > 100) setSidebarOpen(true);
@@ -501,8 +592,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
           onCreateCommunity={() => setShowCreateCommunity(true)}
           onPrefetchCommunity={handlePrefetchCommunity}
           onGoHome={() => {
-            setSelectedCommunity(null); setSelectedChannel(null);
-            setView("discover"); currentCommunityRef.current = null;
+            navigateCommunityHome();
             setSidebarOpen(false);
           }}
           view={view}
@@ -542,8 +632,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
             onOpenInvite={() => { setInviteCommunity(selectedCommunity); setShowInviteModal(true); }}
             onDeleteCommunity={() => openConfirm("Delete this community?", "This permanently deletes the community and all of its data. This cannot be undone.", () => handleDeleteCommunity(selectedCommunity.id), true)}
             onBack={() => {
-              setSelectedCommunity(null); setSelectedChannel(null);
-              setView("discover"); currentCommunityRef.current = null;
+              navigateCommunityBack();
             }}
           />
         ) : (
@@ -559,10 +648,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
               onCommunityUpdate={handleCommunityUpdate}
               onOpenInvite={handleOpenInvite}
               onDeleteCommunity={() => openConfirm("Delete this community?", "This permanently deletes the community and all of its data. This cannot be undone.", () => handleDeleteCommunity(selectedCommunity.id), true)}
-              onBack={isMobile ? () => {
-                setSelectedChannel(null);
-                setView("channels");
-              } : undefined}
+              onBack={isMobile ? navigateCommunityBack : undefined}
               onToggleSidebar={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined}
               onNavigate={onNavigate}
             />

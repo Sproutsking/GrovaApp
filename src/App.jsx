@@ -1112,7 +1112,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
         id: "community",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <CommunityView {...viewProps} />
+            <CommunityView {...viewProps} activeTab={activeTab} />
           </Suspense>
         ),
       },

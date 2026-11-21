@@ -66,6 +66,7 @@ export const BackNavigationProvider = ({ children }) => {
     const onPop = (e) => {
       if (restorePopRef.current) {
         restorePopRef.current = false;
+        e.stopImmediatePropagation();
         return;
       }
 
@@ -79,8 +80,8 @@ export const BackNavigationProvider = ({ children }) => {
       }
     };
 
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("popstate", onPop, true);
+    return () => window.removeEventListener("popstate", onPop, true);
   }, [triggerBack]);
 
   return (
