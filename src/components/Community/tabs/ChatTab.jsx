@@ -1696,6 +1696,7 @@ const ChatTab = ({
           .mobile-chat-title { flex: 1; text-align: center; font-size: calc((13px) + 1px); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
           .channels-container { display: none; }
           .chat-msgs { padding-left: 2px; padding-right: 2px; }
+          .chat-msgs > .msg-list-wrapper { padding-left: 4px; padding-right: 4px; }
           .chat-msgs > .vp,
           .chat-msgs > .community-ticket-tool,
           .chat-msgs > .updates-panel,

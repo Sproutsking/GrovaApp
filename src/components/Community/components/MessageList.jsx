@@ -809,9 +809,9 @@ const MessageList = ({
         .msg-item.clustered .msg-bubble.them { border-top-left-radius: 10px; }
 
         .msg-bubble.me {
-          --message-tail-fill: #183728;
-          --message-tail-edge: rgba(156,255,0,.2);
-          --bubble-border: rgba(156,255,0,.16);
+          --message-tail-fill: #0d5e49;
+          --message-tail-edge: rgba(209,250,229,.3);
+          --bubble-border: rgba(209,250,229,.18);
           background: var(--message-tail-fill);
           border: 1px solid var(--bubble-border);
           border-top-right-radius: 2px;

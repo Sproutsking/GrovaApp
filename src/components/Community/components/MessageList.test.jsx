@@ -98,6 +98,16 @@ describe("MessageList presentation", () => {
     expect(status.textContent).toBe("");
   });
 
+  it("uses the shared solid outgoing-message color", () => {
+    const { container } = renderList([
+      makeMessage({ user_id: "me", user: { id: "me", full_name: "Me" } }),
+    ], "direct");
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain("--message-tail-fill: #0d5e49;");
+    expect(styles).toContain("--message-tail-edge: rgba(209,250,229,.3);");
+  });
+
   it("keeps link previews inside the message bubble and labels shared GIFs as content", () => {
     const { container } = renderList([
       makeMessage({ content: "Check this https://media.giphy.com/media/example/giphy.gif" }),
