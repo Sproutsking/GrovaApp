@@ -23,7 +23,7 @@
 //   5. Paystack kobo math, EP normalization, stats — unchanged from v7.
 // ============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../services/config/supabase";
 import { ROLE_PERMISSIONS } from "./permissions.js";
 
@@ -1762,10 +1762,18 @@ export function usePlatformSettings() {
 }
 
 // ─── Admin Team ────────────────────────────────────────────────────────────
+const ADMIN_ONLINE_WINDOW_MS = 90_000;
+
+function isAdminOnline(lastSeen) {
+  const timestamp = lastSeen ? new Date(lastSeen).getTime() : NaN;
+  return Number.isFinite(timestamp) && Date.now() - timestamp < ADMIN_ONLINE_WINDOW_MS;
+}
+
 export function useTeam() {
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const presenceIdsRef = useRef(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1773,30 +1781,34 @@ export function useTeam() {
     try {
       const { data: teamData, error: teamErr } = await sb()
         .from("admin_team")
-        .select(
-          `id, user_id, email, full_name, role, permissions, status, last_active, created_at, xa_id, profile:user_id(id, email, full_name, last_seen)`,
-        )
+        .select("id, user_id, email, full_name, role, permissions, status, last_active, created_at, xa_id")
         .eq("status", "active")
         .order("xa_id", { ascending: true });
 
       if (teamErr) throw teamErr;
-      const fiveMinAgo = new Date(Date.now() - 5 * 60000).toISOString();
-      const enriched = (teamData || []).map((m) => {
-        const lastSeen = m.profile?.last_seen || m.last_active;
-        const isOnline = lastSeen
-          ? new Date(lastSeen) > new Date(fiveMinAgo)
-          : false;
+      const members = teamData || [];
+      const userIds = members.map((member) => member.user_id).filter(Boolean);
+      let profilesById = new Map();
+      if (userIds.length) {
+        const { data: profiles, error: profilesError } = await sb()
+          .from("profiles")
+          .select("id, email, full_name, username, last_seen")
+          .in("id", userIds);
+        if (profilesError) throw profilesError;
+        profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+      }
+
+      const enriched = members.map((member) => {
+        const profile = profilesById.get(member.user_id);
+        const lastSeen = profile?.last_seen || null;
         return {
-          id: m.id,
-          user_id: m.user_id,
-          email: m.profile?.email || m.email,
-          full_name: m.profile?.full_name || m.full_name,
-          role: m.role,
-          permissions: m.permissions || [],
-          status: m.status,
-          last_active: m.profile?.last_seen || m.last_active,
-          is_online: isOnline,
-          xa_id: m.xa_id,
+          ...member,
+          email: profile?.email || member.email,
+          full_name: profile?.full_name || member.full_name,
+          username: profile?.username || null,
+          permissions: member.permissions || [],
+          last_active: lastSeen,
+          is_online: presenceIdsRef.current.has(member.user_id) || isAdminOnline(lastSeen),
         };
       });
       setTeam(enriched);
@@ -1809,19 +1821,99 @@ export function useTeam() {
 
   useEffect(() => {
     load();
+    const updatePresence = (userId, isPresent) => {
+      if (!userId) return;
+      if (isPresent) presenceIdsRef.current.add(userId);
+      else presenceIdsRef.current.delete(userId);
+      setTeam((current) => current.map((member) => (
+        member.user_id === userId
+          ? {
+              ...member,
+              is_online: isPresent || isAdminOnline(member.last_active),
+            }
+          : member
+      )));
+    };
+
+    const presenceChannel = sb().channel("grova_global_presence", {
+      config: { presence: { key: "admin-team-roster" } },
+    });
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const presentIds = new Set(Object.keys(presenceChannel.presenceState()));
+        presenceIdsRef.current = presentIds;
+        setTeam((current) => current.map((member) => ({
+          ...member,
+          is_online: presentIds.has(member.user_id) || isAdminOnline(member.last_active),
+        })));
+      })
+      .on("presence", { event: "join" }, ({ key }) => updatePresence(key, true))
+      .on("presence", { event: "leave" }, ({ key }) => updatePresence(key, false))
+      .subscribe();
+
+    const profileChannel = sb()
+      .channel("admin-team-profile-presence")
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "profiles",
+      }, (payload) => {
+        const profile = payload.new;
+        if (!profile?.id) return;
+        setTeam((current) => current.map((member) => (
+          member.user_id === profile.id
+            ? {
+                ...member,
+                last_active: profile.last_seen || null,
+                is_online: presenceIdsRef.current.has(profile.id) || isAdminOnline(profile.last_seen),
+              }
+            : member
+        )));
+      })
+      .subscribe();
+    const presenceTimer = setInterval(() => {
+      setTeam((current) => current.map((member) => ({
+        ...member,
+        is_online: presenceIdsRef.current.has(member.user_id) || isAdminOnline(member.last_active),
+      })));
+    }, 15_000);
+    const rosterTimer = setInterval(load, 60_000);
+
+    return () => {
+      clearInterval(presenceTimer);
+      clearInterval(rosterTimer);
+      sb().removeChannel(presenceChannel);
+      sb().removeChannel(profileChannel);
+    };
   }, [load]);
 
-  const addMember = async ({ email, name, role, permissions }) =>
+  const searchUsers = useCallback(async (query) => {
+    const term = query.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
+    if (term.length < 2) return [];
+
+    const { data, error: searchError } = await sb()
+      .from("profiles")
+      .select("id, full_name, username, email, avatar_id, verified")
+      .or(`full_name.ilike.%${term}%,username.ilike.%${term}%,email.ilike.%${term}%`)
+      .order("full_name", { ascending: true })
+      .limit(12);
+    if (searchError) throw searchError;
+    return data || [];
+  }, []);
+
+  const addMember = async ({ userId, email, role, permissions }) =>
     safeCall(async () => {
-      const { data: profile, error: profileErr } = await sb()
-        .from("profiles")
-        .select("id, full_name, email")
-        .eq("email", email.trim().toLowerCase())
-        .maybeSingle();
+      let profileQuery = sb().from("profiles").select("id, full_name, email");
+      profileQuery = userId
+        ? profileQuery.eq("id", userId)
+        : profileQuery.eq("email", email.trim().toLowerCase());
+      const { data: profile, error: profileErr } = await profileQuery.maybeSingle();
       if (profileErr) throw profileErr;
       if (!profile)
         throw new Error(
-          "No Xeevia account found with this email. The user must sign up first.",
+          userId
+            ? "The selected Xeevia account could not be found."
+            : "No Xeevia account found with this email. The user must sign up first.",
         );
       const { data: existing, error: existingErr } = await sb()
         .from("admin_team")
@@ -1829,6 +1921,9 @@ export function useTeam() {
         .eq("user_id", profile.id)
         .maybeSingle();
       if (existingErr) throw existingErr;
+      if (existing?.status === "active") {
+        throw new Error("This user is already an active admin team member.");
+      }
 
       const { error } = await sb().rpc("manage_admin_member", {
         p_action: "add",
@@ -1854,9 +1949,14 @@ export function useTeam() {
       await load();
     }, "Failed to update permissions.");
 
-  const updateRole = (id, role) =>
+  const updateRole = (id, role, permissions = ROLE_PERMISSIONS[role] || []) =>
     safeCall(async () => {
-      const { error } = await sb().rpc("manage_admin_member", { p_action: "update", p_member_id: id, p_role: role, p_permissions: ROLE_PERMISSIONS[role] || [] });
+      const { error } = await sb().rpc("manage_admin_member", {
+        p_action: "update",
+        p_member_id: id,
+        p_role: role,
+        p_permissions: permissions,
+      });
       if (error) throw error;
       await load();
     }, "Failed to update role.");
@@ -1866,6 +1966,7 @@ export function useTeam() {
     loading,
     error,
     load,
+    searchUsers,
     addMember,
     removeMember,
     updatePermissions,

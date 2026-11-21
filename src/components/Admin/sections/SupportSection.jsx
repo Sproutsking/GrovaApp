@@ -432,7 +432,7 @@ function Bubble({ msg, adminUserId }) {
 
 // ─── TICKET DETAIL / CHAT ─────────────────────────────────────────────────────
 
-function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose }) {
+function TicketDetail({ ticket: init, adminData, teamMembers, teamLoading, teamError, onUpdate, onClose }) {
   const [ticket, setTicket]           = useState(init);
   const [messages, setMessages]       = useState([]);
   const [loadingMsgs, setLoadingMsgs] = useState(true);
@@ -955,7 +955,9 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
                 </button>
               ))}
               {teamMembers.length === 0 && (
-                <div style={{ fontSize: 14, color: "#6b7280", textAlign: "center", padding: 24 }}>No team members found.</div>
+                <div role={teamError ? "alert" : undefined} style={{ fontSize: 14, color: teamError ? "#f87171" : "#6b7280", textAlign: "center", padding: 24 }}>
+                  {teamError ? "Could not load the admin roster." : teamLoading ? "Loading admin roster…" : "No team members found."}
+                </div>
               )}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -993,7 +995,7 @@ function TicketDetail({ ticket: init, adminData, teamMembers, onUpdate, onClose 
 
 // ─── MAIN SUPPORT SECTION ─────────────────────────────────────────────────────
 
-export default function SupportSection({ adminData }) {
+export default function SupportSection({ adminData, teamMgmt }) {
   const [tickets, setTickets]               = useState([]);
   const [loading, setLoading]               = useState(true);
   const [selected, setSelected]             = useState(null);
@@ -1002,7 +1004,7 @@ export default function SupportSection({ adminData }) {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [page, setPage]                     = useState(1);
   const [total, setTotal]                   = useState(0);
-  const [team, setTeam]                     = useState([]);
+  const team = teamMgmt?.team || [];
   const [stats, setStats]                   = useState({ total: 0, open: 0, in_progress: 0, waiting: 0, resolved_today: 0 });
   // Map of ticketId -> bool: whether user is currently typing in that ticket
   const [ticketTypingMap, setTicketTypingMap] = useState({});
@@ -1017,7 +1019,6 @@ export default function SupportSection({ adminData }) {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { loadAll(); }, [tab, search, priorityFilter, page]);
   useEffect(() => {
-    loadTeam();
     if (feedRef.current) supabase.removeChannel(feedRef.current);
     feedRef.current = supabase
       .channel("admin-tickets-feed")
@@ -1082,11 +1083,6 @@ export default function SupportSection({ adminData }) {
   }, [tickets, adminData?.user_id]);
 
   const loadAll    = () => { loadTickets(); loadStats(); };
-
-  const loadTeam = async () => {
-    const { data } = await supabase.from("admin_team").select("user_id, full_name, role, xa_id").eq("status", "active");
-    if (data && mounted.current) setTeam(data);
-  };
 
   const loadStats = async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1404,6 +1400,8 @@ export default function SupportSection({ adminData }) {
               ticket={selected}
               adminData={adminData}
               teamMembers={team}
+              teamLoading={teamMgmt?.loading}
+              teamError={teamMgmt?.error}
               onUpdate={handleUpdate}
               onClose={handleCloseDetail}
             />

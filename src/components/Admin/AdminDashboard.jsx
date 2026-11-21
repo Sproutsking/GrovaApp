@@ -275,7 +275,18 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
 }
 
 // ─── Dashboard Overview ────────────────────────────────────────────────────
-function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
+function DashboardOverview({
+  stats,
+  onNavigate,
+  team,
+  teamLoading,
+  teamError,
+  adminData,
+  dashboardCols,
+  overviewPanelCols,
+  quickActionCols,
+  economyCols,
+}) {
   const s         = stats || {};
   const openCases = s.openCases || 0;
   const firstName = (adminData?.full_name || "Admin").split(" ")[0];
@@ -371,7 +382,12 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
             ))}
           </div>
         </div>
-        <AdminOnlinePanel team={team} currentAdminUserId={adminData?.user_id} />
+        <AdminOnlinePanel
+          team={team}
+          currentAdminUserId={adminData?.user_id}
+          loading={teamLoading}
+          error={teamError}
+        />
       </div>
 
       {/* Economy Metrics */}
@@ -615,7 +631,9 @@ export default function AdminDashboard({ adminData, onClose }) {
   const teamMgmt = {
     team:              teamHook.team || [],
     loading:           teamHook.loading,
+    error:             teamHook.error,
     load:              teamHook.load,
+    searchUsers:       teamHook.searchUsers,
     addMember:         teamHook.addMember,
     removeMember:      teamHook.removeMember,
     updatePermissions: teamHook.updatePermissions,
@@ -629,6 +647,8 @@ export default function AdminDashboard({ adminData, onClose }) {
           stats={stats}
           onNavigate={navigate}
           team={teamHook.team || []}
+          teamLoading={teamHook.loading}
+          teamError={teamHook.error}
           adminData={adminData}
           dashboardCols={dashboardCols}
           overviewPanelCols={overviewPanelCols}

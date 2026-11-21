@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Shield, UserPlus, Trash2, Edit2, RefreshCw, Crown,
-  Users, CheckCircle2, Star, Save,
+  Users, CheckCircle2, Star, Save, Search, X,
 } from "lucide-react";
 import {
   Section, DataTable, Btn, Badge, StatusBadge, Modal,
@@ -106,42 +106,107 @@ const PRESET_ADMINS = [
 
 // ─── Main TeamSection ──────────────────────────────────────────────────────
 export default function TeamSection({ adminData, teamMgmt }) {
-  const { team, loading, load, addMember, removeMember, updatePermissions, updateRole } = teamMgmt;
+  const {
+    team = [],
+    loading,
+    error,
+    load,
+    searchUsers,
+    addMember,
+    removeMember,
+    updateRole,
+  } = teamMgmt;
 
   const canAdd    = can(adminData, PERMISSIONS.ADD_TEAM);
   const canRemove = can(adminData, PERMISSIONS.REMOVE_TEAM);
   const isCEO     = adminData?.role === "ceo_owner";
-  const isSuper   = adminData?.role === "super_admin" || isCEO;
 
   const [search, setSearch]           = useState("");
   const [showAdd, setShowAdd]         = useState(false);
   const [editMember, setEditMember]   = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(null);
-  const [newMember, setNewMember]     = useState({ email: "", name: "", role: "b_admin", permissions: [] });
+  const [newMember, setNewMember]     = useState({ userId: "", email: "", role: "b_admin", permissions: [] });
+  const [userSearch, setUserSearch]   = useState("");
+  const [userResults, setUserResults] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [userSearchError, setUserSearchError] = useState("");
   const [adding, setAdding]           = useState(false);
   const [addError, setAddError]       = useState("");
   const [alert, setAlert]             = useState(null);
 
+  useEffect(() => {
+    const query = userSearch.trim();
+    if (!showAdd || newMember.userId || query.length < 2) {
+      setUserResults([]);
+      setSearchingUsers(false);
+      setUserSearchError("");
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchingUsers(true);
+      setUserSearchError("");
+      try {
+        const results = await searchUsers(query);
+        if (!cancelled) setUserResults(results);
+      } catch (searchError) {
+        if (!cancelled) {
+          setUserResults([]);
+          setUserSearchError(searchError.message || "Could not search users.");
+        }
+      } finally {
+        if (!cancelled) setSearchingUsers(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [showAdd, userSearch, newMember.userId, searchUsers]);
+
   const filtered = team.filter((m) => {
     const q = search.toLowerCase();
-    return !q || m.email?.includes(q) || m.full_name?.toLowerCase().includes(q);
+    return !q ||
+      m.email?.toLowerCase().includes(q) ||
+      m.full_name?.toLowerCase().includes(q) ||
+      m.username?.toLowerCase().includes(q) ||
+      m.xa_id?.toString().includes(q);
   });
+  const activeAdminIds = new Set(team.map((member) => member.user_id));
+  const availableUserResults = userResults.filter((user) => !activeAdminIds.has(user.id));
 
   const handleAdd = async (e) => {
     e.preventDefault();
     setAddError("");
-    if (!newMember.email) { setAddError("Email is required."); return; }
+    if (!newMember.userId && !newMember.email.trim()) {
+      setAddError("Select an existing user or enter their account email.");
+      return;
+    }
     setAdding(true);
     try {
       await addMember(newMember);
       setShowAdd(false);
-      setNewMember({ email: "", name: "", role: "b_admin", permissions: [] });
+      setNewMember({ userId: "", email: "", role: "b_admin", permissions: [] });
+      setUserSearch("");
+      setSelectedUser(null);
       setAlert({ type: "success", msg: "Team member added. XA-ID auto-assigned by the database." });
     } catch (err) {
       setAddError(err.message);
     } finally {
       setAdding(false);
     }
+  };
+
+  const closeAddModal = () => {
+    setShowAdd(false);
+    setAddError("");
+    setUserSearch("");
+    setUserResults([]);
+    setSelectedUser(null);
+    setNewMember({ userId: "", email: "", role: "b_admin", permissions: [] });
   };
 
   const handleRemove = async () => {
@@ -157,11 +222,17 @@ export default function TeamSection({ adminData, teamMgmt }) {
 
   const handleSeedPresets = async () => {
     let seeded = 0;
+    const failures = [];
     for (const p of PRESET_ADMINS) {
       try { await addMember({ email: p.email, name: p.name, role: p.role, permissions: [] }); seeded++; }
-      catch (e) { /* ignore duplicates */ }
+      catch (e) { failures.push(`${p.email}: ${e.message}`); }
     }
-    setAlert({ type: "success", msg: `Preset admins synced (${seeded} added). XA-IDs auto-assigned.` });
+    setAlert({
+      type: failures.length ? "error" : "success",
+      msg: failures.length
+        ? `${seeded} added; ${failures.length} could not be added. ${failures.join(" ")}`
+        : `Preset admins synced (${seeded} added). XA-IDs auto-assigned.`,
+    });
   };
 
   const handleSaveEdit = async () => {
@@ -169,8 +240,10 @@ export default function TeamSection({ adminData, teamMgmt }) {
       if (editMember?.user_id === adminData?.user_id) {
         throw new Error("You cannot change your own admin role or permissions while signed in.");
       }
-      await updatePermissions(editMember.id, editMember.permissions);
-      if (isSuper) await updateRole(editMember.id, editMember.role);
+      const permissions = editMember.permissions?.length
+        ? editMember.permissions
+        : ROLE_PERMISSIONS[editMember.role] || [];
+      await updateRole(editMember.id, editMember.role, permissions);
       setEditMember(null);
       setAlert({ type: "success", msg: "Member updated." });
     } catch (err) {
@@ -194,7 +267,11 @@ export default function TeamSection({ adminData, teamMgmt }) {
         <div>
           <h1 style={{ fontSize: 27, fontWeight: 800, color: C.text, margin: 0 }}>Admin Team</h1>
           <p style={{ color: C.muted, marginTop: 4, fontSize: 15 }}>
-            {team.length} active member{team.length !== 1 ? "s" : ""} · XA-IDs are permanent and auto-assigned
+            {error
+              ? "Admin roster unavailable"
+              : loading && team.length === 0
+                ? "Loading admin roster…"
+                : `${team.length} active member${team.length !== 1 ? "s" : ""} · XA-IDs are permanent and auto-assigned`}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -204,6 +281,7 @@ export default function TeamSection({ adminData, teamMgmt }) {
       </div>
 
       {alert && <Alert type={alert.type} message={alert.msg} onClose={() => setAlert(null)} />}
+      {error && <Alert type="error" message={`Could not load the admin roster: ${error}`} />}
 
       {/* ── Role summary cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -212,8 +290,14 @@ export default function TeamSection({ adminData, teamMgmt }) {
           return (
             <div key={key} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${role.color}`, borderRadius: 12, padding: "14px 16px" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: role.color }}>{role.label}</div>
-              <div style={{ fontSize: 25, fontWeight: 800, color: C.text, marginTop: 4 }}>{count}</div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{count === 1 ? "member" : "members"}</div>
+            <div style={{ fontSize: 25, fontWeight: 800, color: C.text, marginTop: 4 }}>
+              {error || (loading && team.length === 0) ? "—" : count}
+            </div>
+              {!error && !(loading && team.length === 0) && (
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                  {count === 1 ? "member" : "members"}
+                </div>
+              )}
             </div>
           );
         })}
@@ -226,13 +310,17 @@ export default function TeamSection({ adminData, teamMgmt }) {
           <Btn icon={RefreshCw} onClick={load} size="sm" />
         </div>
 
-        {loading ? (
+        {error ? (
+          <div role="alert" style={{ padding: 32, textAlign: "center", color: C.danger }}>
+            Could not load the admin roster. Use refresh to try again.
+          </div>
+        ) : loading && team.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: C.muted }}>Loading team…</div>
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No team members"
-            description="Add the first admin team member to get started."
+            title={search ? "No matching admins" : "No team members"}
+            description={search ? "Try a different name, email, username, or XA-ID." : "Add the first admin team member to get started."}
             action={canAdd && <Btn label="Add Member" variant="primary" onClick={() => setShowAdd(true)} />}
           />
         ) : (
@@ -240,6 +328,12 @@ export default function TeamSection({ adminData, teamMgmt }) {
             const roleMeta = ROLE_META[member.role] || ROLE_META.support;
             const isOwn    = member.user_id === adminData?.user_id;
             const isCEORole= member.role === "ceo_owner";
+            const lastActiveDate = member.last_active ? new Date(member.last_active) : null;
+            const lastActiveLabel = member.is_online
+              ? "Online now"
+              : lastActiveDate && Number.isFinite(lastActiveDate.getTime())
+                ? `Last seen ${lastActiveDate.toLocaleString()}`
+                : "Offline";
 
             return (
               <div
@@ -263,6 +357,7 @@ export default function TeamSection({ adminData, teamMgmt }) {
                     {isOwn  && <Badge label="You"            color={C.accent} />}
                     <Badge label={roleMeta.label} color={roleMeta.color} />
                     <StatusBadge status={member.status} />
+                    <Badge label={member.is_online ? "Online" : "Offline"} color={member.is_online ? C.success : C.muted} />
                   </div>
 
                   {/* Email */}
@@ -289,14 +384,12 @@ export default function TeamSection({ adminData, teamMgmt }) {
 
                 {/* Last active */}
                 <div style={{ fontSize: 12, color: C.muted, textAlign: "right", flexShrink: 0 }}>
-                  {member.last_active
-                    ? `Active ${new Date(member.last_active).toLocaleDateString()}`
-                    : "—"}
+                  {lastActiveLabel}
                 </div>
 
                 {/* Action buttons */}
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  {isSuper && !isCEORole && !isOwn && (
+                  {isCEO && !isCEORole && !isOwn && (
                     <Btn icon={Edit2} size="sm" title="Edit permissions" onClick={() => setEditMember({ ...member })} />
                   )}
                   {canRemove && !isCEORole && !isOwn && (
@@ -312,17 +405,18 @@ export default function TeamSection({ adminData, teamMgmt }) {
       {/* ── Add Member Modal ── */}
       <Modal
         open={showAdd}
-        onClose={() => { setShowAdd(false); setAddError(""); }}
+        onClose={closeAddModal}
         title="Add Team Member"
         width={560}
         footer={
           <>
-            <Btn label="Cancel" onClick={() => setShowAdd(false)} />
+            <Btn label="Cancel" onClick={closeAddModal} />
             <Btn icon={UserPlus} label="Add Member" variant="primary" loading={adding} onClick={handleAdd} />
           </>
         }
       >
         {addError && <Alert type="error" message={addError} />}
+        {userSearchError && <Alert type="error" message={`User search failed: ${userSearchError}`} />}
 
         {/* XA-ID info notice */}
         <div style={{ padding: "10px 14px", background: "rgba(132,204,22,0.06)", border: "1px solid rgba(132,204,22,0.18)", borderRadius: 10, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
@@ -332,12 +426,76 @@ export default function TeamSection({ adminData, teamMgmt }) {
           </div>
         </div>
 
-        <Field label="Email Address" required hint="Must be an existing Xeevia account">
-          <Input value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} type="email" placeholder="admin@xeevia.app" />
+        <Field label="Find an existing user" hint="Search by name, username, or email.">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, marginBottom: 8 }}>
+            <Search size={15} />
+            <Input
+              value={userSearch}
+              onChange={(event) => {
+                setSelectedUser(null);
+                setNewMember((member) => ({ ...member, userId: "", email: "" }));
+                setUserSearch(event.target.value);
+              }}
+              placeholder="Search users…"
+              aria-label="Search users to add to the admin team"
+            />
+          </div>
+          {searchingUsers && <div style={{ color: C.muted, fontSize: 12, padding: "4px 0 8px" }}>Searching users…</div>}
+          {availableUserResults.length > 0 && !newMember.userId && (
+            <div style={{ maxHeight: 180, overflowY: "auto", border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 10 }}>
+              {availableUserResults.map((user) => (
+                <button
+                  type="button"
+                  key={user.id}
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setNewMember((member) => ({
+                      ...member,
+                      userId: user.id,
+                      email: user.email || "",
+                    }));
+                    setUserResults([]);
+                  }}
+                  style={{ display: "block", width: "100%", padding: "9px 11px", border: 0, borderBottom: `1px solid ${C.border}`, background: "transparent", color: C.text, textAlign: "left", cursor: "pointer" }}
+                >
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{user.full_name || user.username || "Unnamed user"}</span>
+                  <span style={{ display: "block", fontSize: 11, color: C.muted }}>
+                    {user.username ? `@${user.username}` : user.email}
+                    {user.username && user.email ? ` · ${user.email}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!searchingUsers && userSearch.trim().length >= 2 && !userSearchError && availableUserResults.length === 0 && !newMember.userId && (
+            <div style={{ fontSize: 12, color: C.muted, padding: "4px 0 8px" }}>No eligible users found.</div>
+          )}
         </Field>
-        <Field label="Display Name">
-          <Input value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} placeholder="Full name (optional)" />
-        </Field>
+        {selectedUser ? (
+          <Field label="Selected account">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: `1px solid ${C.accent}40`, borderRadius: 9, background: `${C.accent}08` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: C.text, fontSize: 13, fontWeight: 700 }}>{selectedUser.full_name || selectedUser.username || "Unnamed user"}</div>
+                <div style={{ color: C.muted, fontSize: 12 }}>{selectedUser.email || "No email on account"}</div>
+              </div>
+              <button type="button" onClick={() => {
+                setSelectedUser(null);
+                setNewMember((member) => ({ ...member, userId: "", email: "" }));
+              }} aria-label="Clear selected user" style={{ border: 0, background: "transparent", color: C.muted, cursor: "pointer" }}>
+                <X size={16} />
+              </button>
+            </div>
+          </Field>
+        ) : (
+          <Field label="Or use an account email" required hint="The email must belong to an existing Xeevia account.">
+            <Input
+              value={newMember.email}
+              onChange={(event) => setNewMember((member) => ({ ...member, userId: "", email: event.target.value }))}
+              type="email"
+              placeholder="admin@example.com"
+            />
+          </Field>
+        )}
         <Field label="Role" required>
           <Select
             value={newMember.role}
@@ -349,8 +507,8 @@ export default function TeamSection({ adminData, teamMgmt }) {
           )}
         </Field>
         <Field label="Custom Permissions Override" hint="Leave blank to use role defaults.">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
-            {ALL_PERMISSIONS_LIST.slice(0, 12).map((p) => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+            {ALL_PERMISSIONS_LIST.map((p) => (
               <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 7, cursor: "pointer" }}>
                 <input
                   type="checkbox"
@@ -398,7 +556,7 @@ export default function TeamSection({ adminData, teamMgmt }) {
               <span style={{ fontSize: 12, color: C.muted, marginLeft: "auto" }}>This cannot be changed</span>
             </div>
 
-            {isSuper && (
+            {isCEO && (
               <Field label="Role">
                 <Select
                   value={editMember.role}
@@ -537,6 +695,7 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
       </div>
 
       {alert && <Alert type={alert.type} message={alert.msg} onClose={() => setAlert(null)} />}
+      {teamMgmt.error && <Alert type="error" message={`Could not load the admin roster: ${teamMgmt.error}`} />}
 
       {/* Platform vitals */}
       <Section title="Platform Vitals" subtitle="Live snapshot">
@@ -565,7 +724,9 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: role.color }} />
                   <span style={{ fontSize: 13, fontWeight: 700, color: role.color }}>{role.label}</span>
-                  <span style={{ fontSize: 19, fontWeight: 800, color: C.text, marginLeft: "auto" }}>{members.length}</span>
+                  <span style={{ fontSize: 19, fontWeight: 800, color: C.text, marginLeft: "auto" }}>
+                    {teamMgmt.error || (teamMgmt.loading && !teamMgmt.team.length) ? "—" : members.length}
+                  </span>
                 </div>
                 {members.map((m) => (
                   <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "6px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 7 }}>
@@ -575,7 +736,9 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
                   </div>
                 ))}
                 {members.length === 0 && (
-                  <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "8px 0" }}>No members</div>
+                  <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "8px 0" }}>
+                    {teamMgmt.error ? "Roster unavailable" : teamMgmt.loading ? "Loading…" : "No members"}
+                  </div>
                 )}
               </div>
             );

@@ -878,6 +878,7 @@ export function Input({
   step,
   rows,
   style: extraStyle,
+  ...inputProps
 }) {
   const base = {
     width: "100%",
@@ -904,6 +905,7 @@ export function Input({
         style={{ ...base, resize: "vertical", lineHeight: 1.5 }}
         onFocus={(e) => (e.target.style.borderColor = C.accent)}
         onBlur={(e) => (e.target.style.borderColor = C.border2)}
+        {...inputProps}
       />
     );
   return (
@@ -919,6 +921,7 @@ export function Input({
       style={base}
       onFocus={(e) => (e.target.style.borderColor = C.accent)}
       onBlur={(e) => (e.target.style.borderColor = C.border2)}
+      {...inputProps}
     />
   );
 }
@@ -1416,7 +1419,7 @@ export function CaseCard({ caseData, onClick, adminData }) {
 // FIXED: currentAdminUserId must be the profile UUID (user_id from admin_team)
 // Each team member is compared by m.user_id (their profile UUID)
 // The panel shows role badge instead of duplicated names
-export function AdminOnlinePanel({ team, currentAdminUserId }) {
+export function AdminOnlinePanel({ team = [], currentAdminUserId, loading = false, error = null }) {
   const online = (team || []).filter((m) => m.is_online);
   const away = (team || []).filter(
     (m) =>
@@ -1462,10 +1465,21 @@ export function AdminOnlinePanel({ team, currentAdminUserId }) {
           marginBottom: 12,
         }}
       >
-        <LivePulse color={C.success} label={`${online.length} Online`} />
+        <LivePulse
+          color={error ? C.danger : C.success}
+          label={error ? "Admin team unavailable" : loading && team.length === 0 ? "Checking team…" : `${online.length} Online`}
+        />
       </div>
 
-      {displayList.length === 0 ? (
+      {error ? (
+        <div role="alert" style={{ fontSize: 12, color: C.danger, textAlign: "center", padding: "12px 0" }}>
+          Could not load the admin roster.
+        </div>
+      ) : loading && team.length === 0 ? (
+        <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: "12px 0" }}>
+          Loading admin presence…
+        </div>
+      ) : displayList.length === 0 ? (
         <div
           style={{
             fontSize: 12,
