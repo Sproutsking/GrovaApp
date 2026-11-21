@@ -18,6 +18,7 @@ import mediaUrlService from "../../services/shared/mediaUrlService";
 import backgroundService from "../../services/messages/BackgroundService";
 import LinkifiedText from "../Shared/LinkifiedText";
 import MessageList from "../Community/components/MessageList";
+import MessageStatusIcon from "./MessageStatusIcon";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
 import ContextMenu from "../Community/components/ContextMenu";
 import MessageDeletionControls from "./MessageDeletionControls";
@@ -457,7 +458,7 @@ const MsgBubble = memo(({ msg, isMe, prevSame, nextSame, members, onReply, onRea
         <div className={`gcv-meta${isMe?" gcv-meta-me":""}`}>
           <span className="gcv-time">{timeStr(msg.created_at)}</span>
           {isMe&&<span className={`gcv-status gcv-status-${msg._failed ? "failed" : msg._optimistic ? "sent" : msg.read ? "read" : msg.delivered ? "delivered" : "sent"}`} aria-label={`Message ${msg._failed ? "failed" : msg.read ? "read" : msg.delivered ? "delivered" : "sent"}`}>
-            {msg._failed ? "!" : msg.read || msg.delivered ? "✓✓" : "✓"}
+            <MessageStatusIcon status={msg._failed ? "failed" : msg.read ? "read" : msg.delivered ? "delivered" : "sent"} />
           </span>}
         </div>
 
@@ -954,7 +955,8 @@ const CSS = `
 .gcv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
 .gcv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.32);pointer-events:none;z-index:0;}
 .gcv-msgs-default .gcv-msgs-overlay{background:rgba(0,0,0,.18);} 
-.gcv-msgs-content{position:relative;z-index:1;padding:8px 10px 16px;display:flex;flex-direction:column;gap:1px;}
+.gcv-msgs-content{position:relative;z-index:1;padding:8px 6px 16px;display:flex;flex-direction:column;gap:1px;}
+.gcv-root .gcv-msgs-content > .msg-list-wrapper{padding-left:0;padding-right:0;}
 
 .gcv-loading{display:flex;justify-content:center;padding:40px;}
 .gcv-spin{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:gcvSpin .7s linear infinite;}
@@ -1019,7 +1021,7 @@ const CSS = `
 .gcv-bwrap-me .gcv-meta{justify-content:space-between;width:100%;}
 .gcv-meta-me{justify-content:flex-start;}
 .gcv-time{font-size:calc((10px) + 1px);color:#444;}
-.gcv-status{font-size:calc((12px) + 1px);font-weight:800;line-height:1;letter-spacing:-2px;min-width:15px;text-align:left;}
+.gcv-status{display:inline-flex;align-items:center;justify-content:flex-start;line-height:1;min-width:15px;flex-shrink:0;}
 .gcv-status-sent{color:#9ca3af;}.gcv-status-delivered{color:#d1d5db;}.gcv-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}.gcv-status-failed{color:#ef4444;letter-spacing:0;}
 
 /* Reactions */

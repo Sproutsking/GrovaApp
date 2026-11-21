@@ -14,6 +14,7 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import dmMessageService from "../../services/messages/dmMessageService";
 import groupDMService from "../../services/messages/groupDMService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import MessageStatusIcon from "./MessageStatusIcon";
 
 const ConversationList = ({
   currentUserId,
@@ -415,7 +416,7 @@ const ConversationList = ({
                 </div>
                 <div className="cl-bottom">
                   {lastMessageStatus && <span className={`cl-status cl-status-${lastMessageStatus}`} aria-label={`Message ${lastMessageStatus}`}>
-                    {lastMessageStatus === "failed" ? "!" : lastMessageStatus === "read" || lastMessageStatus === "delivered" ? "✓✓" : "✓"}
+                    <MessageStatusIcon status={lastMessageStatus} />
                   </span>}
                   <span className={`cl-preview${hasUnread ? " cl-preview-bold" : ""}${isTyping ? " cl-preview-typing" : ""}`}>
                     {preview}
@@ -464,7 +465,7 @@ const ConversationList = ({
         .cl-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
         .cl-name{font-size:calc((14px) + 1px);font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;display:flex;align-items:center;gap:6px;}
         .cl-group-tag{font-size:calc((9px) + 1px);font-weight:700;color:#84cc16;background:rgba(132,204,22,.12);border:1px solid rgba(132,204,22,.25);border-radius:4px;padding:1px 5px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0;}
-          .cl-status{font-size:calc((12px) + 1px);font-weight:800;line-height:1;letter-spacing:-2px;min-width:16px;text-align:left;flex-shrink:0;}
+          .cl-status{display:inline-flex;align-items:center;justify-content:flex-start;line-height:1;min-width:16px;flex-shrink:0;}
           .cl-status-sent{color:#9ca3af;}.cl-status-delivered{color:#d1d5db;}.cl-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}.cl-status-failed{color:#ef4444;letter-spacing:0;}
         .cl-time{font-size:calc((11px) + 1px);color:#444;flex-shrink:0;margin-left:8px;}
         .cl-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;}

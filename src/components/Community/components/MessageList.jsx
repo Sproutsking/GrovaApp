@@ -9,6 +9,7 @@ import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
 import { MessageReactionArea } from "./ReactionSystem";
 import WelcomeMemberCard, { getWelcomeMemberId } from "../verification/WelcomeMemberCard";
 import { COMMUNITY_MENTION_PATTERN, resolveCommunityMention } from "../communityMentions";
+import MessageStatusIcon from "../../Messages/MessageStatusIcon";
 
 const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
 const ANNOUNCEMENT_COLORS = new Set(["#9cff00", "#38bdf8", "#f59e0b", "#f472b6", "#a78bfa"]);
@@ -402,7 +403,7 @@ const MessageList = ({
                 <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
                   <span className="msg-time">{formatTime(msg.created_at)}</span>
                   {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
-                    {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
+                    <MessageStatusIcon status={getMessageStatus(msg)} />
                   </span>}
                   {msg.edited && <span className="msg-edited">(edited)</span>}
                 </div>
@@ -460,7 +461,7 @@ const MessageList = ({
                     {!hasReactionRow && <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
                       <span className="msg-time">{formatTime(msg.created_at)}</span>
                       {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
-                        {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
+                        <MessageStatusIcon status={getMessageStatus(msg)} />
                       </span>}
                       {msg.edited && <span className="msg-edited">(edited)</span>}
                     </div>}
@@ -506,7 +507,7 @@ const MessageList = ({
           flex-direction: column;
           gap: 0;
         }
-.dm-message-status{font-size:calc((12px) + 1px);font-weight:800;line-height:1;letter-spacing:-2px;margin-left:0;display:inline-flex;align-items:flex-end;justify-content:center;min-width:15px;line-height:1.1;align-self:flex-end;transform:translateY(-1px);}
+.dm-message-status{display:inline-flex;align-items:center;justify-content:center;min-width:15px;flex-shrink:0;align-self:flex-end;transform:translateY(-1px);margin-right:2px;}
 .dm-message-status-sent{color:#9ca3af;}
 .dm-message-status-delivered{color:#d1d5db;}
 .dm-message-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}
@@ -833,6 +834,7 @@ const MessageList = ({
           .msg-item .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
           .msg-item.announcement .mra-wrapper { max-width: 84%; }
           .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 40px); }
+          .msg-list-wrapper:not(.direct-message-list) .msg-item.them:not(.announcement) .mra-wrapper { max-width: min(78%, 460px); }
           .msg-list-wrapper:not(.direct-message-list) .msg-item:not(.announcement) .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; min-width: 0; }
           .msg-list-wrapper .msg-item:not(.announcement) .mra-wrapper.has-visual-attachments {
             flex: 0 1 auto;
@@ -1051,7 +1053,7 @@ const MessageList = ({
           }
 
           .msg-list-wrapper:not(.direct-message-list) { padding-left: 10px; padding-right: 10px; }
-          .msg-list-wrapper.direct-message-list .msg-bubble { padding: 2px; }
+          .msg-list-wrapper.direct-message-list .msg-bubble { padding: 2px 4px; }
           .msg-list-wrapper .msg-item .mra-wrapper.has-external-preview { width: min(420px, 100%) !important; }
           .msg-list-wrapper .msg-item .mra-wrapper .msg-bubble.has-visual-attachments { width: 100%; max-width: 100%; }
 

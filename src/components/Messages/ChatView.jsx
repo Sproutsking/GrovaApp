@@ -16,6 +16,7 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import backgroundService from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import MessageStatusIcon from "./MessageStatusIcon";
 import { getBoostNameColor } from "../Shared/profileVisuals";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
@@ -645,10 +646,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   };
   const getTickStatus=msg=>{
     const state = getMessageState(msg);
-    if(state==="failed")return<span className="cv-tk cv-tk-red">✗</span>;
-    if(state==="read")return<span className="cv-tk cv-tk-read">✓✓</span>;
-    if(state==="delivered")return<span className="cv-tk cv-tk-dlvr">✓✓</span>;
-    return<span className="cv-tk cv-tk-sent">✓</span>;
+    return <span className={`cv-tk cv-tk-${state === "failed" ? "red" : state === "read" ? "read" : state === "delivered" ? "dlvr" : "sent"}`}>
+      <MessageStatusIcon status={state} />
+    </span>;
   };
 
   const fmtTime=d=>{if(!d)return"";const dt=new Date(d);const h=dt.getHours()%12||12;const m=dt.getMinutes().toString().padStart(2,"0");return`${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;};
@@ -934,7 +934,7 @@ export const CV_CSS = `
 .cv-meta-me{justify-content:flex-start;}
 .cv-time{font-size:calc((10px) + 1px);color:#a1aaa2;}
 .cv-st{line-height:1;}
-.cv-tk{font-size:calc((11px) + 1px);font-weight:700;display:inline-block;transition:color .25s;}
+.cv-tk{display:inline-flex;align-items:center;justify-content:center;min-width:15px;margin-right:2px;transition:color .25s;}
 .cv-tk-sent{color:#444;}.cv-tk-dlvr{color:#888;}.cv-tk-read{color:#22c55e;}.cv-tk-red{color:#ef4444;}
 .cv-typing-bubble{padding:10px 14px;}
 .cv-dots{display:flex;gap:4px;}

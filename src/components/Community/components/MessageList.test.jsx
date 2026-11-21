@@ -20,8 +20,11 @@ jest.mock("../../Shared/LinkifiedText", () => {
 });
 
 jest.mock("./ReactionSystem", () => ({
-  MessageReactionArea: ({ children, className = "" }) => (
-    <div className={`mra-wrapper ${className}`}>{children({ reactionRow: null })}</div>
+  MessageReactionArea: ({ children, className = "", footerMeta }) => (
+    <div className={`mra-wrapper ${className}`}>
+      {children({ reactionRow: null })}
+      {footerMeta}
+    </div>
   ),
 }));
 
@@ -73,6 +76,26 @@ describe("MessageList presentation", () => {
     expect(container.querySelectorAll(".msg-avatar")).toHaveLength(0);
     expect(container.querySelectorAll(".msg-avatar-spacer")).toHaveLength(0);
     expect(container.querySelectorAll(".msg-user-name")).toHaveLength(0);
+  });
+
+  it("renders outgoing delivery status with a scalable SVG check icon", () => {
+    const { container } = render(
+      <MessageList
+        messages={[makeMessage({ user_id: "me", user: { id: "me", full_name: "Me" } })]}
+        pendingMessages={[]}
+        loading={false}
+        userId="me"
+        currentUser={{ id: "me", fullName: "Me" }}
+        messagesEndRef={React.createRef()}
+        messageMode="direct"
+        getMessageStatus={() => "read"}
+      />,
+    );
+
+    const status = container.querySelector(".dm-message-status");
+    expect(status.getAttribute("aria-label")).toBe("Message read");
+    expect(status.querySelector("svg")).toBeTruthy();
+    expect(status.textContent).toBe("");
   });
 
   it("keeps link previews inside the message bubble and labels shared GIFs as content", () => {
