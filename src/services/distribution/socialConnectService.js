@@ -252,6 +252,30 @@ export function validateProfileUrl(platform, value) {
 
 class SocialConnectService {
 
+  async _syncPublicProfileLink(userId, platform, profileUrl, expectedCurrentUrl = null) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("social_links")
+      .eq("id", userId)
+      .maybeSingle();
+    if (profileError) throw new Error(`Failed to load public profile links: ${profileError.message}`);
+
+    const links = profile?.social_links && typeof profile.social_links === "object" && !Array.isArray(profile.social_links)
+      ? profile.social_links
+      : {};
+    if (profileUrl === null && expectedCurrentUrl && links[platform] !== expectedCurrentUrl) return;
+
+    const nextLinks = { ...links };
+    if (profileUrl === null) delete nextLinks[platform];
+    else nextLinks[platform] = profileUrl;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ social_links: nextLinks, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (error) throw new Error(`Failed to update public profile links: ${error.message}`);
+  }
+
   // ── Check if user already has a linked identity for this provider ─────────
   // When user signs in via X, Supabase already has an X identity attached.
   // We can extract that token and store it in connections automatically.
@@ -490,6 +514,7 @@ class SocialConnectService {
       connected_via: "profile_link",
     }, { onConflict: "user_id,provider" }).select().single();
     if (error) throw new Error(`Failed to save profile link: ${error.message}`);
+    await this._syncPublicProfileLink(userId, platform, normalizedUrl);
     await recordPlatformEvent(userId, "platform_connected", platform, data);
     await syncUserConnectorEvidence(userId, platform).catch((syncError) => {
       console.warn(`[SocialConnect] Connection proof sync failed for ${platform}:`, syncError?.message);
@@ -552,7 +577,7 @@ class SocialConnectService {
   async unlinkPlatform(userId, platform) {
     const { data: conn, error: lookupError } = await supabase
       .from("connections")
-      .select("id, auth_status, connected_via")
+      .select("id, auth_status, connected_via, platform_user_id")
       .eq("user_id", userId)
       .eq("provider", platform)
       .maybeSingle();
@@ -574,6 +599,9 @@ class SocialConnectService {
       .eq("provider", platform);
 
     if (error) throw new Error(`Failed to unlink: ${error.message}`);
+    if (conn?.connected_via === "profile_link") {
+      await this._syncPublicProfileLink(userId, platform, null, conn.platform_user_id);
+    }
     if (conn) await recordPlatformEvent(userId, "platform_disconnected", platform, conn);
     return true;
   }

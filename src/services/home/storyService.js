@@ -281,11 +281,6 @@ class StoryService {
     try { await atomicIncrement("stories", storyId, "views", 1); } catch { /* silent */ }
   }
 
-  // ── INCREMENT COMMENTS COUNT ────────────────────────────────────────────────
-  async incrementCommentsCount(storyId, delta = 1) {
-    try { await atomicIncrement("stories", storyId, "comments_count", delta); } catch { /* silent */ }
-  }
-
   // ── UNLOCK STORY ────────────────────────────────────────────────────────────
   // [PUSH-3] Sends push to story owner when unlocked
   async unlockStory(storyId) {

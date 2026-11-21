@@ -22,7 +22,8 @@ import LikeModel from "../models/LikeModel";
 const EP_COSTS = {
   like: 2,
   comment: 4,
-  share: 10,
+  share: 1,
+  save: 1,
   comment_like: 0.5,
   reply: 2,
 };
@@ -314,6 +315,7 @@ async function checkSavedState(contentType, contentId, userId) {
       .eq("user_id", userId)
       .eq("content_type", contentType)
       .eq("content_id", contentId)
+      .limit(1)
       .maybeSingle();
     return !!data;
   } catch {

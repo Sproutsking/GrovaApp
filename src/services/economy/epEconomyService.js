@@ -31,7 +31,8 @@ export const EP_COSTS = Object.freeze({
   follow:  2,
   comment: 4,
   reply:   2,
-  share:   10,
+  share:   1,
+  save:    1,
 });
 
 export const ECONOMY = Object.freeze({
@@ -546,6 +547,54 @@ export async function processEngagement({
     const errorMessage = err?.message || err?.error_description || 'EP processing failed.';
     console.error('[epEconomyService] engagement RPC failed:', errorMessage);
     return { success: false, epCost, error: errorMessage };
+  }
+}
+
+export async function processNewsShare({ actorId, newsId, idempotencyKey = null }) {
+  const epCost = EP_COSTS.share;
+  if (!actorId || !newsId) {
+    return { success: false, epCost, error: 'A signed-in user and news item are required.' };
+  }
+
+  invalidateEPCache(actorId);
+  const eventKey = idempotencyKey || (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${actorId}:news:${newsId}:share:${Date.now()}`
+  );
+
+  try {
+    const { data, error } = await supabase.rpc('process_news_share', {
+      p_actor_id: actorId,
+      p_news_id: newsId,
+      p_idempotency_key: eventKey,
+    });
+
+    if (error) {
+      return { success: false, epCost, error: error.message ?? 'News share settlement is unavailable.' };
+    }
+
+    const result = data ?? {};
+    if (!result.success) {
+      const freshBalance = await getEPBalance(actorId);
+      _setCache(actorId, freshBalance);
+      return {
+        success: false,
+        epCost: Number(result.ep_cost ?? epCost),
+        error: result.error ?? 'EP processing failed.',
+        balance: result.balance != null ? Number(result.balance) : undefined,
+        required: result.required != null ? Number(result.required) : undefined,
+      };
+    }
+
+    const settledCost = Number(result.ep_cost ?? epCost);
+    if (!result.duplicate) {
+      const cached = _getCached(actorId);
+      if (cached !== null) _setCache(actorId, Math.max(0, cached - settledCost));
+    }
+    return { success: true, epCost: settledCost, duplicate: Boolean(result.duplicate) };
+  } catch (error) {
+    return { success: false, epCost, error: error?.message ?? 'News share settlement failed.' };
   }
 }
 

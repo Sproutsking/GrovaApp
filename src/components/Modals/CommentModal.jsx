@@ -250,7 +250,14 @@ const CommentModal = ({
     try {
       setLoading(true);
       const fetched = await CommentModel.getComments(content.type, content.id);
-      setComments(fetched || []);
+      const visibleComments = fetched || [];
+      setComments(visibleComments);
+      const count = visibleComments.length;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("xeevia:comment-count-updated", {
+          detail: { contentType: content.type, contentId: content.id, count },
+        }));
+      }
     } catch (e) {
       console.error("Failed to load comments:", e);
     } finally {

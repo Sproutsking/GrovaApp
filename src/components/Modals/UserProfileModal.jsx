@@ -239,7 +239,8 @@ const ProfilePeopleStack = ({ kind, people, total, loading, onOpen }) => {
         <span className="upm-people-names">
           {names.length
             ? `${names.join(", ")}${remaining ? ` +${fmt(remaining)}` : ""}`
-            : loading ? "Loading people…" : "No people yet"}
+            : loading ? "Loading people…" : total > 0 ? `Browse ${label.toLowerCase()}`
+              : "No people yet"}
         </span>
       </span>
       <span className="upm-people-open" aria-hidden="true"><ChevronRight size={15} /></span>
@@ -628,8 +629,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     .filter((item) => typeof item?.url === "string" && /^https?:\/\//i.test(item.url))
     .map((item) => ({ provider: item.provider || "External profile", url: item.url }));
   const visibleNetworks = isOwn
-    ? [...linkedNetworks.map((item) => ({ provider: item.provider, status: item.auth_status })), ...publicSocialLinks]
+    ? [
+        ...linkedNetworks
+          .filter((item) => item.connected_via !== "profile_link")
+          .map((item) => ({ provider: item.provider, status: item.auth_status })),
+        ...publicSocialLinks,
+      ]
     : [...publicSocialLinks, ...evidenceProfileLinks];
+  const distinctVisibleNetworks = [...new Map(visibleNetworks.map((item) => [
+    item.url ? item.url.toLowerCase() : `${item.provider}:${item.status || ""}`,
+    item,
+  ])).values()];
   const recordSummary = buildProfileRecordSummary({
     connectedPlatforms: linkedNetworks,
     socialLinks: profile?.socialLinks,
@@ -848,16 +858,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
     if (isOwn) {
       supabase
-        .from("connections")
-        .select("provider,platform_user_id,auth_status,connected_via")
-        .eq("user_id", targetId)
-        .then(({ data, error }) => {
-          if (error) throw error;
-          if (active) setLinkedNetworks(data || []);
-        })
-        .catch((error) => console.error("[UserProfileModal] Could not load linked networks:", error));
-
-      supabase
         .from("ambassador_profiles")
         .select("current_level, invite_code, status, commission_pct")
         .eq("user_id", targetId)
@@ -872,6 +872,48 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
     return () => { active = false; };
   }, [targetId, isOwn]);
+
+  useEffect(() => {
+    if (!isOwn || !targetId) return undefined;
+    let active = true;
+    const refreshConnections = async () => {
+      const [connectionsResult, profileResult] = await Promise.all([
+        supabase
+          .from("connections")
+          .select("provider,platform_user_id,auth_status,connected_via")
+          .eq("user_id", targetId),
+        supabase
+          .from("profiles")
+          .select("social_links")
+          .eq("id", targetId)
+          .maybeSingle(),
+      ]);
+      if (connectionsResult.error) throw connectionsResult.error;
+      if (profileResult.error) throw profileResult.error;
+      if (!active) return;
+      setLinkedNetworks(connectionsResult.data || []);
+      setProfile((previous) => previous
+        ? {
+            ...previous,
+            socialLinks: profileResult.data?.social_links && typeof profileResult.data.social_links === "object" && !Array.isArray(profileResult.data.social_links)
+              ? profileResult.data.social_links
+              : {},
+          }
+        : previous);
+    };
+
+    const handleConnectionsChanged = () => {
+      refreshConnections().catch((error) => {
+        console.error("[UserProfileModal] Could not refresh linked networks:", error);
+      });
+    };
+    handleConnectionsChanged();
+    window.addEventListener("xeevia:connections-changed", handleConnectionsChanged);
+    return () => {
+      active = false;
+      window.removeEventListener("xeevia:connections-changed", handleConnectionsChanged);
+    };
+  }, [isOwn, targetId]);
 
   const loadProfile = async (requestId) => {
     setLoading(true);
@@ -1155,24 +1197,52 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     e.stopPropagation();
     if (!myId || isOwn || followLoading) return;
     const next = !isFollowing;
+    const userMetadata = currentUser?.user_metadata || {};
+    const selfProfile = {
+      id: myId,
+      full_name: currentUser?.full_name || currentUser?.fullName || userMetadata.full_name,
+      username: currentUser?.username || userMetadata.username || currentUser?.email?.split("@")[0],
+      avatar_id: currentUser?.avatar_id || userMetadata.avatar_id,
+      avatar_metadata: currentUser?.avatar_metadata || userMetadata.avatar_metadata,
+      verified: Boolean(currentUser?.verified),
+    };
+    const selfFollow = { follower_id: myId, created_at: new Date().toISOString(), profiles: selfProfile };
+    const updateFollowerPreview = (following) => {
+      const updateRows = (rows) => {
+        const remaining = (rows || []).filter((item) => item.follower_id !== myId);
+        return following ? [selfFollow, ...remaining] : remaining;
+      };
+      setConnectionPreviews((previous) => ({
+        ...previous,
+        followers: updateRows(previous.followers),
+      }));
+      setConnectionLists((previous) => ({
+        ...previous,
+        followers: previous.followers === null ? null : updateRows(previous.followers),
+      }));
+    };
+
     setIsFollowing(next);
     setFollowLoading(true);
-    setStats((s) => ({ ...s, followers: s.followers + (next ? 1 : -1) }));
+    setStats((s) => ({ ...s, followers: Math.max(0, s.followers + (next ? 1 : -1)) }));
+    updateFollowerPreview(next);
     try {
       const result = next
         ? await followService.followUser(myId, targetId)
         : await followService.unfollowUser(myId, targetId);
       if (result?.success === false) {
         setIsFollowing(!next);
-        setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
+        setStats((s) => ({ ...s, followers: Math.max(0, s.followers + (next ? -1 : 1)) }));
+        updateFollowerPreview(!next);
       }
     } catch {
       setIsFollowing(!next);
-      setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
+      setStats((s) => ({ ...s, followers: Math.max(0, s.followers + (next ? -1 : 1)) }));
+      updateFollowerPreview(!next);
     } finally {
       if (mounted.current) setFollowLoading(false);
     }
-  }, [myId, targetId, isOwn, isFollowing, followLoading]);
+  }, [myId, targetId, isOwn, isFollowing, followLoading, currentUser]);
 
   const handleMessage = useCallback((e) => {
     e.preventDefault();
@@ -1354,7 +1424,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 onToggle={() => setExpandedSidebarCard((current) => current === "networks" ? null : "networks")}
                 className="upm-sidebar-links"
               >
-                {visibleNetworks.length ? visibleNetworks.map(({ provider, url, status }, index) => (
+                {distinctVisibleNetworks.length ? distinctVisibleNetworks.map(({ provider, url, status }, index) => (
                   url ? (
                     <a className="upm-sidebar-accordion-item" key={`${provider}-${url}`} href={url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink size={13} /><span>{provider.replaceAll("_", " ")}</span><ChevronRight size={12} />

@@ -20,7 +20,7 @@
 //     processEngagement(contentType, type='share') fires in background
 //     Count bumped optimistically; rolled back if EP insufficient
 //
-//   Save: no EP cost, no processEngagement call
+//   Save: the saved_content insert is settled atomically by the database trigger.
 //
 // SELF-ENGAGEMENT:
 //   processEngagement returns { selfEngagement: true } — the like/share is
@@ -95,6 +95,7 @@ async function checkSaved(contentType, contentId, userId) {
       .eq('user_id',      userId)
       .eq('content_type', contentType)
       .eq('content_id',   contentId)
+      .limit(1)
       .maybeSingle();
     return !!data;
   } catch {
@@ -139,6 +140,7 @@ const ReactionPanel = ({
   const [epError,        setEpError]        = useState(null);
   const [isLiking,       setIsLiking]       = useState(false);
   const [isSaving,       setIsSaving]       = useState(false);
+  const [isSharing,      setIsSharing]      = useState(false);
   const [likeBurst,      setLikeBurst]      = useState(null);
 
   const likeRef     = useRef(null);
@@ -146,6 +148,7 @@ const ReactionPanel = ({
   const epErrTimer  = useRef(null);
   const viewCleanup = useRef(null);
   const likeBurstId = useRef(0);
+  const shareAttempt = useRef(null);
 
   const burstLike = useCallback(({ x, y }) => {
     likeBurstId.current += 1;
@@ -182,6 +185,19 @@ const ReactionPanel = ({
   useEffect(() => { setCommentCount(content.comments_count ?? 0); }, [content.comments_count]);
   useEffect(() => { setShareCount(content.shares         ?? 0); }, [content.shares]);
   useEffect(() => { setViewCount(content.views           ?? 0); }, [content.views]);
+
+  useEffect(() => {
+    const handleCommentCountUpdate = (event) => {
+      const { contentType, contentId, count } = event.detail || {};
+      if (contentType !== content.type || contentId !== content.id || !Number.isFinite(count)) return;
+      setCommentCount(count);
+      const updated = { ...content, comments_count: count };
+      onCommented?.(updated);
+      onContentUpdate?.(updated);
+    };
+    window.addEventListener('xeevia:comment-count-updated', handleCommentCountUpdate);
+    return () => window.removeEventListener('xeevia:comment-count-updated', handleCommentCountUpdate);
+  }, [content, onCommented, onContentUpdate]);
 
   // ── EP error toast (auto-dismisses after 3 s) ─────────────────────────────
   const showEpError = useCallback((msg) => {
@@ -350,35 +366,42 @@ const ReactionPanel = ({
   // ══════════════════════════════════════════════════════════════════════════
   const handleShare = useCallback(async (e) => {
     e.stopPropagation();
-
-    // Optimistic count bump immediately
-    setShareCount(c => c + 1);
-
-    if (onShare) {
-      onShare(content);
-    } else {
-      setShowShareModal(true);
-    }
-
-    if (!currentUser?.id) return;
-
-    // EP processing runs in background — non-blocking for UX
-    processEngagement({
-      actorId:        currentUser.id,
-      contentType:    content.type,
-      contentId:      content.id,
-      engagementType: 'share',
-    }).then(result => {
-      if (!result.success && !result.selfEngagement && !result.free) {
-        // Roll back count if EP was genuinely insufficient
-        setShareCount(c => Math.max(0, c - 1));
-        showEpError(result.error ?? `Need ${EP_COSTS.share} EP to share.`);
+    if (!currentUser?.id || isSharing) return;
+    setIsSharing(true);
+    try {
+      if (shareAttempt.current?.contentId !== content.id) {
+        shareAttempt.current = {
+          contentId: content.id,
+          idempotencyKey: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${currentUser.id}:${content.id}:share:${Date.now()}`,
+        };
       }
-    });
-  }, [currentUser?.id, content, onShare, showEpError]);
+      const result = await processEngagement({
+        actorId: currentUser.id,
+        contentType: content.type,
+        contentId: content.id,
+        engagementType: 'share',
+        idempotencyKey: shareAttempt.current.idempotencyKey,
+      });
+      if (!result.success && !result.selfEngagement) {
+        showEpError(result.error ?? `Need ${EP_COSTS.share} EP to share.`);
+        return;
+      }
+
+      shareAttempt.current = null;
+      setShareCount(c => c + 1);
+      if (onShare) onShare(content);
+      else setShowShareModal(true);
+    } catch (error) {
+      showEpError(error?.message ?? 'Could not settle the share. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [currentUser?.id, content, isSharing, onShare, showEpError]);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SAVE  (no EP cost)
+  // SAVE (new saves are charged atomically by the saved_content trigger)
   // ══════════════════════════════════════════════════════════════════════════
   const handleSave = useCallback(async (e) => {
     e.stopPropagation();
@@ -456,6 +479,7 @@ const ReactionPanel = ({
         <button
           className="rp-btn"
           onClick={handleShare}
+          disabled={isSharing}
           aria-label={`Share · costs ${EP_COSTS.share} EP`}
           title={`Sharing costs ${EP_COSTS.share} EP`}
         >
@@ -464,20 +488,22 @@ const ReactionPanel = ({
           {!compact && <span className="rp-ep-label">·{EP_COSTS.share}EP</span>}
         </button>
 
-        {/* ── SAVE (no EP cost) ── */}
+        {/* ── SAVE ── */}
         {showSave && (
           <button
             ref={saveRef}
             className={`rp-btn${saved ? ' rp-btn--saved' : ''}`}
             onClick={e => { ripple(saveRef); handleSave(e); }}
             disabled={isSaving}
-            aria-label={saved ? 'Unsave' : 'Save'}
+            aria-label={saved ? 'Unsave (free)' : `Save · costs ${EP_COSTS.save} EP`}
+            title={saved ? 'Removing a save is free' : `Saving costs ${EP_COSTS.save} EP`}
           >
             <Bookmark
               size={compact ? 16 : 18}
               fill={saved  ? '#fbbf24' : 'none'}
               color={saved ? '#fbbf24' : '#a3a3a3'}
             />
+            {!compact && <span className="rp-ep-label">·{EP_COSTS.save}EP</span>}
           </button>
         )}
 

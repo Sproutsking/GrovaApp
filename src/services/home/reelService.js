@@ -283,11 +283,6 @@ class ReelService {
     try { await atomicIncrement("reels", reelId, "views", 1); } catch { /* silent */ }
   }
 
-  // ── INCREMENT COMMENTS COUNT ────────────────────────────────────────────────
-  async incrementCommentsCount(reelId, delta = 1) {
-    try { await atomicIncrement("reels", reelId, "comments_count", delta); } catch { /* silent */ }
-  }
-
   // ── GET TOP INTERACTIONS ────────────────────────────────────────────────────
   async getTopInteractions(userId, limit = 3) {
     try {

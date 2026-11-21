@@ -41,15 +41,18 @@ The event is the source of truth. Cumulative impact is derived from events and m
 
 ## First Settlement Rule
 
-The initial Ripple v1 rule is deliberately conservative:
+Ripple v2 preserves the existing interaction prices and lowers share pricing:
 
 ```text
 like     = 2 EP
 comment  = 4 EP
 reply    = 2 EP
-share    = 10 EP
+share    = 1 EP
+save     = 1 EP
 protocol fee = 20% of a non-self action
 ```
+
+Saving a post, reel, or story is settled atomically with the save record. Sharing a news article uses the same 1 EP price and a separate idempotent wallet settlement because news items are not Ripple content.
 
 For a non-self action:
 
@@ -61,7 +64,7 @@ If the directly affected contributor is also the root creator, that person recei
 
 This means a reply can recognize both the person whose contribution was directly extended and the original creator whose work generated the conversation, without double-crediting the same person.
 
-These values are a versioned starting policy, not a universal economic truth. Future policies may add quality, freshness, campaign, community, or fraud coefficients.
+These values are a versioned policy, not a universal economic truth. Future policies may add quality, freshness, campaign, community, or fraud coefficients.
 
 ## Recursive Value Is a Measurement
 

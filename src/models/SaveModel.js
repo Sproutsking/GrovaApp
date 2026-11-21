@@ -14,20 +14,25 @@ class SaveModel {
       }
 
       // Check if already saved
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from('saved_content')
         .select('id')
         .eq('content_type', contentType)
         .eq('content_id', contentId)
         .eq('user_id', userId)
+        .limit(1)
         .maybeSingle();
+      if (lookupError) throw lookupError;
 
       if (existing) {
         // Already saved - unsave
-        await supabase
+        const { error } = await supabase
           .from('saved_content')
           .delete()
-          .eq('id', existing.id);
+          .eq('content_type', contentType)
+          .eq('content_id', contentId)
+          .eq('user_id', userId);
+        if (error) throw error;
 
         return { saved: false, success: true };
       }
@@ -106,6 +111,7 @@ class SaveModel {
         .eq('content_type', contentType)
         .eq('content_id', contentId)
         .eq('user_id', userId)
+        .limit(1)
         .maybeSingle();
 
       return !!data;

@@ -14,7 +14,7 @@ import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 
 import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
+  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard, Link2,
   Sparkles, GitBranch, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
@@ -417,7 +417,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
+        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, social_links, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
         .eq("id", userId)
         .maybeSingle();
 
@@ -458,6 +458,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           bannerImageId: profileData.banner_image_id || null,
           bio: profileData.bio,
           profileTags: normalizeProfileTags(profileData.profile_tags),
+          socialLinks: profileData.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
+            ? profileData.social_links
+            : {},
           verified: profileData.verified || false,
           isPro: profileData.is_pro || false,
           joinDate: new Date(profileData.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
@@ -538,6 +541,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         avatarMetadata:   profileData?.avatar_metadata || authUser?.user_metadata || null,
         bio:              profileData?.bio,
         profileTags:      normalizeProfileTags(profileData?.profile_tags),
+        socialLinks:      profileData?.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
+          ? profileData.social_links
+          : {},
         verified:         profileData?.verified         || false,
         isPro:            profileData?.is_pro           || false,
         joinDate:         new Date(profileData?.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
@@ -554,7 +560,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       };
 
       if (!profileData) {
-        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, profileTags:[], verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
+        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, profileTags:[], socialLinks:{}, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
         setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, xevTokens:0, engagementPoints:0 });
         return;
       }
@@ -608,6 +614,41 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       });
     }
   };
+
+  const profileSocialLinks = Object.entries(profile?.socialLinks || {})
+    .filter(([, url]) => typeof url === "string" && /^https?:\/\//i.test(url));
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    let active = true;
+    const refreshSocialLinks = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("social_links")
+          .eq("id", userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (active) {
+          setProfile((previous) => previous
+            ? {
+                ...previous,
+                socialLinks: data?.social_links && typeof data.social_links === "object" && !Array.isArray(data.social_links)
+                  ? data.social_links
+                  : {},
+              }
+            : previous);
+        }
+      } catch (error) {
+        console.error("[ProfileSection] Could not refresh public profile links:", error);
+      }
+    };
+    window.addEventListener("xeevia:connections-changed", refreshSocialLinks);
+    return () => {
+      active = false;
+      window.removeEventListener("xeevia:connections-changed", refreshSocialLinks);
+    };
+  }, [userId]);
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -812,6 +853,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 10px; }
         .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:calc((9px) + 1px);font-weight:800;line-height:1.2; }
         .profile-bio { color:#d1d1d1;font-size:calc((13px) + 1px);margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
+        .profile-social-links { display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:-6px 0 16px; }
+        .profile-social-link { display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(0,0,0,.4);color:#d9f99d;text-decoration:none;font-size:11px;font-weight:700;text-transform:capitalize; }
+        .profile-social-link:hover { border-color:rgba(163,230,53,.55);background:rgba(132,204,22,.1); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
         .profile-boost-tristat { margin-bottom:12px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(8,8,8,.95) 58%);border-color:rgba(255,255,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.24); }
@@ -961,6 +1005,21 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             </div>
 
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+            {profileSocialLinks.length > 0 && (
+              <div className="profile-social-links">
+                {profileSocialLinks.map(([provider, url]) => (
+                  <a
+                    className="profile-social-link"
+                    key={`${provider}-${url}`}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Link2 size={12} />{provider.replaceAll("_", " ")}
+                  </a>
+                ))}
+              </div>
+            )}
 
             {(profile.showEmail || profile.showPhone) && (
               <div className="contact-row">

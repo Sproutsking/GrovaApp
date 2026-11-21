@@ -4,10 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import LikeModel from "../../models/LikeModel";
 import SaveModel from "../../models/SaveModel";
-import { invalidateEPCache, processEngagement } from "../../services/economy/epEconomyService";
+import { EP_COSTS, invalidateEPCache, processEngagement } from "../../services/economy/epEconomyService";
 import LikeBurst from "./LikeBurst";
-
-const EP_COSTS = { like: 2, comment: 4, share: 10 };
 
 const FullScreenReactionPanel = ({
   content,
@@ -18,10 +16,15 @@ const FullScreenReactionPanel = ({
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(content.likes || 0);
+  const [commentCount, setCommentCount] = useState(content.comments_count || 0);
+  const [shareCount, setShareCount] = useState(content.shares || 0);
   const [epError, setEpError] = useState(null);
   const [likeBurst, setLikeBurst] = useState(null);
   const [isLiking, setIsLiking] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const burstId = React.useRef(0);
+  const shareAttempt = React.useRef(null);
 
   const burstLike = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -40,6 +43,24 @@ const FullScreenReactionPanel = ({
         .catch(() => {});
     }
   }, [content.id, currentUser?.id]);
+
+  useEffect(() => {
+    setCommentCount(content.comments_count || 0);
+  }, [content.comments_count]);
+  useEffect(() => {
+    setShareCount(content.shares || 0);
+  }, [content.shares]);
+
+  useEffect(() => {
+    const handleCommentCountUpdate = (event) => {
+      const { contentType, contentId, count } = event.detail || {};
+      if (contentType === content.type && contentId === content.id && Number.isFinite(count)) {
+        setCommentCount(count);
+      }
+    };
+    window.addEventListener("xeevia:comment-count-updated", handleCommentCountUpdate);
+    return () => window.removeEventListener("xeevia:comment-count-updated", handleCommentCountUpdate);
+  }, [content.id, content.type]);
 
   const showEpError = (msg) => {
     setEpError(msg);
@@ -116,12 +137,50 @@ const FullScreenReactionPanel = ({
 
   const handleSave = async (e) => {
     e.stopPropagation();
-    if (!currentUser?.id) return;
-    const wasSaved = saved;
-    setSaved(!saved);
-    SaveModel.saveContent(content.type, content.id, currentUser.id).catch(() =>
-      setSaved(wasSaved),
-    );
+    if (!currentUser?.id || isSaving) return;
+    setIsSaving(true);
+    try {
+      const result = await SaveModel.saveContent(content.type, content.id, currentUser.id);
+      setSaved(Boolean(result.saved));
+    } catch (error) {
+      showEpError(error?.message || `Need ${EP_COSTS.save} EP to save.`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    if (!currentUser?.id || isSharing) return;
+    setIsSharing(true);
+    try {
+      if (shareAttempt.current?.contentId !== content.id) {
+        shareAttempt.current = {
+          contentId: content.id,
+          idempotencyKey: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${currentUser.id}:${content.id}:share:${Date.now()}`,
+        };
+      }
+      const result = await processEngagement({
+        actorId: currentUser.id,
+        contentType: content.type,
+        contentId: content.id,
+        engagementType: "share",
+        idempotencyKey: shareAttempt.current.idempotencyKey,
+      });
+      if (!result.success && !result.selfEngagement) {
+        showEpError(result.error || `Need ${EP_COSTS.share} EP to share.`);
+        return;
+      }
+      shareAttempt.current = null;
+      setShareCount((count) => count + 1);
+      onShare?.(content);
+    } catch (error) {
+      showEpError(error?.message || "Could not settle the share. Please try again.");
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const fmt = (n) => {
@@ -181,8 +240,8 @@ const FullScreenReactionPanel = ({
           >
             <MessageCircle size={24} color="#ffffff" />
           </button>
-          {content.comments_count > 0 && (
-            <span className="action-count">{fmt(content.comments_count)}</span>
+          {commentCount > 0 && (
+            <span className="action-count">{fmt(commentCount)}</span>
           )}
           <span className="action-ep">{EP_COSTS.comment}EP</span>
         </div>
@@ -191,6 +250,8 @@ const FullScreenReactionPanel = ({
           <button
             className={`fs-action-btn ${saved ? "active" : ""}`}
             onClick={handleSave}
+            disabled={isSaving}
+            aria-label={saved ? "Remove save (free)" : `Save · costs ${EP_COSTS.save} EP`}
           >
             <Bookmark
               size={24}
@@ -198,21 +259,22 @@ const FullScreenReactionPanel = ({
               color={saved ? "#fbbf24" : "#ffffff"}
             />
           </button>
+          <span className="action-ep">{saved ? "Free to remove" : `${EP_COSTS.save}EP`}</span>
         </div>
 
         <div className="fs-action-wrapper">
           <button
             className="fs-action-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare?.(content);
-            }}
+            onClick={handleShare}
+            disabled={isSharing}
+            aria-label={`Share · costs ${EP_COSTS.share} EP`}
           >
             <Share2 size={24} color="#ffffff" />
           </button>
-          {content.shares > 0 && (
-            <span className="action-count">{fmt(content.shares)}</span>
+          {shareCount > 0 && (
+            <span className="action-count">{fmt(shareCount)}</span>
           )}
+          <span className="action-ep">{EP_COSTS.share}EP</span>
         </div>
       </div>
 

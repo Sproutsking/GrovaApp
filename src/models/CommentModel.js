@@ -52,11 +52,6 @@ class CommentModel {
 
       if (insertError) throw insertError;
 
-      // Increment comment count only for top-level comments
-      if (!parentId) {
-        await this.incrementCommentCount(contentType, contentId);
-      }
-
       // ── Fetch commenter name for push ─────────────────────────────────────
       const commenterName =
         newComment.profiles?.full_name ||
@@ -220,7 +215,7 @@ class CommentModel {
   }
 
   // ==================== DELETE COMMENT ====================
-  async deleteComment(commentId, userId, contentType, contentId) {
+  async deleteComment(commentId, userId) {
     try {
       const { data: comment } = await supabase
         .from('comments').select('user_id, parent_id').eq('id', commentId).single();
@@ -232,39 +227,9 @@ class CommentModel {
         .eq('id', commentId);
       if (error) throw error;
 
-      if (!comment.parent_id) {
-        await this.decrementCommentCount(contentType, contentId);
-      }
-
       return { success: true };
     } catch (error) {
       throw handleError(error, 'Delete comment failed');
-    }
-  }
-
-  // ==================== INCREMENT COMMENT COUNT ====================
-  async incrementCommentCount(contentType, contentId) {
-    try {
-      const table = this.getContentTable(contentType);
-      const { data: current } = await supabase
-        .from(table).select('comments_count').eq('id', contentId).single();
-      const newCount = (current?.comments_count || 0) + 1;
-      await supabase.from(table).update({ comments_count: newCount }).eq('id', contentId);
-    } catch (error) {
-      console.error('Failed to increment comment count:', error);
-    }
-  }
-
-  // ==================== DECREMENT COMMENT COUNT ====================
-  async decrementCommentCount(contentType, contentId) {
-    try {
-      const table = this.getContentTable(contentType);
-      const { data: current } = await supabase
-        .from(table).select('comments_count').eq('id', contentId).single();
-      const newCount = Math.max(0, (current?.comments_count || 0) - 1);
-      await supabase.from(table).update({ comments_count: newCount }).eq('id', contentId);
-    } catch (error) {
-      console.error('Failed to decrement comment count:', error);
     }
   }
 

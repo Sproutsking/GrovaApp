@@ -11,7 +11,8 @@
 //   Postgres functions. This service has zero knowledge of EP costs or rates.
 //
 // COUNTER ACCURACY:
-//   All counter increments use the `increment_count` RPC (atomic UPDATE in SQL)
+//   General counters use the `increment_count` RPC (atomic UPDATE in SQL).
+//   Comment counts are maintained transactionally by a database trigger.
 //   with a SELECT + UPDATE fallback for environments where the RPC is missing.
 //   No read-then-write races on shared counters.
 //
@@ -227,7 +228,7 @@ class InteractionService {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Post a comment or reply, increment the comment counter (top-level only).
+   * Post a comment or reply. The database trigger maintains top-level counts.
    *
    * Top-level comment:
    *   contentType = 'post' | 'reel' | 'story'
@@ -274,12 +275,6 @@ class InteractionService {
         .single();
 
       if (error) throw error;
-
-      // Increment comment count only for top-level comments
-      if (!parentId) {
-        const contTable = getContentTable(contentType);
-        await atomicDelta(contTable, contentId, 'comments_count', 1);
-      }
 
       return this._formatComment(data);
     } catch (err) {
@@ -345,15 +340,13 @@ class InteractionService {
 
   /**
    * Soft-delete a comment (own content only).
-   * Decrements comment counter for top-level comments only.
+   * Comment-count changes are handled by the database trigger.
    *
    * @param {string} commentId
    * @param {string} userId
-   * @param {string} contentType   Needed to decrement counter
-   * @param {string} contentId     Needed to decrement counter
    * @returns {Promise<{ success: boolean }>}
    */
-  async deleteComment(commentId, userId, contentType, contentId) {
+  async deleteComment(commentId, userId) {
     try {
       const { data: comment, error: fetchErr } = await supabase
         .from('comments')
@@ -370,12 +363,6 @@ class InteractionService {
         .eq('id', commentId);
 
       if (error) throw error;
-
-      // Only decrement counter for top-level comments
-      if (!comment.parent_id && contentType && contentId) {
-        const contTable = getContentTable(contentType);
-        await atomicDelta(contTable, contentId, 'comments_count', -1);
-      }
 
       return { success: true };
     } catch (err) {
@@ -488,7 +475,7 @@ class InteractionService {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Toggle save on any content. No EP cost.
+   * Toggle save on any content. New saves are charged by the database trigger.
    *
    * @param {string} contentType
    * @param {string} contentId
@@ -498,26 +485,35 @@ class InteractionService {
    */
   async toggleSave(contentType, contentId, userId, folder = 'Favorites') {
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from('saved_content')
         .select('id')
         .eq('content_type', contentType)
         .eq('content_id',   contentId)
         .eq('user_id',      userId)
+        .limit(1)
         .maybeSingle();
+      if (lookupError) throw lookupError;
 
       if (existing) {
-        await supabase.from('saved_content').delete().eq('id', existing.id);
+        const { error } = await supabase
+          .from('saved_content')
+          .delete()
+          .eq('content_type', contentType)
+          .eq('content_id', contentId)
+          .eq('user_id', userId);
+        if (error) throw error;
         return { saved: false };
       }
 
-      await supabase.from('saved_content').insert({
+      const { error } = await supabase.from('saved_content').insert({
         user_id:      userId,
         content_type: contentType,
         content_id:   contentId,
         folder,
         created_at:   new Date().toISOString(),
       });
+      if (error) throw error;
 
       return { saved: true };
     } catch (err) {

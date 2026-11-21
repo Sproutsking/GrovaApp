@@ -14,6 +14,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { EP_COSTS, processNewsShare } from "../../services/economy/epEconomyService";
 import {
   ExternalLink,
   Globe,
@@ -288,13 +289,14 @@ function extractText(html) {
 // ════════════════════════════════════════════════════════════════════════════
 // NewsShareModal
 // ════════════════════════════════════════════════════════════════════════════
-const NEWS_SHARE_COST_EP = 10;
+const NEWS_SHARE_COST_EP = EP_COSTS.share;
 
 const NewsShareModal = ({ post, currentUser, onClose, onEpDeducted }) => {
   const { title = "", article_url = "", source_name = "" } = post;
   const [step, setStep] = useState("confirm");
   const [copied, setCopied] = useState(false);
   const [errMsg, setErrMsg] = useState("");
+  const shareAttempt = useRef(null);
 
   useEffect(() => {
     const y = window.scrollY;
@@ -325,17 +327,18 @@ const NewsShareModal = ({ post, currentUser, onClose, onEpDeducted }) => {
     }
     setStep("sharing");
     try {
-      window.dispatchEvent(
-        new CustomEvent("grova:deductEP", {
-          detail: {
-            userId: currentUser.id,
-            amount: NEWS_SHARE_COST_EP,
-            reason: `Shared: ${title.slice(0, 60)}`,
-            type: "news_share",
-            newsId: post.id,
-          },
-        }),
-      );
+      shareAttempt.current ||= {
+        idempotencyKey: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${currentUser.id}:${post.id}:news-share:${Date.now()}`,
+      };
+      const result = await processNewsShare({
+        actorId: currentUser.id,
+        newsId: post.id,
+        idempotencyKey: shareAttempt.current.idempotencyKey,
+      });
+      if (!result.success) throw new Error(result.error || "Not enough EP.");
+      shareAttempt.current = null;
       if (onEpDeducted) onEpDeducted(NEWS_SHARE_COST_EP);
       setStep("done");
     } catch (err) {
@@ -420,7 +423,7 @@ const NewsShareModal = ({ post, currentUser, onClose, onEpDeducted }) => {
           {step === "done" && (
             <>
               <div className="nsm-success-icon">✅</div>
-              <h3 className="nsm-title">10 EP deducted!</h3>
+              <h3 className="nsm-title">{NEWS_SHARE_COST_EP} EP deducted!</h3>
               <p className="nsm-sub">Choose where to share:</p>
               <div className="nsm-targets">
                 {shareTargets.map(({ label, icon, href }) => (

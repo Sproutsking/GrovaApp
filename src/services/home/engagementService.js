@@ -22,7 +22,7 @@ async function _sendPush(params) {
 const EP_RATES = {
   LIKE:          1,
   COMMENT:       2,
-  SHARE:         10,
+  SHARE:         1,
   COMMENT_LIKE:  0.5,
   COMMENT_REPLY: 1,
 };

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { X, Bookmark, FolderPlus, Check, Trash2, Edit2 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import { EP_COSTS } from "../../services/economy/epEconomyService";
 
 const DEFAULT_FOLDERS = ["Favorites", "Inspiration", "Watch Later"];
 
@@ -134,7 +135,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         ...prev,
         [folderName]: Math.max(0, (prev[folderName] || 0) + (isSaved ? 1 : -1)),
       }));
-      showToast("Failed to save. Try again.", "error");
+      showToast(err?.message || "Failed to save. Try again.", "error");
       console.error("SaveFolder error:", err);
     } finally {
       setSaving(null);
@@ -227,7 +228,10 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         <div className="sfm-header">
           <div className="sfm-header-left">
             <Bookmark size={17} color="#84cc16" fill="#84cc16" />
-            <span className="sfm-title">Save to collection</span>
+            <span className="sfm-title">
+              Save to collection
+              <small className="sfm-cost-note">New saves cost {EP_COSTS.save} EP · removal is free</small>
+            </span>
           </div>
           <button className="sfm-close" onClick={onClose} aria-label="Close">
             <X size={17} />
@@ -425,7 +429,8 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           padding: 14px 20px 10px; flex-shrink: 0;
         }
         .sfm-header-left { display: flex; align-items: center; gap: 8px; }
-        .sfm-title { font-size: calc((16px) + 1px); font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+        .sfm-title { display:flex; flex-direction:column; gap:2px; font-size: calc((16px) + 1px); font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+        .sfm-cost-note { color:var(--text-muted, #8b9488); font-size:10px; font-weight:600; letter-spacing:0; }
         .sfm-close {
           width: 30px; height: 30px; border-radius: 50%;
           background: var(--surface); border: none;
