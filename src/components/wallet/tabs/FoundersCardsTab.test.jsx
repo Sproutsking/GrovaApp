@@ -75,6 +75,19 @@ describe("FoundersCardsTab supply gallery", () => {
     expect(screen.getByRole("img", { name: /Silver card #000025\/0030/ })).toBeInTheDocument();
   });
 
+  it("keeps purchase controls closed until opened and dismisses the dialog with Escape", async () => {
+    render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const openButton = screen.getByRole("button", { name: "Open purchase options for Silver card" });
+    fireEvent.click(openButton);
+    expect(screen.getByRole("dialog", { name: "Silver Founders Card" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   it("keeps unregistered serials as labeled previews and disables purchase", async () => {
     foundersCardService.getCatalog.mockResolvedValue(createCatalog({ registryReady: false, supply: 30 }));
     render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
@@ -82,12 +95,14 @@ describe("FoundersCardsTab supply gallery", () => {
 
     expect(await screen.findByText("Serial preview")).toBeInTheDocument();
     expect(screen.getAllByRole("img", { name: /Silver card/ })).toHaveLength(24);
+    fireEvent.click(screen.getByRole("button", { name: "Open purchase options for Silver card" }));
     expect(screen.getByRole("button", { name: "Inventory pending" })).toBeDisabled();
   });
 
   it("offers a clear fiat or crypto choice and reveals the EVM network selector", async () => {
     render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
     fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open purchase options for Silver card" }));
 
     expect(screen.getByRole("radio", { name: /Fiat/ })).toBeChecked();
     fireEvent.click(screen.getByRole("radio", { name: /Crypto/ }));
@@ -99,6 +114,7 @@ describe("FoundersCardsTab supply gallery", () => {
   it("refreshes the open marketplace when a CEO changes tier sales or pricing", async () => {
     render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
     fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open purchase options for Silver card" }));
     expect(await screen.findByRole("button", { name: "Reserve & pay" })).toBeEnabled();
 
     foundersCardService.getCatalog.mockResolvedValue(

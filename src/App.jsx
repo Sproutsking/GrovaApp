@@ -453,6 +453,9 @@ const MainApp = memo(({ onInitialHomeReady }) => {
 
   useEffect(() => {
     const openCommunity = () => {
+      setFeedFilter(null);
+      setOverlayTab(null);
+      setShowAdminDashboard(false);
       setActiveTab("community");
       setMountedTabs((previous) => new Set([...previous, "community"]));
     };

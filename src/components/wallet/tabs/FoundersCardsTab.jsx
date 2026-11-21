@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +12,7 @@ import {
   Zap,
   ShieldCheck,
   WalletCards,
+  X,
 } from "lucide-react";
 import { foundersCardService } from "../../../services/foundersCardService";
 import {
@@ -143,6 +145,7 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
   const [screen, setScreen] = useState(initialScreen);
   const [selectedTier, setSelectedTier] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [purchasePanelOpen, setPurchasePanelOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [supplyPage, setSupplyPage] = useState(0);
   const [provider, setProvider] = useState("paystack");
@@ -155,6 +158,49 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
   const [orderId, setOrderId] = useState("");
   const [pendingCrypto, setPendingCrypto] = useState(null);
   const reloadSequence = useRef(0);
+  const buyButtonRef = useRef(null);
+  const buyDialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!purchasePanelOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const trigger = buyButtonRef.current;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setPurchasePanelOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = [...(buyDialogRef.current?.querySelectorAll(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ) || [])];
+      if (!focusable.length) {
+        event.preventDefault();
+        buyDialogRef.current?.focus();
+      } else if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    buyDialogRef.current?.querySelector(".fc-buy-close")?.focus();
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [purchasePanelOpen]);
+
+  useEffect(() => {
+    setPurchasePanelOpen(false);
+  }, [screen, selectedTier]);
 
   const reload = useCallback(async (showLoading = false) => {
     const sequence = ++reloadSequence.current;
@@ -470,9 +516,15 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         .fc-preview-tier{position:relative;margin-top:auto;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
         .fc-preview-serial{position:relative;margin-top:3px;font:700 10px ui-monospace,monospace;color:rgba(255,255,255,.76)}
         .fc-preview-status{position:absolute;right:11px;bottom:13px;font-size:7px;font-weight:900;letter-spacing:.12em;color:var(--fc-accent)}
-        .fc-buy-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.8fr);gap:14px;min-width:0}
         .fc-buy-controls{align-self:start;display:grid;gap:8px;min-width:0;padding:12px;border:1px solid rgba(255,255,255,.17);border-radius:13px;background:linear-gradient(145deg,rgba(15,18,14,.94),rgba(10,11,10,.94))}
-        .fc-buy-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}.fc-buy-title span{padding:4px 8px;border:1px solid rgba(244,199,103,.28);border-radius:7px;background:rgba(244,199,103,.07);color:#f7d985;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+        .fc-buy-open{width:100%;margin-top:12px}
+        .fc-buy-backdrop{position:fixed;inset:0;z-index:110000;display:grid;place-items:center;overflow-y:auto;padding:16px;background:rgba(3,5,4,.78);backdrop-filter:blur(8px)}
+        .fc-buy-dialog{width:min(100%,480px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;border:1px solid rgba(198,255,0,.24);border-radius:16px;background:#0b0d0b;box-shadow:0 24px 80px rgba(0,0,0,.72)}
+        .fc-buy-dialog:focus{outline:none}
+        .fc-buy-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}.fc-buy-title>div{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0}.fc-buy-title span{padding:4px 8px;border:1px solid rgba(244,199,103,.28);border-radius:7px;background:rgba(244,199,103,.07);color:#f7d985;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+        .fc-buy-close{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);color:#e5e7eb;cursor:pointer}
+        .fc-buy-close:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+        .fc-buy-close:focus-visible{outline:2px solid #d5ff60;outline-offset:2px}
         .fc-buy-controls label{display:grid;gap:5px;color:rgba(255,255,255,.8);font-size:12px;font-weight:750}
         .fc-buy-controls input,.fc-buy-controls select,.fc-transfer-form input{width:100%;min-height:40px;padding:0 11px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:#0b0c0e;color:#f5f7f1;font:inherit}
         .fc-buy-controls input:focus,.fc-buy-controls select:focus,.fc-transfer-form input:focus{outline:2px solid rgba(213,255,96,.7);outline-offset:1px;border-color:#d5ff60}
@@ -501,7 +553,8 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         .fc-detail-item small{display:block;color:rgba(255,255,255,.4);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.fc-detail-item strong{display:block;margin-top:6px;font-size:13px;overflow-wrap:anywhere}
         .fc-transfer-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.fc-inline-error{padding:10px;color:#fca5a5;font-size:12px}.fc-asset-loading{height:56px;border-radius:12px;background:rgba(255,255,255,.035);animation:fc-pulse 1.4s infinite}
         .fc-spin{animation:fc-spin .9s linear infinite}@keyframes fc-spin{to{transform:rotate(360deg)}}
-        @keyframes fc-pulse{50%{opacity:.45}}@container (max-width:680px){.fc-top{flex-wrap:wrap}.fc-head-copy{flex:1 1 160px}.fc-top>.fc-action{margin-left:auto}.fc-buy-layout{grid-template-columns:minmax(0,1fr)}.fc-supply-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:36vh}.fc-market-hero{align-items:flex-start}.fc-transfer-form{grid-template-columns:minmax(0,1fr)}}
+        @keyframes fc-pulse{50%{opacity:.45}}@container (max-width:680px){.fc-top{flex-wrap:wrap}.fc-head-copy{flex:1 1 160px}.fc-top>.fc-action{margin-left:auto}.fc-supply-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:36vh}.fc-market-hero{align-items:flex-start}.fc-transfer-form{grid-template-columns:minmax(0,1fr)}}
+        @media(max-width:520px){.fc-buy-backdrop{align-items:end;padding:10px}.fc-buy-dialog{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);border-radius:16px}.fc-buy-controls{padding:11px}}
         @media(max-width:520px){.fc-market-hero{flex-direction:column}.fc-market-stat{text-align:left}}
         @media(max-width:380px){.fc-page{padding-left:9px;padding-right:9px}.fc-panel{padding:10px}.fc-payment-methods{gap:6px}.fc-payment-option{padding:8px;min-height:88px}.fc-payment-eyebrow{font-size:7px}}
       `}</style>
@@ -520,9 +573,9 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         )}
       </header>
 
-      {error && <div className="fc-error" role="alert">{error}</div>}
+      {error && !purchasePanelOpen && <div className="fc-error" role="alert">{error}</div>}
       {liveUpdateError && <div className="fc-error" role="status">{liveUpdateError}</div>}
-      {notice && <div className="fc-status" role="status">{notice}</div>}
+      {notice && !purchasePanelOpen && <div className="fc-status" role="status">{notice}</div>}
 
       {loading ? (
         <section className="fc-panel" aria-label="Loading collection"><LoaderCircle className="fc-spin" size={20} /></section>
@@ -564,12 +617,12 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
           </section>
         </>
       ) : screen === "market-tier" ? (
-        <section className="fc-panel">
-          <div className="fc-panel-head">
-            <div><h2>{selectedTier} · {Number(tier?.supply || 0).toLocaleString()}</h2><span className="fc-muted">Next: {!registryReady ? "Pending" : firstAvailable?.serial_display || "Sold out"}</span></div>
-            <span className="fc-muted">{registryReady ? `${Number(tier?.available || 0).toLocaleString()} available` : "Preview only"}</span>
-          </div>
-          <div className="fc-buy-layout">
+        <>
+          <section className="fc-panel">
+            <div className="fc-panel-head">
+              <div><h2>{selectedTier} · {Number(tier?.supply || 0).toLocaleString()}</h2><span className="fc-muted">Next: {!registryReady ? "Pending" : firstAvailable?.serial_display || "Sold out"}</span></div>
+              <span className="fc-muted">{registryReady ? `${Number(tier?.available || 0).toLocaleString()} available` : "Preview only"}</span>
+            </div>
             <div className="fc-supply-gallery">
               <div className="fc-supply-toolbar">
                 <span>{registryReady ? "Serials" : "Serial preview"}</span>
@@ -592,49 +645,86 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
                 </div>
               )}
             </div>
-            <div className="fc-buy-controls">
-              <div className="fc-buy-title"><strong>{selectedTier} Founders Card</strong><span>{formatPrice(tier)}</span></div>
-              <label>Quantity
-                <input type="number" min="1" max={Math.max(1, Math.min(Number(tier?.max_per_user || 1), Number(tier?.available || 0)))} value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} />
-              </label>
-              <div className="fc-payment-methods" role="radiogroup" aria-label="Payment method">
-                <button type="button" role="radio" aria-label="Fiat, local currency, Paystack in NGN" aria-checked={provider === "paystack"} className={`fc-payment-option${provider === "paystack" ? " active" : ""}`} onClick={() => setProvider("paystack")}>
-                  <span className="fc-payment-top"><span className="fc-payment-eyebrow">LOCAL CURRENCY</span><span className="fc-payment-status">NGN</span></span>
-                  <span className="fc-payment-main"><CreditCard size={18} /><span className="fc-payment-copy"><strong>Fiat</strong><small>Paystack · NGN</small></span></span>
-                  <span className="fc-payment-foot">{provider === "paystack" ? "Selected" : "Choose fiat"}</span>
-                </button>
-                <button type="button" role="radio" aria-label="Crypto, on-chain, USDC on EVM" aria-checked={provider === "web3"} className={`fc-payment-option crypto${provider === "web3" ? " active" : ""}`} onClick={() => setProvider("web3")}>
-                  <span className="fc-payment-top"><span className="fc-payment-eyebrow">CRYPTO · WEB3</span><span className="fc-payment-status">ON-CHAIN</span></span>
-                  <span className="fc-payment-main"><Coins size={18} /><span className="fc-payment-copy"><strong>Crypto</strong><small>USDC · EVM</small></span></span>
-                  <span className="fc-payment-foot">{provider === "web3" ? "Selected" : "Choose crypto"}</span>
-                </button>
-              </div>
-              {provider === "web3" && (
-                <label>Network
-                  <select value={chain} onChange={(event) => setChain(event.target.value)}>
-                    {Object.entries(CRYPTO_OPTIONS).map(([key, option]) => <option key={key} value={key}>{option.label} · {option.token}</option>)}
-                  </select>
-                </label>
-              )}
-              <div className="fc-buy-total"><span>Total · USD</span><strong>{tier?.price_currency === "USD" ? `$${(Number(tier?.list_price || 0) * quantity).toFixed(2)}` : "—"}</strong></div>
-              <button
-                type="button"
-                className="fc-action"
-                disabled={processing || !canPurchase}
-                onClick={startPurchase}
+            <button
+              ref={buyButtonRef}
+              type="button"
+              className="fc-action fc-buy-open"
+              aria-haspopup="dialog"
+              aria-expanded={purchasePanelOpen}
+              aria-label={`Open purchase options for ${selectedTier} card`}
+              onClick={() => { setError(""); setPurchasePanelOpen(true); }}
+            >
+              <WalletCards size={16} />Buy this card
+            </button>
+          </section>
+          {purchasePanelOpen && createPortal(
+            <div
+              className="fc-buy-backdrop"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) setPurchasePanelOpen(false);
+              }}
+            >
+              <section
+                ref={buyDialogRef}
+                className="fc-buy-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="fc-buy-dialog-title"
+                tabIndex={-1}
               >
-                {processing ? <LoaderCircle size={15} className="fc-spin" /> : <WalletCards size={16} />}
-                {processing ? "Processing…" : !registryReady ? "Inventory pending" : !tier?.price_currency ? "Price not set" : !tier?.sale_enabled ? "Sales paused" : !firstAvailable ? "Sold out" : "Reserve & pay"}
-              </button>
-              {pendingCrypto && (
-                <button type="button" className="fc-back" disabled={processing} onClick={retryCryptoVerification}>
-                  <ShieldCheck size={15} />Verify transaction
-                </button>
-              )}
-              <span className="fc-note">Max {tier?.max_per_user || 1} per account · issued after payment clears.</span>
-            </div>
-          </div>
-        </section>
+                <div className="fc-buy-controls">
+                  <div className="fc-buy-title">
+                    <div><strong id="fc-buy-dialog-title">{selectedTier} Founders Card</strong><span>{formatPrice(tier)}</span></div>
+                    <button type="button" className="fc-buy-close" aria-label="Close purchase options" onClick={() => setPurchasePanelOpen(false)}>
+                      <X size={17} />
+                    </button>
+                  </div>
+                  {error && <div className="fc-error" role="alert">{error}</div>}
+                  {notice && <div className="fc-status" role="status">{notice}</div>}
+                  <label>Quantity
+                    <input type="number" min="1" max={Math.max(1, Math.min(Number(tier?.max_per_user || 1), Number(tier?.available || 0)))} value={quantity} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} />
+                  </label>
+                  <div className="fc-payment-methods" role="radiogroup" aria-label="Payment method">
+                    <button type="button" role="radio" aria-label="Fiat, local currency, Paystack in NGN" aria-checked={provider === "paystack"} className={`fc-payment-option${provider === "paystack" ? " active" : ""}`} onClick={() => setProvider("paystack")}>
+                      <span className="fc-payment-top"><span className="fc-payment-eyebrow">LOCAL CURRENCY</span><span className="fc-payment-status">NGN</span></span>
+                      <span className="fc-payment-main"><CreditCard size={18} /><span className="fc-payment-copy"><strong>Fiat</strong><small>Paystack · NGN</small></span></span>
+                      <span className="fc-payment-foot">{provider === "paystack" ? "Selected" : "Choose fiat"}</span>
+                    </button>
+                    <button type="button" role="radio" aria-label="Crypto, on-chain, USDC on EVM" aria-checked={provider === "web3"} className={`fc-payment-option crypto${provider === "web3" ? " active" : ""}`} onClick={() => setProvider("web3")}>
+                      <span className="fc-payment-top"><span className="fc-payment-eyebrow">CRYPTO · WEB3</span><span className="fc-payment-status">ON-CHAIN</span></span>
+                      <span className="fc-payment-main"><Coins size={18} /><span className="fc-payment-copy"><strong>Crypto</strong><small>USDC · EVM</small></span></span>
+                      <span className="fc-payment-foot">{provider === "web3" ? "Selected" : "Choose crypto"}</span>
+                    </button>
+                  </div>
+                  {provider === "web3" && (
+                    <label>Network
+                      <select value={chain} onChange={(event) => setChain(event.target.value)}>
+                        {Object.entries(CRYPTO_OPTIONS).map(([key, option]) => <option key={key} value={key}>{option.label} · {option.token}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <div className="fc-buy-total"><span>Total · USD</span><strong>{tier?.price_currency === "USD" ? `$${(Number(tier?.list_price || 0) * quantity).toFixed(2)}` : "—"}</strong></div>
+                  <button
+                    type="button"
+                    className="fc-action"
+                    disabled={processing || !canPurchase}
+                    onClick={startPurchase}
+                  >
+                    {processing ? <LoaderCircle size={15} className="fc-spin" /> : <WalletCards size={16} />}
+                    {processing ? "Processing…" : !registryReady ? "Inventory pending" : !tier?.price_currency ? "Price not set" : !tier?.sale_enabled ? "Sales paused" : !firstAvailable ? "Sold out" : "Reserve & pay"}
+                  </button>
+                  {pendingCrypto && (
+                    <button type="button" className="fc-back" disabled={processing} onClick={retryCryptoVerification}>
+                      <ShieldCheck size={15} />Verify transaction
+                    </button>
+                  )}
+                  <span className="fc-note">Max {tier?.max_per_user || 1} per account · issued after payment clears.</span>
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )}
+        </>
       ) : screen === "asset" ? (
         <section className="fc-panel">
           <div className="fc-panel-head"><h2>{selectedTier} assets</h2><span className="fc-muted">{ownedInTier.length} owned</span></div>
