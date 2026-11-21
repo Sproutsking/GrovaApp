@@ -267,6 +267,7 @@ img, video {
   color: var(--text);
 }
 
+/* Community and Wallet use fixed-position roots; keep this wrapper untransformed. */
 .app-route-panel-active.app-route-enter-forward {
   animation: appRouteEnterForward 160ms ease-out both;
 }
@@ -276,13 +277,13 @@ img, video {
 }
 
 @keyframes appRouteEnterForward {
-  from { opacity: 0.72; transform: translateX(5px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0.72; }
+  to { opacity: 1; }
 }
 
 @keyframes appRouteEnterBack {
-  from { opacity: 0.72; transform: translateX(-5px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0.72; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
