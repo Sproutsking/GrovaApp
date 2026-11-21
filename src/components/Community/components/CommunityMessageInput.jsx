@@ -58,7 +58,8 @@ const CommunityMessageInput = ({
   }, []);
 
   useEffect(() => {
-    if (inputRef.current) inputRef.current.focus();
+    if (window.matchMedia?.("(max-width: 768px)").matches) return;
+    inputRef.current?.focus();
   }, []);
 
   useLayoutEffect(() => {

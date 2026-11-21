@@ -2,9 +2,9 @@
 // Desktop shell: tight left nav + center app + right data panel
 import React, { useState, useEffect, useCallback } from "react";
 import PayWaveApp from "./PayWaveApp";
-import useRegisterBack from "../../../hooks/useRegisterBack";
 import { supabase } from "../../../services/config/supabase";
 import { useAuth } from "../../../components/Auth/AuthContext";
+import { pushHistoryState } from "../../../utils/navigationHistory";
 
 const WRAPPER_CSS = `
   body.paywave-open .mbn,
@@ -228,8 +228,14 @@ export default function PayWaveWrapper({ onBack, userId }) {
     // MobileBottomNav watches this class and handles visibility automatically
     document.body.classList.add("paywave-open");
 
-    // Push history state so browser Back returns to wallet
-    try { window.history.pushState({ paywave: true }, ""); } catch {}
+    const currentState = window.history.state || {};
+    if (!currentState.paywave) {
+      pushHistoryState({
+        ...currentState,
+        paywave: true,
+        paywavePage: "home",
+      });
+    }
 
     // Cleanup: Remove class when unmounting (both back buttons trigger this)
     // MobileBottomNav's MutationObserver detects the class removal and animates nav back in
@@ -237,13 +243,6 @@ export default function PayWaveWrapper({ onBack, userId }) {
       document.body.classList.remove("paywave-open");
     };
   }, []);
-
-  // Register back handler so popstate closes PayWave and allows native history
-  useRegisterBack(() => {
-    if (typeof onBack === "function") onBack();
-    // Return true to indicate the back event was handled by closing PayWave.
-    return true;
-  }, [onBack]);
 
   const RefreshBtn = ({ onClick, loading, color = "rgba(163,230,53,0.55)" }) => (
     <button onClick={onClick} style={{

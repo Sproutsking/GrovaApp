@@ -76,4 +76,42 @@ describe("BackNavigationProvider", () => {
 
     removeRouteListener();
   });
+
+  it("falls through to older handlers when the newest handler declines", () => {
+    const earlierHandler = jest.fn(() => true);
+    const laterHandler = jest.fn(() => false);
+
+    render(
+      <BackNavigationProvider>
+        <BackHandler handler={earlierHandler} />
+        <BackHandler handler={laterHandler} />
+      </BackNavigationProvider>
+    );
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(laterHandler).toHaveBeenCalledTimes(1);
+    expect(earlierHandler).toHaveBeenCalledTimes(1);
+    expect(forwardSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not run Back handlers for Forward navigation", () => {
+    const handler = jest.fn(() => true);
+    render(
+      <BackNavigationProvider>
+        <BackHandler handler={handler} />
+      </BackNavigationProvider>
+    );
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate", {
+        state: { __xv_history_index: 1 },
+      }));
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(forwardSpy).not.toHaveBeenCalled();
+  });
 });

@@ -1,6 +1,10 @@
 import {
   createAppRouteState,
+  ensureHistoryIndex,
+  getHistoryIndex,
   normalizeRoute,
+  pushHistoryState,
+  replaceHistoryState,
   resolveRouteFromHistoryState,
   shouldSkipRoutePush,
 } from './navigationHistory';
@@ -34,5 +38,16 @@ describe('navigationHistory', () => {
     const next = normalizeRoute({ tab: 'home', homeSection: 'newsfeed', accountSection: 'profile' });
 
     expect(shouldSkipRoutePush(current, next)).toBe(true);
+  });
+
+  it('keeps history indexes sequential when pushing and replacing navigation state', () => {
+    window.history.replaceState({}, '', window.location.href);
+    ensureHistoryIndex();
+
+    pushHistoryState({ type: 'nested-route' });
+    expect(getHistoryIndex(window.history.state)).toBe(1);
+
+    replaceHistoryState({ type: 'updated-route' });
+    expect(getHistoryIndex(window.history.state)).toBe(1);
   });
 });

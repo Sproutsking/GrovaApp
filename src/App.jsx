@@ -382,7 +382,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
   const initDone       = useRef(false);
   const addToastRef    = useRef(null);
 
-  const { isAtRoot } = useNavigation(
+  const { isAtRoot, navigationDirection } = useNavigation(
     activeTab, homeSection, accountSection,
     setActiveTab, setHomeSection, setAccountSection,
   );
@@ -1146,6 +1146,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
               refreshTrigger={refreshTrigger}
               walletDestination={walletDestination}
               onWalletDestinationHandled={handleWalletDestinationHandled}
+              isSectionActive={activeTab === "wallet" && !showAdminDashboard && !overlayTab}
             />
           </Suspense>
         ),
@@ -1158,7 +1159,11 @@ const MainApp = memo(({ onInitialHomeReady }) => {
           if (!mountedTabs.has(id)) return null;
           const isActive = activeTab === id && !showAdminDashboard && !overlayTab;
           return (
-            <div key={id} style={{ display: isActive ? "block" : "none", width: "100%" }}>
+            <div
+              key={id}
+              className={isActive ? `app-route-panel app-route-panel-active app-route-enter-${navigationDirection}` : "app-route-panel"}
+              style={{ display: isActive ? "block" : "none", width: "100%" }}
+            >
               {el}
             </div>
           );

@@ -15,7 +15,8 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
   const plusBtnRef = useRef(null);
 
   useEffect(() => {
-    if (inputRef.current) inputRef.current.focus();
+    if (window.matchMedia?.("(max-width: 768px)").matches) return;
+    inputRef.current?.focus();
   }, [conversationId]);
 
   const handleSend = useCallback(() => {

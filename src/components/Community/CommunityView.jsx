@@ -4,7 +4,7 @@
 // by the time a click lands, ChatTab/ChannelsView already have the data
 // cached and paint instantly. Everything else is unchanged from the
 // original "no loading gate" architecture.
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../services/config/supabase";
 import CommunitySidebar from "./tabs/CommunitySidebar";
 import DiscoverTab from "./tabs/DiscoverTab";
@@ -20,6 +20,7 @@ import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
 import communityUnreadService from "../../services/community/communityUnreadService";
 import useRegisterBack from "../../hooks/useRegisterBack";
+import { pushHistoryState } from "../../utils/navigationHistory";
 import "../../styles/CommunityView.css";
 
 const COMMUNITY_HISTORY_KEY = "__communityNavigation";
@@ -101,22 +102,25 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
       channel: channel || null,
       depth: (Number(previousEntry?.depth) || 0) + 1,
     };
-    window.history.pushState(
+    pushHistoryState(
       { ...currentState, [COMMUNITY_HISTORY_KEY]: entry },
-      "",
       window.location.href,
     );
   };
 
-  const resetCommunityView = () => {
+  const resetCommunityView = useCallback(() => {
     setSelectedCommunity(null);
     setSelectedChannel(null);
     setView("discover");
     currentCommunityRef.current = null;
-  };
+  }, []);
 
-  const restoreCommunityHistory = () => {
-    const entry = window.history.state?.[COMMUNITY_HISTORY_KEY];
+  const restoreCommunityHistory = useCallback((event) => {
+    const state = event?.state || window.history.state || {};
+    const route = state.route || state;
+    if (route.tab && route.tab !== "community") return;
+
+    const entry = state[COMMUNITY_HISTORY_KEY];
     if (!entry?.community?.id || !["channels", "chat"].includes(entry.view)) {
       resetCommunityView();
       return;
@@ -126,13 +130,13 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
     setSelectedChannel(entry.channel || null);
     setView(entry.view);
     currentCommunityRef.current = entry.community.id;
-  };
+  }, [resetCommunityView]);
 
   useEffect(() => {
     restoreCommunityHistory();
     window.addEventListener("popstate", restoreCommunityHistory);
     return () => window.removeEventListener("popstate", restoreCommunityHistory);
-  }, []);
+  }, [restoreCommunityHistory]);
 
   const navigateCommunityBack = () => {
     if (window.history.state?.[COMMUNITY_HISTORY_KEY]) {
@@ -488,7 +492,7 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
         const locations = readLocations();
         delete locations[communityId];
         localStorage.setItem(lastLocationKey, JSON.stringify({ locations }));
-        resetCommunityView();
+        navigateCommunityHome();
       }
       await loadCommunities();
     } catch (error) {
@@ -507,7 +511,7 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
       setMyCommunities((current) => current.filter((item) => item.id !== communityId));
       setAllCommunities((current) => current.filter((item) => item.id !== communityId));
       communityCache.clearCommunity(communityId);
-      resetCommunityView();
+      navigateCommunityHome();
       await loadCommunities();
     } catch (error) {
       await loadCommunities();

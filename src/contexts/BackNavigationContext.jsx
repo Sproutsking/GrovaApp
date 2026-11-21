@@ -1,4 +1,11 @@
 import React, { createContext, useRef, useCallback, useEffect } from "react";
+import {
+  ensureHistoryIndex,
+  getHistoryIndex,
+  getKnownHistoryIndex,
+  replaceHistoryState,
+  setKnownHistoryIndex,
+} from "../utils/navigationHistory";
 
 export const BackNavigationContext = createContext({
   register: () => () => {},
@@ -21,54 +28,72 @@ export const BackNavigationProvider = ({ children }) => {
 
   const triggerBack = useCallback(() => {
     const handlers = handlersRef.current;
-    if (handlers.length === 0) return false;
-    const handler = handlers[handlers.length - 1];
-    try {
-      const result = handler();
-      if (result && typeof result.then === "function") {
-        return result.then((value) => value !== false).catch((error) => {
+    const runHandler = (index) => {
+      for (let i = index; i >= 0; i -= 1) {
+        try {
+          const result = handlers[i]();
+          if (result && typeof result.then === "function") {
+            return result.then((value) => value !== false ? true : runHandler(i - 1)).catch((error) => {
+              console.error("[BackNavigation] Back handler failed:", error);
+              return true;
+            });
+          }
+          if (result !== false) return true;
+        } catch (error) {
           console.error("[BackNavigation] Back handler failed:", error);
           return true;
-        });
+        }
       }
-      return result !== false;
-    } catch (error) {
-      console.error("[BackNavigation] Back handler failed:", error);
-      return true;
-    }
+      return false;
+    };
+
+    return runHandler(handlers.length - 1);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
     const ensureSeed = () => {
+      ensureHistoryIndex();
       const state = window.history.state || {};
       if (!state.__back_navigation && !state.__app_route && state.type !== "app-route") {
-        window.history.replaceState({ __back_navigation: true }, "");
+        replaceHistoryState({ ...state, __back_navigation: true });
       }
     };
 
     ensureSeed();
 
     const restoreCurrentEntry = (event) => {
+      restorePopRef.current = true;
       try {
         window.history.forward();
       } catch (error) {
+        restorePopRef.current = false;
         console.error("[BackNavigation] Could not restore the current history entry:", error);
         return;
       }
 
-      restorePopRef.current = true;
       event.stopImmediatePropagation();
       window.setTimeout(() => { restorePopRef.current = false; }, 500);
     };
 
     const onPop = (e) => {
+      const currentIndex = getKnownHistoryIndex() ?? getHistoryIndex(window.history.state) ?? 0;
+      const targetIndex = getHistoryIndex(e.state);
+      const isBack = targetIndex === null || targetIndex < currentIndex;
+      if (targetIndex !== null) {
+        setKnownHistoryIndex(targetIndex);
+      } else if (isBack) {
+        setKnownHistoryIndex(Math.max(0, currentIndex - 1));
+      }
+
       if (restorePopRef.current) {
         restorePopRef.current = false;
         e.stopImmediatePropagation();
         return;
       }
+
+      if (!isBack) return;
 
       const handled = triggerBack();
       if (handled && typeof handled.then === "function") {

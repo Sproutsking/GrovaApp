@@ -267,6 +267,31 @@ img, video {
   color: var(--text);
 }
 
+.app-route-panel-active.app-route-enter-forward {
+  animation: appRouteEnterForward 160ms ease-out both;
+}
+
+.app-route-panel-active.app-route-enter-back {
+  animation: appRouteEnterBack 160ms ease-out both;
+}
+
+@keyframes appRouteEnterForward {
+  from { opacity: 0.72; transform: translateX(5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes appRouteEnterBack {
+  from { opacity: 0.72; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-route-panel-active.app-route-enter-forward,
+  .app-route-panel-active.app-route-enter-back {
+    animation: none;
+  }
+}
+
 /* ==========================================================================
    3. FIXED HEADERS
    ========================================================================== */

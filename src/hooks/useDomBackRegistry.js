@@ -2,9 +2,7 @@ import { useEffect } from "react";
 import { useBackNavigation } from "../contexts/BackNavigationContext";
 
 // Observe DOM for elements that opt-in via `data-back-close`.
-// When such an element is added, push a history state and register a
-// back-handler that dispatches `xv:dom-back-close` on the element so the
-// owning React component can close itself.
+// Register a back-handler that clicks the element's existing close target.
 export default function useDomBackRegistry() {
   const { register } = useBackNavigation();
 
@@ -15,19 +13,13 @@ export default function useDomBackRegistry() {
 
     function tryRegister(el) {
       if (!el || registered.has(el)) return;
-      // Mark registered to avoid duplicates
       registered.set(el, true);
 
-      // Push a state so BackNavigationContext will intercept popstate
-      try { window.history.pushState({ domBack: true }, ""); } catch {}
-
-      // Register a back handler that dispatches an event to close this element
+      // The marked backdrop already owns a click-to-close action.
       const unregister = register(() => {
-        try {
-          el.dispatchEvent(new CustomEvent("xv:dom-back-close", { bubbles: true }));
-        } catch {}
-        // Returning false allows native navigation (history.back) to continue
-        return false;
+        if (!document.body.contains(el)) return false;
+        el.click();
+        return true;
       });
 
       // If the element is removed from DOM, unregister the handler

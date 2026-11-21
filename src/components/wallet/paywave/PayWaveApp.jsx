@@ -19,6 +19,10 @@ import NotificationsTab from "./tabs/NotificationsTab";
 import { SuccessModal } from "./modals/index";
 import { supabase } from "../../../services/config/supabase";
 import { useAuth } from "../../Auth/AuthContext";
+import {
+  pushHistoryState,
+  replaceHistoryState,
+} from "../../../utils/navigationHistory";
 
 // ─────────────────────────────────────────────────────────────
 // GLOBAL DESIGN SYSTEM
@@ -671,7 +675,7 @@ const NAV_TABS = [
 
 export default function PayWaveApp({ onBack, userId }) {
   const { profile } = useAuth();
-  const [page, setPage]             = useState("home");
+  const [page, setPage]             = useState(() => window.history.state?.paywavePage || "home");
   const [showBalance, setShowBalance] = useState(true);
   const [successMsg, setSuccessMsg]  = useState(null);
   const [pwBalance, setPwBalance]    = useState(0);
@@ -708,15 +712,36 @@ export default function PayWaveApp({ onBack, userId }) {
 
   const [notifications, setNotifications] = useState([]);
 
+  const navigateToPage = useCallback((nextPage, replace = false) => {
+    if (nextPage === page) return;
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {};
+    const nextState = { ...currentState, paywave: true, paywavePage: nextPage };
+    if (replace) replaceHistoryState(nextState);
+    else pushHistoryState(nextState);
+    setPage(nextPage);
+  }, [page]);
+
+  useEffect(() => {
+    const restorePayWavePage = (event) => {
+      if (!event.state?.paywave) return;
+      setPage(event.state.paywavePage || "home");
+    };
+    window.addEventListener("popstate", restorePayWavePage);
+    return () => window.removeEventListener("popstate", restorePayWavePage);
+  }, []);
+
   const goBack = () => {
-    const dest = BACK_MAP[page];
-    if (dest) { setPage(dest); return; }
-    if (page === "home") { onBack?.(); return; }
-    setPage("home");
+    if (page !== "home") {
+      window.history.back();
+      return;
+    }
+    onBack?.();
   };
 
   const handleSuccess = (msg) => setSuccessMsg(msg);
-  const clearSuccess  = () => { setSuccessMsg(null); setPage("home"); };
+  const clearSuccess  = () => { setSuccessMsg(null); navigateToPage("home", true); };
 
   const isMainTab   = MAIN_TABS.has(page);
   const activeNavId = isMainTab ? page : (BACK_MAP[page] ?? "home");
@@ -725,15 +750,15 @@ export default function PayWaveApp({ onBack, userId }) {
     if (page === "home")
       return <HomeTab pwBalance={pwBalance} showBalance={showBalance}
         setShowBalance={setShowBalance} notifications={notifications}
-        setPage={setPage} onBack={onBack} onRefresh={fetchBalance} />;
-    if (page === "services")     return <ServicesTab setPage={setPage} />;
-    if (page === "finance")      return <FinanceTab pwBalance={pwBalance} setPage={setPage} />;
+        setPage={navigateToPage} onBack={onBack} onRefresh={fetchBalance} />;
+    if (page === "services")     return <ServicesTab setPage={navigateToPage} />;
+    if (page === "finance")      return <FinanceTab pwBalance={pwBalance} setPage={navigateToPage} />;
     if (page === "transactions")
-      return <TransactionsTab setPage={setPage} userId={profile?.id} onRefresh={fetchBalance} />;
+      return <TransactionsTab setPage={navigateToPage} userId={profile?.id} onRefresh={fetchBalance} />;
     if (page === "account")
-      return <AccountTab setPage={setPage} onSuccess={handleSuccess} />;
+      return <AccountTab setPage={navigateToPage} onSuccess={handleSuccess} />;
     if (BILLS_VIEWS.has(page))
-      return <BillsTab view={page} onBack={goBack} onSuccess={handleSuccess} setPage={setPage} />;
+      return <BillsTab view={page} onBack={goBack} onSuccess={handleSuccess} setPage={navigateToPage} />;
     if (WALLET_ACTIONS.has(page))
       return <WalletTab view={page} pwBalance={pwBalance} onBack={goBack}
         onSuccess={handleSuccess} userId={profile?.id} onRefresh={fetchBalance} />;
@@ -767,7 +792,7 @@ export default function PayWaveApp({ onBack, userId }) {
       <style>{GLOBAL_STYLES}</style>
       <div className="pw-shell">
         <nav className="pw-sidenav">
-          <button className="pw-side-back" onClick={onBack} title="Back">
+          <button className="pw-side-back" onClick={goBack} title="Back">
             <ArrowLeft size={13} />
           </button>
           <div className="pw-side-div" style={{ background:"rgba(212,168,71,0.22)" }} />
@@ -775,7 +800,7 @@ export default function PayWaveApp({ onBack, userId }) {
             {NAV_TABS.map((tab) => (
               <button key={tab.id}
                 className={`pw-side-btn ${activeNavId === tab.id ? "active" : ""}`}
-                onClick={() => setPage(tab.id)} title={tab.label}>
+                onClick={() => navigateToPage(tab.id)} title={tab.label}>
                 <div className="pw-side-icon"><tab.icon size={16} /></div>
                 <span style={{ fontSize:"calc((7.5px) + 1px)", letterSpacing:"0.03em" }}>{tab.label}</span>
               </button>
@@ -789,7 +814,7 @@ export default function PayWaveApp({ onBack, userId }) {
             {NAV_TABS.map((tab) => (
               <button key={tab.id}
                 className={`pw-nav-btn ${activeNavId === tab.id ? "active" : ""}`}
-                onClick={() => setPage(tab.id)}>
+                onClick={() => navigateToPage(tab.id)}>
                 <tab.icon size={17} />
                 <span>{tab.label}</span>
               </button>

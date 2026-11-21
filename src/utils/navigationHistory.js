@@ -4,6 +4,61 @@ export const DEFAULT_ROUTE = Object.freeze({
   accountSection: 'profile',
 });
 
+export const HISTORY_INDEX_KEY = '__xv_history_index';
+
+let knownHistoryIndex = null;
+
+export function getHistoryIndex(state) {
+  const index = state?.[HISTORY_INDEX_KEY];
+  return Number.isInteger(index) && index >= 0 ? index : null;
+}
+
+export function getKnownHistoryIndex() {
+  return knownHistoryIndex;
+}
+
+export function setKnownHistoryIndex(index) {
+  if (Number.isInteger(index) && index >= 0) knownHistoryIndex = index;
+}
+
+export function ensureHistoryIndex() {
+  const currentState = window.history.state && typeof window.history.state === 'object'
+    ? window.history.state
+    : {};
+  const currentIndex = getHistoryIndex(currentState);
+  if (currentIndex !== null) {
+    setKnownHistoryIndex(currentIndex);
+    return currentState;
+  }
+
+  const nextState = { ...currentState, [HISTORY_INDEX_KEY]: 0 };
+  window.history.replaceState(nextState, '', window.location.href);
+  setKnownHistoryIndex(0);
+  return nextState;
+}
+
+export function pushHistoryState(state, url = window.location.href) {
+  const currentState = window.history.state && typeof window.history.state === 'object'
+    ? window.history.state
+    : {};
+  const currentIndex = getHistoryIndex(currentState) ?? getKnownHistoryIndex() ?? 0;
+  const nextState = { ...state, [HISTORY_INDEX_KEY]: currentIndex + 1 };
+  window.history.pushState(nextState, '', url);
+  setKnownHistoryIndex(currentIndex + 1);
+  return nextState;
+}
+
+export function replaceHistoryState(state, url = window.location.href) {
+  const currentState = window.history.state && typeof window.history.state === 'object'
+    ? window.history.state
+    : {};
+  const index = getHistoryIndex(state) ?? getHistoryIndex(currentState) ?? getKnownHistoryIndex() ?? 0;
+  const nextState = { ...state, [HISTORY_INDEX_KEY]: index };
+  window.history.replaceState(nextState, '', url);
+  setKnownHistoryIndex(index);
+  return nextState;
+}
+
 export function normalizeRoute(route = {}) {
   const next = {
     tab: route.tab || DEFAULT_ROUTE.tab,

@@ -5,6 +5,7 @@ import communityUnreadService from "../../services/community/communityUnreadServ
 import communityCache from "../../services/community/communityCache";
 import { supabase } from "../../services/config/supabase";
 import useRegisterBack from "../../hooks/useRegisterBack";
+import { pushHistoryState } from "../../utils/navigationHistory";
 import CommunityView from "./CommunityView";
 
 jest.mock("../../hooks/useRegisterBack", () => jest.fn());
@@ -88,6 +89,7 @@ describe("CommunityView", () => {
     const rootHistoryState = {
       type: "app-route",
       route: { tab: "community", homeSection: "newsfeed", accountSection: "profile" },
+      __xv_history_index: 0,
     };
     window.history.replaceState(rootHistoryState, "", window.location.href);
     const { rerender } = render(
@@ -102,46 +104,43 @@ describe("CommunityView", () => {
     fireEvent.click(await screen.findByTestId("select-channel"));
     expect(document.body.classList.contains("community-fullscreen")).toBe(true);
 
-    const chatHistoryState = window.history.state;
-    const channelsHistoryState = {
-      ...rootHistoryState,
-      __communityNavigation: {
-        ...chatHistoryState.__communityNavigation,
-        view: "channels",
-        channel: null,
-        depth: 1,
-      },
-    };
-
-    act(() => {
-      window.history.replaceState(channelsHistoryState, "", window.location.href);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
+    act(() => window.history.back());
     expect(await screen.findByTestId("select-channel")).not.toBeNull();
 
-    act(() => {
-      window.history.replaceState(chatHistoryState, "", window.location.href);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
-    expect(await screen.findByTestId("community-chat")).not.toBeNull();
-
-    act(() => {
-      window.history.replaceState(rootHistoryState, "", window.location.href);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
+    act(() => window.history.back());
     expect(await screen.findByTestId("community-discover")).not.toBeNull();
     await waitFor(() => {
       expect(document.body.classList.contains("community-fullscreen")).toBe(false);
     });
 
-    fireEvent.click(screen.getByTestId("select-community"));
-    fireEvent.click(await screen.findByTestId("select-channel"));
+    act(() => window.history.forward());
+    expect(await screen.findByTestId("select-channel")).not.toBeNull();
+    act(() => window.history.forward());
     expect(await screen.findByTestId("community-chat")).not.toBeNull();
+
+    pushHistoryState({
+      type: "app-route",
+      route: { tab: "wallet", homeSection: "newsfeed", accountSection: "profile" },
+    });
     rerender(
-      <CommunityView userId="user-1" currentUser={{ id: "user-1" }} activeTab="home" />,
+      <CommunityView userId="user-1" currentUser={{ id: "user-1" }} activeTab="wallet" />,
     );
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate", {
+        state: window.history.state,
+      }));
+    });
     await waitFor(() => {
       expect(document.body.classList.contains("community-fullscreen")).toBe(false);
+    });
+
+    act(() => window.history.back());
+    rerender(
+      <CommunityView userId="user-1" currentUser={{ id: "user-1" }} activeTab="community" />,
+    );
+    expect(await screen.findByTestId("community-chat")).not.toBeNull();
+    await waitFor(() => {
+      expect(document.body.classList.contains("community-fullscreen")).toBe(true);
     });
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useBackNavigation } from "../contexts/BackNavigationContext";
+import { getHistoryIndex, replaceHistoryState } from "../utils/navigationHistory";
 
 export const useBackButton = (isAtRoot) => {
   const [showExitPrompt, setShowExitPrompt] = useState(false);
@@ -10,6 +11,8 @@ export const useBackButton = (isAtRoot) => {
   useEffect(() => {
     const handler = () => {
       if (!isAtRoot()) return false;
+      const historyIndex = getHistoryIndex(window.history.state);
+      if (historyIndex !== null && historyIndex > 0) return false;
 
       const now = Date.now();
       if (now - lastBackPressRef.current < DOUBLE_BACK_DELAY) {
@@ -32,7 +35,7 @@ export const useBackButton = (isAtRoot) => {
     if (typeof window === "undefined") return;
     const current = window.history.state || {};
     if (!current.__back_navigation && !current.__app_route && current.type !== "app-route") {
-      window.history.replaceState({ __back_navigation: true }, "");
+      replaceHistoryState({ ...current, __back_navigation: true });
     }
   }, []);
 

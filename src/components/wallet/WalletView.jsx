@@ -26,9 +26,14 @@ import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider, CURRENCIES, useCurrency } from "../../contexts/CurrencyContext";
 import { useAuth } from "../Auth/AuthContext";
 import { supabase } from "../../services/config/supabase";
+import {
+  pushHistoryState,
+  replaceHistoryState,
+} from "../../utils/navigationHistory";
 import useTrinitylens from "../../hooks/useTrinitylens";
 import { isPayWaveEligible } from "./walletEligibility";
 
+const WALLET_HISTORY_KEY = "__walletNavigation";
 const NATIVE_CURRENCY_KEY = "xeevia_native_currency";
 
 function readNativeCurrency(userId) {
@@ -502,6 +507,7 @@ const WalletView = ({
   refreshTrigger,
   walletDestination,
   onWalletDestinationHandled,
+  isSectionActive = true,
 }) => {
   const { profile } = useAuth();
 
@@ -525,6 +531,40 @@ const WalletView = ({
     setNativeCurrency(readNativeCurrency(userId));
     setShowPayWaveV(false);
   }, [userId]);
+
+  useEffect(() => {
+    const restoreWalletState = (event) => {
+      const state = event.state || {};
+      const route = state.route || state;
+      const walletEntry = state[WALLET_HISTORY_KEY];
+      if (route.tab !== "wallet") {
+        setShowPayWaveV(false);
+        return;
+      }
+      if (walletEntry?.tab) setActiveTab(walletEntry.tab);
+      else setActiveTab("overview");
+      setShowPayWaveV(Boolean(state.paywave));
+    };
+
+    window.addEventListener("popstate", restoreWalletState);
+    return () => window.removeEventListener("popstate", restoreWalletState);
+  }, []);
+
+  useEffect(() => {
+    if (!isSectionActive) setShowPayWaveV(false);
+  }, [isSectionActive]);
+
+  useEffect(() => {
+    if (!isSectionActive) return;
+    const state = window.history.state || {};
+    const route = state.route || state;
+    if (route.tab !== "wallet" || state[WALLET_HISTORY_KEY]) return;
+
+    replaceHistoryState({
+      ...state,
+      [WALLET_HISTORY_KEY]: { tab: activeTab, stack: [activeTab] },
+    });
+  }, [activeTab, isSectionActive]);
 
   const saveNativeCurrency = useCallback((code) => {
     if (!userId || !CURRENCIES.some((item) => item.code === code)) {
@@ -642,12 +682,11 @@ const WalletView = ({
     return () => unsub?.();
   }, [userId]);
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = useCallback((tab) => {
     if (tab === "assets") {
       setFoundersInitialScreen("collection");
       setFoundersRequestId((current) => current + 1);
-      setActiveTab("foundersCards");
-      return;
+      tab = "foundersCards";
     }
     if (["swap", "trade"].includes(tab)) {
       setWalletNotice("Token swap and trading are hidden to keep Wallet focused on EP.");
@@ -658,16 +697,42 @@ const WalletView = ({
       setShowPayWaveV(true);
       return;
     }
+
+    if (tab === activeTab) return;
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {};
+    const currentEntry = currentState[WALLET_HISTORY_KEY];
+    const stack = Array.isArray(currentEntry?.stack) && currentEntry.stack.length
+      ? currentEntry.stack
+      : [currentEntry?.tab || activeTab];
+    if (stack.length > 1 && stack[stack.length - 2] === tab) {
+      window.history.back();
+      return;
+    }
+
+    pushHistoryState({
+      ...currentState,
+      [WALLET_HISTORY_KEY]: { tab, stack: [...stack, tab] },
+    });
     setActiveTab(tab);
-  };
+  }, [activeTab, showPayWave]);
 
   useEffect(() => {
     if (walletDestination !== "collections") return;
     setFoundersInitialScreen("marketplace");
     setFoundersRequestId((current) => current + 1);
-    setActiveTab("foundersCards");
+    handleTabChange("foundersCards");
     onWalletDestinationHandled?.();
-  }, [walletDestination, onWalletDestinationHandled]);
+  }, [walletDestination, onWalletDestinationHandled, handleTabChange]);
+
+  const closePayWave = useCallback(() => {
+    if (window.history.state?.paywave) {
+      window.history.back();
+      return;
+    }
+    setShowPayWaveV(false);
+  }, []);
 
   const sharedProps = {
     setActiveTab: handleTabChange,
@@ -698,7 +763,7 @@ const WalletView = ({
           userId={userId}
           epBalance={balance.points}
           xevBalance={balance.tokens}
-          onBack={() => setShowPayWaveV(false)}
+          onBack={closePayWave}
         />
       </CurrencyProvider>
     );

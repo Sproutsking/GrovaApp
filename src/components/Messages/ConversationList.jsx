@@ -342,7 +342,7 @@ const ConversationList = ({
         {/* ── Group chats ── */}
         {filteredGroups.map(group => {
           if (!group?.id) return null;
-          const isActive = group.id === activeGroupId;
+          const isActive = String(group.id) === String(activeGroupId);
           const members = Array.isArray(group.members) ? group.members : [];
           const lastMsg = group.lastMessage;
           const preview = lastMsg?.content
@@ -350,7 +350,7 @@ const ConversationList = ({
             : `${members.length} members`;
 
           return (
-            <div key={group.id} className={`cl-item${isActive ? " cl-active" : ""}`} onClick={() => onSelectGroup?.(group)}>
+            <div key={group.id} className={`cl-item${isActive ? " cl-active" : ""}`} aria-current={isActive ? "true" : undefined} onClick={() => onSelectGroup?.(group)}>
               <div className="cl-av-wrap">
                 <div className="cl-group-av">
                   {renderGroupIcon(group)}
@@ -386,7 +386,7 @@ const ConversationList = ({
           if (!conv?.id) return null;
           const other = conv.user1_id === currentUserId ? conv.user2 : conv.user1;
           const status = statusMap.get(other?.id) || { online: false };
-          const isActive = conv.id === activeConversationId;
+          const isActive = String(conv.id) === String(activeConversationId);
           const unread = conv.unreadCount || 0;
           const hasUnread = !isActive && unread > 0;
           const avatarUrl = getAvatar(other);
@@ -398,6 +398,7 @@ const ConversationList = ({
             <div
               key={conv.id}
               className={`cl-item${hasUnread ? " cl-unread" : ""}${isActive ? " cl-active" : ""}`}
+              aria-current={isActive ? "true" : undefined}
               onClick={() => onSelect(conv)}
             >
               <div className="cl-av-wrap">
@@ -454,7 +455,7 @@ const ConversationList = ({
         .cl-item{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.025);transition:background .15s;-webkit-tap-highlight-color:transparent;}
         .cl-item:hover{background:rgba(255,255,255,.03);}
         .cl-unread{background:rgba(132,204,22,.025);}
-        .cl-active{background:rgba(132,204,22,.07);}
+        .cl-active{position:relative;background:linear-gradient(90deg,rgba(132,204,22,.15),rgba(132,204,22,.07));box-shadow:inset 3px 0 #84cc16;}
         .cl-av-wrap{position:relative;flex-shrink:0;}
         .cl-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:calc((18px) + 1px);font-weight:700;color:#84cc16;overflow:hidden;}
         .cl-avatar img{width:100%;height:100%;object-fit:cover;}

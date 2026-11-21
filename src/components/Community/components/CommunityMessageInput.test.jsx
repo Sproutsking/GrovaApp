@@ -1,8 +1,45 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import CommunityMessageInput from "./CommunityMessageInput";
 
+const originalMatchMedia = window.matchMedia;
+
+const mockMobileViewport = (matches) => {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: jest.fn().mockReturnValue({ matches }),
+  });
+};
+
+afterEach(() => {
+  if (originalMatchMedia) {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  } else {
+    delete window.matchMedia;
+  }
+});
+
 describe("CommunityMessageInput keyboard submission", () => {
+  it("does not focus the composer automatically on mobile", () => {
+    mockMobileViewport(true);
+
+    render(<CommunityMessageInput value="" onChange={jest.fn()} onSend={jest.fn()} />);
+
+    expect(screen.getByPlaceholderText("Type a message...")).not.toHaveFocus();
+  });
+
+  it("continues focusing the composer automatically on desktop", () => {
+    mockMobileViewport(false);
+
+    render(<CommunityMessageInput value="" onChange={jest.fn()} onSend={jest.fn()} />);
+
+    expect(screen.getByPlaceholderText("Type a message...")).toHaveFocus();
+  });
+
   it("sends on Enter and preserves Shift+Enter for a newline", async () => {
     const onSend = jest.fn().mockResolvedValue(true);
     render(<CommunityMessageInput value="Hello" onChange={jest.fn()} onSend={onSend} />);
@@ -35,8 +72,10 @@ describe("CommunityMessageInput keyboard submission", () => {
   it("keeps the message field dark while animating only its gradient border", () => {
     render(<CommunityMessageInput value="" onChange={jest.fn()} onSend={jest.fn()} />);
 
-    expect(screen.getByPlaceholderText("Type a message...").classList.contains("comm-textarea")).toBe(true);
+    expect(screen.getByPlaceholderText("Type a message...")).toHaveClass("comm-textarea");
 
+    // The test inspects an inline style tag, which is not exposed as accessible UI.
+    // eslint-disable-next-line testing-library/no-node-access
     const componentStyles = Array.from(document.querySelectorAll("style"))
       .map((style) => style.textContent)
       .join("\n");
