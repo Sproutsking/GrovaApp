@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import "@testing-library/jest-dom";
 import FoundersCardsTab from "./FoundersCardsTab";
 import { foundersCardService } from "../../../services/foundersCardService";
+import { requestCardanoPayment } from "../../../services/auth/paymentService";
 
 jest.mock("../../../services/foundersCardService", () => ({
   foundersCardService: {
@@ -18,6 +19,8 @@ jest.mock("../../../services/foundersCardService", () => ({
 jest.mock("../../../services/auth/paymentService", () => ({
   createPaystackTransaction: jest.fn(),
   requestWalletPayment: jest.fn(),
+  requestSolanaPayment: jest.fn(),
+  requestCardanoPayment: jest.fn(),
   verifyWeb3Payment: jest.fn(),
 }));
 
@@ -64,6 +67,7 @@ describe("FoundersCardsTab supply gallery", () => {
     render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
     fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
 
+    expect(screen.getByRole("main")).toHaveClass("fc-page-mobile-fullscreen", "fc-market-tier-page");
     await waitFor(() => {
       expect(screen.getAllByRole("img", { name: /Silver card/ })).toHaveLength(24);
     });
@@ -109,6 +113,44 @@ describe("FoundersCardsTab supply gallery", () => {
 
     expect(screen.getByRole("radio", { name: /Crypto/ })).toBeChecked();
     expect(screen.getByLabelText("Network")).toBeInTheDocument();
+  });
+
+  it("switches the network and asset choices for Solana and Cardano", async () => {
+    render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open purchase options for Silver card" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Crypto/ }));
+
+    fireEvent.change(screen.getByLabelText("Network family"), { target: { value: "SOLANA" } });
+    expect(screen.getByLabelText("Network")).toHaveValue("solana");
+    expect(screen.getByLabelText("Asset")).toHaveValue("USDC");
+
+    fireEvent.change(screen.getByLabelText("Network family"), { target: { value: "CARDANO" } });
+    expect(screen.getByLabelText("Network")).toHaveValue("cardano");
+    expect(screen.getByLabelText("Asset")).toHaveValue("ADA");
+  });
+
+  it("routes Cardano checkout through the order's server-quoted ADA payment flow", async () => {
+    foundersCardService.reservePurchase.mockResolvedValue({
+      order_id: "order-123",
+      total_price: 12,
+    });
+    requestCardanoPayment.mockResolvedValue({ success: true });
+
+    render(<FoundersCardsTab setActiveTab={jest.fn()} initialScreen="marketplace" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Silver/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open purchase options for Silver card" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Crypto/ }));
+    fireEvent.change(screen.getByLabelText("Network family"), { target: { value: "CARDANO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reserve & pay" }));
+
+    await waitFor(() => {
+      expect(requestCardanoPayment).toHaveBeenCalledWith({
+        foundersOrderId: "order-123",
+        amountUSD: 12,
+        onStep: expect.any(Function),
+      });
+    });
   });
 
   it("refreshes the open marketplace when a CEO changes tier sales or pricing", async () => {

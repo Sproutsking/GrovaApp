@@ -17,6 +17,8 @@ import {
 import { foundersCardService } from "../../../services/foundersCardService";
 import {
   createPaystackTransaction,
+  requestCardanoPayment,
+  requestSolanaPayment,
   requestWalletPayment,
   verifyWeb3Payment,
 } from "../../../services/auth/paymentService";
@@ -31,35 +33,91 @@ const TIER_SKINS = {
   VIP: { accent: "#f0d18a", glow: "rgba(220,174,76,.24)", backdrop: "linear-gradient(140deg,#382b12,#080807 54%,#30220c)" },
 };
 
-const CRYPTO_OPTIONS = {
+const EVM_NETWORKS = {
   polygon: {
     label: "Polygon",
     chainId: 137,
-    token: "USDC",
-    tokenAddress: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-    decimals: 6,
+    tokens: {
+      USDC: { address: "0x2791Bca1f2de4661ed88a30c99a7a9449aa84174", decimals: 6 },
+      USDT: { address: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", decimals: 6 },
+    },
   },
   base: {
     label: "Base",
     chainId: 8453,
-    token: "USDC",
-    tokenAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bdA02913",
-    decimals: 6,
+    tokens: {
+      USDC: { address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", decimals: 6 },
+      USDT: { address: "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", decimals: 6 },
+    },
   },
   arbitrum: {
     label: "Arbitrum",
     chainId: 42161,
-    token: "USDC",
-    tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-    decimals: 6,
+    tokens: {
+      USDC: { address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", decimals: 6 },
+      USDT: { address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", decimals: 6 },
+    },
   },
   optimism: {
     label: "Optimism",
     chainId: 10,
-    token: "USDC",
-    tokenAddress: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-    decimals: 6,
+    tokens: {
+      USDC: { address: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", decimals: 6 },
+      USDT: { address: "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58", decimals: 6 },
+    },
   },
+  ethereum: {
+    label: "Ethereum",
+    chainId: 1,
+    tokens: {
+      USDC: { address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", decimals: 6 },
+      USDT: { address: "0xdac17f958d2ee523a2206206994597c13d831ec7", decimals: 6 },
+    },
+  },
+  bnb: {
+    label: "BNB Smart Chain",
+    chainId: 56,
+    tokens: {
+      USDC: { address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", decimals: 18 },
+      USDT: { address: "0x55d398326f99059ff775485246999027b3197955", decimals: 18 },
+    },
+  },
+  avalanche: {
+    label: "Avalanche",
+    chainId: 43114,
+    tokens: {
+      USDC: { address: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", decimals: 6 },
+      USDT: { address: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7", decimals: 6 },
+    },
+  },
+  zksync: {
+    label: "zkSync Era",
+    chainId: 324,
+    tokens: {
+      USDC: { address: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4", decimals: 6 },
+      USDT: { address: "0x493257fd37edb34451f62edf8d2a0c418852ba4c", decimals: 6 },
+    },
+  },
+  fantom: {
+    label: "Fantom",
+    chainId: 250,
+    tokens: {
+      USDC: { address: "0x04068da6c83afcfa0e13ba15a6696662335d5b75", decimals: 6 },
+      USDT: { address: "0x049d68029688eabf473097a2fc38ef61633a3c7a", decimals: 6 },
+    },
+  },
+};
+
+const CRYPTO_NETWORKS = {
+  EVM: Object.entries(EVM_NETWORKS).map(([id, network]) => ({ id, name: network.label })),
+  SOLANA: [{ id: "solana", name: "Solana" }],
+  CARDANO: [{ id: "cardano", name: "Cardano" }],
+};
+
+const CRYPTO_ASSETS = {
+  EVM: ["USDC", "USDT"],
+  SOLANA: ["USDC", "USDT"],
+  CARDANO: ["ADA"],
 };
 
 function formatPrice(tier) {
@@ -149,7 +207,9 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
   const [quantity, setQuantity] = useState(1);
   const [supplyPage, setSupplyPage] = useState(0);
   const [provider, setProvider] = useState("paystack");
+  const [chainType, setChainType] = useState("EVM");
   const [chain, setChain] = useState("polygon");
+  const [asset, setAsset] = useState("USDC");
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -351,6 +411,12 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
     setScreen("market-tier");
   };
 
+  const changeCryptoFamily = (nextType) => {
+    setChainType(nextType);
+    setChain(CRYPTO_NETWORKS[nextType][0].id);
+    setAsset(CRYPTO_ASSETS[nextType][0]);
+  };
+
   const startPurchase = async () => {
     if (!canPurchase) return;
     setProcessing(true);
@@ -371,22 +437,46 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         return;
       }
 
-      const selectedCrypto = CRYPTO_OPTIONS[chain];
-      const result = await requestWalletPayment({
-        foundersOrderId: order.order_id,
-        amountUSD: Number(order.total_price),
-        chainId: selectedCrypto.chainId,
-        chainName: chain,
-        tokenAddress: selectedCrypto.tokenAddress,
-        tokenDecimals: selectedCrypto.decimals,
-        onStep: (step) => setNotice(step.message),
-      });
+      const onStep = (step) => setNotice(step.message);
+      let result;
+      if (chainType === "EVM") {
+        const selectedNetwork = EVM_NETWORKS[chain];
+        const selectedToken = selectedNetwork?.tokens[asset];
+        if (!selectedNetwork || !selectedToken) {
+          throw new Error("Choose a supported EVM network and stablecoin.");
+        }
+        result = await requestWalletPayment({
+          foundersOrderId: order.order_id,
+          amountUSD: Number(order.total_price),
+          chainId: selectedNetwork.chainId,
+          chainName: chain,
+          tokenAddress: selectedToken.address,
+          tokenDecimals: selectedToken.decimals,
+          onStep,
+        });
+      } else if (chainType === "SOLANA") {
+        result = await requestSolanaPayment({
+          foundersOrderId: order.order_id,
+          amountUSD: Number(order.total_price),
+          tokenSymbol: asset,
+          onStep,
+        });
+      } else {
+        result = await requestCardanoPayment({
+          foundersOrderId: order.order_id,
+          amountUSD: Number(order.total_price),
+          onStep,
+        });
+      }
+
       if (result.pending) {
         setPendingCrypto({
+          chainType: result.chainType || chainType,
+          chainName: result.chainName || chain,
           orderId: order.order_id,
           txHash: result.txHash,
           senderWallet: result.senderWallet,
-          chainName: result.chainName,
+          cryptoQuoteId: result.cryptoQuoteId,
         });
         setNotice(result.message || "Transaction submitted. Waiting for network confirmation.");
       } else if (result.refundRequired) {
@@ -396,6 +486,7 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
       } else if (result.success) {
         setNotice("Crypto payment confirmed. Your founders card is now in your wallet.");
         setOrderId("");
+        setPendingCrypto(null);
         await reload();
       }
     } catch (purchaseError) {
@@ -411,11 +502,12 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
     setError("");
     try {
       const result = await verifyWeb3Payment({
-        chainType: "EVM",
+        chainType: pendingCrypto.chainType,
         chain: pendingCrypto.chainName,
         txHash: pendingCrypto.txHash,
         claimedSenderWallet: pendingCrypto.senderWallet,
         foundersOrderId: pendingCrypto.orderId,
+        cryptoQuoteId: pendingCrypto.cryptoQuoteId,
       });
       if (result.status === "success" || result.status === "already_processed") {
         setNotice("Crypto payment confirmed. Your founders card is now in your wallet.");
@@ -482,9 +574,13 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
           : "Assets";
 
   return (
-    <main className="fc-page">
+    <main className={`fc-page${screen !== "collection" ? " fc-page-mobile-fullscreen" : ""}${screen === "market-tier" ? " fc-market-tier-page" : ""}`}>
       <style>{`
-        .fc-page{min-height:100%;padding:clamp(10px,1.5vw,16px);padding-bottom:calc(clamp(10px,1.5vw,16px) + env(safe-area-inset-bottom, 0px));background:radial-gradient(ellipse at 92% 0%,rgba(198,255,0,.09),transparent 36%),#07080a;color:#f5f7f1;container-type:inline-size}
+        .fc-page{box-sizing:border-box;display:flex;min-height:100%;height:100%;flex-direction:column;overflow-y:auto;padding:clamp(10px,1.5vw,16px);padding-bottom:calc(clamp(10px,1.5vw,16px) + env(safe-area-inset-bottom, 0px));background:radial-gradient(ellipse at 92% 0%,rgba(198,255,0,.09),transparent 36%),#07080a;color:#f5f7f1;container-type:inline-size}
+        .fc-market-tier-page{min-height:0;overflow:hidden}
+        .fc-market-tier-panel{display:flex;flex:1;min-height:0;flex-direction:column}
+        .fc-market-tier-page .fc-supply-gallery{display:flex;flex:1;min-height:0;flex-direction:column}
+        .fc-market-tier-page .fc-supply-grid{flex:1;min-height:0;max-height:none}
         .fc-top{display:flex;align-items:center;gap:8px;margin-bottom:12px;min-width:0}
         .fc-back{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 12px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(255,255,255,.055);color:#f0f3ed;font:inherit;font-weight:750;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
         .fc-back:hover:not(:disabled){border-color:rgba(255,255,255,.38);background:rgba(255,255,255,.1);color:#fff}.fc-back:focus-visible,.fc-action:focus-visible,.fc-tier-card:focus-visible,.fc-payment-option:focus-visible{outline:2px solid #d5ff60;outline-offset:2px}
@@ -516,10 +612,10 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         .fc-preview-tier{position:relative;margin-top:auto;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
         .fc-preview-serial{position:relative;margin-top:3px;font:700 10px ui-monospace,monospace;color:rgba(255,255,255,.76)}
         .fc-preview-status{position:absolute;right:11px;bottom:13px;font-size:7px;font-weight:900;letter-spacing:.12em;color:var(--fc-accent)}
-        .fc-buy-controls{align-self:start;display:grid;gap:8px;min-width:0;padding:12px;border:1px solid rgba(255,255,255,.17);border-radius:13px;background:linear-gradient(145deg,rgba(15,18,14,.94),rgba(10,11,10,.94))}
+        .fc-buy-controls{align-self:start;display:grid;gap:8px;min-width:0;padding:12px;border:1px solid #323a30;border-radius:13px;background:#111410}
         .fc-buy-open{width:100%;margin-top:12px}
-        .fc-buy-backdrop{position:fixed;inset:0;z-index:110000;display:grid;place-items:center;overflow-y:auto;padding:16px;background:rgba(3,5,4,.78);backdrop-filter:blur(8px)}
-        .fc-buy-dialog{width:min(100%,480px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;border:1px solid rgba(198,255,0,.24);border-radius:16px;background:#0b0d0b;box-shadow:0 24px 80px rgba(0,0,0,.72)}
+        .fc-buy-backdrop{position:fixed;inset:0;z-index:110000;display:grid;place-items:center;overflow-y:auto;padding:16px;background:rgba(3,5,4,.9)}
+        .fc-buy-dialog{width:min(100%,480px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;border:1px solid #4b5a3a;border-radius:16px;background:#0b0d0b;box-shadow:0 24px 80px rgba(0,0,0,.72)}
         .fc-buy-dialog:focus{outline:none}
         .fc-buy-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}.fc-buy-title>div{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0}.fc-buy-title span{padding:4px 8px;border:1px solid rgba(244,199,103,.28);border-radius:7px;background:rgba(244,199,103,.07);color:#f7d985;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
         .fc-buy-close{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);color:#e5e7eb;cursor:pointer}
@@ -527,16 +623,18 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         .fc-buy-close:focus-visible{outline:2px solid #d5ff60;outline-offset:2px}
         .fc-buy-controls label{display:grid;gap:5px;color:rgba(255,255,255,.8);font-size:12px;font-weight:750}
         .fc-buy-controls input,.fc-buy-controls select,.fc-transfer-form input{width:100%;min-height:40px;padding:0 11px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:#0b0c0e;color:#f5f7f1;font:inherit}
+        .fc-crypto-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+        .fc-crypto-grid label:last-child{grid-column:1/-1}
         .fc-buy-controls input:focus,.fc-buy-controls select:focus,.fc-transfer-form input:focus{outline:2px solid rgba(213,255,96,.7);outline-offset:1px;border-color:#d5ff60}
         .fc-payment-methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-        .fc-payment-option{position:relative;display:grid;align-content:space-between;gap:8px;min-width:0;min-height:92px;padding:9px 10px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018) 70%),#080a08;color:rgba(255,255,255,.86);text-align:left;cursor:pointer;font:inherit;transition:transform .18s,border-color .18s,background .18s,box-shadow .18s}
-        .fc-payment-option:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.34);background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 70%),#080a08}
-        .fc-payment-option.active{border-color:rgba(198,255,0,.66);background:linear-gradient(145deg,rgba(198,255,0,.13),rgba(198,255,0,.035) 72%),#080a08;color:#efffc0;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 18px rgba(198,255,0,.07)}
-        .fc-payment-option.crypto.active{border-color:rgba(45,212,191,.64);background:linear-gradient(145deg,rgba(45,212,191,.14),rgba(45,212,191,.035) 72%),#080a08;color:#ccfbf1;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 18px rgba(45,212,191,.07)}
+        .fc-payment-option{position:relative;display:grid;align-content:space-between;gap:8px;min-width:0;min-height:92px;padding:10px;border:1px solid #3b4239;border-radius:12px;background:#151813;color:#e5e9e1;text-align:left;cursor:pointer;font:inherit;transition:border-color .18s,background .18s}
+        .fc-payment-option:hover{border-color:#69755e;background:#1b2019}
+        .fc-payment-option.active{border:2px solid #c6ff00;padding:9px;background:#202915;color:#f0ffd0}
+        .fc-payment-option.crypto.active{border:2px solid #2dd4bf;padding:9px;background:#142522;color:#ccfbf1}
         .fc-payment-top,.fc-payment-main,.fc-payment-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
-        .fc-payment-eyebrow{color:rgba(255,255,255,.66);font:700 8px/1.3 ui-monospace,monospace;letter-spacing:.1em}
-        .fc-payment-status{padding:3px 6px;border:1px solid rgba(198,255,0,.26);border-radius:999px;background:rgba(198,255,0,.07);color:#d5ff60;font:700 8px/1 ui-monospace,monospace;white-space:nowrap}
-        .fc-payment-option.crypto .fc-payment-status{border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.07);color:#5eead4}
+        .fc-payment-eyebrow{color:#b4beb0;font:700 8px/1.3 ui-monospace,monospace;letter-spacing:.1em}
+        .fc-payment-status{padding:4px 7px;border:1px solid #53613b;border-radius:7px;background:#222c17;color:#d5ff60;font:700 8px/1 ui-monospace,monospace;white-space:nowrap}
+        .fc-payment-option.crypto .fc-payment-status{border-color:#285c52;background:#17312c;color:#5eead4}
         .fc-payment-main{justify-content:flex-start}.fc-payment-main>svg{flex:none;color:#bef264}.fc-payment-option.crypto .fc-payment-main>svg{color:#5eead4}
         .fc-payment-copy{display:grid;gap:2px;min-width:0}.fc-payment-copy strong{font-size:13px;color:#f7f9f4}.fc-payment-copy small{color:rgba(255,255,255,.68);font-size:10px;overflow-wrap:anywhere}
         .fc-payment-foot{justify-content:flex-start;min-height:12px;padding-top:5px;border-top:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.55);font-size:9px;font-weight:750}
@@ -553,9 +651,11 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         .fc-detail-item small{display:block;color:rgba(255,255,255,.4);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.fc-detail-item strong{display:block;margin-top:6px;font-size:13px;overflow-wrap:anywhere}
         .fc-transfer-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.fc-inline-error{padding:10px;color:#fca5a5;font-size:12px}.fc-asset-loading{height:56px;border-radius:12px;background:rgba(255,255,255,.035);animation:fc-pulse 1.4s infinite}
         .fc-spin{animation:fc-spin .9s linear infinite}@keyframes fc-spin{to{transform:rotate(360deg)}}
-        @keyframes fc-pulse{50%{opacity:.45}}@container (max-width:680px){.fc-top{flex-wrap:wrap}.fc-head-copy{flex:1 1 160px}.fc-top>.fc-action{margin-left:auto}.fc-supply-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:36vh}.fc-market-hero{align-items:flex-start}.fc-transfer-form{grid-template-columns:minmax(0,1fr)}}
+        @keyframes fc-pulse{50%{opacity:.45}}@container (max-width:680px){.fc-top{flex-wrap:wrap}.fc-head-copy{flex:1 1 160px}.fc-top>.fc-action{margin-left:auto}.fc-supply-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:36vh}.fc-market-tier-page .fc-supply-grid{max-height:none}.fc-market-hero{align-items:flex-start}.fc-transfer-form{grid-template-columns:minmax(0,1fr)}}
         @media(max-width:520px){.fc-buy-backdrop{align-items:end;padding:10px}.fc-buy-dialog{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);border-radius:16px}.fc-buy-controls{padding:11px}}
         @media(max-width:520px){.fc-market-hero{flex-direction:column}.fc-market-stat{text-align:left}}
+        @media(max-width:768px){.fc-page-mobile-fullscreen{position:fixed;inset:0;z-index:10000;width:100%;height:100dvh;min-height:100dvh;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 10px)}.fc-market-tier-page.fc-page-mobile-fullscreen{overflow:hidden}.fc-page-mobile-fullscreen.fc-market-tier-page .fc-supply-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}}
+        @media(min-width:769px){.fc-market-tier-page .fc-preview{min-height:clamp(120px,16vh,210px)}}
         @media(max-width:380px){.fc-page{padding-left:9px;padding-right:9px}.fc-panel{padding:10px}.fc-payment-methods{gap:6px}.fc-payment-option{padding:8px;min-height:88px}.fc-payment-eyebrow{font-size:7px}}
       `}</style>
 
@@ -618,7 +718,7 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
         </>
       ) : screen === "market-tier" ? (
         <>
-          <section className="fc-panel">
+          <section className="fc-panel fc-market-tier-panel">
             <div className="fc-panel-head">
               <div><h2>{selectedTier} · {Number(tier?.supply || 0).toLocaleString()}</h2><span className="fc-muted">Next: {!registryReady ? "Pending" : firstAvailable?.serial_display || "Sold out"}</span></div>
               <span className="fc-muted">{registryReady ? `${Number(tier?.available || 0).toLocaleString()} available` : "Preview only"}</span>
@@ -690,18 +790,43 @@ export default function FoundersCardsTab({ setActiveTab, initialScreen = "collec
                       <span className="fc-payment-main"><CreditCard size={18} /><span className="fc-payment-copy"><strong>Fiat</strong><small>Paystack · NGN</small></span></span>
                       <span className="fc-payment-foot">{provider === "paystack" ? "Selected" : "Choose fiat"}</span>
                     </button>
-                    <button type="button" role="radio" aria-label="Crypto, on-chain, USDC on EVM" aria-checked={provider === "web3"} className={`fc-payment-option crypto${provider === "web3" ? " active" : ""}`} onClick={() => setProvider("web3")}>
+                    <button type="button" role="radio" aria-label="Crypto, on-chain, EVM, Solana, and Cardano" aria-checked={provider === "web3"} className={`fc-payment-option crypto${provider === "web3" ? " active" : ""}`} onClick={() => setProvider("web3")}>
                       <span className="fc-payment-top"><span className="fc-payment-eyebrow">CRYPTO · WEB3</span><span className="fc-payment-status">ON-CHAIN</span></span>
-                      <span className="fc-payment-main"><Coins size={18} /><span className="fc-payment-copy"><strong>Crypto</strong><small>USDC · EVM</small></span></span>
+                      <span className="fc-payment-main"><Coins size={18} /><span className="fc-payment-copy"><strong>Crypto</strong><small>USDC · USDT · ADA</small></span></span>
                       <span className="fc-payment-foot">{provider === "web3" ? "Selected" : "Choose crypto"}</span>
                     </button>
                   </div>
                   {provider === "web3" && (
-                    <label>Network
-                      <select value={chain} onChange={(event) => setChain(event.target.value)}>
-                        {Object.entries(CRYPTO_OPTIONS).map(([key, option]) => <option key={key} value={key}>{option.label} · {option.token}</option>)}
-                      </select>
-                    </label>
+                    <>
+                      <div className="fc-crypto-grid">
+                        <label>Network family
+                          <select value={chainType} onChange={(event) => changeCryptoFamily(event.target.value)}>
+                            <option value="EVM">EVM networks</option>
+                            <option value="SOLANA">Solana</option>
+                            <option value="CARDANO">Cardano</option>
+                          </select>
+                        </label>
+                        <label>Network
+                          <select value={chain} onChange={(event) => setChain(event.target.value)}>
+                            {CRYPTO_NETWORKS[chainType].map((network) => (
+                              <option key={network.id} value={network.id}>{network.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>Asset
+                          <select value={asset} onChange={(event) => setAsset(event.target.value)}>
+                            {CRYPTO_ASSETS[chainType].map((assetOption) => (
+                              <option key={assetOption} value={assetOption}>{assetOption}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="fc-note">
+                        {chainType === "CARDANO"
+                          ? "ADA is priced from a server quote locked for ten minutes."
+                          : "Pay from a verified wallet linked to your Xeevia account."}
+                      </p>
+                    </>
                   )}
                   <div className="fc-buy-total"><span>Total · USD</span><strong>{tier?.price_currency === "USD" ? `$${(Number(tier?.list_price || 0) * quantity).toFixed(2)}` : "—"}</strong></div>
                   <button

@@ -620,6 +620,16 @@ export async function requestWalletPayment({
     },
   );
   var verifyResult = await verifyResp.json();
+  if (!verifyResp.ok && verifyResp.status >= 500) {
+    return {
+      pending: true,
+      message: "Transaction sent. Server verification is temporarily unavailable; retry verification shortly.",
+      txHash: txHash,
+      senderWallet: from,
+      chainType: "EVM",
+      chainName,
+    };
+  }
   if (!verifyResp.ok)
     throw new Error(
       (verifyResult && verifyResult.error) ||
@@ -631,6 +641,7 @@ export async function requestWalletPayment({
       message: verifyResult.message || "Payment pending confirmation.",
       txHash: txHash,
       senderWallet: from,
+      chainType: "EVM",
       chainName,
     };
   if (verifyResult.status === "refund_required") {
@@ -648,6 +659,7 @@ export async function requestWalletPayment({
 // --- Full automated Solana payment --------------------------------------------
 export async function requestSolanaPayment({
   productId,
+  foundersOrderId,
   amountUSD,
   tokenSymbol,
   onStep,
@@ -758,23 +770,78 @@ export async function requestSolanaPayment({
         txHash: sig,
         claimedSenderWallet: solAddress,
         productId: productId,
+        founders_order_id: foundersOrderId,
         idempotencyKey: solIdempotencyKey,
         amountOverrideUSD: amountUSD,
       }),
     },
   );
   var solResult = await solResp.json();
+  if (!solResp.ok && solResp.status >= 500) {
+    return {
+      pending: true,
+      message: "Transaction sent. Server verification is temporarily unavailable; retry verification shortly.",
+      txHash: sig,
+      senderWallet: solAddress,
+      chainType: "SOLANA",
+      chainName: "solana",
+    };
+  }
   if (!solResp.ok)
     throw new Error(
       (solResult && solResult.error) ||
         "Verification failed (" + solResp.status + ").",
     );
+  if (solResult.status === "pending") {
+    return {
+      pending: true,
+      message: solResult.message || "Payment pending confirmation.",
+      txHash: sig,
+      senderWallet: solAddress,
+      chainType: "SOLANA",
+      chainName: "solana",
+    };
+  }
+  if (solResult.status === "refund_required") {
+    clearIdempotencyKey();
+    return {
+      refundRequired: true,
+      message: solResult.message || "Payment was verified after the card reservation expired.",
+      txHash: sig,
+    };
+  }
   clearIdempotencyKey();
-  return { success: true, txHash: sig, result: solResult };
+  return { success: true, txHash: sig, senderWallet: solAddress, chainType: "SOLANA", chainName: "solana", result: solResult };
+}
+
+export async function createFoundersCardAdaQuote(foundersOrderId) {
+  const token = await getAuthToken();
+  const response = await fetch(
+    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/web3-verify-payment",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "founders_card_ada_quote",
+        chainType: "CARDANO",
+        chain: "cardano",
+        founders_order_id: foundersOrderId,
+        idempotencyKey: getOrCreateIdempotencyKey(),
+      }),
+    },
+  );
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result?.error || `Could not quote the ADA amount (${response.status}).`);
+  }
+  return result;
 }
 
 // --- Full automated Cardano payment -------------------------------------------
-export async function requestCardanoPayment({ productId, amountUSD, onStep }) {
+export async function requestCardanoPayment({ productId, foundersOrderId, amountUSD, onStep }) {
   function step(type, message, extra) {
     if (onStep)
       onStep(Object.assign({ type: type, message: message }, extra || {}));
@@ -788,25 +855,43 @@ export async function requestCardanoPayment({ productId, amountUSD, onStep }) {
   var adaAddress = adaConn.address;
   var adaApi = adaConn.api;
 
-  step("sending", "Fetching ADA price...");
-  var adaPerUSD = 2.5;
-  try {
-    var priceRes = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
-    );
-    var priceData = await priceRes.json();
-    var adaUSD = priceData && priceData.cardano && priceData.cardano.usd;
-    if (adaUSD && !isNaN(adaUSD)) adaPerUSD = 1 / adaUSD;
-  } catch (e) {
-    /* use fallback */
+  let adaAmount;
+  let lovelace;
+  let cryptoQuoteId;
+  if (foundersOrderId) {
+    step("quoting", "Locking a Cardano price quote...");
+    const quote = await createFoundersCardAdaQuote(foundersOrderId);
+    adaAmount = Number(quote.amountAda);
+    lovelace = Number(quote.lovelace);
+    cryptoQuoteId = quote.cryptoQuoteId;
+    if (!Number.isFinite(adaAmount) || adaAmount <= 0 || !Number.isSafeInteger(lovelace) || !cryptoQuoteId) {
+      throw new Error("The Cardano quote service returned invalid payment details.");
+    }
+    step("quoted", `Quote locked for ${quote.expiresAt}.`, { cryptoQuoteId });
+  } else {
+    step("sending", "Fetching ADA price...");
+    let adaPerUSD;
+    try {
+      const priceRes = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
+      );
+      if (!priceRes.ok) throw new Error(`Price service returned HTTP ${priceRes.status}`);
+      const priceData = await priceRes.json();
+      const adaUSD = priceData?.cardano?.usd;
+      if (typeof adaUSD !== "number" || !Number.isFinite(adaUSD) || adaUSD <= 0) {
+        throw new Error("Price service returned an invalid ADA quote");
+      }
+      adaPerUSD = 1 / adaUSD;
+    } catch (error) {
+      throw new Error(error?.message || "A fresh ADA price is unavailable.");
+    }
+    adaAmount = amountUSD * adaPerUSD;
+    lovelace = Math.ceil(adaAmount * 1_000_000);
   }
-
-  var adaAmount = amountUSD * adaPerUSD;
-  var lovelace = Math.round(adaAmount * 1000000);
 
   step(
     "sending",
-    "Sending " + adaAmount.toFixed(4) + " ADA (~$" + amountUSD + ")...",
+    "Sending " + (lovelace / 1_000_000).toFixed(6) + " ADA (~$" + amountUSD + ")...",
   );
 
   var txHash;
@@ -897,19 +982,59 @@ export async function requestCardanoPayment({ productId, amountUSD, onStep }) {
         txHash: txHash,
         claimedSenderWallet: adaAddress,
         productId: productId,
+        founders_order_id: foundersOrderId,
+        cryptoQuoteId: cryptoQuoteId,
         idempotencyKey: adaIdempotencyKey,
         amountOverrideUSD: amountUSD,
       }),
     },
   );
   var adaResult = await adaResp.json();
+  if (!adaResp.ok && adaResp.status >= 500) {
+    return {
+      pending: true,
+      message: "Transaction sent. Server verification is temporarily unavailable; retry verification shortly.",
+      txHash,
+      senderWallet: adaAddress,
+      chainType: "CARDANO",
+      chainName: "cardano",
+      cryptoQuoteId,
+    };
+  }
   if (!adaResp.ok)
     throw new Error(
       (adaResult && adaResult.error) ||
         "Verification failed (" + adaResp.status + ").",
     );
+  if (adaResult.status === "pending") {
+    return {
+      pending: true,
+      message: adaResult.message || "Payment pending confirmation.",
+      txHash,
+      senderWallet: adaAddress,
+      chainType: "CARDANO",
+      chainName: "cardano",
+      cryptoQuoteId,
+    };
+  }
+  if (adaResult.status === "refund_required") {
+    clearIdempotencyKey();
+    return {
+      refundRequired: true,
+      message: adaResult.message || "Payment was verified after the card reservation expired.",
+      txHash,
+    };
+  }
   clearIdempotencyKey();
-  return { success: true, txHash: txHash, result: adaResult };
+  return {
+    success: true,
+    txHash,
+    senderWallet: adaAddress,
+    chainType: "CARDANO",
+    chainName: "cardano",
+    cryptoQuoteId,
+    result: adaResult,
+  };
 }
 
 // --- Manual Web3 verification -------------------------------------------------
@@ -920,6 +1045,7 @@ export async function verifyWeb3Payment({
   claimedSenderWallet,
   productId,
   foundersOrderId,
+  cryptoQuoteId,
   amountOverrideUSD,
   inviteCodeId,
 }) {
@@ -935,6 +1061,7 @@ export async function verifyWeb3Payment({
     founders_order_id: foundersOrderId,
     idempotencyKey: idempotencyKey,
   };
+  if (cryptoQuoteId) body.cryptoQuoteId = cryptoQuoteId;
   if (amountOverrideUSD != null) body.amountOverrideUSD = amountOverrideUSD;
   if (inviteCodeId) body.inviteCodeId = inviteCodeId;
 

@@ -50,6 +50,14 @@ const EVM_CHAINS: Record<string, {
 };
 
 const AMOUNT_TOLERANCE = 0.02; // 2% slack
+type FoundersCardAdaQuote = {
+  id: string;
+  adaUsd: number;
+  lovelace: number;
+  amountUsd: number;
+  issuedAt: string;
+  expiresAt: string;
+};
 
 // ── RPC helper ────────────────────────────────────────────────────────────────
 async function rpcCall(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
@@ -224,7 +232,10 @@ async function verifyCardano(opts: {
   expectedUSD: number;
   treasuryWallet: string;
   tolerance?: number;
-}): Promise<{ ok: boolean; message: string }> {
+  expectedLovelace?: number;
+  quoteIssuedAt?: string;
+  quoteExpiresAt?: string;
+}): Promise<{ ok: boolean; message: string; pendingConfirmations?: number }> {
   const { txHash, senderWallet, expectedUSD, treasuryWallet } = opts;
 
   const blockfrostKey = Deno.env.get("BLOCKFROST_API_KEY");
@@ -237,17 +248,54 @@ async function verifyCardano(opts: {
     outputs: { address: string; amount: { unit: string; quantity: string }[] }[];
   };
 
-  const res = await fetch(`https://cardano-mainnet.blockfrost.io/api/v0/txs/${txHash}/utxos`, {
-    headers: { "project_id": blockfrostKey },
-  });
-  if (res.status === 404) return { ok: false, message: "Cardano transaction not found. It may still be propagating." };
-  if (!res.ok) throw new Error(`Blockfrost HTTP ${res.status}`);
+  const [utxoRes, transactionRes] = await Promise.all([
+    fetch(`https://cardano-mainnet.blockfrost.io/api/v0/txs/${txHash}/utxos`, {
+      headers: { "project_id": blockfrostKey },
+    }),
+    fetch(`https://cardano-mainnet.blockfrost.io/api/v0/txs/${txHash}`, {
+      headers: { "project_id": blockfrostKey },
+    }),
+  ]);
+  if (utxoRes.status === 404 || transactionRes.status === 404) {
+    return {
+      ok: false,
+      message: "Cardano transaction not found. It may still be propagating.",
+      pendingConfirmations: 1,
+    };
+  }
+  if (!utxoRes.ok || !transactionRes.ok) {
+    throw new Error(`Blockfrost HTTP ${!utxoRes.ok ? utxoRes.status : transactionRes.status}`);
+  }
 
-  const utxo = await res.json() as Utxo;
+  const [utxo, transaction] = await Promise.all([
+    utxoRes.json() as Promise<Utxo>,
+    transactionRes.json() as Promise<{ block_time?: number }>,
+  ]);
 
   // Verify sender is in inputs
   const senderMatch = utxo.inputs.some(i => i.address === senderWallet);
   if (!senderMatch) return { ok: false, message: "Sender address not found in transaction inputs." };
+
+  if (opts.expectedLovelace != null) {
+    const blockTime = transaction.block_time;
+    const issuedAt = opts.quoteIssuedAt ? Date.parse(opts.quoteIssuedAt) : NaN;
+    const expiresAt = opts.quoteExpiresAt ? Date.parse(opts.quoteExpiresAt) : NaN;
+    const includedAt = typeof blockTime === "number" ? blockTime * 1000 : NaN;
+    if (!Number.isFinite(includedAt) || !Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)
+      || includedAt < issuedAt || includedAt > expiresAt) {
+      return { ok: false, message: "The ADA payment was not included during its valid price quote." };
+    }
+
+    const treasuryLovelace = utxo.outputs
+      .filter(output => output.address === treasuryWallet)
+      .flatMap(output => output.amount)
+      .filter(amount => amount.unit === "lovelace")
+      .reduce((total, amount) => total + BigInt(amount.quantity), 0n);
+    if (treasuryLovelace < BigInt(opts.expectedLovelace)) {
+      return { ok: false, message: "The ADA payment is below the locked quote amount." };
+    }
+    return { ok: true, message: "Cardano payment verified against its locked ADA quote." };
+  }
 
   // Find output to treasury
   const treasuryOut = utxo.outputs.find(o => o.address === treasuryWallet);
@@ -300,6 +348,7 @@ serve(async (req: Request) => {
 
   // Body
   let body: {
+    action?: string;
     chainType?: string;
     chain?: string;
     txHash?: string;
@@ -309,6 +358,7 @@ serve(async (req: Request) => {
     idempotencyKey?: string;
     amountOverrideUSD?: number;
     inviteCodeId?: string;
+    cryptoQuoteId?: string;
   };
   try {
     body = await req.json();
@@ -320,17 +370,18 @@ serve(async (req: Request) => {
     chainType, chain, txHash, claimedSenderWallet,
     productId, founders_order_id: foundersOrderId, idempotencyKey, inviteCodeId,
   } = body;
+  const isAdaQuoteRequest = body.action === "founders_card_ada_quote";
 
   if (typeof chainType !== "string" || !["EVM", "SOLANA", "CARDANO"].includes(chainType.toUpperCase())) {
     return errorResponse("Missing or unsupported chainType (EVM | SOLANA | CARDANO)", 400, "UNSUPPORTED_CHAIN");
   }
-  if (typeof txHash !== "string" || !txHash) {
+  if (!isAdaQuoteRequest && (typeof txHash !== "string" || !txHash)) {
     return errorResponse("Missing or invalid txHash", 400, "MISSING_FIELD");
   }
-  if (typeof claimedSenderWallet !== "string" || !claimedSenderWallet) {
+  if (!isAdaQuoteRequest && (typeof claimedSenderWallet !== "string" || !claimedSenderWallet)) {
     return errorResponse("Missing or invalid claimedSenderWallet", 400, "MISSING_FIELD");
   }
-  if (txHash.length > 128 || claimedSenderWallet.length > 256) {
+  if (!isAdaQuoteRequest && (txHash!.length > 128 || claimedSenderWallet!.length > 256)) {
     return errorResponse("Transaction details exceed the allowed length.", 400, "INVALID_PAYMENT_DETAILS");
   }
   if ((!productId && !foundersOrderId) || typeof idempotencyKey !== "string") {
@@ -344,6 +395,128 @@ serve(async (req: Request) => {
   }
 
   const db = supabaseAdmin();
+  if (body.action === "founders_card_ada_quote") {
+    if (chainType?.toUpperCase() !== "CARDANO" || chain?.toLowerCase() !== "cardano") {
+      return errorResponse("An ADA quote requires the Cardano network.", 400, "INVALID_CHAIN");
+    }
+    if (productId != null || typeof foundersOrderId !== "string" || !UUID_RE.test(foundersOrderId)) {
+      return errorResponse("A valid founders-card order is required for an ADA quote.", 400, "INVALID_ORDER");
+    }
+
+    const { error: expiryError } = await db.rpc("expire_founders_card_orders");
+    if (expiryError) {
+      console.error("[web3-verify-payment] Could not expire stale founders-card reservations:", expiryError.message);
+      return errorResponse("Could not verify the card reservation. Please retry shortly.", 503, "RESERVATION_CHECK_FAILED");
+    }
+
+    const { data: order, error: orderError } = await db.from("founders_card_orders")
+      .select("id,user_id,status,provider,total_price,currency,expires_at")
+      .eq("id", foundersOrderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (orderError || !order) return errorResponse("Founders-card order not found.", 404, "ORDER_NOT_FOUND");
+    if (order.status !== "pending" || order.provider !== "web3" || order.currency !== "USD"
+      || new Date(order.expires_at) <= new Date()) {
+      return errorResponse("This founders-card reservation is not available for an ADA quote.", 409, "ORDER_NOT_PAYABLE");
+    }
+
+    const { data: existingPayment, error: paymentLookupError } = await db.from("founders_card_payments")
+      .select("id,provider_reference,status,metadata")
+      .eq("order_id", order.id)
+      .eq("provider", "web3")
+      .maybeSingle();
+    if (paymentLookupError) {
+      console.error("[web3-verify-payment] Could not load the ADA quote record:", paymentLookupError.message);
+      return errorResponse("Could not load the ADA quote. Please retry.", 503, "ADA_QUOTE_LOOKUP_FAILED");
+    }
+    if (existingPayment && (existingPayment.status !== "pending"
+      || !existingPayment.provider_reference.startsWith("ada_quote:"))) {
+      return errorResponse("A crypto payment is already being verified for this order.", 409, "PAYMENT_ALREADY_PENDING");
+    }
+
+    const storedMetadata = existingPayment?.metadata && typeof existingPayment.metadata === "object"
+      ? existingPayment.metadata as Record<string, unknown>
+      : {};
+    const storedQuote = storedMetadata.ada_quote as {
+      id?: string;
+      adaUsd?: number;
+      lovelace?: number;
+      amountUsd?: number;
+      issuedAt?: string;
+      expiresAt?: string;
+    } | undefined;
+    if (storedQuote?.id && UUID_RE.test(storedQuote.id)
+      && storedQuote.amountUsd === Number(order.total_price)
+      && Number.isFinite(storedQuote.adaUsd) && Number(storedQuote.adaUsd) > 0
+      && storedQuote.issuedAt && Number.isFinite(Date.parse(storedQuote.issuedAt))
+      && storedQuote.expiresAt && Date.parse(storedQuote.expiresAt) > Date.parse(storedQuote.issuedAt)
+      && Date.parse(storedQuote.expiresAt) > Date.now()
+      && Number.isSafeInteger(storedQuote.lovelace) && Number(storedQuote.lovelace) > 0) {
+      return jsonResponse({
+        cryptoQuoteId: storedQuote.id,
+        amountAda: Number(storedQuote.lovelace) / 1_000_000,
+        lovelace: storedQuote.lovelace,
+        adaUsd: storedQuote.adaUsd,
+        expiresAt: storedQuote.expiresAt,
+      });
+    }
+
+    let adaUsd: number;
+    try {
+      const priceResponse = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
+        { signal: AbortSignal.timeout(8000) },
+      );
+      if (!priceResponse.ok) throw new Error(`Price service returned HTTP ${priceResponse.status}`);
+      const priceData = await priceResponse.json() as { cardano?: { usd?: number } };
+      adaUsd = priceData.cardano?.usd ?? NaN;
+      if (!Number.isFinite(adaUsd) || adaUsd <= 0) throw new Error("Price service returned an invalid ADA price.");
+    } catch (quoteError) {
+      console.error("[web3-verify-payment] Could not create ADA quote:", quoteError);
+      return errorResponse("A reliable ADA price is temporarily unavailable. Please retry.", 503, "ADA_PRICE_UNAVAILABLE");
+    }
+
+    const amountUsd = Number(order.total_price);
+    const lovelace = Math.ceil((amountUsd / adaUsd) * 1_000_000);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0 || !Number.isSafeInteger(lovelace) || lovelace <= 0) {
+      return errorResponse("Could not calculate a safe ADA quote for this order.", 503, "ADA_QUOTE_INVALID");
+    }
+    const quoteId = crypto.randomUUID();
+    const issuedAt = new Date(Math.floor(Date.now() / 1000) * 1000);
+    const expiresAt = new Date(issuedAt.getTime() + 10 * 60 * 1000);
+    const quote = {
+      id: quoteId,
+      adaUsd,
+      amountUsd,
+      lovelace,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    };
+    const { error: quoteSaveError } = await db.from("founders_card_payments").upsert({
+      ...(existingPayment?.id ? { id: existingPayment.id } : {}),
+      order_id: order.id,
+      provider: "web3",
+      provider_reference: `ada_quote:${quoteId}`,
+      amount_minor: Math.round(amountUsd * 100),
+      currency: "USD",
+      status: "pending",
+      failure_reason: null,
+      metadata: { payment_purpose: "founders_card_purchase", founders_order_id: order.id, ada_quote: quote },
+    }, { onConflict: "order_id,provider" });
+    if (quoteSaveError) {
+      console.error("[web3-verify-payment] Could not store the ADA quote:", quoteSaveError.message);
+      return errorResponse("Could not securely store the ADA quote. Please retry.", 503, "ADA_QUOTE_STORE_FAILED");
+    }
+
+    return jsonResponse({
+      cryptoQuoteId: quoteId,
+      amountAda: lovelace / 1_000_000,
+      lovelace,
+      adaUsd,
+      expiresAt: expiresAt.toISOString(),
+    });
+  }
+
   if (foundersOrderId) {
     const { error: expiryError } = await db.rpc("expire_founders_card_orders");
     if (expiryError) {
@@ -429,33 +602,6 @@ serve(async (req: Request) => {
       || order.currency !== "USD") {
       return errorResponse("This founders-card reservation is not available for crypto payment.", 409, "ORDER_NOT_PAYABLE");
     }
-    if (typeof chainType !== "string" || chainType.toUpperCase() !== "EVM") {
-      return errorResponse("Founders-card crypto checkout currently supports verified EVM wallet transfers only.", 400, "UNSUPPORTED_CARD_CHAIN");
-    }
-    if (
-      typeof chain !== "string" ||
-      !Object.prototype.hasOwnProperty.call(EVM_CHAINS, chain.toLowerCase()) ||
-      typeof txHash !== "string" ||
-      !/^0x[0-9a-f]{64}$/i.test(txHash) ||
-      typeof claimedSenderWallet !== "string" ||
-      !/^0x[0-9a-f]{40}$/i.test(claimedSenderWallet)
-    ) {
-      return errorResponse("Provide a valid EVM chain, transaction hash, and sender wallet.", 400, "INVALID_CARD_CRYPTO_DETAILS");
-    }
-    const { data: linkedWallet, error: linkedWalletError } = await db
-      .from("identity_wallets")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("chain", "ethereum")
-      .eq("address_key", claimedSenderWallet.toLowerCase())
-      .maybeSingle();
-    if (linkedWalletError) {
-      console.error("[web3-verify-payment] Could not verify linked founders-card wallet:", linkedWalletError.message);
-      return errorResponse("Could not verify the linked wallet. Please retry shortly.", 503, "WALLET_IDENTITY_CHECK_FAILED");
-    }
-    if (!linkedWallet) {
-      return errorResponse("Link and verify this EVM wallet to your Xeevia account before paying for a founders card.", 403, "WALLET_NOT_LINKED");
-    }
     founderOrder = order;
     founderOrderExpired = order.status === "expired" || new Date(order.expires_at) <= new Date();
     expectedUSD = Number(order.total_price);
@@ -482,50 +628,55 @@ serve(async (req: Request) => {
       );
     }
 
-    const normalizedChainType = chainType.toUpperCase();
-    const identityChain = normalizedChainType === "EVM"
-      ? "ethereum"
-      : normalizedChainType === "SOLANA"
-        ? "solana"
-        : "cardano";
-    if (
-      typeof chain !== "string" ||
-      (normalizedChainType === "EVM" && !Object.prototype.hasOwnProperty.call(EVM_CHAINS, chain.toLowerCase())) ||
-      (normalizedChainType === "SOLANA" && chain.toLowerCase() !== "solana") ||
-      (normalizedChainType === "CARDANO" && chain.toLowerCase() !== "cardano")
-    ) {
-      return errorResponse("The selected payment network does not match the payment type.", 400, "INVALID_CHAIN");
-    }
-    if (normalizedChainType === "EVM" && (
-      !/^0x[0-9a-f]{64}$/i.test(txHash) ||
-      typeof claimedSenderWallet !== "string" ||
-      !/^0x[0-9a-f]{40}$/i.test(claimedSenderWallet)
-    )) {
-      return errorResponse("Provide a valid EVM transaction hash and sender wallet.", 400, "INVALID_PAYMENT_DETAILS");
-    }
-    if (normalizedChainType === "CARDANO" && !/^[0-9a-f]{64}$/i.test(txHash)) {
-      return errorResponse("Provide a valid Cardano transaction hash.", 400, "INVALID_PAYMENT_DETAILS");
-    }
-    if (normalizedChainType === "SOLANA" && !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(txHash)) {
-      return errorResponse("Provide a valid Solana transaction signature.", 400, "INVALID_PAYMENT_DETAILS");
-    }
+  }
 
-    let linkedWalletQuery = db
-      .from("identity_wallets")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("chain", identityChain);
-    linkedWalletQuery = normalizedChainType === "EVM"
-      ? linkedWalletQuery.eq("address_key", claimedSenderWallet.toLowerCase())
-      : linkedWalletQuery.eq("address", claimedSenderWallet);
-    const { data: linkedWallet, error: linkedWalletError } = await linkedWalletQuery.maybeSingle();
-    if (linkedWalletError) {
-      console.error("[web3-verify-payment] Could not verify linked payment wallet:", linkedWalletError.message);
-      return errorResponse("Could not verify the linked wallet. Please retry.", 503, "WALLET_IDENTITY_CHECK_FAILED");
-    }
-    if (!linkedWallet) {
-      return errorResponse("Link and verify the payment wallet to your Xeevia account before paying.", 403, "WALLET_NOT_LINKED");
-    }
+  if (typeof txHash !== "string" || !txHash
+    || typeof claimedSenderWallet !== "string" || !claimedSenderWallet) {
+    return errorResponse("Missing or invalid transaction details.", 400, "MISSING_FIELD");
+  }
+
+  const normalizedChainType = chainType.toUpperCase();
+  const identityChain = normalizedChainType === "EVM"
+    ? "ethereum"
+    : normalizedChainType === "SOLANA"
+      ? "solana"
+      : "cardano";
+  if (
+    typeof chain !== "string" ||
+    (normalizedChainType === "EVM" && !Object.prototype.hasOwnProperty.call(EVM_CHAINS, chain.toLowerCase())) ||
+    (normalizedChainType === "SOLANA" && chain.toLowerCase() !== "solana") ||
+    (normalizedChainType === "CARDANO" && chain.toLowerCase() !== "cardano")
+  ) {
+    return errorResponse("The selected payment network does not match the payment type.", 400, "INVALID_CHAIN");
+  }
+  if (normalizedChainType === "EVM" && (
+    !/^0x[0-9a-f]{64}$/i.test(txHash) ||
+    !/^0x[0-9a-f]{40}$/i.test(claimedSenderWallet)
+  )) {
+    return errorResponse("Provide a valid EVM transaction hash and sender wallet.", 400, "INVALID_PAYMENT_DETAILS");
+  }
+  if (normalizedChainType === "CARDANO" && !/^[0-9a-f]{64}$/i.test(txHash)) {
+    return errorResponse("Provide a valid Cardano transaction hash.", 400, "INVALID_PAYMENT_DETAILS");
+  }
+  if (normalizedChainType === "SOLANA" && !/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(txHash)) {
+    return errorResponse("Provide a valid Solana transaction signature.", 400, "INVALID_PAYMENT_DETAILS");
+  }
+
+  let linkedWalletQuery = db
+    .from("identity_wallets")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("chain", identityChain);
+  linkedWalletQuery = normalizedChainType === "EVM"
+    ? linkedWalletQuery.eq("address_key", claimedSenderWallet.toLowerCase())
+    : linkedWalletQuery.eq("address", claimedSenderWallet);
+  const { data: linkedWallet, error: linkedWalletError } = await linkedWalletQuery.maybeSingle();
+  if (linkedWalletError) {
+    console.error("[web3-verify-payment] Could not verify linked payment wallet:", linkedWalletError.message);
+    return errorResponse("Could not verify the linked wallet. Please retry.", 503, "WALLET_IDENTITY_CHECK_FAILED");
+  }
+  if (!linkedWallet) {
+    return errorResponse("Link and verify the payment wallet to your Xeevia account before paying.", 403, "WALLET_NOT_LINKED");
   }
 
   if (!Number.isFinite(expectedUSD) || expectedUSD <= 0) {
@@ -537,11 +688,12 @@ serve(async (req: Request) => {
   const treasuryADA = Deno.env.get("TREASURY_WALLET_ADA")     ?? "";
 
   let founderPaymentId: string | null = null;
+  let founderAdaQuote: FoundersCardAdaQuote | null = null;
   if (founderOrder) {
     const amountMinor = Math.round(expectedUSD * 100);
     const { data: existingCardPayment, error: cardPaymentLookupError } = await db
       .from("founders_card_payments")
-      .select("id,provider_reference,status")
+      .select("id,provider_reference,status,metadata")
       .eq("order_id", founderOrder.id)
       .eq("provider", "web3")
       .maybeSingle();
@@ -558,8 +710,28 @@ serve(async (req: Request) => {
         txHash,
       });
     }
+    const storedMetadata = existingCardPayment?.metadata && typeof existingCardPayment.metadata === "object"
+      ? existingCardPayment.metadata as Record<string, unknown>
+      : {};
+    const storedQuote = storedMetadata.ada_quote as FoundersCardAdaQuote | undefined;
+    if (normalizedChainType === "CARDANO") {
+      if (typeof body.cryptoQuoteId !== "string" || !UUID_RE.test(body.cryptoQuoteId)
+        || !storedQuote || storedQuote.id !== body.cryptoQuoteId
+        || storedQuote.amountUsd !== expectedUSD
+        || !Number.isFinite(storedQuote.adaUsd) || storedQuote.adaUsd <= 0
+        || !Number.isSafeInteger(storedQuote.lovelace) || storedQuote.lovelace <= 0
+        || !storedQuote.issuedAt || !storedQuote.expiresAt
+        || !Number.isFinite(Date.parse(storedQuote.issuedAt))
+        || !Number.isFinite(Date.parse(storedQuote.expiresAt))) {
+        return errorResponse("A valid server-issued ADA quote is required for founders-card payment.", 400, "ADA_QUOTE_REQUIRED");
+      }
+      founderAdaQuote = storedQuote;
+    }
+    const matchesAdaQuote = normalizedChainType === "CARDANO"
+      && existingCardPayment?.provider_reference === `ada_quote:${body.cryptoQuoteId}`;
     if (["pending", "late_crypto_review"].includes(existingCardPayment?.status || "")
-      && existingCardPayment?.provider_reference !== txHash) {
+      && existingCardPayment?.provider_reference !== txHash
+      && !matchesAdaQuote) {
       return errorResponse("A crypto transaction is already being verified for this order.", 409, "PAYMENT_ALREADY_PENDING");
     }
 
@@ -592,32 +764,45 @@ serve(async (req: Request) => {
       }
     }
 
-    const { data: cardPayment, error: cardPaymentError } = await db
-      .from("founders_card_payments")
-      .upsert({
-        ...(existingCardPayment?.id ? { id: existingCardPayment.id } : {}),
-        order_id: founderOrder.id,
-        provider: "web3",
-        provider_reference: txHash,
-        amount_minor: amountMinor,
-        currency: "USD",
-        status: founderOrderExpired ? "late_crypto_review" : "pending",
-        failure_reason: founderOrderExpired
-          ? "Crypto payment is being verified after reservation expiry; a confirmed payment requires a manual refund."
-          : null,
-        metadata: {
-          payment_purpose: "founders_card_purchase",
-          founders_order_id: founderOrder.id,
-          tier: founderOrder.tier,
-          quantity: founderOrder.quantity,
-          chainType,
-          chain,
-          claimedSenderWallet,
-        },
-      }, { onConflict: "order_id,provider" })
-      .select("id")
-      .single();
+    const paymentValues = {
+      order_id: founderOrder.id,
+      provider: "web3",
+      provider_reference: txHash,
+      amount_minor: amountMinor,
+      currency: "USD",
+      status: founderOrderExpired ? "late_crypto_review" : "pending",
+      failure_reason: founderOrderExpired
+        ? "Crypto payment is being verified after reservation expiry; a confirmed payment requires a manual refund."
+        : null,
+      metadata: {
+        payment_purpose: "founders_card_purchase",
+        founders_order_id: founderOrder.id,
+        tier: founderOrder.tier,
+        quantity: founderOrder.quantity,
+        chainType,
+        chain,
+        claimedSenderWallet,
+        ...(founderAdaQuote ? { ada_quote: founderAdaQuote } : {}),
+      },
+    };
+    const { data: cardPayment, error: cardPaymentError } = matchesAdaQuote && existingCardPayment?.id
+      ? await db.from("founders_card_payments")
+        .update(paymentValues)
+        .eq("id", existingCardPayment.id)
+        .eq("provider_reference", `ada_quote:${body.cryptoQuoteId}`)
+        .select("id")
+        .maybeSingle()
+      : await db.from("founders_card_payments")
+        .upsert({
+          ...(existingCardPayment?.id ? { id: existingCardPayment.id } : {}),
+          ...paymentValues,
+        }, { onConflict: "order_id,provider" })
+        .select("id")
+        .single();
     if (cardPaymentError || !cardPayment) {
+      if (matchesAdaQuote && !cardPaymentError) {
+        return errorResponse("The ADA quote is already being used for another transaction.", 409, "ADA_QUOTE_ALREADY_USED");
+      }
       console.error("[web3-verify-payment] Founders-card payment record failed:", cardPaymentError?.message);
       return errorResponse("Could not record this founders-card crypto payment.", 500, "PAYMENT_RECORD_FAILED");
     }
@@ -684,7 +869,18 @@ serve(async (req: Request) => {
     } else if (upper === "CARDANO") {
       if (!treasuryADA) return errorResponse("ADA treasury wallet not configured. Contact support.", 500, "SERVER_MISCONFIGURED");
       verifyResult = await withRetry(() =>
-        verifyCardano({ txHash, senderWallet: claimedSenderWallet, expectedUSD, treasuryWallet: treasuryADA, tolerance })
+        verifyCardano({
+          txHash,
+          senderWallet: claimedSenderWallet,
+          expectedUSD,
+          treasuryWallet: treasuryADA,
+          tolerance,
+          ...(founderAdaQuote ? {
+            expectedLovelace: founderAdaQuote.lovelace,
+            quoteIssuedAt: founderAdaQuote.issuedAt,
+            quoteExpiresAt: founderAdaQuote.expiresAt,
+          } : {}),
+        })
       );
     } else {
       return errorResponse(`Unknown chainType: "${chainType}". Use EVM, SOLANA, or CARDANO.`, 400, "UNSUPPORTED_CHAIN");
