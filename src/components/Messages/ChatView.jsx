@@ -819,7 +819,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
 .cv-root .msg-bubble.them{--message-tail-fill:#202729;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
-.cv-root .msg-bubble.me{--message-tail-fill:#183728;--message-tail-edge:rgba(156,255,0,.2);background:var(--message-tail-fill);border-color:rgba(156,255,0,.16);box-shadow:0 4px 14px rgba(0,0,0,.16);}
+.cv-root .msg-bubble.me{--message-tail-fill:#0d5e49;--message-tail-edge:rgba(209,250,229,.3);background:var(--message-tail-fill);background-image:none;border-color:rgba(209,250,229,.18);box-shadow:0 4px 14px rgba(0,0,0,.2);}
 .cv-root .msg-list-wrapper.direct-message-list{padding:10px 10px 12px;}
 .cv-root .direct-message-list .msg-item{gap:0;margin-bottom:0;padding:0 2px;}
 .cv-root .direct-message-list .msg-item.clustered{margin-bottom:3px;}
@@ -885,7 +885,7 @@ export const CV_CSS = `
 .cv-bgprev-grid{background:repeating-linear-gradient(90deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),repeating-linear-gradient(0deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),#000;border:1px solid rgba(132,204,22,.3);}
 .cv-msgs{flex:1;overflow-y:auto;position:relative;-webkit-overflow-scrolling:touch;}
 .cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
-.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.2);pointer-events:none;z-index:0;}
+.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.1);pointer-events:none;z-index:0;}
 .cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.11);}
 .cv-msgs-content{position:relative;z-index:1;padding:0 2px 4px;display:flex;flex-direction:column;gap:0;}
 .cv-loading{display:flex;justify-content:center;padding:40px;}
@@ -1011,6 +1011,7 @@ export const CV_CSS = `
 .cv-gp-item{border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px;overflow:hidden;aspect-ratio:4/3;}
 .cv-gp-img{width:100%;height:100%;object-fit:cover;border-radius:8px;transition:transform .15s;}
 
+@media(min-width:769px){.cv-root .msg-list-wrapper.direct-message-list{padding:14px clamp(28px,4.5vw,56px) 18px;}.cv-root .direct-message-list .mra-wrapper{flex-basis:78%;max-width:78%;}}
 @media(max-width:768px){.cv-dr-right,.cv-dr-left{display:none;}.cv-root .msg-list-wrapper.direct-message-list{padding:8px 8px 12px;}.cv-root .direct-message-list .mra-wrapper{flex-basis:88%;max-width:88%;}.cv-root .jump-btn{bottom:72px;right:12px;width:36px;height:36px;}}
 `;
 
