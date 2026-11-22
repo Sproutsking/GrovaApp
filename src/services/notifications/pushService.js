@@ -298,25 +298,27 @@ async function _doSubscribe(userId) {
       }
 
       const ok = await enableFirebase(userId);
-      if (!ok) return null;
+      if (!ok) {
+        console.warn("[Push] Firebase enrollment unavailable — trying legacy push");
+      }
 
-      let fcmToken = await getFirebaseFcmToken(userId);
-      if (!fcmToken) {
-        // Wait for token
-        for (let attempt = 0; attempt < 6; attempt += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          fcmToken = await getFirebaseFcmToken(userId);
-          if (fcmToken) break;
+      if (ok) {
+        let fcmToken = await getFirebaseFcmToken(userId);
+        if (!fcmToken) {
+          // Wait for token
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            fcmToken = await getFirebaseFcmToken(userId);
+            if (fcmToken) break;
+          }
+        }
+        if (fcmToken) {
+          await _saveWithRetry(userId, { fcmToken });
+          console.log("[Push] ✅ Firebase FCM subscription registered");
+          return { provider: "fcm", fcmToken };
         }
       }
-      if (!fcmToken) {
-        console.warn("[Push] Firebase token not available after registration");
-        return null;
-      }
-
-      await _saveWithRetry(userId, { fcmToken });
-      console.log("[Push] ✅ Firebase FCM subscription registered");
-      return { provider: "fcm", fcmToken };
+      console.warn("[Push] Firebase token unavailable after registration — trying legacy push");
     }
 
     // Fallback to legacy VAPID

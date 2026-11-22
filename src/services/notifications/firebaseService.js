@@ -118,8 +118,10 @@ function isBrowser() {
 function isSupported() {
   return (
     isBrowser() &&
+    window.isSecureContext &&
     "serviceWorker" in navigator &&
-    "Notification" in window
+    "Notification" in window &&
+    "PushManager" in window
   );
 }
 

@@ -6,12 +6,16 @@ describe("firebaseService runtime configuration", () => {
   let originalServiceWorker;
   let originalNotification;
   let originalFirebase;
+  let originalPushManager;
+  let originalIsSecureContext;
 
   beforeEach(() => {
     jest.resetModules();
     originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, "serviceWorker");
     originalNotification = Object.getOwnPropertyDescriptor(window, "Notification");
     originalFirebase = window.firebase;
+    originalPushManager = Object.getOwnPropertyDescriptor(window, "PushManager");
+    originalIsSecureContext = Object.getOwnPropertyDescriptor(window, "isSecureContext");
 
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
@@ -20,6 +24,14 @@ describe("firebaseService runtime configuration", () => {
     Object.defineProperty(window, "Notification", {
       configurable: true,
       value: { permission: "default" },
+    });
+    Object.defineProperty(window, "PushManager", {
+      configurable: true,
+      value: function PushManager() {},
+    });
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: true,
     });
     window.firebase = {
       apps: [],
@@ -44,6 +56,16 @@ describe("firebaseService runtime configuration", () => {
       Object.defineProperty(window, "Notification", originalNotification);
     } else {
       delete window.Notification;
+    }
+    if (originalPushManager) {
+      Object.defineProperty(window, "PushManager", originalPushManager);
+    } else {
+      delete window.PushManager;
+    }
+    if (originalIsSecureContext) {
+      Object.defineProperty(window, "isSecureContext", originalIsSecureContext);
+    } else {
+      delete window.isSecureContext;
     }
 
     if (originalFirebase === undefined) delete window.firebase;
