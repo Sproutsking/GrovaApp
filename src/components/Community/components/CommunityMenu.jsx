@@ -1,7 +1,7 @@
 // components/Community/components/CommunityMenu.jsx
 // FIXED: menu-overlay top offset = 47px mobile / 57px desktop
 // Community icon supports image URLs. Stats show real online count.
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import ReactDOM from "react-dom";
 import {
   X, Users, Link2, Settings, LogOut, Crown, ChevronRight,
@@ -18,6 +18,7 @@ import AnalyticsSection from "./sections/AnalyticsSection";
 import ToolsSection from "./sections/ToolsSection";
 import ChannelManagementSection from "./sections/ChannelManagementSection";
 import CategoryManagementSection from "./sections/CategoryManagementSection";
+import { canAccessCommunityMenuView, getCommunityMenuAccess } from "./communityMenuAccess";
 
 const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) => {
   if (!show) return null;
@@ -123,37 +124,11 @@ const CommunityMenu = ({
   const [roleToOpen, setRoleToOpen] = useState(null);
   const [roleActionError, setRoleActionError] = useState("");
   const [userPermissions, setUserPermissions] = useState({});
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [liveCounts, setLiveCounts] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ show: false, title: "", message: "", onConfirm: ()=>{}, isDanger: false });
 
-  useEffect(() => {
-    if (show && community?.id) {
-      setMenuView("main");
-      setSelectedRole(null);
-      setLiveCounts(null);
-      loadUserPermissions();
-      loadLiveCounts();
-    }
-    // Refreshing the community object must not eject an admin from their open section.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, community?.id, userId]);
-
-  useEffect(() => {
-    if (!show) return undefined;
-    document.body.classList.add("community-menu-fullscreen");
-    return () => document.body.classList.remove("community-menu-fullscreen");
-  }, [show]);
-
-  const loadUserPermissions = async () => {
-    try {
-      const permissions = await permissionService.getUserPermissions(community.id, userId);
-      setUserPermissions(permissions || {});
-    } catch (error) {
-      console.error("Error loading permissions:", error);
-    }
-  };
-
-  const loadLiveCounts = async () => {
+  const loadLiveCounts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("community_members")
@@ -167,15 +142,61 @@ const CommunityMenu = ({
     } catch (error) {
       console.warn("Could not refresh community counts:", error?.message);
     }
-  };
+  }, [community?.id]);
+
+  useEffect(() => {
+    if (!show || !community?.id) {
+      setUserPermissions({});
+      setPermissionsLoaded(false);
+      return undefined;
+    }
+
+    let active = true;
+    setMenuView("main");
+    setSelectedRole(null);
+    setLiveCounts(null);
+    setUserPermissions({});
+    setPermissionsLoaded(false);
+    permissionService.getUserPermissions(community.id, userId)
+      .then((permissions) => {
+        if (active) setUserPermissions(permissions || {});
+      })
+      .catch((error) => {
+        console.error("Error loading permissions:", error);
+        if (active) setUserPermissions({});
+      })
+      .finally(() => {
+        if (active) setPermissionsLoaded(true);
+      });
+    loadLiveCounts();
+
+    return () => { active = false; };
+  }, [show, community?.id, userId, loadLiveCounts]);
+
+  useEffect(() => {
+    if (!show) return undefined;
+    document.body.classList.add("community-menu-fullscreen");
+    return () => document.body.classList.remove("community-menu-fullscreen");
+  }, [show]);
 
   const isOwner = community?.owner_id === userId;
-  const hasAdminOverride = Boolean(userPermissions?.administrator);
-  const canManageRoles = userPermissions?.manageRoles || hasAdminOverride || isOwner;
-  const canManageCommunity = userPermissions?.manageCommunity || hasAdminOverride || isOwner;
-  const canManageChannels = userPermissions?.manageChannels || hasAdminOverride || isOwner;
-  const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
-  const canCreateChannels = userPermissions?.createChannels || hasAdminOverride || isOwner;
+  const menuAccess = useMemo(
+    () => getCommunityMenuAccess(userPermissions, { isOwner, permissionsLoaded }),
+    [userPermissions, isOwner, permissionsLoaded],
+  );
+  const {
+    canManageRoles,
+    canManageCommunity,
+    canManageChannels,
+    canManageBackground,
+    canCreateChannels,
+  } = menuAccess;
+
+  useEffect(() => {
+    if (permissionsLoaded && !canAccessCommunityMenuView(menuView, menuAccess)) {
+      setMenuView("main");
+    }
+  }, [menuView, permissionsLoaded, menuAccess]);
 
   const showConfirm = (title, message, onConfirm, isDanger = false) => {
     setConfirmDialog({ show: true, title, message, onConfirm, isDanger });
@@ -289,20 +310,18 @@ const CommunityMenu = ({
 
                 <div className="cm-section cm-action-grid">
                   {[
-                    { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true },
-                    { label:"Help & Setup", desc:"Learn settings, channels, and categories", icon:<Star size={16}/>, gradient:"linear-gradient(135deg,#f9d423,#ff4e50)", onClick:()=>setMenuView("help"), arrow:true },
-                    { label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,#f093fb,#f5576c)", onClick:()=>{onClose();onOpenInvite();} },
+                    ...(menuAccess.canViewMembers ? [{ label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true }] : []),
+                    ...(menuAccess.canAccessManagement ? [{ label:"Help & Setup", desc:"Learn settings, channels, and categories", icon:<Star size={16}/>, gradient:"linear-gradient(135deg,#f9d423,#ff4e50)", onClick:()=>setMenuView("help"), arrow:true }] : []),
+                    ...(menuAccess.canInviteMembers ? [{ label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,#f093fb,#f5576c)", onClick:()=>{onClose();onOpenInvite();} }] : []),
                     ...(canCreateChannels ? [{ label:"Create Channel", desc:"Add a new channel", icon:<Plus size={16}/>, gradient:"linear-gradient(135deg,#4facfe,#00f2fe)", onClick:onCreateChannel }] : []),
                     ...(canManageBackground ? [{ label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} }] : []),
-                    ...(canManageCommunity ? [
-                      { label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#43e97b,#38f9d7)", onClick:()=>setMenuView("settings"), arrow:true },
-                      { label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,#a8edea,#fed6e3)", onClick:()=>setMenuView("analytics"), arrow:true },
-                    ] : []),
+                    ...(canManageCommunity ? [{ label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#43e97b,#38f9d7)", onClick:()=>setMenuView("settings"), arrow:true }] : []),
+                    ...(menuAccess.canViewAnalytics ? [{ label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,#a8edea,#fed6e3)", onClick:()=>setMenuView("analytics"), arrow:true }] : []),
                     ...(canManageRoles ? [{ label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true }] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
-                    { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
+                    ...(menuAccess.canManageTools ? [{ label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true }] : []),
                     ...(canManageChannels ? [{ label:"Manage Channels", desc:"Edit channels and manage access", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),
-                    ...(canManageCommunity ? [{ label:"Manage Categories", desc:"Create and arrange channel groups", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#fbbf24,#f97316)", onClick:()=>setMenuView("categories"), arrow:true }] : []),
+                    ...(menuAccess.canManageCategories ? [{ label:"Manage Categories", desc:"Create and arrange channel groups", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#fbbf24,#f97316)", onClick:()=>setMenuView("categories"), arrow:true }] : []),
                   ].map((item, i) => (
                     <div key={i} className="cm-item" onClick={item.onClick}>
                       <div className="cm-item-icon" style={{ background: item.gradient }}>{item.icon}</div>
@@ -337,8 +356,8 @@ const CommunityMenu = ({
               </>
             )}
 
-            {menuView === "members"       && <MembersSection community={community} userId={userId} />}
-            {menuView === "help" && (
+            {menuView === "members" && menuAccess.canViewMembers && <MembersSection community={community} userId={userId} />}
+            {menuView === "help" && menuAccess.canAccessManagement && (
               <div className="community-help-shell">
                 <div className="community-help-header">
                   <div>
@@ -358,7 +377,7 @@ const CommunityMenu = ({
               </div>
             )}
             {menuView === "notifications" && <NotificationsSection community={community} onUpdateNotifications={async(s)=>onUpdate({type:"notifications",settings:s})} />}
-            {menuView === "roles"         && (
+            {menuView === "roles" && canManageRoles && (
               <>
               {roleActionError && <div className="cm-role-action-error" role="alert">{roleActionError}</div>}
               <RolesPermissionsSection
@@ -375,9 +394,9 @@ const CommunityMenu = ({
               />
               </>
             )}
-            {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" || s.type === "ownership_transfer" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
-            {menuView === "analytics" && <AnalyticsSection community={community} />}
-            {menuView === "tools" && <ToolsSection
+            {menuView === "settings" && canManageCommunity && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" || s.type === "ownership_transfer" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
+            {menuView === "analytics" && menuAccess.canViewAnalytics && <AnalyticsSection community={community} />}
+            {menuView === "tools" && menuAccess.canManageTools && <ToolsSection
               communityId={community.id}
               communityName={community.name}
               userId={userId}
@@ -394,7 +413,7 @@ const CommunityMenu = ({
               onUpdateRole={handleUpdateRole}
               onCreateChannel={() => { onClose(); onCreateChannel?.(); }}
             />}
-            {menuView === "channels" && <ChannelManagementSection
+            {menuView === "channels" && canManageChannels && <ChannelManagementSection
               communityId={community.id}
               channels={channels}
               roles={roles}
@@ -403,7 +422,7 @@ const CommunityMenu = ({
               onEdit={(channel) => { onClose(); window.dispatchEvent(new CustomEvent("community:edit-channel", { detail: channel })); }}
               onPermissionsChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))}
             />}
-            {menuView === "categories" && <CategoryManagementSection communityId={community?.id} onChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))} />}
+            {menuView === "categories" && menuAccess.canManageCategories && <CategoryManagementSection communityId={community?.id} onChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))} />}
           </div>
         </div>
       </div>
