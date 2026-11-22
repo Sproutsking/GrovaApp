@@ -7,27 +7,54 @@ jest.mock("../config/supabase", () => ({
   },
 }));
 
-describe("ChannelService default channels", () => {
+describe("ChannelService channel cache", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    channelService.clearCache();
   });
 
-  it("restores About Us and Official Links as announcement channels", async () => {
-    let insertedChannels;
+  const channelQuery = (data, error = null) => {
+    const result = { data, error };
     const query = {
-      insert: jest.fn((channels) => {
-        insertedChannels = channels;
-        return query;
-      }),
-      select: jest.fn().mockImplementation(() => Promise.resolve({ data: [], error: null })),
+      select: jest.fn(() => query),
+      eq: jest.fn(() => query),
+      is: jest.fn(() => query),
+      order: jest.fn(() => query),
+      then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
     };
-    supabase.from.mockReturnValue(query);
+    return query;
+  };
 
-    await channelService.restoreDefaultChannels("community-1");
+  it("can bypass its in-memory cache to reconcile newly created channels", async () => {
+    supabase.from
+      .mockReturnValueOnce(channelQuery([{ id: "general", name: "general" }]))
+      .mockReturnValueOnce(channelQuery([
+        { id: "general", name: "general" },
+        { id: "new-channel", name: "new-channel" },
+      ]));
 
-    expect(insertedChannels).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "about-us", type: "announcement", community_id: "community-1" }),
-      expect.objectContaining({ name: "official-links", type: "announcement", community_id: "community-1" }),
-    ]));
+    await channelService.fetchChannels("community-1", { forceRefresh: true });
+    const freshChannels = await channelService.fetchChannels("community-1", { forceRefresh: true });
+
+    expect(freshChannels.map((channel) => channel.id)).toEqual(["general", "new-channel"]);
+    expect(supabase.from).toHaveBeenCalledTimes(2);
+  });
+
+  it("reserves the built-in general channel name", async () => {
+    await expect(
+      channelService.createChannel({ name: " General " }, "community-1"),
+    ).rejects.toThrow("#general is a reserved community channel name.");
+  });
+
+  it("does not report a cached list as fresh when a forced refresh fails", async () => {
+    supabase.from
+      .mockReturnValueOnce(channelQuery([{ id: "general", name: "general" }]))
+      .mockReturnValueOnce(channelQuery(null, new Error("Network unavailable")));
+
+    await channelService.fetchChannels("community-1", { forceRefresh: true });
+
+    await expect(
+      channelService.fetchChannels("community-1", { forceRefresh: true }),
+    ).rejects.toThrow("Network unavailable");
   });
 });

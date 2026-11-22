@@ -1,5 +1,22 @@
 // services/community/channelService.js - INSTANT SWITCHING
 import { supabase } from "../config/supabase";
+import communityCache from "./communityCache";
+
+const RESERVED_DEFAULT_CHANNEL_NAMES = new Set([
+  "about-us",
+  "announcements",
+  "general",
+  "gm",
+  "official-links",
+  "rules",
+  "support",
+  "ticket",
+  "updates",
+  "verification",
+  "verify",
+  "voice",
+  "welcome",
+]);
 
 class ChannelService {
   constructor() {
@@ -8,23 +25,23 @@ class ChannelService {
     this.CACHE_TTL = 5 * 60 * 1000;
   }
 
-  async fetchChannels(communityId) {
+  async fetchChannels(communityId, { forceRefresh = false } = {}) {
     const cacheKey = `channels:${communityId}`;
     const cached = this.cache.get(cacheKey);
     const lastFetch = this.lastFetch.get(cacheKey) || 0;
     const age = Date.now() - lastFetch;
 
-    if (cached && age < this.CACHE_TTL) {
+    if (!forceRefresh && cached && age < this.CACHE_TTL) {
       if (age > 2 * 60 * 1000) {
         this.fetchChannelsFresh(communityId, cacheKey);
       }
       return cached;
     }
 
-    return await this.fetchChannelsFresh(communityId, cacheKey);
+    return await this.fetchChannelsFresh(communityId, cacheKey, { fallbackToCache: !forceRefresh });
   }
 
-  async fetchChannelsFresh(communityId, cacheKey) {
+  async fetchChannelsFresh(communityId, cacheKey, { fallbackToCache = true } = {}) {
     try {
       let query = supabase
         .from("community_channels")
@@ -41,43 +58,36 @@ class ChannelService {
 
       if (result.error) throw result.error;
 
-      let channels = result.data || [];
-      if (channels.length === 0) {
-        channels = await this.restoreDefaultChannels(communityId);
-      }
+      const channels = result.data || [];
       this.cache.set(cacheKey, channels);
       this.lastFetch.set(cacheKey, Date.now());
 
       return channels;
     } catch (error) {
       console.error("Error fetching channels:", error);
+      if (!fallbackToCache) throw error;
       return this.cache.get(cacheKey) || [];
     }
   }
 
-  async restoreDefaultChannels(communityId) {
-    const defaults = [
-      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", tool_type: "verification", position: 0, is_default: true },
-      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", position: 1, is_default: true },
-      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", position: 2, is_default: true },
-      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", position: 3, is_default: true },
-      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", position: 4, is_default: true },
-      { name: "general", icon: "💬", description: "General discussion", type: "text", position: 5, is_default: true },
-      { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", tool_type: "social_updates", position: 6, is_default: true },
-      { name: "about-us", icon: "ℹ️", description: "About this community", type: "announcement", position: 7, is_default: true },
-      { name: "official-links", icon: "🔗", description: "Official community links", type: "announcement", position: 8, is_default: true },
-    ].map((channel) => ({ ...channel, community_id: communityId, category: "Start here" }));
-    let result = await supabase.from("community_channels").insert(defaults).select("*");
-    if (result.error?.code === "42703") {
-      const legacyDefaults = defaults.map(({ category, tool_type, ...channel }) => channel);
-      result = await supabase.from("community_channels").insert(legacyDefaults).select("*");
+  invalidateCommunityChannels(communityId) {
+    this.cache.delete(`channels:${communityId}`);
+    this.lastFetch.delete(`channels:${communityId}`);
+    communityCache.clearCommunity(communityId);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("community:channels-changed", {
+        detail: { communityId },
+      }));
     }
-    if (result.error) throw result.error;
-    return result.data || [];
   }
 
   async createChannel(channelData, communityId) {
     try {
+      const channelName = channelData.name.trim().toLowerCase().replace(/\s+/g, "-");
+      if (RESERVED_DEFAULT_CHANNEL_NAMES.has(channelName)) {
+        throw new Error(`#${channelName} is a reserved community channel name.`);
+      }
+
       const { data: capacity, error: capacityError } = await supabase.rpc(
         "get_community_custom_channel_capacity",
         { p_community_id: communityId },
@@ -123,8 +133,7 @@ class ChannelService {
       }
       if (result.error) throw result.error;
 
-      this.cache.delete(`channels:${communityId}`);
-      this.lastFetch.delete(`channels:${communityId}`);
+      this.invalidateCommunityChannels(communityId);
 
       return result.data;
     } catch (error) {
@@ -160,8 +169,7 @@ class ChannelService {
       if (error) throw error;
 
       if (data.community_id) {
-        this.cache.delete(`channels:${data.community_id}`);
-        this.lastFetch.delete(`channels:${data.community_id}`);
+        this.invalidateCommunityChannels(data.community_id);
       }
 
       return data;
@@ -175,11 +183,14 @@ class ChannelService {
     try {
       const { data: channel, error: channelError } = await supabase
         .from("community_channels")
-        .select("community_id")
+        .select("community_id,name,is_default")
         .eq("id", channelId)
         .maybeSingle();
       if (channelError) throw channelError;
       if (!channel) throw new Error("Channel was not found or is already deleted.");
+      if (channel.is_default && channel.name?.trim().toLowerCase() === "general") {
+        throw new Error("The built-in #general channel cannot be deleted.");
+      }
 
       const { data: deleted, error } = await supabase.rpc("delete_community_channel", {
         p_channel_id: channelId,
@@ -199,8 +210,7 @@ class ChannelService {
       }
 
       if (channel?.community_id) {
-        this.cache.delete(`channels:${channel.community_id}`);
-        this.lastFetch.delete(`channels:${channel.community_id}`);
+        this.invalidateCommunityChannels(channel.community_id);
       }
 
       return Boolean(deleted);

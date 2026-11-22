@@ -208,6 +208,7 @@ const ChatTab = ({
   const refreshRoleAccessRef = useRef(null);
   const isAtBottom = useRef(true);
   const channelsRequestRef = useRef(0);
+  const loadChannelsRef = useRef(null);
   const messagesRequestRef = useRef(0);
   const readMarkTimer = useRef(null);
 
@@ -344,9 +345,10 @@ const ChatTab = ({
       setEditingChannel(event.detail);
       setShowEditChannel(true);
     };
-    const handleChannelsChanged = () => {
+    const handleChannelsChanged = (event) => {
+      if (event.detail?.communityId && event.detail.communityId !== community?.id) return;
       setChannelPermissionRefresh((current) => current + 1);
-      loadChannels({ preserveSelection: true });
+      loadChannelsRef.current?.({ preserveSelection: true });
     };
     window.addEventListener("community:edit-channel", handleEditChannel);
     window.addEventListener("community:channels-changed", handleChannelsChanged);
@@ -354,7 +356,7 @@ const ChatTab = ({
       window.removeEventListener("community:edit-channel", handleEditChannel);
       window.removeEventListener("community:channels-changed", handleChannelsChanged);
     };
-  }, []);
+  }, [community?.id]);
 
   const loadChannels = async ({ preserveSelection = false } = {}) => {
     const requestId = ++channelsRequestRef.current;
@@ -391,7 +393,7 @@ const ChatTab = ({
     }
     setChannelsRefreshing(hasCachedChannels);
     try {
-      const data = await channelService.fetchChannels(communityId);
+      const data = await channelService.fetchChannels(communityId, { forceRefresh: true });
       const { data: categories } = await categoriesPromise;
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       communityCache.setChannels(communityId, data);
@@ -412,6 +414,7 @@ const ChatTab = ({
       setChannelsRefreshing(false);
     }
   };
+  loadChannelsRef.current = loadChannels;
 
   const loadVerificationRouting = async () => {
     try {

@@ -923,8 +923,8 @@ const CSS = `
 
 /* Root */
 .gcv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.gcv-root .msg-bubble.them{--message-tail-fill:#202729;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
-.gcv-root .msg-bubble.me{--message-tail-fill:#0d5e49;--message-tail-edge:rgba(209,250,229,.3);background:var(--message-tail-fill);background-image:none;border-color:rgba(209,250,229,.18);box-shadow:0 4px 14px rgba(0,0,0,.2);}
+.gcv-root .msg-bubble.them{--message-tail-fill:#202c33;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
+.gcv-root .msg-bubble.me{--message-tail-fill:#005c4b;--message-tail-edge:rgba(130,215,187,.38);background:var(--message-tail-fill);background-image:none;border-color:rgba(130,215,187,.24);box-shadow:0 4px 14px rgba(0,0,0,.2);}
 
 /* Header — 14px sides, safe-area top, exactly matches ChatView */
 .gcv-head{
@@ -999,15 +999,15 @@ const CSS = `
 
 /* Bubbles */
 .gcv-bubble{padding:0 1px 4px;word-break:break-word;position:relative;box-shadow:0 4px 16px rgba(0,0,0,.12);margin:0;border-radius:14px!important;}
-.gcv-bme{background:#0d5e49;background-image:none;border:1px solid rgba(209,250,229,.18);border-radius:14px 14px 4px 14px;}
-.gcv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);border-radius:14px 14px 14px 4px;}
+.gcv-bme{background:#005c4b;background-image:none;border:1px solid rgba(130,215,187,.24);border-radius:14px 14px 4px 14px;}
+.gcv-bthem{background:#202c33;border:1px solid rgba(220,232,224,.12);border-radius:14px 14px 14px 4px;}
 .gcv-grpme{border-radius:14px 4px 4px 14px!important;}
 .gcv-grpthem{border-radius:4px 14px 14px 4px!important;}
 .gcv-tailme{border-radius:14px 4px 14px 14px!important;}
 .gcv-tailthem{border-radius:4px 14px 14px 14px!important;}
-.gcv-tailthem::before{content:"";position:absolute;top:0;left:-7px;width:0;height:0;border-style:solid;border-width:10px 0 0 8px;border-color:rgba(19,21,20,.97) transparent transparent transparent;}
+.gcv-tailthem::before{content:"";position:absolute;top:0;left:-7px;width:0;height:0;border-style:solid;border-width:10px 0 0 8px;border-color:#202c33 transparent transparent transparent;}
 .gcv-tailthem::after{content:"";position:absolute;top:0;left:-8px;width:0;height:0;border-style:solid;border-width:11px 0 0 9px;border-color:rgba(255,255,255,.08) transparent transparent transparent;z-index:-1;}
-.gcv-tailme::before{content:"";position:absolute;top:1px;right:-7px;width:0;height:0;border-style:solid;border-width:10px 8px 0 0;border-color:#0d5e49 transparent transparent transparent;}
+.gcv-tailme::before{content:"";position:absolute;top:1px;right:-7px;width:0;height:0;border-style:solid;border-width:10px 8px 0 0;border-color:#005c4b transparent transparent transparent;}
 .gcv-tailme::after{content:"";position:absolute;top:1px;right:-8px;width:0;height:0;border-style:solid;border-width:11px 9px 0 0;border-color:rgba(209,250,229,.3) transparent transparent transparent;z-index:-1;}
 .gcv-bgif{padding:0!important;background:transparent!important;border:none!important;}
 .gcv-gif{max-width:220px;max-height:170px;border-radius:10px;display:block;object-fit:cover;}

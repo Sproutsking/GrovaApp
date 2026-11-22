@@ -32,6 +32,9 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
   const [roles, setRoles] = useState([]);
   const [permissionsChannel, setPermissionsChannel] = useState(null);
   const previousChannelRef = useRef(null);
+  const channelsRequestRef = useRef(0);
+  const loadChannelsRef = useRef(null);
+  const loadedCommunityRef = useRef(null);
   const touchRef = useRef(null);
 
   useEffect(() => {
@@ -43,6 +46,15 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
   }, [community?.id, userId]);
 
   useEffect(() => {
+    const handleChannelsChanged = (event) => {
+      if (event.detail?.communityId && event.detail.communityId !== community?.id) return;
+      loadChannelsRef.current?.();
+    };
+    window.addEventListener("community:channels-changed", handleChannelsChanged);
+    return () => window.removeEventListener("community:channels-changed", handleChannelsChanged);
+  }, [community?.id]);
+
+  useEffect(() => {
     if (!showMenu || window.innerWidth > 768) return undefined;
     document.body.classList.add("community-menu-fullscreen");
     return () => {
@@ -51,28 +63,48 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenP
   }, [showMenu]);
 
   const loadChannels = async () => {
+    const requestId = ++channelsRequestRef.current;
+    const communityId = community?.id;
+    if (!communityId) return;
+    if (loadedCommunityRef.current !== communityId) {
+      loadedCommunityRef.current = communityId;
+      setChannels([]);
+      setChannelsReady(false);
+    }
     try {
       const [{ data: categories }, cachedData] = await Promise.all([
-        supabase.from("community_channel_categories").select("name,position").eq("community_id", community.id).order("position", { ascending: true }),
-        communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id)),
+        supabase.from("community_channel_categories").select("name,position").eq("community_id", communityId).order("position", { ascending: true }),
+        Promise.resolve(communityCache.getChannels(communityId)),
       ]);
-      const data = Array.isArray(cachedData) ? cachedData : await channelService.fetchChannels(community.id);
-      const visible = community.owner_id === userId
-        ? data
-        : await roleService.getVisibleChannels(community.id, userId, data);
-      const normalizedVisible = Array.isArray(visible) ? visible : [];
-      setChannels(normalizedVisible);
-      const stored = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
-      const saved = stored.locations?.[community.id] || (stored.communityId === community.id ? stored : null);
-      const savedChannel = normalizedVisible.find((channel) => channel.id === saved?.channelId);
-      previousChannelRef.current = savedChannel || null;
+      if (requestId !== channelsRequestRef.current) return;
       setCategoryOrder((categories || []).map((category) => category.name));
-      setChannelsReady(true);
+      const freshChannelsPromise = channelService.fetchChannels(communityId, { forceRefresh: true });
+
+      const applyChannels = async (data) => {
+        const visible = community.owner_id === userId
+          ? data
+          : await roleService.getVisibleChannels(communityId, userId, data);
+        if (requestId !== channelsRequestRef.current) return;
+        const normalizedVisible = Array.isArray(visible) ? visible : [];
+        setChannels(normalizedVisible);
+        const stored = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
+        const saved = stored.locations?.[communityId] || (stored.communityId === communityId ? stored : null);
+        const savedChannel = normalizedVisible.find((channel) => channel.id === saved?.channelId);
+        previousChannelRef.current = savedChannel || null;
+        setChannelsReady(true);
+      };
+
+      if (Array.isArray(cachedData)) await applyChannels(cachedData);
+      const freshData = await freshChannelsPromise;
+      if (requestId !== channelsRequestRef.current) return;
+      communityCache.setChannels(communityId, freshData);
+      await applyChannels(freshData);
     } catch (error) {
       console.error("Error loading channels:", error);
-      setChannelsReady(true);
+      if (requestId === channelsRequestRef.current) setChannelsReady(true);
     }
   };
+  loadChannelsRef.current = loadChannels;
 
   const loadPermissions = async () => {
     try {

@@ -251,6 +251,16 @@ class BackgroundService {
     const normalizedSelection = this.normalizeBackgroundSelection(selection);
     const bg = this.backgrounds.find((item) => item.id === normalizedSelection) || this.backgrounds[0];
     if (!bg) return { background: "#000" };
+    if (normalizedSelection === "classic_weave" || normalizedSelection === "nova_weave") {
+      return {
+        background: [
+          "radial-gradient(circle at 50% 42%, rgba(38,73,61,.28) 0%, transparent 58%)",
+          "linear-gradient(135deg, #17211d 0%, #101713 55%, #0b100e 100%)",
+        ].join(", "),
+        backgroundColor: "#101713",
+        position: "relative",
+      };
+    }
     if (bg.isDefault) return getDefaultBgStyle();
     if (bg.image) {
       return {

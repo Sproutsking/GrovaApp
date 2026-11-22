@@ -795,7 +795,7 @@ const MessageList = ({
 
         /* Base bubble styles */
         .msg-bubble {
-          --message-tail-fill: #202729;
+          --message-tail-fill: #202c33;
           --message-tail-edge: rgba(220,232,224,.18);
           --bubble-border: rgba(220,232,224,.12);
           background: var(--message-tail-fill);
@@ -809,9 +809,9 @@ const MessageList = ({
         .msg-item.clustered .msg-bubble.them { border-top-left-radius: 10px; }
 
         .msg-bubble.me {
-          --message-tail-fill: #0d5e49;
-          --message-tail-edge: rgba(209,250,229,.3);
-          --bubble-border: rgba(209,250,229,.18);
+          --message-tail-fill: #005c4b;
+          --message-tail-edge: rgba(130,215,187,.38);
+          --bubble-border: rgba(130,215,187,.24);
           background: var(--message-tail-fill);
           border: 1px solid var(--bubble-border);
           border-top-right-radius: 2px;
