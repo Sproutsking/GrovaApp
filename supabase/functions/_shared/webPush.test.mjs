@@ -6,7 +6,11 @@ import {
   hkdfSync,
   randomBytes,
 } from "node:crypto";
-import { sendWebPush, validateVapidKeyPair } from "./webPush.ts";
+import {
+  inspectVapidKeyPair,
+  sendWebPush,
+  validateVapidKeyPair,
+} from "./webPush.ts";
 
 const encode = (value) => Buffer.from(value).toString("base64url");
 const originalFetch = globalThis.fetch;
@@ -123,6 +127,13 @@ test("validates the VAPID public and private keys as a pair", async () => {
       encode(otherKey.getPrivateKey()),
     ),
     false,
+  );
+  assert.deepEqual(
+    await inspectVapidKeyPair(
+      encode(matchingKey.getPublicKey(null, "uncompressed")),
+      encode(otherKey.getPrivateKey()),
+    ),
+    { publicKeyValid: true, privateKeyParses: true, keysMatch: false },
   );
 });
 

@@ -87,7 +87,7 @@ async function hkdf(
   return new Uint8Array(bits);
 }
 
-async function importVapidPrivateKey(value: string): Promise<CryptoKey> {
+async function importVapidPrivateKey(value: string, extractable = false): Promise<CryptoKey> {
   const normalized = value.replace(/\\n/g, "\n").trim();
   const pemMatch = normalized.match(
     /^-----BEGIN PRIVATE KEY-----([\s\S]+?)-----END PRIVATE KEY-----$/,
@@ -101,7 +101,7 @@ async function importVapidPrivateKey(value: string): Promise<CryptoKey> {
       "pkcs8",
       raw,
       { name: "ECDSA", namedCurve: "P-256" },
-      false,
+      extractable,
       ["sign"],
     );
   }
@@ -125,41 +125,59 @@ async function importVapidPrivateKey(value: string): Promise<CryptoKey> {
     "pkcs8",
     concat(pkcs8Header, raw),
     { name: "ECDSA", namedCurve: "P-256" },
-    false,
+    extractable,
     ["sign"],
   );
 }
 
-export async function validateVapidKeyPair(
+export async function inspectVapidKeyPair(
   publicKeyValue: string,
   privateKeyValue: string,
-): Promise<boolean> {
+): Promise<{ publicKeyValid: boolean; privateKeyParses: boolean; keysMatch: boolean }> {
   try {
     const publicKeyBytes = decodeBase64Url(publicKeyValue);
-    if (publicKeyBytes.length !== 65 || publicKeyBytes[0] !== 0x04) return false;
-    const publicKey = await crypto.subtle.importKey(
+    if (publicKeyBytes.length !== 65 || publicKeyBytes[0] !== 0x04) {
+      return { publicKeyValid: false, privateKeyParses: false, keysMatch: false };
+    }
+    await crypto.subtle.importKey(
       "raw",
       publicKeyBytes,
       { name: "ECDSA", namedCurve: "P-256" },
       false,
       ["verify"],
     );
-    const privateKey = await importVapidPrivateKey(privateKeyValue);
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-    const signature = await crypto.subtle.sign(
-      { name: "ECDSA", hash: "SHA-256" },
-      privateKey,
-      challenge,
-    );
-    return await crypto.subtle.verify(
-      { name: "ECDSA", hash: "SHA-256" },
-      publicKey,
-      signature,
-      challenge,
-    );
   } catch {
-    return false;
+    return { publicKeyValid: false, privateKeyParses: false, keysMatch: false };
   }
+
+  let privateKey: CryptoKey;
+  try {
+    privateKey = await importVapidPrivateKey(privateKeyValue, true);
+  } catch {
+    return { publicKeyValid: true, privateKeyParses: false, keysMatch: false };
+  }
+
+  try {
+    const jwk = await crypto.subtle.exportKey("jwk", privateKey);
+    const publicKeyBytes = decodeBase64Url(publicKeyValue);
+    const privateX = jwk.x ? decodeBase64Url(jwk.x) : new Uint8Array();
+    const privateY = jwk.y ? decodeBase64Url(jwk.y) : new Uint8Array();
+    const keysMatch = privateX.length === 32
+      && privateY.length === 32
+      && publicKeyBytes.subarray(1, 33).every((byte, index) => byte === privateX[index])
+      && publicKeyBytes.subarray(33, 65).every((byte, index) => byte === privateY[index]);
+    return { publicKeyValid: true, privateKeyParses: true, keysMatch };
+  } catch {
+    return { publicKeyValid: true, privateKeyParses: true, keysMatch: false };
+  }
+}
+
+export async function validateVapidKeyPair(
+  publicKeyValue: string,
+  privateKeyValue: string,
+): Promise<boolean> {
+  const status = await inspectVapidKeyPair(publicKeyValue, privateKeyValue);
+  return status.publicKeyValid && status.privateKeyParses && status.keysMatch;
 }
 
 async function buildVapidJwt(endpoint: string, options: WebPushOptions): Promise<string> {

@@ -24,7 +24,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendWebPush, validateVapidKeyPair } from "../_shared/webPush.ts";
+import {
+  inspectVapidKeyPair,
+  sendWebPush,
+  validateVapidKeyPair,
+} from "../_shared/webPush.ts";
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
@@ -704,10 +708,13 @@ serve(async (req: Request) => {
     const fcmConfigured = Boolean(
       FIREBASE_PROJECT_ID && FIREBASE_PRIVATE_KEY && FIREBASE_CLIENT_EMAIL,
     );
-    const legacyConfigured = await validateVapidKeyPair(
+    const vapidKeyStatus = await inspectVapidKeyPair(
       Deno.env.get("VAPID_PUBLIC_KEY") ?? "",
       Deno.env.get("VAPID_PRIVATE_KEY") ?? "",
     );
+    const legacyConfigured = vapidKeyStatus.publicKeyValid
+      && vapidKeyStatus.privateKeyParses
+      && vapidKeyStatus.keysMatch;
     const providers = { fcm: fcmConfigured, legacyWebPush: legacyConfigured };
     const ok = fcmConfigured || legacyConfigured;
     return json({
@@ -716,6 +723,11 @@ serve(async (req: Request) => {
         ? "At least one push provider is configured"
         : "No push provider credentials are configured",
       providers,
+      legacyKeyCheck: {
+        publicKeyValid: vapidKeyStatus.publicKeyValid,
+        privateKeyParses: vapidKeyStatus.privateKeyParses,
+        keysMatch: vapidKeyStatus.keysMatch,
+      },
       ...(fcmConfigured ? { project_id: FIREBASE_PROJECT_ID } : {}),
     }, ok ? 200 : 503);
   }
