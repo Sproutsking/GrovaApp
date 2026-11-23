@@ -25,7 +25,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import MessageNotificationService from "../../services/messages/MessageNotificationService";
+import callService from "../../services/messages/callService";
 
 /* ─── helpers ─── */
 const fmt  = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -315,6 +315,8 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   const tiR   = useRef(null); const nqR   = useRef(null); const mR    = useRef(true);
   const pIce  = useRef([]);   const secsR = useRef(0);
   const inviteSent = useRef(false);
+  const callCancelled = useRef(false);
+  const signalingReady = useRef(Promise.resolve(true));
 
   const p = PRESETS.find(x => x.id === qual) || PRESETS[1];
 
@@ -333,6 +335,27 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     if (rvRef.current) rvRef.current.srcObject = null;
     if (raRef.current) raRef.current.srcObject = null;
   }, []);
+
+  useEffect(() => {
+    const callId = call.callId || call.id;
+    const unsubDeclined = callService.on("call_declined", (event) => {
+      if (!mR.current || event?.callId !== callId) return;
+      setEndR(event.reason === "timeout" ? "timeout" : "declined");
+      setStage("ended");
+      destroyPC();
+    });
+    const unsubEnded = callService.on("call_ended", (event) => {
+      if (!mR.current || event?.callId !== callId) return;
+      setCallDur(secsR.current);
+      setEndR("ended");
+      setStage("ended");
+      destroyPC();
+    });
+    return () => {
+      unsubDeclined();
+      unsubEnded();
+    };
+  }, [call.callId, call.id, destroyPC]);
 
   const getMedia = useCallback(async () => {
     const pr = PRESETS.find(x => x.id === qual) || PRESETS[1];
@@ -376,6 +399,9 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   }, []);
 
   const buildCh = useCallback((callId) => {
+    let resolveReady;
+    const ready = new Promise((resolve) => { resolveReady = resolve; });
+    const readyTimeout = setTimeout(() => resolveReady(false), 5000);
     const ch = supabase
       .channel(`call:${callId}`, { config: { broadcast: { self: false } } })
       .on("broadcast", { event: "call_accepted" }, async () => {
@@ -384,10 +410,17 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
         const pc = pcR.current;
         if (!pc || pc.signalingState !== "stable") return;
         try {
+          const stream = lsR.current || await getMedia();
+          if (!stream) throw new Error("Microphone access is required to start the call.");
+          addTracks(pc, stream);
           const o = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: isVid });
           await pc.setLocalDescription(o);
           ch.send({ type: "broadcast", event: "offer", payload: { sdp: o } });
-        } catch (e) { console.error("[Call] offer:", e); }
+        } catch (e) {
+          console.error("[Call] offer:", e);
+          setEndR("failed");
+          setStage("ended");
+        }
       })
       .on("broadcast", { event: "call_declined" }, () => {
         if (!mR.current) return; setEndR("declined"); setStage("ended"); destroyPC();
@@ -424,33 +457,42 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
         if (!mR.current) return;
         setParts(prev => prev.map(pt => pt.id === payload.userId ? { ...pt, muted: payload.muted, camOff: payload.camOff } : pt));
       })
-      .subscribe();
-    sigR.current = ch;
-    return ch;
-  }, [isVid, flushIce, destroyPC, secs]);
-
-  // [FIX-INVITE-CH] Send invites via MessageNotificationService
-  // which now sends to "incoming_calls:{calleeId}" — matching the listener
-  const sendInvites = useCallback(async (callId) => {
-    if (inviteSent.current || !call.outgoing) return;
-    inviteSent.current = true;
-    const callerName     = localUser.full_name;
-    const callerAvatarId = localUser.avatar_id || null;
-    const callType       = call.type || "audio";
-
-    if (isGroup && Array.isArray(call.participants) && call.participants.length > 0) {
-      await Promise.allSettled(
-        call.participants
-          .filter(pt => pt?.id && pt.id !== localUser.id)
-          .map(pt => MessageNotificationService.sendCallInvite({
-            callId, calleeId: pt.id, callerName, callerAvatarId, callType,
-            groupName: call.name || "Group Call", participantCount: call.participants.length,
-          }))
-      );
-    } else if (call.user?.id) {
-      await MessageNotificationService.sendCallInvite({
-        callId, calleeId: call.user.id, callerName, callerAvatarId, callType,
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          clearTimeout(readyTimeout);
+          resolveReady(status === "SUBSCRIBED");
+        }
       });
+    sigR.current = ch;
+    signalingReady.current = ready;
+    return ch;
+  }, [isVid, flushIce, destroyPC, secs, getMedia, addTracks]);
+
+  const sendInvites = useCallback(async (callId) => {
+    if (inviteSent.current || callCancelled.current || !call.outgoing) return;
+    inviteSent.current = true;
+    const calleeIds = isGroup && Array.isArray(call.participants)
+      ? call.participants.map((participant) => participant?.id).filter((id) => id && id !== localUser.id)
+      : [call.user?.id].filter(Boolean);
+    if (!calleeIds.length) return;
+    try {
+      await callService.startCall({
+        callId,
+        calleeIds,
+        callType: call.type || "audio",
+        callerProfile: localUser,
+        groupName: isGroup ? call.name || "Group Call" : null,
+        participantCount: isGroup ? (call.participants?.length || calleeIds.length + 1) : 2,
+      });
+      if (callCancelled.current) {
+        await callService.finishCallInvitation({ callId, recipientIds: calleeIds });
+      }
+    } catch (error) {
+      console.error("[Call] Could not start call:", error);
+      if (mR.current) {
+        setEndR("failed");
+        setStage("ended");
+      }
     }
   }, [call, isGroup, localUser]);
 
@@ -460,17 +502,25 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     // join the SAME signalling channel
     const callId = call.callId || call.id || `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     (async () => {
-      if (call.outgoing === true) {
-        // CALLER: get media, build PC, subscribe to sig channel, then send invites
-        const s  = await getMedia();
-        const pc = buildPC();
-        if (s) addTracks(pc, s);
-        buildCh(callId);
-        sendInvites(callId);
-      } else {
-        // CALLEE: subscribe to sig channel first, then get media
-        buildCh(callId);
-        await getMedia();
+      try {
+        if (call.outgoing === true) {
+          callCancelled.current = false;
+          // Invite immediately; request microphone access only after the callee accepts.
+          buildPC();
+          buildCh(callId);
+          const ready = await signalingReady.current;
+          if (!ready) throw new Error("The call signaling channel could not be established.");
+          await sendInvites(callId);
+        } else {
+          // CALLEE: wait for explicit acceptance before requesting microphone access.
+          buildCh(callId);
+        }
+      } catch (error) {
+        console.error("[Call] signaling setup failed:", error);
+        if (mR.current) {
+          setEndR("failed");
+          setStage("ended");
+        }
       }
     })();
     return () => {
@@ -505,33 +555,71 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   const handleAccept = useCallback(async () => {
     if (!mR.current) return;
     setStage("conn");
+    const signalingIsReady = await signalingReady.current;
+    if (!signalingIsReady) {
+      setEndR("failed");
+      setStage("ended");
+      return;
+    }
     const s  = lsR.current || await getMedia();
+    if (!s) {
+      setEndR("failed");
+      setStage("ended");
+      return;
+    }
     const pc = buildPC();
-    if (s) addTracks(pc, s);
+    addTracks(pc, s);
+    try {
+      await callService.answerCall(call.callId || call.id);
+    } catch (error) {
+      console.error("[Call] Could not accept call:", error);
+      setEndR("failed");
+      setStage("ended");
+      destroyPC();
+      return;
+    }
     sigR.current?.send({ type: "broadcast", event: "call_accepted", payload: { userId: currentUser?.id } });
-  }, [buildPC, addTracks, getMedia, currentUser?.id]);
+  }, [buildPC, addTracks, getMedia, currentUser?.id, call.callId, call.id, destroyPC]);
 
   const handleDecline = useCallback(() => {
     sigR.current?.send({ type: "broadcast", event: "call_declined", payload: { userId: currentUser?.id } });
+    callService.declineCall(call.callId || call.id, call.user?.id).catch((error) => console.warn("[Call] decline signal failed:", error?.message || error));
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     onEnd();
-  }, [onEnd, currentUser?.id, destroyPC]);
+  }, [onEnd, currentUser?.id, destroyPC, call.callId, call.id, call.user?.id]);
 
   const handleEnd = useCallback(() => {
+    callCancelled.current = true;
     sigR.current?.send({ type: "broadcast", event: "call_ended", payload: {} });
+    const recipientIds = isGroup && Array.isArray(call.participants)
+      ? call.participants.map((participant) => participant?.id)
+      : [call.user?.id];
+    callService.finishCallInvitation({
+      callId: call.callId || call.id,
+      recipientIds: recipientIds.filter(Boolean),
+    }).catch((error) => console.error("[Call] Could not signal call end:", error));
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     setCallDur(secsR.current); setEndR("ended"); setStage("ended");
-  }, [destroyPC]);
+  }, [destroyPC, call, isGroup]);
 
   const handleTimeout = useCallback(() => {
     if (!mR.current) return;
     sigR.current?.send({ type: "broadcast", event: "call_declined", payload: { reason: "timeout" } });
+    callService.emit("missed_call", { callId: call.callId || call.id });
+    const recipientIds = isGroup && Array.isArray(call.participants)
+      ? call.participants.map((participant) => participant?.id)
+      : [call.user?.id];
+    callService.finishCallInvitation({
+      callId: call.callId || call.id,
+      recipientIds: recipientIds.filter(Boolean),
+      status: "no_answer",
+    }).catch((error) => console.error("[Call] Could not signal no answer:", error));
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     setEndR("timeout"); setStage("ended");
-  }, [destroyPC]);
+  }, [destroyPC, call, isGroup]);
 
   const toggleMute = useCallback(() => { const n = !muted; setMuted(n); lsR.current?.getAudioTracks().forEach(t => { t.enabled = !n; }); sigR.current?.send({ type: "broadcast", event: "participant_state", payload: { userId: currentUser?.id, muted: n, camOff } }); }, [muted, camOff, currentUser?.id]);
   const toggleCam  = useCallback(() => { const n = !camOff; setCamOff(n); lsR.current?.getVideoTracks().forEach(t => { t.enabled = !n; }); sigR.current?.send({ type: "broadcast", event: "participant_state", payload: { userId: currentUser?.id, muted, camOff: n } }); }, [camOff, muted, currentUser?.id]);

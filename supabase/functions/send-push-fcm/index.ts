@@ -24,6 +24,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendWebPush, validateVapidKeyPair } from "../_shared/webPush.ts";
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
@@ -250,6 +251,7 @@ function cleanText(value: unknown, maxLength: number): string {
 
 function getDedupTtlMs(type: string): number | null {
   if (type === "dm") return null;
+  if (type === "call_cancelled") return null;
   if (type === "incoming_call") return 30 * 1000;
   if (
     ["like", "comment", "comment_reply", "follow", "mention", "profile_view"].includes(type)
@@ -309,6 +311,18 @@ function buildFcmMessage(params: {
     message: (merged.message as string) ?? "",
     sender_name: (merged.senderName as string) ?? "",
   };
+
+  if (type === "call_cancelled") {
+    return {
+      message: {
+        token,
+        data,
+        android: { priority: "high", ttl: "60s" },
+        webpush: { headers: { TTL: "60" } },
+        apns: { payload: { aps: { "content-available": 1 } } },
+      },
+    };
+  }
 
   return {
     message: {
@@ -470,6 +484,22 @@ async function authorizePushEvent(
             .limit(1)
             .maybeSingle(),
           "follow event",
+        ),
+      );
+    }
+
+    if (type === "profile_view") {
+      return Boolean(
+        await hasRecentRow(
+          supa
+            .from("profile_views")
+            .select("id")
+            .eq("profile_id", recipientId)
+            .eq("viewer_id", actorId)
+            .gte("viewed_at", recentAfter)
+            .limit(1)
+            .maybeSingle(),
+          "profile-view event",
         ),
       );
     }
@@ -639,6 +669,25 @@ async function authorizePushEvent(
       return Array.isArray(call?.callee_ids) && call.callee_ids.includes(recipientId);
     }
 
+    if (type === "call_cancelled") {
+      const callId = String(entityId || metadata.callId || metadata.call_id || "");
+      if (!callId) return false;
+      const call = await hasRecentRow(
+        supa
+          .from("active_calls")
+          .select("caller_id, callee_ids, status, ended_at")
+          .eq("id", callId)
+          .in("status", ["ended", "declined", "no_answer", "cancelled"])
+          .gte("ended_at", recentAfter)
+          .maybeSingle(),
+        "call-cancellation event",
+      ) as { caller_id?: string; callee_ids?: string[] } | null;
+      const participants = [call?.caller_id, ...(call?.callee_ids || [])];
+      return participants.includes(actorId)
+        && participants.includes(recipientId)
+        && actorId !== recipientId;
+    }
+
     return false;
 }
 
@@ -652,25 +701,23 @@ serve(async (req: Request) => {
 
   // Health check
   if (req.method === "GET") {
-    if (!FIREBASE_PROJECT_ID || !FIREBASE_PRIVATE_KEY || !FIREBASE_CLIENT_EMAIL) {
-      return json(
-        {
-          ok: false,
-          error: "Firebase credentials not configured",
-          required: [
-            "FIREBASE_PROJECT_ID",
-            "FIREBASE_PRIVATE_KEY",
-            "FIREBASE_CLIENT_EMAIL",
-          ],
-        },
-        500,
-      );
-    }
+    const fcmConfigured = Boolean(
+      FIREBASE_PROJECT_ID && FIREBASE_PRIVATE_KEY && FIREBASE_CLIENT_EMAIL,
+    );
+    const legacyConfigured = await validateVapidKeyPair(
+      Deno.env.get("VAPID_PUBLIC_KEY") ?? "",
+      Deno.env.get("VAPID_PRIVATE_KEY") ?? "",
+    );
+    const providers = { fcm: fcmConfigured, legacyWebPush: legacyConfigured };
+    const ok = fcmConfigured || legacyConfigured;
     return json({
-      ok: true,
-      message: "FCM delivery is configured",
-      project_id: FIREBASE_PROJECT_ID,
-    });
+      ok,
+      message: ok
+        ? "At least one push provider is configured"
+        : "No push provider credentials are configured",
+      providers,
+      ...(fcmConfigured ? { project_id: FIREBASE_PROJECT_ID } : {}),
+    }, ok ? 200 : 503);
   }
 
   if (req.method !== "POST") {
@@ -682,21 +729,6 @@ serve(async (req: Request) => {
     body = await req.json();
   } catch {
     return json({ error: "Invalid JSON body" }, 400);
-  }
-
-  if (!FIREBASE_PROJECT_ID || !FIREBASE_PRIVATE_KEY || !FIREBASE_CLIENT_EMAIL) {
-    console.error("[FCM] Firebase credentials not configured");
-    return json(
-      {
-        error: "Firebase credentials missing in Edge Function secrets",
-        required: [
-          "FIREBASE_PROJECT_ID",
-          "FIREBASE_PRIVATE_KEY",
-          "FIREBASE_CLIENT_EMAIL",
-        ],
-      },
-      500,
-    );
   }
 
   const authHeader = req.headers.get("Authorization");
@@ -716,7 +748,7 @@ serve(async (req: Request) => {
 
   const supa = createClient(supabaseUrl, serviceRoleKey);
 
-  // This admin-only probe validates the service account without sending a push.
+  // This admin-only probe validates both providers without sending a push.
   if (body?.health === true || body?.test === true) {
     const { data: profile, error: profileError } = await supa
       .from("profiles")
@@ -729,16 +761,28 @@ serve(async (req: Request) => {
     }
     if (profile?.is_admin !== true) return json({ error: "Forbidden" }, 403);
 
-    try {
-      await getFirebaseAccessToken();
-      return json({
-        ok: true,
-        message: "Firebase service-account authentication succeeded; no push was sent",
-      });
-    } catch (err) {
-      console.error("[FCM] Service-account health check failed:", err);
-      return json({ error: "Firebase service-account authentication failed" }, 503);
+    let firebaseAuth = false;
+    if (FIREBASE_PROJECT_ID && FIREBASE_PRIVATE_KEY && FIREBASE_CLIENT_EMAIL) {
+      try {
+        await getFirebaseAccessToken();
+        firebaseAuth = true;
+      } catch (err) {
+        console.error("[FCM] Service-account health check failed:", err);
+      }
     }
+    const vapidPairValid = await validateVapidKeyPair(
+      Deno.env.get("VAPID_PUBLIC_KEY") ?? "",
+      Deno.env.get("VAPID_PRIVATE_KEY") ?? "",
+    );
+    const providers = { fcm: firebaseAuth, legacyWebPush: vapidPairValid };
+    const ok = firebaseAuth && vapidPairValid;
+    return json({
+      ok,
+      message: ok
+        ? "FCM and legacy Web Push credentials validated; no push was sent"
+        : "One or more push provider credentials failed validation",
+      providers,
+    }, ok ? 200 : 503);
   }
 
   const recipientUserId = typeof body.recipient_user_id === "string"
@@ -798,6 +842,41 @@ serve(async (req: Request) => {
     return json({ error: "No matching authorized notification event" }, 403);
   }
 
+  const preferenceByType: Record<string, string> = {
+    profile_view: "notify_profile_visits",
+    comment: "notify_comments",
+    comment_reply: "notify_comments",
+    mention: "notify_comments",
+    like: "notify_likes",
+    share: "notify_shares",
+    follow: "notify_followers",
+    milestone_followers: "notify_followers",
+    new_post: "notify_followers",
+    new_reel: "notify_followers",
+    new_story: "notify_followers",
+    unlock: "notify_unlocks",
+    dm: "notify_messages",
+    incoming_call: "notify_calls",
+    payment_confirmed: "notify_payments",
+    transfer_received: "notify_payments",
+    transfer_sent: "notify_payments",
+  };
+  const preferenceKey = preferenceByType[type];
+  if (preferenceKey && type !== "call_cancelled") {
+    const { data: recipientProfile, error: preferencesError } = await supa
+      .from("profiles")
+      .select("preferences")
+      .eq("id", recipientUserId)
+      .maybeSingle();
+    if (preferencesError) {
+      console.error("[FCM] Could not verify recipient notification preferences:", preferencesError.message);
+      return json({ error: "Could not verify notification preferences" }, 503);
+    }
+    if (recipientProfile?.preferences?.[preferenceKey] !== true) {
+      return json({ sent: 0, reason: "notification_disabled" });
+    }
+  }
+
   const { data: actorProfile, error: profileError } = await supa
     .from("profiles")
     .select("full_name, username, avatar_id")
@@ -812,12 +891,12 @@ serve(async (req: Request) => {
     80,
   ) || "Someone";
 
-  // ── Fetch FCM tokens ───────────────────────────────────────────────────────
+  // ── Fetch active FCM and legacy Web Push subscriptions ─────────────────────
   const { data: subs, error: subErr } = await supa
     .from("push_subscriptions")
-    .select("id, fcm_token")
+    .select("id, provider, fcm_token, endpoint, p256dh, auth")
     .eq("user_id", recipientUserId)
-    .eq("provider", "fcm")
+    .in("provider", ["fcm", "legacy"])
     .eq("is_active", true);
 
   if (subErr) {
@@ -826,11 +905,29 @@ serve(async (req: Request) => {
   }
 
   if (!subs || subs.length === 0) {
-    console.log(`[FCM] No active FCM subscriptions for user ${recipientUserId}`);
+    console.log(`[Push] No active push subscriptions for user ${recipientUserId}`);
     return json({ sent: 0, reason: "no_active_subscriptions" });
   }
 
-  console.log(`[FCM] type=${type} recipients=${subs.length} user=${recipientUserId}`);
+  const fcmSubs = subs.filter((sub) =>
+    sub.provider === "fcm" && typeof sub.fcm_token === "string" && sub.fcm_token.length > 0
+  );
+  const legacySubs = subs.filter((sub) =>
+    sub.provider === "legacy"
+    && typeof sub.endpoint === "string"
+    && typeof sub.p256dh === "string"
+    && typeof sub.auth === "string"
+  );
+  const errors: string[] = [];
+
+  if (fcmSubs.length + legacySubs.length === 0) {
+    console.warn("[Push] Active subscription rows have no usable delivery credentials");
+    return json({ sent: 0, reason: "no_usable_subscriptions" });
+  }
+
+  console.log(
+    `[Push] type=${type} fcm=${fcmSubs.length} legacy=${legacySubs.length} user=${recipientUserId}`,
+  );
 
   // ── Build payload ──────────────────────────────────────────────────────────
   const merged: Record<string, unknown> = {
@@ -882,16 +979,73 @@ serve(async (req: Request) => {
 
   const deeplink = normalizeDeepLink(buildDeepLink(type, entityId, merged));
 
-  // ── Get Firebase access token ──────────────────────────────────────────────
-  let accessToken: string;
-  try {
-    accessToken = await getFirebaseAccessToken();
-  } catch (err) {
-    console.error("[FCM] Failed to get access token:", err);
-    return json({ error: "Failed to authenticate with Firebase" }, 500);
+  const legacyData: Record<string, string> = {
+    url: deeplink,
+    deeplink_path: deeplink,
+    type,
+    notification_id: notifId,
+    entity_id: entityId ?? "",
+    actor_user_id: actorUserId,
+    conversation_id: String(merged.conversation_id ?? ""),
+    call_id: String(merged.call_id || merged.callId || ""),
+    call_type: String(merged.call_type || merged.callType || "audio"),
+    caller_name: String(merged.caller_name || merged.callerName || ""),
+    caller_avatar_id: String(merged.caller_avatar_id || merged.callerAvatarId || ""),
+    message: String(merged.message ?? ""),
+    sender_name: String(merged.senderName ?? ""),
+  };
+  const legacyTag = type === "incoming_call"
+    ? `call_${legacyData.call_id || notifId}`
+    : type === "dm"
+    ? `dm_${legacyData.conversation_id || notifId}`
+    : `notif_${notifId}`;
+  const legacyPayload = JSON.stringify({
+    title: notifTitle,
+    body: notifBody,
+    icon: "/logo192.png",
+    badge: "/logo192.png",
+    tag: legacyTag,
+    renotify: true,
+    requireInteraction: isCall,
+    vibrate: isCall ? [500, 100, 500, 100, 500] : [200, 100, 200],
+    actions: isCall
+      ? [{ action: "accept", title: "✅ Accept" }, { action: "decline", title: "❌ Decline" }]
+      : [{ action: "view", title: "View" }, { action: "dismiss", title: "Dismiss" }],
+    data: legacyData,
+  });
+
+  let firebaseAccessToken: string | null = null;
+  if (fcmSubs.length > 0) {
+    if (!FIREBASE_PROJECT_ID || !FIREBASE_PRIVATE_KEY || !FIREBASE_CLIENT_EMAIL) {
+      errors.push("FCM credentials are not configured");
+    } else {
+      try {
+        firebaseAccessToken = await getFirebaseAccessToken();
+      } catch (err) {
+        console.error("[FCM] Failed to get access token:", err);
+        errors.push("Firebase authentication failed");
+      }
+    }
   }
 
-  // Reserve the notification only after authorization, token lookup, and OAuth succeed.
+  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
+  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
+  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:support@xeevia.com";
+  const legacyConfigured = legacySubs.length > 0 && await validateVapidKeyPair(
+    vapidPublicKey,
+    vapidPrivateKey,
+  );
+  if (legacySubs.length > 0 && !legacyConfigured) {
+    errors.push("Legacy Web Push credentials are not configured");
+  }
+
+  if (!firebaseAccessToken && !(legacySubs.length > 0 && legacyConfigured)) {
+    return json({
+      error: errors.join("; ") || "No configured delivery provider",
+    }, 503);
+  }
+
+  // Reserve only after at least one authorized delivery path is available.
   const dedupTtlMs = getDedupTtlMs(type);
   if (dedupTtlMs !== null) {
     const dedupKey = [
@@ -927,41 +1081,65 @@ serve(async (req: Request) => {
     }
   }
 
-  // ── Send to all FCM tokens ────────────────────────────────────────────────
-  const results = await Promise.allSettled(
-    (subs as { id: string; fcm_token: string }[]).map((s) =>
-      sendFcmNotification(
-        s.fcm_token,
-        buildFcmMessage({
-          token: s.fcm_token,
-          type,
-          title: notifTitle,
-          body: notifBody,
-          deeplink,
-          notifId,
-          entityId,
-          actorUserId: actorUserId,
-          merged,
-          isCall,
-        }),
-        accessToken,
-      ),
-    ),
-  );
+  const deliveries: Array<{
+    subscriptionId: string;
+    send: Promise<{ ok: boolean; status: number; expired: boolean; body: string }>;
+  }> = [];
+  if (firebaseAccessToken) {
+    for (const sub of fcmSubs) {
+      deliveries.push({
+        subscriptionId: sub.id,
+        send: sendFcmNotification(
+          sub.fcm_token,
+          buildFcmMessage({
+            token: sub.fcm_token,
+            type,
+            title: notifTitle,
+            body: notifBody,
+            deeplink,
+            notifId,
+            entityId,
+            actorUserId,
+            merged,
+            isCall,
+          }),
+          firebaseAccessToken,
+        ),
+      });
+    }
+  }
+  if (legacyConfigured) {
+    for (const sub of legacySubs) {
+      deliveries.push({
+        subscriptionId: sub.id,
+        send: sendWebPush(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          legacyPayload,
+          {
+            vapidPublicKey,
+            vapidPrivateKey,
+            vapidSubject,
+            ttl: isCall ? 30 : type === "dm" ? 86400 : 259200,
+            urgency: isCall || type === "dm" ? "high" : "normal",
+          },
+        ),
+      });
+    }
+  }
 
+  const results = await Promise.allSettled(deliveries.map((delivery) => delivery.send));
   let sent = 0;
   const expiredIds: string[] = [];
-  const errors: string[] = [];
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    const s = (subs as { id: string }[])[i];
+    const subscriptionId = deliveries[i].subscriptionId;
 
     if (r.status === "fulfilled") {
       if (r.value.ok) {
         sent++;
       } else if (r.value.expired) {
-        expiredIds.push(s.id);
+        expiredIds.push(subscriptionId);
       } else {
         errors.push(`sub[${i}]: HTTP ${r.value.status} — ${r.value.body.slice(0, 120)}`);
       }
@@ -986,12 +1164,16 @@ serve(async (req: Request) => {
   }
 
   console.log(
-    `[FCM] Result: sent=${sent}/${subs.length} | expired=${expiredIds.length} | errors=${errors.length}`,
+    `[Push] Result: sent=${sent}/${deliveries.length} | expired=${expiredIds.length} | errors=${errors.length}`,
   );
 
   return json({
     sent,
-    total: subs.length,
+    total: deliveries.length,
+    providers: {
+      fcm: fcmSubs.length,
+      legacy: legacySubs.length,
+    },
     expired: expiredIds.length,
     errors: errors.length > 0 ? errors : undefined,
   });

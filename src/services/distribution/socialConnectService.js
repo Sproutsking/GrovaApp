@@ -322,6 +322,7 @@ class SocialConnectService {
             || identity.identity_data?.preferred_username
             || identity.identity_data?.sub
             || identity.id;
+        if (existing?.auth_status === "revoked") continue;
         if (!existing || existing.auth_status !== "active" || existing.platform_user_id !== platformUserId) {
           // Create/update the connection record
           const { data: conn } = await supabase
@@ -330,7 +331,7 @@ class SocialConnectService {
               user_id:          userId,
               provider:         platformKey,
               platform_user_id: platformUserId,
-              auth_status:      providerToken ? "active" : "expired",
+              auth_status:      "active",
               connected_via:    "supabase_identity",
             }, { onConflict: "user_id,provider" })
             .select()
@@ -341,10 +342,7 @@ class SocialConnectService {
               || existing.auth_status !== conn.auth_status
               || existing.platform_user_id !== conn.platform_user_id
               || existing.connected_via !== conn.connected_via;
-            if (connectionChanged) {
-              const event = conn.auth_status === "active" ? "platform_connected" : "platform_identity_imported";
-              await recordPlatformEvent(userId, event, platformKey, conn);
-            }
+            if (connectionChanged) await recordPlatformEvent(userId, "platform_connected", platformKey, conn);
             if (providerToken) {
               const { error: tokenError } = await supabase.from("tokens").upsert({
                 connection_id: conn.id,

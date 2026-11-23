@@ -365,7 +365,7 @@ self.addEventListener("push", (event) => {
   const type = payload?.data?.type || "general";
   console.log("[SW v13] Push received — type:", type);
 
-  storePayload(payload);
+  if (type !== "call_cancelled") storePayload(payload);
 
   event.waitUntil(
     (async () => {
@@ -379,6 +379,15 @@ self.addEventListener("push", (event) => {
           client.postMessage({ type: "PUSH_RECEIVED", payload });
         } catch (_) {}
       });
+
+      if (type === "call_cancelled") {
+        const callId = payload?.data?.call_id || payload?.data?.entity_id;
+        if (callId) {
+          const notifications = await self.registration.getNotifications({ tag: `call_${callId}` });
+          notifications.forEach((notification) => notification.close());
+        }
+        return;
+      }
 
       if (type === "incoming_call") {
         await _showOsNotificationSafe(payload);

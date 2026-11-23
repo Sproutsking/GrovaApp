@@ -136,6 +136,39 @@ describe('resolveProviderLinkState', () => {
     expect(state).toMatchObject({ alreadyConnected: false, source: 'supabase_identity' });
   });
 
+  it("preserves an explicitly revoked identity during automatic identity import", async () => {
+    const connectionQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      upsert: jest.fn(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: {
+          id: "connection-x",
+          auth_status: "revoked",
+          platform_user_id: "xuser",
+          connected_via: "supabase_identity",
+        },
+        error: null,
+      }),
+    };
+    supabase.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          identities: [{ provider: "twitter", id: "x-user", identity_data: { user_name: "xuser" } }],
+        },
+      },
+    });
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { app_metadata: { provider: "email" } }, provider_token: null } },
+    });
+    supabase.from.mockReturnValue(connectionQuery);
+
+    await expect(socialConnectService.checkAndImportExistingIdentities("user-1"))
+      .resolves.toEqual({});
+    expect(connectionQuery.upsert).not.toHaveBeenCalled();
+  });
+
   it("refreshes the publishing token for an already-active identity connection", async () => {
     const connectionQuery = {
       select: jest.fn().mockReturnThis(),

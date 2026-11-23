@@ -39,6 +39,9 @@ class SettingsService {
         notify_shares:         false,
         notify_followers:      false,
         notify_unlocks:        false,
+        notify_messages:       false,
+        notify_calls:          false,
+        notify_payments:       false,
       };
       const prefs = profile.preferences
         ? { ...defaultPreferences, ...profile.preferences }
@@ -57,6 +60,9 @@ class SettingsService {
           shares:        prefs.notify_shares         === true,
           newFollowers:  prefs.notify_followers      === true,
           storyUnlocks:  prefs.notify_unlocks        === true,
+          messages:      prefs.notify_messages       === true,
+          calls:         prefs.notify_calls          === true,
+          payments:      prefs.notify_payments       === true,
         },
         privacy: {
           privateAccount: profile.is_private || false,
@@ -110,6 +116,9 @@ class SettingsService {
         notify_shares:         notificationSettings.shares        === true,
         notify_followers:      notificationSettings.newFollowers  === true,
         notify_unlocks:        notificationSettings.storyUnlocks  === true,
+        notify_messages:       notificationSettings.messages      === true,
+        notify_calls:          notificationSettings.calls         === true,
+        notify_payments:       notificationSettings.payments      === true,
       };
 
       const { error } = await supabase.from("profiles")

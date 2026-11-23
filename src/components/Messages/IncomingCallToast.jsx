@@ -100,7 +100,6 @@ const IncomingCallToast = ({ onAccept, onDecline }) => {
         clearInterval(countdownTimers.current[id]);
         delete countdownTimers.current[id];
         removeCall(id);
-        callService.declineCall(id).catch?.(() => {});
         onDecline?.(id);
       }
     }, 1000);
@@ -168,7 +167,6 @@ const IncomingCallToast = ({ onAccept, onDecline }) => {
     const id = getCallId(call);
     removeCall(id);
     try { audioCtxRef.current?.close(); } catch {}
-    callService.declineCall(id).catch?.(() => {});
     onDecline?.(id);
   }, [removeCall, onDecline]);
 

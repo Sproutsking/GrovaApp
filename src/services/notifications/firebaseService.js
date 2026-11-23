@@ -230,8 +230,10 @@ function getMessaging() {
       return _messaging;
     }
   } catch (err) {
-    console.debug("[Firebase] getMessaging failed:", err);
+    _lastError = `Firebase Messaging initialization failed: ${err?.message || String(err)}`;
+    console.warn("[Firebase]", _lastError);
   }
+  if (!_messaging && !_lastError) _lastError = "Firebase Messaging is unavailable";
   return null;
 }
 
@@ -242,7 +244,7 @@ function installFirebaseDebug(userId = null) {
     const state = {
       initialized: _initialized,
       permission: Notification.permission,
-      fcmToken: await getFcmToken(userId),
+      fcmTokenAvailable: Boolean(await getFcmToken(userId)),
       sdkReady: Boolean(window.firebase),
       messagingReady: Boolean(messaging),
       vapidKey: Boolean(VAPID_KEY),
@@ -262,7 +264,10 @@ function installFirebaseDebug(userId = null) {
 async function _readFcmTokenFromSdk() {
   try {
     const messaging = getMessaging();
-    if (!messaging) return null;
+    if (!messaging) {
+      _lastError = "Firebase Messaging is unavailable";
+      return null;
+    }
 
     // For web: use getToken() with VAPID key
     if (typeof messaging.getToken === "function") {
@@ -272,15 +277,23 @@ async function _readFcmTokenFromSdk() {
           ...(VAPID_KEY ? { vapidKey: VAPID_KEY } : {}),
           serviceWorkerRegistration,
         });
-        if (token) return token;
+        if (token) {
+          _lastError = null;
+          return token;
+        }
+        _lastError = "Firebase SDK returned no FCM token";
       } catch (err) {
-        console.debug("[Firebase] getToken failed:", err);
+        _lastError = `FCM token generation failed: ${err?.message || String(err)}`;
+        console.warn("[Firebase]", _lastError);
       }
+    } else {
+      _lastError = "Firebase Messaging does not support getToken";
     }
 
     return null;
   } catch (err) {
-    console.error("[Firebase] _readFcmTokenFromSdk failed:", err);
+    _lastError = `FCM token lookup failed: ${err?.message || String(err)}`;
+    console.warn("[Firebase]", _lastError);
     return null;
   }
 }
@@ -299,7 +312,10 @@ async function _waitForFcmToken(userId = null, timeoutMs = 20000) {
 }
 
 async function _ensureInitialized(userId = null) {
-  if (!isSupported()) return false;
+  if (!isSupported()) {
+    _lastError = "This browser does not support Firebase Web Push";
+    return false;
+  }
 
   if (!(await loadFirebaseConfig())) {
     installFirebaseDebug(userId);
@@ -326,7 +342,7 @@ async function _ensureInitialized(userId = null) {
       // Initialize Firebase app if the compat SDK has not initialized one yet.
       const app = getFirebaseApp();
       if (!app) {
-        _lastError = "Firebase app initialization returned no app";
+        _lastError ||= "Firebase app initialization returned no app";
         console.warn("[Firebase] App initialization failed");
         return false;
       }
@@ -334,6 +350,7 @@ async function _ensureInitialized(userId = null) {
       // Get messaging instance
       const messaging = getMessaging();
       if (!messaging) {
+        _lastError ||= "Firebase Messaging is unavailable";
         console.warn("[Firebase] Messaging not available");
         return false;
       }
@@ -457,6 +474,10 @@ export function isFirebaseConfigured() {
   return _configLoaded && hasFirebaseConfig();
 }
 
+export function getFirebaseLastError() {
+  return _lastError;
+}
+
 export async function onMessageReceived(callback) {
   if (!isSupported()) return () => {};
 
@@ -481,6 +502,7 @@ export { isSupported as isFirebaseSupported };
 export default {
   initializeFirebase,
   isFirebaseConfigured,
+  getFirebaseLastError,
   requestPermission,
   enablePushNotifications,
   getFcmToken,

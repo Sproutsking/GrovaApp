@@ -49,6 +49,7 @@ import XRCProfileDashboard, { resolveXrcInitialSection } from "./XRCProfileDashb
 import XRDProfileDashboard from "./XRDProfileDashboard";
 import xrcService from "../../services/xrc";
 import socialConnectService from "../../services/distribution/socialConnectService";
+import { pushService } from "../../services/notifications/pushService";
 import ShareModal from "./ShareModal";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
@@ -480,6 +481,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
   const mounted = useRef(true);
   const profileLoadSequence = useRef(0);
+  const profileViewAttempted = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -499,6 +501,41 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   // ── ID resolution ─────────────────────────────────────────────────────────
   const targetId = resolveTargetId(user);
   const myId     = resolveMyId(currentUser);
+
+  useEffect(() => {
+    if (!targetId || !myId || targetId === myId) return;
+    const viewKey = `${myId}:${targetId}`;
+    if (profileViewAttempted.current === viewKey) return;
+    profileViewAttempted.current = viewKey;
+    let active = true;
+    const recordProfileView = async () => {
+      const { error } = await supabase.from("profile_views").insert({
+        profile_id: targetId,
+        viewer_id: myId,
+      });
+      if (error) {
+        console.warn("[UserProfileModal] Could not record profile view:", error.message);
+        return;
+      }
+      if (!active) return;
+      const actorName = currentUser?.full_name || currentUser?.fullName || currentUser?.name || "Someone";
+      pushService.sendPushToUser({
+        recipientUserId: targetId,
+        actorUserId: myId,
+        type: "profile_view",
+        metadata: {
+          actorName,
+          actorId: myId,
+          actor_id: myId,
+          url: `/profile/${myId}`,
+        },
+      }).catch((error) => console.warn("[UserProfileModal] Profile-view push failed:", error?.message || error));
+    };
+    recordProfileView().catch((error) => {
+      console.warn("[UserProfileModal] Could not record profile view:", error?.message || error);
+    });
+    return () => { active = false; };
+  }, [targetId, myId, currentUser?.full_name, currentUser?.fullName, currentUser?.name]);
 
   useEffect(() => {
     if (loading) return undefined;

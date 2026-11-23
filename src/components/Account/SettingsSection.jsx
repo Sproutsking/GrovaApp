@@ -224,6 +224,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
   const [notifs, setNotifs] = useState({
     profileVisits: false, comments: false, likes: false,
     shares: false, newFollowers: false, storyUnlocks: false,
+    messages: false, calls: false, payments: false,
   });
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -252,7 +253,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
     if (!userId) return;
     try {
       setLoading(true);
-      const pushProvider = await pushService.getProvider(userId);
+      await pushService.getProvider(userId);
 
       const [profileRes, boostRes, pushRes] = await Promise.allSettled([
         supabase.from("profiles")
@@ -267,7 +268,6 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
         supabase.from("push_subscriptions")
           .select("id")
           .eq("user_id", userId)
-          .eq("provider", pushProvider)
           .eq("is_active", true)
           .limit(1),
       ]);
@@ -292,6 +292,9 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           shares:        prefs.notify_shares         === true,
           newFollowers:  prefs.notify_followers      === true,
           storyUnlocks:  prefs.notify_unlocks        === true,
+          messages:      prefs.notify_messages      === true,
+          calls:         prefs.notify_calls         === true,
+          payments:      prefs.notify_payments      === true,
         });
         if (setThemeMode) {
           const themePref = prefs.theme_mode === "light" || prefs.themeMode === "light" ? "light" : "dark";
@@ -341,6 +344,9 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
         notify_shares:         notifs.shares,
         notify_followers:      notifs.newFollowers,
         notify_unlocks:        notifs.storyUnlocks,
+        notify_messages:       notifs.messages,
+        notify_calls:          notifs.calls,
+        notify_payments:       notifs.payments,
         theme_mode:            themeMode === "light" ? "light" : "dark",
         themeMode:             themeMode === "light" ? "light" : "dark",
       };
@@ -377,7 +383,13 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           return;
         }
         setPushEnabled(true);
-        showSt("success", "Push notifications are now enabled on this device.");
+        const provider = pushService.getStatus().lastProvider;
+        showSt(
+          "success",
+          provider === "legacy"
+            ? "Push notifications are enabled using Web Push. Firebase token registration needs attention."
+            : "Push notifications are now enabled on this device.",
+        );
       }
     } catch (err) {
       console.error("SettingsSection.togglePush:", err);
@@ -441,7 +453,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
               <h3 className="sset-title">Notifications</h3>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span className="sset-badge">{enabledCount}/6</span>
+              <span className="sset-badge">{enabledCount}/9</span>
               <ChevronDown size={14} className={`sset-caret ${openSection==="notifications"?"open":""}`}/>
             </div>
           </div>
@@ -474,15 +486,24 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                 { key:"shares",        label:"Shares",           desc:"When someone shares your content" },
                 { key:"newFollowers",  label:"New Followers",    desc:"When someone follows you" },
                 { key:"storyUnlocks",  label:"Story Unlocks",    desc:"When someone unlocks your story" },
+                { key:"messages",      label:"Messages",         desc:"When someone sends you a direct message" },
+                { key:"calls",         label:"Calls",             desc:"When someone calls you" },
+                { key:"payments",      label:"Payments",          desc:"When a payment is confirmed" },
               ].map(({ key, label, desc }) => (
                 <div key={key} className="sset-toggle">
                   <div className="sset-tinfo">
                     <div className="sset-tlabel">{label}</div>
                     <div className="sset-tdesc">{desc}</div>
                   </div>
-                  <div className={`sset-sw ${notifs[key]?"on":""}`} onClick={() => toggleNotif(key)}>
-                    <div className="sset-sw-knob"/>
-                  </div>
+                  <button
+                    type="button"
+                    className={`sset-sw ${notifs[key] ? "on" : ""}`}
+                    onClick={() => toggleNotif(key)}
+                    aria-label={`${label} notifications`}
+                    aria-pressed={notifs[key]}
+                  >
+                    <span className="sset-sw-knob" />
+                  </button>
                 </div>
               ))}
             </>
@@ -672,9 +693,11 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     and EP bonus on all earnings.
                   </div>
 
-                  {/* Manage boost → opens UpgradeView */}
-                  <button className="sset-manage-btn" onClick={() => onOpenUpgrade?.()}>
+                  <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))}>
                     <Zap size={13}/> Manage Profile Upgrade
+                  </button>
+                  <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()}>
+                    👑 Upgrade Your Profile
                   </button>
                 </div>
               ) : (
@@ -715,6 +738,9 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     fontWeight:900,
                   }}>
                     👑 Upgrade Your Profile
+                  </button>
+                  <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))} style={{ marginTop: 8 }}>
+                    <Zap size={13}/> Manage Profile Upgrade
                   </button>
 
                   <p style={{ fontSize:11, color:"#383838", textAlign:"center", margin:"8px 0 0" }}>

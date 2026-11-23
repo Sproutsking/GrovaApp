@@ -1,25 +1,16 @@
 // ============================================================================
-// src/services/messages/callService.js — v9 PUSH INTEGRATED
+// src/services/messages/callService.js — call signaling and invitations
 // ============================================================================
 // CHANGES vs v8:
 //   [PUSH-1] _sendCallPush() now uses pushService.sendPushToUser() instead of
 //            calling supabase.functions.invoke() directly. Consistent with DM push.
 //   [PUSH-2] Push payload now includes all fields the SW needs to show the
 //            incoming call notification with Accept/Decline actions.
-//   All v8 WebRTC / MIC / RING / STATE fixes preserved exactly.
+//   ActiveCall owns the call's only WebRTC peer connection.
 // ============================================================================
 
 import { supabase }  from "../config/supabase";
 import pushService   from "../notifications/pushService";
-
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302"  },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-  ],
-};
 
 const STATE = {
   IDLE:       "idle",
@@ -112,17 +103,19 @@ class CallService extends Emitter {
   // ==========================================================================
   // START CALL
   // ==========================================================================
-  async startCall({ callId, calleeId, callType = "audio", callerProfile }) {
-    if (!this._userId || !calleeId) return;
+  async startCall({ callId, calleeId, calleeIds, callType = "audio", callerProfile, groupName, participantCount }) {
+    const recipients = [...new Set((calleeIds || [calleeId]).filter((id) => id && id !== this._userId))];
+    if (!this._userId || !callId || recipients.length === 0) {
+      throw new Error("A signed-in caller, call ID, and recipient are required.");
+    }
     if (this._state !== STATE.IDLE) {
-      console.warn("[callService] Already in call");
-      return;
+      throw new Error("Another call is already in progress.");
     }
 
     this._state        = STATE.RINGING;
     this._activeCallId = callId;
     this._callRole     = "caller";
-    this._calleeId     = calleeId;
+    this._calleeId     = recipients[0];
     this._callType     = callType;
 
     const callerName = callerProfile?.fullName || callerProfile?.full_name
@@ -143,45 +136,35 @@ class CallService extends Emitter {
       },
     };
 
-    // Send realtime invite first (for online callee)
-    await this._broadcastToUser(calleeId, "incoming_call", invitePayload);
-
     const { error: activeCallError } = await supabase.from("active_calls").upsert({
       id: callId,
       caller_id: this._userId,
-      callee_ids: [calleeId],
+      callee_ids: recipients,
       call_type: callType,
+      group_name: groupName || null,
       status: "ringing",
     });
     if (activeCallError) {
-      console.warn("[callService] Could not persist call before push:", activeCallError.message);
-    } else {
-      this._sendCallPush({ calleeId, callId, callerName, callerAvId, callType });
+      this._resetState();
+      throw new Error(`Could not register the call invitation: ${activeCallError.message}`);
+    }
+    if (this._activeCallId !== callId || this._state !== STATE.RINGING) {
+      const { error } = await supabase.from("active_calls")
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("id", callId);
+      if (error) console.warn("[callService] Could not persist cancelled call:", error.message);
+      return callId;
     }
 
-    // 30s ring timeout
-    this._ringTimeout = setTimeout(() => {
-      if (this._state === STATE.RINGING) {
-        this.emit("ring_timeout", { callId });
-        this.emit("missed_call",  { callId });
-        this.endCall(callId, calleeId);
-      }
-    }, 30_000);
-
-    // Setup receive-only peer so we can create offer without opening mic
-    this._setupRecvOnlyPeer(callType).then(async () => {
-      if (this._state === STATE.ENDED) return;
-      try {
-        const offer = await this._pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: callType.includes("video"),
-        });
-        await this._pc.setLocalDescription(offer);
-        await this._broadcastToUser(calleeId, "sdp_offer", {
-          callId, sdp: offer, callerId: this._userId,
-        });
-      } catch (e) { console.warn("[callService] offer:", e.message); }
-    }).catch(e => console.warn("[callService] peer setup:", e.message));
+    await Promise.all(recipients.map(async (recipientId) => {
+      await this._broadcastToUser(recipientId, "incoming_call", {
+        ...invitePayload,
+        groupName: groupName || null,
+        participantCount: participantCount || recipients.length + 1,
+      });
+      if (this._activeCallId !== callId || this._state !== STATE.RINGING) return;
+      await this._sendCallPush({ calleeId: recipientId, callId, callerName, callerAvId, callType });
+    }));
 
     return callId;
   }
@@ -200,32 +183,15 @@ class CallService extends Emitter {
     const targetId = call?.callerId || call?.caller?.id;
     const callType = call?.callType || call?.type || "audio";
 
-    try {
-      await this._openLocalMedia(callType);
-    } catch (e) { console.warn("[callService] media open:", e.message); }
-
-    if (this._pc && this._localStream) {
-      this._localStream.getTracks().forEach(t => {
-        try { this._pc.addTrack(t, this._localStream); } catch {}
-      });
-    }
-
     if (targetId) {
       await this._broadcastToUser(targetId, "call_answer", {
         callId, calleeId: this._userId, calleeName: this._userName,
       });
     }
 
-    if (this._pendingOffer) {
-      await this._processPendingOffer(this._pendingOffer, targetId);
-      this._pendingOffer = null;
-    }
-
     this._state = STATE.CONNECTING;
-    this._scheduleConnectFallback(callId);
-    dbWrite(() =>
-      supabase.from("active_calls").update({ status: "answered" }).eq("id", callId)
-    );
+    const { error } = await supabase.from("active_calls").update({ status: "answered" }).eq("id", callId);
+    if (error) console.warn("[callService] Could not persist answered call:", error.message);
     this.emit("call_answered", { callId });
   }
 
@@ -243,12 +209,12 @@ class CallService extends Emitter {
         callId: cid, calleeId: this._userId,
       });
     }
-
-    dbWrite(() =>
-      supabase.from("active_calls")
+    if (cid) {
+      const { error } = await supabase.from("active_calls")
         .update({ status: "declined", ended_at: new Date().toISOString() })
-        .eq("id", cid)
-    );
+        .eq("id", cid);
+      if (error) console.warn("[callService] Could not persist declined call:", error.message);
+    }
 
     this._clearRingTimeout();
     this._cleanupPeer();
@@ -291,6 +257,27 @@ class CallService extends Emitter {
     }, 500);
 
     this._resetState();
+  }
+
+  async finishCallInvitation({ callId, recipientIds = [], status = "ended" }) {
+    if (!callId || !this._userId) return;
+    const targets = [...new Set(recipientIds.filter((id) => id && id !== this._userId))];
+    await Promise.all(targets.map((targetId) =>
+      this._broadcastToUser(targetId, "call_end", { callId, endedBy: this._userId, status })
+    ));
+    const { error } = await supabase.from("active_calls")
+      .update({ status, ended_at: new Date().toISOString() })
+      .eq("id", callId);
+    if (error) console.warn("[callService] Could not persist ended call:", error.message);
+
+    await Promise.all(targets.map(async (targetId) => {
+      if (!error) await this._sendCallCancellation(targetId, callId);
+    }));
+    if (this._activeCallId === callId) {
+      this._clearRingTimeout();
+      this._cleanupPeer();
+      this._resetState();
+    }
   }
 
   // ==========================================================================
@@ -399,25 +386,14 @@ class CallService extends Emitter {
   }
 
   _onCallAnswer(payload) {
+    if (this._activeCallId && payload?.callId !== this._activeCallId) return;
     this._clearRingTimeout();
     this._state = STATE.CONNECTING;
-    if (this._callRole === "caller" && !this._localStream) {
-      this._openLocalMedia(this._callType).then(() => {
-        if (this._pc && this._localStream) {
-          this._localStream.getTracks().forEach(t => {
-            try {
-              const sender = this._pc.getSenders().find(s => s.track?.kind === t.kind);
-              if (sender) sender.replaceTrack(t);
-              else        this._pc.addTrack(t, this._localStream);
-            } catch {}
-          });
-        }
-      }).catch(e => console.warn("[callService] caller media:", e.message));
-    }
     this.emit("call_answered", payload);
   }
 
   _onCallDecline(payload) {
+    if (this._activeCallId && payload?.callId !== this._activeCallId) return;
     this._clearRingTimeout();
     this.emit("call_declined", payload);
     this._cleanupPeer();
@@ -425,6 +401,7 @@ class CallService extends Emitter {
   }
 
   _onCallEnd(payload) {
+    if (this._activeCallId && payload?.callId !== this._activeCallId) return;
     this._clearRingTimeout();
     this.emit("call_ended", payload);
     try { window.dispatchEvent(new CustomEvent("nova:call_ended", { detail: payload })); } catch {}
@@ -619,13 +596,15 @@ class CallService extends Emitter {
     if (!targetUserId) return;
     try {
       const ch = await this._ensureOutboundChannel(targetUserId);
+      if (event === "incoming_call"
+        && (this._activeCallId !== payload?.callId || this._state !== STATE.RINGING)) return;
       await ch.send({ type: "broadcast", event, payload });
     } catch (e) { console.warn("[callService] broadcast to", targetUserId, ":", e.message); }
   }
 
   // [PUSH-1] Use pushService.sendPushToUser() — consistent, auth-handled
   _sendCallPush({ calleeId, callId, callerName, callerAvId, callType }) {
-    pushService.sendPushToUser({
+    return pushService.sendPushToUser({
       recipientUserId: calleeId,
       actorUserId:     this._userId,
       type:            "incoming_call",
@@ -646,7 +625,21 @@ class CallService extends Emitter {
         call_type:    callType,
         notification_id: `call_${callId}`,
       },
-    }).catch(() => {}); // fire and forget — push failure must not block call
+    }).then((result) => {
+      if (!result) console.info("[callService] Call push not delivered by the push service.");
+    }).catch((error) => console.warn("[callService] Call push failed:", error?.message || error));
+  }
+
+  _sendCallCancellation(recipientId, callId) {
+    return pushService.sendPushToUser({
+      recipientUserId: recipientId,
+      actorUserId: this._userId,
+      type: "call_cancelled",
+      entityId: callId,
+      metadata: { call_id: callId },
+    }).then((result) => {
+      if (!result) console.info("[callService] Call cancellation push not delivered by the push service.");
+    }).catch((error) => console.warn("[callService] Call cancellation push failed:", error?.message || error));
   }
 
   // Used by group calls

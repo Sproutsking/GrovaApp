@@ -79,24 +79,36 @@ export async function syncUserConnectorEvidence(userId, provider) {
 
   if (!connector) return saveConnectionProof(connection, userId);
 
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const providerNames = {
+    x: ["x", "twitter"],
+    instagram: ["facebook"],
+    linkedin: ["linkedin", "linkedin_oidc"],
+  }[provider] || [provider];
+  const identityData = user?.id === userId
+    ? user.identities?.find((identity) => providerNames.includes(identity.provider))?.identity_data || {}
+    : {};
+
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("tokens")
     .select("encrypted_token, refresh_token, expires_at, revoked")
     .eq("connection_id", connection.id)
     .eq("revoked", false)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .maybeSingle();
 
   if (tokenErr) throw tokenErr;
-  if (!tokenRow) return saveConnectionProof(connection, userId);
 
   const context = {
     username: connection.platform_user_id,
     profileId: connection.platform_user_id,
     profileUrl: connection.connected_via === "profile_link" ? connection.platform_user_id : null,
-    accessToken: tokenRow.encrypted_token,
+    accessToken: tokenRow?.encrypted_token || null,
     userId,
     connectionId: connection.id,
     connection,
+    identityData,
   };
 
   const result = await connector.sync(context);

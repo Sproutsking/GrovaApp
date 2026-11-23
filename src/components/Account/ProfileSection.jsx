@@ -347,6 +347,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   useEffect(() => {
     if (profileShortcutRequest?.action === "saved") setShowSavedModal(true);
     if (profileShortcutRequest?.action === "edit-profile" && profile) setShowEditModal(true);
+    if (profileShortcutRequest?.action === "manage-boost") setBoostManagerOpen(true);
   }, [profileShortcutRequest?.id, profileShortcutRequest?.action, profile]);
 
   useEffect(() => {
@@ -421,7 +422,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .eq("id", userId)
         .maybeSingle();
 
-      if (profileError) { setError("Could not load profile."); return; }
+      if (profileError) {
+        console.error("[ProfileSection] Profile query failed:", profileError.message);
+        setError(profileError.code === "42703" && profileError.message?.includes("social_links")
+          ? "Profile data is unavailable because the database is missing profiles.social_links. Apply migration 140_restore_profile_social_links_and_views.sql, then retry."
+          : `Could not load profile: ${profileError.message}`);
+        return;
+      }
       if (profileData)  {
         setTierInfo(buildTierInfo(profileData));
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);

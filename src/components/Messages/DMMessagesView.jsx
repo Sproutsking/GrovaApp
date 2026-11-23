@@ -549,12 +549,6 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
     const calleeId = callInfo.user?.id || callInfo.calleeId;
     if (calleeId) {
       const callId = callInfo.callId || `call_${uid}_${calleeId}_${Date.now()}`;
-      callService.startCall({
-        callId,
-        calleeId,
-        callType:      callInfo.type || "audio",
-        callerProfile: norm,
-      }).catch(e => console.warn("[DM] startCall:", e));
       openCall({ ...callInfo, callId });
     } else {
       openCall(callInfo);
@@ -563,7 +557,6 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 
   const handleAcceptIncoming = useCallback(({ callId, callerId, callerName, callType, caller }) => {
     setIncomingCall(null);
-    callService.answerCall(callId).catch(e => console.warn("[DM] answerCall:", e));
     openCall({
       callId,
       name:     callerName || caller?.full_name || "Caller",

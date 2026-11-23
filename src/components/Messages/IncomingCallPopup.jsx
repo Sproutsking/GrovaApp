@@ -108,7 +108,6 @@ const IncomingCallPopup = memo(({ call, onAccept, onDecline }) => {
           clearInterval(intervalRef.current);
           if (!didAct.current) {
             didAct.current = true;
-            callService.declineCall(callId, callerId, callType);
             onDecline?.({ callId, reason: "timeout" });
             setPhase("declined");
           }
@@ -148,7 +147,6 @@ const IncomingCallPopup = memo(({ call, onAccept, onDecline }) => {
     clearInterval(intervalRef.current);
     try { audioCtxRef.current?.close(); } catch {}
     setPhase("accepted");
-    callService.answerCall(callId);
     onAccept?.({ callId, callerId, callerName, callType, caller: call?.caller });
   };
 
@@ -158,7 +156,6 @@ const IncomingCallPopup = memo(({ call, onAccept, onDecline }) => {
     clearInterval(intervalRef.current);
     try { audioCtxRef.current?.close(); } catch {}
     setPhase("declined");
-    callService.declineCall(callId, callerId, callType);
     onDecline?.({ callId, reason: "declined" });
   };
 

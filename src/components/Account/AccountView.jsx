@@ -355,6 +355,7 @@ const AccountView = ({
             <SettingsSection
               isSubscribed={isSubscribed}
               userId={userId}
+              onOpenUpgrade={() => onNavigate?.("upgrade")}
               themeMode={themeMode}
               setThemeMode={setThemeMode}
             />

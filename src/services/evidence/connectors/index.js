@@ -15,16 +15,20 @@ export class ConnectedIdentityConnector extends BaseConnector {
   }
 
   async fetchProfile(context = {}) {
+    const identity = context.identityData || {};
     const identifier = context.profileId || context.username || context.handle;
-    if (!identifier) return null;
+    if (!identifier && !Object.keys(identity).length) return null;
 
     return {
-      id: identifier,
-      username: context.username || (String(identifier).startsWith("http") ? null : identifier),
-      name: this.definition.name,
-      url: context.profileUrl || (String(identifier).startsWith("http") ? identifier : null),
-      description: `Connected ${this.definition.name} identity`,
-      verified: false,
+      id: identity.sub || identity.id || identifier,
+      username: identity.user_name || identity.username || identity.preferred_username
+        || context.username || (identifier && !String(identifier).startsWith("http") ? identifier : null),
+      name: identity.full_name || identity.name || identity.display_name || identity.login || null,
+      url: identity.profile_url || identity.html_url || context.profileUrl
+        || (identifier && String(identifier).startsWith("http") ? identifier : null),
+      description: identity.bio || identity.description || null,
+      avatar_url: identity.avatar_url || identity.profile_image_url || identity.picture || null,
+      verified: identity.verified === true,
     };
   }
 
@@ -116,19 +120,33 @@ export class XConnector extends BaseConnector {
     });
 
     this.fetcher = options.fetcher || fetch;
-    this.baseUrl = options.baseUrl || "https://api.twitter.com/2";
+    this.baseUrl = options.baseUrl || "https://api.x.com/2";
   }
 
   async fetchProfile(context = {}) {
-    const username = context.username || context.profileId || context.handle;
-    if (!username) throw new Error("X username is required");
+    const identifier = String(context.username || context.profileId || context.handle || "").replace(/^@/, "");
+    if (!identifier) throw new Error("X account identifier is required");
 
     const token = context.accessToken || this.defaultConfig.accessToken;
     if (!token) {
+      const identity = context.identityData || {};
+      if (identity.id || identity.sub || identity.user_name || identity.preferred_username) {
+        return {
+          id: identity.id || identity.sub,
+          username: identity.user_name || identity.preferred_username || identifier,
+          name: identity.full_name || identity.name || identity.display_name || null,
+          description: identity.description || identity.bio || null,
+          profile_image_url: identity.profile_image_url || identity.avatar_url || identity.picture || null,
+          verified: identity.verified === true,
+        };
+      }
       throw new Error("X access token is required for profile lookup");
     }
 
-    const response = await this.fetcher(`${this.baseUrl}/users/by/username/${encodeURIComponent(username)}?user.fields=profile_image_url,verified,description,location`, {
+    const profilePath = /^\d+$/.test(identifier)
+      ? "users/me"
+      : `users/by/username/${encodeURIComponent(identifier)}`;
+    const response = await this.fetcher(`${this.baseUrl}/${profilePath}?user.fields=profile_image_url,verified,description,location`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -144,7 +162,7 @@ export class XConnector extends BaseConnector {
   }
 
   async fetchActivity(context = {}) {
-    const userId = context.userId || context.profileId || context.externalId;
+    const userId = context.externalId || context.profileId || context.username || context.handle;
     if (!userId) return [];
 
     const token = context.accessToken || this.defaultConfig.accessToken;

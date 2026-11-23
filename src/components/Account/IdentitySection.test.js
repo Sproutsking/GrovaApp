@@ -6,9 +6,9 @@ jest.mock("../../services/identity/walletIdentityService", () => ({ __esModule: 
 const { getIdentityConnectionStatus } = require("./IdentitySection");
 
 describe("getIdentityConnectionStatus", () => {
-  it("requires a usable provider token before showing an OAuth account as connected", () => {
+  it("keeps an externally connected identity active when publishing credentials are absent", () => {
     expect(getIdentityConnectionStatus({ auth_status: "active", hasValidToken: true })).toBe("active");
-    expect(getIdentityConnectionStatus({ auth_status: "active", hasValidToken: false })).toBe("expired");
+    expect(getIdentityConnectionStatus({ auth_status: "active", hasValidToken: false })).toBe("active");
   });
 
   it("keeps profile links active without an OAuth token", () => {

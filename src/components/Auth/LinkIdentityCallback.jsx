@@ -47,8 +47,12 @@ export default function LinkIdentityCallback() {
         const latestIdentity = userData?.user?.identities?.at(-1);
         if (!latestIdentity) throw new Error("The provider identity could not be confirmed.");
 
-        const expectedProviders = pending.platform === "x" ? ["x", "twitter"] : [pending.platform];
-        if (!expectedProviders.includes(latestIdentity.provider) && !(pending.platform === "instagram" && latestIdentity.provider === "facebook")) {
+        const expectedProviders = {
+          x: ["x", "twitter"],
+          linkedin: ["linkedin", "linkedin_oidc"],
+          instagram: ["instagram", "facebook"],
+        }[pending.platform] || [pending.platform];
+        if (!expectedProviders.includes(latestIdentity.provider)) {
           throw new Error("The returned provider did not match the identity you selected.");
         }
 
@@ -62,7 +66,7 @@ export default function LinkIdentityCallback() {
           user_id: userData.user.id,
           provider: pending.platform,
           platform_user_id: platformUserId,
-          auth_status: providerToken ? "active" : "expired",
+          auth_status: "active",
           connected_via: "supabase_identity",
         }, { onConflict: "user_id,provider" }).select("id").single();
         if (connectionError) throw new Error(`Identity verified, but connection tracking failed: ${connectionError.message}`);
@@ -77,14 +81,13 @@ export default function LinkIdentityCallback() {
           }, { onConflict: "connection_id" });
           if (tokenError) throw new Error(`Identity connected, but permission storage failed: ${tokenError.message}`);
         }
-        if (!providerToken) {
-          throw new Error(`The ${pending.platform} identity was verified, but the provider did not return a publishing token. Enable posting permissions for this OAuth app and reconnect.`);
-        }
         sessionStorage.removeItem(PENDING_LINK_KEY);
 
         if (!mounted) return;
         setStatus("success");
-        setMessage(`${pending.platform} is now connected to this Xeevia account.`);
+        setMessage(providerToken
+          ? `${pending.platform} is now connected to this Xeevia account.`
+          : `${pending.platform} is linked. Posting access was not granted, so reconnect with publishing permissions to publish.`);
         window.history.replaceState({}, "", "/");
         window.setTimeout(() => { window.location.href = "/"; }, 650);
       } catch (error) {

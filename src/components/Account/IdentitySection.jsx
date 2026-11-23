@@ -137,11 +137,7 @@ export const PLATFORMS = CONNECTOR_DEFINITIONS;
 export const getIdentityConnectionStatus = (connection) => {
   if (!connection) return "none";
   if (connection.auth_status === "revoked") return "revoked";
-  if (connection.auth_status === "active"
-    && (connection.connected_via === "profile_link" || connection.hasValidToken === true)) {
-    return "active";
-  }
-  return "expired";
+  return connection.auth_status === "active" ? "active" : "expired";
 };
 
 const STATUS_CFG = {
@@ -864,7 +860,9 @@ const IdentitySection = ({ userId }) => {
                         }
                         {cfg.label}
                       </div>
-                      {/* Connect notes intentionally hidden to keep the identity grid clean. */}
+                      {status === "active" && conn?.connected_via !== "profile_link" && conn?.hasValidToken !== true && (
+                        <div className="idStatusRow" style={{ color: "#f59e0b" }}>Publishing access needs reconnecting</div>
+                      )}
                     </div>
 
                     {/* Top action: link state. The lower action shows the exact linked account or URL. */}
@@ -880,13 +878,24 @@ const IdentitySection = ({ userId }) => {
                         </button>
                       </div>
                     ) : status === "active" ? (
-                      <button
-                        className="idBtn btnDisconnect"
-                        onClick={() => handleDisconnect(key)}
-                        disabled={isBusy || isConnecting}
-                      >
-                        {isBusy ? "Working…" : "Unlink"}
-                      </button>
+                      <div className="idActions">
+                        {conn?.connected_via !== "profile_link" && conn?.hasValidToken !== true && (
+                          <button
+                            className="idBtn btnReconnect"
+                            onClick={() => handleConnect(key)}
+                            disabled={isBusy || isConnecting}
+                          >
+                            {isConnecting ? "Working…" : "Reconnect"}
+                          </button>
+                        )}
+                        <button
+                          className="idBtn btnDisconnect"
+                          onClick={() => handleDisconnect(key)}
+                          disabled={isBusy || isConnecting}
+                        >
+                          {isBusy ? "Working…" : "Unlink"}
+                        </button>
+                      </div>
                     ) : status === "expired" ? (
                       <button
                         className="idBtn btnReconnect"

@@ -10,6 +10,7 @@ import { supabase } from "../config/supabase";
 import {
   enablePushNotifications as enableFirebase,
   getFcmToken as getFirebaseFcmToken,
+  getFirebaseLastError,
   initializeFirebase,
   isFirebaseConfigured,
   isFirebaseSupported,
@@ -90,6 +91,7 @@ let _started = false;
 let _subscribing = false;
 let _bridgeAttached = false;
 let _visibilityListenerAdded = false;
+let _lastProvider = null;
 
 // ── SW registration ───────────────────────────────────────────────────────────
 async function _getReg() {
@@ -287,10 +289,12 @@ async function _saveWithRetry(userId, data, attempt = 0) {
 async function _doSubscribe(userId) {
   if (_subscribing) return null;
   _subscribing = true;
+  _lastProvider = null;
 
   try {
     // Try Firebase FCM first (primary for mobile)
-    if (isFirebaseSupported() && (await initializeFirebase(userId))) {
+    const firebaseReady = isFirebaseSupported() && await initializeFirebase(userId);
+    if (firebaseReady) {
       const granted = await requestFirebasePermission(userId);
       if (!granted) {
         console.warn("[Push] Firebase permission not granted");
@@ -313,12 +317,28 @@ async function _doSubscribe(userId) {
           }
         }
         if (fcmToken) {
-          await _saveWithRetry(userId, { fcmToken });
-          console.log("[Push] ✅ Firebase FCM subscription registered");
-          return { provider: "fcm", fcmToken };
+          try {
+            await _saveWithRetry(userId, { fcmToken });
+            _lastProvider = "fcm";
+            console.log("[Push] ✅ Firebase FCM subscription registered");
+            return { provider: "fcm", fcmToken };
+          } catch (error) {
+            console.warn(
+              "[Push] FCM token could not be registered; trying legacy Web Push:",
+              error?.message || String(error),
+            );
+          }
         }
       }
-      console.warn("[Push] Firebase token unavailable after registration — trying legacy push");
+      console.warn(
+        "[Push] Firebase token unavailable; trying legacy Web Push:",
+        getFirebaseLastError() || "no additional Firebase error was reported",
+      );
+    } else if (isFirebaseSupported()) {
+      console.warn(
+        "[Push] Firebase initialization failed; trying legacy Web Push:",
+        getFirebaseLastError() || "no additional Firebase error was reported",
+      );
     }
 
     // Fallback to legacy VAPID
@@ -351,6 +371,7 @@ async function _doSubscribe(userId) {
 
     if (sub) {
       await _saveWithRetry(userId, sub);
+      _lastProvider = "legacy";
       console.log("[Push] ✅ Reused existing subscription");
       return sub;
     }
@@ -361,6 +382,7 @@ async function _doSubscribe(userId) {
     });
 
     await _saveWithRetry(userId, sub);
+    _lastProvider = "legacy";
     console.log("[Push] ✅ New subscription created");
     return sub;
   } catch (err) {
@@ -479,30 +501,27 @@ export const pushService = {
     const uid = userId || _userId;
     if (!uid) throw new Error("User ID is required to unsubscribe");
     try {
-      if (isFirebaseSupported() && isFirebaseConfigured()) {
-        const token = await getFirebaseFcmToken(uid);
-        if (!token) {
-          throw new Error("Could not identify this device's FCM subscription");
-        }
-
-        const { error } = await supabase
-          .from("push_subscriptions")
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq("user_id", uid)
-          .eq("provider", "fcm")
-          .eq("fcm_token", token);
-        if (error) throw error;
-
-        const removed = await unsubscribeFirebase(uid);
-        if (!removed) throw new Error("Firebase could not unsubscribe this device");
-
-        console.log("[Push] Unsubscribed this device from Firebase FCM");
-        return;
-      }
-
       const reg = await _getReg();
       const sub = await reg?.pushManager.getSubscription();
       const endpoint = sub?.endpoint;
+
+      if (isFirebaseSupported() && isFirebaseConfigured()) {
+        const token = await getFirebaseFcmToken(uid);
+        if (token) {
+          const { error } = await supabase
+            .from("push_subscriptions")
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq("user_id", uid)
+            .eq("provider", "fcm")
+            .eq("fcm_token", token);
+          if (error) throw error;
+
+          const removed = await unsubscribeFirebase(uid);
+          if (!removed) throw new Error("Firebase could not unsubscribe this device");
+          console.log("[Push] Unsubscribed this device from Firebase FCM");
+        }
+      }
+
       if (sub && !(await sub.unsubscribe())) {
         throw new Error("The browser could not unsubscribe this device");
       }
@@ -515,6 +534,7 @@ export const pushService = {
           .eq("endpoint", endpoint);
         if (error) throw error;
       }
+      _lastProvider = null;
       console.log("[Push] Unsubscribed this device");
     } catch (err) {
       console.error("[Push] Unsubscribe failed:", err);
@@ -537,7 +557,8 @@ export const pushService = {
       _userId &&
       actorUserId &&
       _userId === actorUserId &&
-      recipientUserId === actorUserId
+      recipientUserId === actorUserId &&
+      type !== "payment_confirmed"
     ) {
       return false;
     }
@@ -632,6 +653,8 @@ export const pushService = {
       permission: this.getPermission(),
       supported: this.isSupported(),
       firebaseConfigured: isFirebaseConfigured(),
+      firebaseLastError: getFirebaseLastError(),
+      lastProvider: _lastProvider,
     };
   },
 };

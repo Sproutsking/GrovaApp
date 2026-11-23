@@ -714,7 +714,7 @@ const MainApp = memo(({ onInitialHomeReady }) => {
       if (!payload) return;
       const type = payload?.data?.type || "general";
       // incoming_call handled by IncomingCallToast, not a toast
-      if (type === "incoming_call") return;
+      if (type === "incoming_call" || type === "call_cancelled") return;
       // dm handled by MessageNotificationService
       if (type === "dm") return;
       // All other types: forward to InAppNotificationToast via addToastRef
