@@ -2229,9 +2229,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
         .upm-hdr { padding:40px 24px 12px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:24px 24px 0 0; overflow:hidden; }
-        .upm-profile-header { --upm-cover-height:154px; padding:10px 16px 16px; text-align:left; background:transparent!important; }
-        .upm-profile-cover { height:154px; position:relative; overflow:hidden; border:1px solid rgba(163,230,53,.42); border-radius:14px; background-color:#07100a; background-image:linear-gradient(90deg,rgba(4,10,6,.9),rgba(4,10,6,.68) 52%,rgba(4,10,6,.42)),radial-gradient(ellipse at 18% 35%,rgba(132,204,22,.28),transparent 48%),radial-gradient(ellipse at 88% 78%,rgba(16,185,129,.22),transparent 48%),linear-gradient(120deg,#101a10,#07100a 50%,#08110d); background-position:center; background-size:cover; box-shadow:inset 0 0 44px rgba(0,0,0,.34),0 8px 28px rgba(0,0,0,.2); }
-        .upm-profile-cover.tier-silver,.upm-profile-cover.tier-gold,.upm-profile-cover.tier-diamond { border-color:color-mix(in srgb,var(--cover-accent) 36%,#292d29); background-image:radial-gradient(ellipse at 16% 20%,color-mix(in srgb,var(--cover-accent) 12%,transparent),transparent 46%),radial-gradient(ellipse at 86% 82%,color-mix(in srgb,var(--cover-accent) 8%,transparent),transparent 44%),linear-gradient(120deg,#101211,#050605 52%,#0d0f0e); box-shadow:inset 0 0 44px rgba(0,0,0,.34),0 8px 28px rgba(0,0,0,.2); }
+        .upm-profile-header { --upm-cover-height:154px; box-sizing:border-box; padding:0 0 16px; text-align:left; background:transparent!important; }
+        .upm-profile-cover { width:100%; height:154px; box-sizing:border-box; position:relative; overflow:hidden; border:0; border-radius:0; background-color:#07100a; background-image:linear-gradient(90deg,rgba(4,10,6,.9),rgba(4,10,6,.68) 52%,rgba(4,10,6,.42)),radial-gradient(ellipse at 18% 35%,rgba(132,204,22,.28),transparent 48%),radial-gradient(ellipse at 88% 78%,rgba(16,185,129,.22),transparent 48%),linear-gradient(120deg,#101a10,#07100a 50%,#08110d); background-position:center; background-size:cover; box-shadow:inset 0 0 44px rgba(0,0,0,.34); }
+        .upm-profile-cover.tier-silver,.upm-profile-cover.tier-gold,.upm-profile-cover.tier-diamond { background-image:radial-gradient(ellipse at 16% 20%,color-mix(in srgb,var(--cover-accent) 12%,transparent),transparent 46%),radial-gradient(ellipse at 86% 82%,color-mix(in srgb,var(--cover-accent) 8%,transparent),transparent 44%),linear-gradient(120deg,#101211,#050605 52%,#0d0f0e); box-shadow:inset 0 0 44px rgba(0,0,0,.34); }
         .upm-profile-cover.tier-silver .upm-cover-copy strong,.upm-profile-cover.tier-gold .upm-cover-copy strong,.upm-profile-cover.tier-diamond .upm-cover-copy strong { color:#edf0e9; text-shadow:0 0 12px color-mix(in srgb,var(--cover-accent) 18%,transparent); }
         .upm-profile-cover.tier-silver .upm-cover-grid,.upm-profile-cover.tier-gold .upm-cover-grid,.upm-profile-cover.tier-diamond .upm-cover-grid { background-image:linear-gradient(color-mix(in srgb,var(--cover-accent) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--cover-accent) 7%,transparent) 1px,transparent 1px); }
         .upm-profile-cover.tier-silver .upm-cover-brand,.upm-profile-cover.tier-gold .upm-cover-brand,.upm-profile-cover.tier-diamond .upm-cover-brand { filter:drop-shadow(0 0 8px color-mix(in srgb,var(--cover-accent) 24%,transparent)); }
@@ -2250,7 +2250,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-cover-edit:hover { background:#fff; transform:scale(1.08); }
         .upm-cover-edit:focus-visible { outline:2px solid #fff; outline-offset:3px; }
         .upm-profile-identity-row { display:flex; align-items:flex-end; gap:12px; min-height:76px; margin-top:-49px; position:relative; z-index:2; }
-        .upm-profile-action-row { position:absolute; top:calc(10px + var(--upm-cover-height) + 3px); right:18px; z-index:3; display:flex; align-items:center; justify-content:flex-end; gap:3px; flex-wrap:wrap; }
+        .upm-profile-action-row { position:absolute; top:calc(var(--upm-cover-height) + 3px); right:18px; z-index:3; display:flex; align-items:center; justify-content:flex-end; gap:3px; flex-wrap:wrap; }
         .upm-profile-action-row .upm-fbtn { width:auto; min-height:36px; padding:7px 11px; border-radius:999px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.1); }
         .upm-profile-action-row .upm-fbtn:focus-visible,.upm-xrd-btn:focus-visible { outline:2px solid #d9f99d; outline-offset:2px; }
         .upm-xrd-btn { min-height:34px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 12px; border:1px solid rgba(163,230,53,.38); border-radius:999px; background:linear-gradient(135deg,#a3e635,#65a30d); color:#0a1400; font-size:calc((10px) + 1px); font-weight:900; cursor:pointer; box-shadow:0 6px 20px rgba(132,204,22,.2); }
@@ -2362,8 +2362,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         @media (max-width:767px) {
           .upm-profile-shell { margin:0; }
           .upm-profile-hero { border-top:0; border-radius:0 0 18px 18px; }
-          .upm-profile-header { --upm-cover-height:132px; padding:0 12px 14px; }
-          .upm-profile-cover { height:132px; border-top:0; border-radius:0 0 14px 14px; }
+          .upm-profile-header { --upm-cover-height:132px; padding:0 0 14px; }
+          .upm-profile-cover { height:132px; border-top:0; border-radius:0; }
           .upm-people-grid { grid-template-columns:minmax(0,1fr); }
           .upm-cover-brand { right:18px; width:64px; height:72px; }
           .upm-cover-brand img { width:49px; height:49px; }

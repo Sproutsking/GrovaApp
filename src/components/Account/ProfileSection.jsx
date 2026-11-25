@@ -813,10 +813,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-section { padding: 20px; width:100%; min-width:0; box-sizing:border-box; }
         .profile-content-region { width:calc(100% + 40px); margin-left:-20px; }
         .profile-content-divider { height:1px; margin:18px 0 0; border:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16) 12%,rgba(255,255,255,.16) 88%,transparent); }
-        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:16px 24px 18px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:transparent; }
-        .profile-banner { position:absolute; inset:0 0 auto; z-index:0; height:250px; pointer-events:none; background-color:rgba(132,204,22,.08); background-size:cover; background-position:center; background-repeat:no-repeat; }
-        .profile-banner::after { content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.24) 0%,rgba(0,0,0,.16) 38%,rgba(3,5,4,.72) 78%,rgba(3,5,4,.94) 100%); }
-        .profile-identity-overlay { position:relative;z-index:1;width:100%;box-sizing:border-box;margin-top:84px;padding:16px 18px 12px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:linear-gradient(180deg,rgba(5,8,6,.86),rgba(4,6,5,.94));box-shadow:0 18px 42px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06);backdrop-filter:blur(10px); }
+        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:8px 8px 12px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:transparent; }
+        .profile-identity-overlay { position:relative;z-index:1;width:100%;box-sizing:border-box;margin:0;padding:16px 18px 12px;border:1px solid rgba(255,255,255,.12);border-radius:20px;background:linear-gradient(180deg,rgba(5,8,6,.9),rgba(4,6,5,.96));box-shadow:0 18px 42px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06); }
         .profile-name { font-size:calc((26px) + 1px);font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:calc((12px) + 1px);font-weight:900;line-height:1; }
         .profile-username { font-size:calc((15px) + 1px);color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
@@ -854,13 +852,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:calc((13px) + 1px);color:#84cc16; }
 
         .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
-        .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
-        .boost-manager-trigger:hover { background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(0,0,0,.2));border-color:rgba(220,220,220,.42);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.2); }
-        .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
+        .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid rgba(190,242,100,.5);border-radius:14px;background:linear-gradient(135deg,#263f0e 0%,#142d1d 58%,#0c1713 100%);box-shadow:inset 0 1px rgba(217,249,157,.12),0 8px 18px rgba(0,0,0,.24);color:#f7fee7;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
+        .boost-manager-trigger:hover { background:linear-gradient(135deg,#304e11 0%,#183824 58%,#102019 100%);border-color:rgba(190,242,100,.78);box-shadow:inset 0 1px rgba(217,249,157,.18),0 10px 22px rgba(0,0,0,.3); }
+        .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#d9f99d;background:#35551a;border:1px solid rgba(190,242,100,.46);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
-        .boost-manager-trigger-copy strong { font-size:calc((12px) + 1px);letter-spacing:.04em; }
-        .boost-manager-trigger-copy small { color:#777;font-size:calc((10px) + 1px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .boost-manager-trigger-chevron { color:#b8bcc3;font-size:calc((22px) + 1px);font-weight:300;line-height:1; }
+        .boost-manager-trigger-copy strong { color:#f7fee7;font-size:calc((12px) + 1px);letter-spacing:.04em; }
+        .boost-manager-trigger-copy small { color:#c5d6b1;font-size:calc((10px) + 1px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .boost-manager-trigger-chevron { color:#d9f99d;font-size:calc((22px) + 1px);font-weight:300;line-height:1; }
         .boost-manager-panel { display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease,opacity .25s ease;opacity:0; }
         .boost-manager-extension.is-open .boost-manager-panel { grid-template-rows:1fr;opacity:1; }
         .boost-manager-panel-inner { min-height:0;overflow:hidden;padding:0 16px; }
@@ -871,9 +869,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @media (max-width: 480px) {
           .profile-section { padding: 12px; }
           .profile-content-region { width:calc(100% + 24px); margin-left:-12px; }
-          .profile-header-content { padding: 12px 10px 12px; }
-          .profile-banner { height:220px; }
-          .profile-identity-overlay { margin-top:76px;padding:14px 10px 10px;border-radius:18px; }
+          .profile-header-content { padding: 4px 4px 8px; }
+          .profile-identity-overlay { padding:12px 8px 10px;border-radius:16px; }
           .profile-name { font-size:calc((20px) + 1px); }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
           .tri-stat-inner { gap:6px;padding:10px 6px; }
@@ -898,13 +895,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
         >
           <div className="profile-header-content">
-            <div
-              className="profile-banner"
-              aria-hidden="true"
-              style={profile.bannerImageUrl ? {
-                backgroundImage: `url(${JSON.stringify(profile.bannerImageUrl)})`,
-              } : undefined}
-            />
             <div className="profile-identity-overlay">
 
             {/* [B2] Avatar — BoostAvatarRing with tier-animated ring */}
