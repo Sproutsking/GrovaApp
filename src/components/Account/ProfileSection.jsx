@@ -4,8 +4,9 @@
 //   [AMB-1] Ambassador quick-action button added to actionButtons array
 //   [AMB-2] Accepts `onNavigate` prop — forwards to App.jsx global navigator
 //           so the ambassador button routes to the ambassador view/section
-//   [AMB-3] Ambassador badge shown on profile header if user is an ambassador
-//   [AMB-4] Live ambassador level pulled from ambassador_profiles for badge
+//   [AMB-3] Ambassador status remains available for the profile action button;
+//           status badges are intentionally omitted from the profile card.
+//   [AMB-4] Live ambassador level pulled from ambassador_profiles.
 // All other code — BoostProfileCard, BoostAvatarRing, BoostThemePicker,
 // FourStatRow, TriStatPill, modals — completely unchanged.
 // ============================================================================
@@ -14,14 +15,13 @@ import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 
 import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard, Link2,
+  Bookmark, Users, UserPlus, Hash, Heart, Star, LayoutDashboard, Link2,
   Sparkles, GitBranch, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
 import ComingSoonModal from "../Shared/ComingSoonModal";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import { buildTierInfo, getTierBadge } from "../../services/account/profileTierService";
 import ProfileEditModal    from "./ProfileEditModal";
 import SavedContentModal   from "../Modals/SavedContentModal";
 import CommunitiesModal    from "../Modals/CommunitiesModal";
@@ -33,7 +33,6 @@ import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidence
 import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
 import xrcService from "../../services/xrc";
 import socialConnectService from "../../services/distribution/socialConnectService";
-import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import { formatProfileTag, normalizeProfileTags } from "../../services/account/profileTags";
 
@@ -79,25 +78,6 @@ const useAnimatedCount = (target, duration = 600) => {
     return () => cancelAnimationFrame(raf.current);
   }, [target, duration]);
   return display;
-};
-
-const AccessBadge = ({ accessStatus }) => {
-  if (!accessStatus || accessStatus === "NOT_ACTIVATED") return null;
-  const map = {
-    PAID:        { label:"Paid Member",  color:"#a3e635", bg:"rgba(163,230,53,0.1)" },
-    FREE_ACCESS: { label:"Free Member",  color:"#38bdf8", bg:"rgba(56,189,248,0.1)" },
-  };
-  const cfg = map[accessStatus];
-  if (!cfg) return null;
-  return (
-    <span style={{
-      display:"inline-flex", alignItems:"center", gap:4,
-      padding:"1px 7px", borderRadius:12, fontSize:10, fontWeight:800,
-      color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30`,
-    }}>
-      ✓ {cfg.label}
-    </span>
-  );
 };
 
 const ConfirmLogout = ({ onConfirm, onCancel }) => (
@@ -195,28 +175,6 @@ const LiveDot = ({ color = "#84cc16", size = 5 }) => (
   />
 );
 
-// [AMB-3] Ambassador level badge shown on profile header
-const AmbassadorBadge = ({ level, name }) => {
-  const levelColors = {
-    1: { color:"#6ee7b7", icon:"🌱" },
-    2: { color:"#60a5fa", icon:"⚡" },
-    3: { color:"#f59e0b", icon:"🔥" },
-    4: { color:"#a78bfa", icon:"💎" },
-    5: { color:"#fbbf24", icon:"👑" },
-  };
-  const cfg = levelColors[level] || levelColors[1];
-  return (
-    <span style={{
-      display:"inline-flex", alignItems:"center", gap:4,
-      padding:"2px 8px", borderRadius:20, fontSize:11, fontWeight:800,
-      color:cfg.color, background:`${cfg.color}12`,
-      border:`1px solid ${cfg.color}30`, flexShrink:0,
-    }}>
-      {cfg.icon} Ambassador {name && `· ${name}`}
-    </span>
-  );
-};
-
 // ── Tri-stat pill (for the live profile summary row) ─────────────────────
 const TriStatPill = ({ icon: Icon, animTarget, value, label, accent, glowColor }) => {
   const animatedValue = useAnimatedCount(Number(animTarget ?? value ?? 0), 450);
@@ -272,7 +230,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [profile,               setProfile]               = useState(null);
   const [verificationItems,     setVerificationItems]     = useState([]);
   const [verificationLoading,   setVerificationLoading]   = useState(true);
-  const [tierInfo,              setTierInfo]              = useState(null);
   const [loading,               setLoading]               = useState(true);
   const [error,                 setError]                 = useState(null);
   const [showEditModal,         setShowEditModal]         = useState(false);
@@ -430,7 +387,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         return;
       }
       if (profileData)  {
-        setTierInfo(buildTierInfo(profileData));
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);
         setActiveFontId(profileData.boost_selections?.fontId ?? null);
         setActiveColorId(profileData.boost_selections?.colorId ?? null);
@@ -450,6 +406,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         console.warn("Avatar URL generation failed:", err?.message);
       }
       const avatarUrl = avatarCandidates[0] || null;
+      const bannerImageUrl = profileData?.banner_image_id
+        ? mediaUrlService.getOptimizedImageUrl(profileData.banner_image_id, {
+          width: 1500,
+          height: 520,
+          quality: "100",
+          format: "webp",
+          crop: "fill",
+          gravity: "auto",
+        })
+        : null;
 
       if (profileData) {
         setProfile({
@@ -459,9 +425,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           avatar: avatarUrl,
           avatarId: profileData.avatar_id,
           avatarMetadata: profileData.avatar_metadata || authUser?.user_metadata || null,
-          bannerImageUrl: profileData.banner_image_id
-            ? mediaUrlService.getOptimizedImageUrl(profileData.banner_image_id, { width: 1500, height: 520, quality: "100", format: "webp", crop: "fill" })
-            : null,
+          bannerImageUrl,
           bannerImageId: profileData.banner_image_id || null,
           bio: profileData.bio,
           profileTags: normalizeProfileTags(profileData.profile_tags),
@@ -546,6 +510,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         avatar:           avatarUrl,  // Use the enhanced avatarUrl constructed above
         avatarId:         profileData?.avatar_id,
         avatarMetadata:   profileData?.avatar_metadata || authUser?.user_metadata || null,
+        bannerImageUrl,
+        bannerImageId:    profileData?.banner_image_id || null,
         bio:              profileData?.bio,
         profileTags:      normalizeProfileTags(profileData?.profile_tags),
         socialLinks:      profileData?.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
@@ -847,15 +813,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-section { padding: 20px; width:100%; min-width:0; box-sizing:border-box; }
         .profile-content-region { width:calc(100% + 40px); margin-left:-20px; }
         .profile-content-divider { height:1px; margin:18px 0 0; border:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16) 12%,rgba(255,255,255,.16) 88%,transparent); }
-        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:40px 24px 16px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
-        .profile-header-content::before { content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 75% 48% at 50% 0%,rgba(132,204,22,.12),transparent 72%),radial-gradient(ellipse 55% 45% at 8% 30%,rgba(96,165,250,.055),transparent 75%); }
-        .profile-header-content::after { content:"";position:absolute;top:0;left:12%;right:12%;height:1px;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),rgba(132,204,22,.5),rgba(255,255,255,.18),transparent); }
-        .profile-header-content > * { position:relative;z-index:1; }
+        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:16px 24px 18px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:transparent; }
+        .profile-banner { position:absolute; inset:0 0 auto; z-index:0; height:250px; pointer-events:none; background-color:rgba(132,204,22,.08); background-size:cover; background-position:center; background-repeat:no-repeat; }
+        .profile-banner::after { content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.24) 0%,rgba(0,0,0,.16) 38%,rgba(3,5,4,.72) 78%,rgba(3,5,4,.94) 100%); }
+        .profile-identity-overlay { position:relative;z-index:1;width:100%;box-sizing:border-box;margin-top:84px;padding:16px 18px 12px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:linear-gradient(180deg,rgba(5,8,6,.86),rgba(4,6,5,.94));box-shadow:0 18px 42px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06);backdrop-filter:blur(10px); }
         .profile-name { font-size:calc((26px) + 1px);font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:calc((12px) + 1px);font-weight:900;line-height:1; }
-        .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
-        .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#fbbf24; }
-        .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#84cc16; }
         .profile-username { font-size:calc((15px) + 1px);color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 10px; }
         .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:calc((9px) + 1px);font-weight:800;line-height:1.2; }
@@ -908,7 +871,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @media (max-width: 480px) {
           .profile-section { padding: 12px; }
           .profile-content-region { width:calc(100% + 24px); margin-left:-12px; }
-          .profile-header-content { padding: 18px 12px 12px; }
+          .profile-header-content { padding: 12px 10px 12px; }
+          .profile-banner { height:220px; }
+          .profile-identity-overlay { margin-top:76px;padding:14px 10px 10px;border-radius:18px; }
           .profile-name { font-size:calc((20px) + 1px); }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
           .tri-stat-inner { gap:6px;padding:10px 6px; }
@@ -932,15 +897,15 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           embedded
           style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
         >
-          <div
-            className="profile-header-content"
-            style={{
-              background: profile.bannerImageUrl
-                ? `linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.66)), url("${profile.bannerImageUrl}") center/cover`
-                : "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)",
-              backdropFilter: "blur(8px)",
-            }}
-          >
+          <div className="profile-header-content">
+            <div
+              className="profile-banner"
+              aria-hidden="true"
+              style={profile.bannerImageUrl ? {
+                backgroundImage: `url(${JSON.stringify(profile.bannerImageUrl)})`,
+              } : undefined}
+            />
+            <div className="profile-identity-overlay">
 
             {/* [B2] Avatar — BoostAvatarRing with tier-animated ring */}
             <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
@@ -998,19 +963,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               </div>
             )}
 
-            <div className="profile-badges-row">
-              {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
-              <TierBadgePill tier={profile.subscriptionTier} paymentStatus={profile.paymentStatus} />
-              {tierInfo && <AccessBadge accessStatus={tierInfo.accessStatus} />}
-              {/* [AMB-3] Ambassador badge on profile header */}
-              {ambassadorData && (
-                <AmbassadorBadge
-                  level={ambassadorData.current_level}
-                  name={ambLevelName}
-                />
-              )}
-            </div>
-
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
             {profileSocialLinks.length > 0 && (
               <div className="profile-social-links">
@@ -1063,6 +1015,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               </div>
             </div>
 
+            </div>
           </div>
 
           {hasBoostedTier && (

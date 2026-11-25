@@ -54,15 +54,17 @@ const ACCOUNT_CSS = `
     overflow-x:auto; overflow-y:visible;
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
     flex-shrink:0; position:sticky; top:0; z-index:20;
+    background:#000; border-bottom:1px solid rgba(255,255,255,0.1);
+    isolation:isolate;
   }
   .account-tabs.account-tabs--light {
-    background:linear-gradient(180deg,rgba(249,250,251,0.98),rgba(243,244,246,0.95));
-    border-bottom:1px solid rgba(132,204,22,0.15);
+    background:#000;
+    border-bottom:1px solid rgba(255,255,255,0.1);
     color: rgba(51,65,85,0.75);
   }
   .account-tabs.account-tabs--dark {
-    background: var(--surface-strong);
-    border-bottom:1px solid rgba(255,255,255,0.06);
+    background:#000;
+    border-bottom:1px solid rgba(255,255,255,0.1);
   }
   .account-tabs::-webkit-scrollbar { display:none; }
 
@@ -71,7 +73,7 @@ const ACCOUNT_CSS = `
     display:flex; align-items:center; justify-content:center; gap:7px;
     padding:9px 12px; border-radius:11px;
     border:1px solid transparent; background:transparent;
-    color:rgba(51,65,85,0.65); font-size:calc((12.5px) + 1px); font-weight:600;
+    color:rgba(255,255,255,0.68); font-size:calc((12.5px) + 1px); font-weight:600;
     cursor:pointer; white-space:nowrap; flex-shrink:1; flex-grow:1;
     transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
     letter-spacing:0.015em; line-height:1; font-family:inherit;
@@ -79,7 +81,7 @@ const ACCOUNT_CSS = `
   }
   .account-tabs.account-tabs--light .account-tab:hover {
     background: rgba(132, 204, 22, 0.08);
-    color: rgba(51, 65, 85, 0.9);
+    color: rgba(255, 255, 255, 0.92);
     border-color: rgba(132, 204, 22, 0.2);
   }
   .account-tabs.account-tabs--dark .account-tab {
@@ -89,9 +91,6 @@ const ACCOUNT_CSS = `
     background: rgba(255,255,255,0.06);
     color: rgba(255,255,255,0.92);
     border-color: rgba(255,255,255,0.12);
-  }
-  .account-tabs.account-tabs--dark {
-    background: var(--surface-strong);
   }
   .account-tabs.account-tabs--dark .account-tab-active {
     background: rgba(132,204,22,0.14) !important;
@@ -107,7 +106,7 @@ const ACCOUNT_CSS = `
 
   .account-tabs.account-tabs--light .account-tab:hover {
     background: rgba(132, 204, 22, 0.08);
-    color: rgba(51, 65, 85, 0.85);
+    color: rgba(255, 255, 255, 0.92);
     border-color: rgba(132, 204, 22, 0.2);
   }
   .account-tabs.account-tabs--dark .account-tab:hover {

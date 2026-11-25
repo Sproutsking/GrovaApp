@@ -104,8 +104,8 @@ describe("MessageList presentation", () => {
     ], "direct");
     const styles = container.querySelector(".msg-list-wrapper style").textContent;
 
-    expect(styles).toContain("--message-tail-fill: #0d5e49;");
-    expect(styles).toContain("--message-tail-edge: rgba(209,250,229,.3);");
+    expect(styles).toContain("--message-tail-fill: #005c4b;");
+    expect(styles).toContain("--message-tail-edge: rgba(130,215,187,.38);");
   });
 
   it("keeps link previews inside the message bubble and labels shared GIFs as content", () => {
