@@ -31,10 +31,10 @@ const S = `
 @keyframes ssFade { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
 
 .sset {
-  --surface-strong: #101710;
-  --surface-border: #2b382d;
-  --surface: #202a22;
-  --panel: #151d16;
+  --surface-strong: #000;
+  --surface-border: #2f3336;
+  --surface: #151718;
+  --panel: #030303;
   --text: #edf3eb;
   --text-secondary: #a7b3a5;
   --accent: #84cc16;
@@ -43,14 +43,14 @@ const S = `
 }
 
 .sset-card {
-  background: #101710;
+  background: #000;
   border: 1px solid var(--surface-border);
   border-radius: 14px; padding: 14px; margin-bottom: 12px;
   position: relative; overflow: hidden;
 }
 .sset-card-accent {
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: #84cc16;
+  position: absolute; top: 0; left: 14px; right: 14px; height: 2px;
+  background: #536d36;
 }
 
 .sset-ch {
@@ -60,8 +60,8 @@ const S = `
 .sset-ch-left { display: flex; align-items: center; gap: 10px; }
 .sset-icon {
   width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-  background: #24331b;
-  border: 1px solid #40552d;
+  background: #030303;
+  border: 1px solid #2f3336;
   display: flex; align-items: center; justify-content: center; color: #b7eb67;
 }
 .sset-title { font-size: calc((14px) + 1px); font-weight: 800; color: var(--text); margin: 0; }
@@ -73,7 +73,7 @@ const S = `
 .sset-caret { color: #a7b3a5; transition: transform .2s; flex-shrink: 0; }
 .sset-caret.open { transform: rotate(180deg); }
 .sset-accordion-button {
-  width: 100%; padding: 0 0 12px; border: 0; background: #101710;
+  width: 100%; padding: 0 0 12px; border: 0; background: #000;
   color: inherit; text-align: left; font: inherit; cursor: pointer;
 }
 .sset-ch.sset-accordion-button { margin-bottom: 0; }
@@ -82,7 +82,7 @@ const S = `
 }
 .sset-security-summary { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .sset-security-summary small { color: #a7b3a5; font-size: 11px; line-height: 1.4; }
-.sset-security-body { border-top: 1px solid #2b382d; }
+.sset-security-body { border-top: 1px solid #2f3336; }
 .sset-security-body .ss { padding: 14px 0 2px; animation: none; }
 
 .sset-toggle {
@@ -165,34 +165,42 @@ const S = `
 
 /* ── Upgrade button ── */
 .sset-upgrade-btn {
-  width: 100%; padding: 14px;
-  background: #80620d;
-  border: 1px solid #b9972f; border-radius: 12px; color: #fff1b3;
-  font-size: calc((14px) + 1px); font-weight: 900; cursor: pointer;
+  min-width: 0; padding: 12px 10px;
+  background: #493807;
+  border: 1px solid #9a7922; border-radius: 10px; color: #f5df9a;
+  font-size: calc((12px) + 1px); font-weight: 800; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background .2s,border-color .2s;
 }
-.sset-upgrade-btn:hover { background: #957514; border-color: #d3b04a; }
+.sset-upgrade-btn:hover { background: #5b470b; border-color: #c3a344; }
 
 .sset-manage-btn {
-  width: 100%; padding: 12px;
-  background: #202820; border: 1px solid #3b473d;
-  border-radius: 12px; color: #e1e9e1;
-  font-size: calc((13px) + 1px); font-weight: 700; cursor: pointer;
+  min-width: 0; padding: 12px 10px;
+  background: #111511; border: 1px solid #3b473d;
+  border-radius: 10px; color: #e1e9e1;
+  font-size: calc((12px) + 1px); font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background .2s,border-color .2s;
 }
-.sset-manage-btn:hover { background: #2c372d; border-color: #58675a; color: #fff; }
+.sset-manage-btn:hover { background: #1b211b; border-color: #66745f; color: #fff; }
+.sset-boost-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.sset-boost-actions .sset-manage-btn,
+.sset-boost-actions .sset-upgrade-btn { width: 100%; }
+@media (max-width: 380px) {
+  .sset-boost-actions { gap: 6px; }
+  .sset-boost-actions .sset-manage-btn,
+  .sset-boost-actions .sset-upgrade-btn { gap: 5px; padding: 11px 6px; font-size: 11px; }
+}
 
 .sset-save {
   width: 100%; padding: 14px;
-  background: #6a9c1b;
-  border: 1px solid #84cc16; border-radius: 12px; color: #081100;
+  background: #526f28;
+  border: 1px solid #779b46; border-radius: 10px; color: #f2f8e9;
   font-size: calc((14px) + 1px); font-weight: 800; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: background .2s,border-color .2s; margin-top: 6px;
 }
-.sset-save:hover:not(:disabled) { background: #7bad20; border-color: #a3e635; }
+.sset-save:hover:not(:disabled) { background: #607f31; border-color: #a3e635; }
 .sset-save:disabled { background: #34402f; border-color: #46513f; color: #9aa493; cursor: not-allowed; }
 
 .sset-banner {
@@ -722,12 +730,14 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     and EP bonus on all earnings.
                   </div>
 
-                  <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))}>
-                    <Zap size={13}/> Manage Profile Upgrade
-                  </button>
-                  <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()}>
-                    👑 Upgrade Your Profile
-                  </button>
+                  <div className="sset-boost-actions">
+                    <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))}>
+                      <Zap size={13}/> Manage
+                    </button>
+                    <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()}>
+                      👑 Upgrade
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* ── No boost — upgrade CTA ── */
@@ -759,17 +769,14 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     })}
                   </div>
 
-                  <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()} style={{
-                    background:"#6b5008",
-                    border:"1px solid #b9972f",
-                    color:"#fef3c7",
-                    fontWeight:900,
-                  }}>
-                    👑 Upgrade Your Profile
-                  </button>
-                  <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))} style={{ marginTop: 8 }}>
-                    <Zap size={13}/> Manage Profile Upgrade
-                  </button>
+                  <div className="sset-boost-actions">
+                    <button className="sset-manage-btn" onClick={() => window.dispatchEvent(new CustomEvent("xeevia:profile-shortcut", { detail: { action: "manage-boost" } }))}>
+                      <Zap size={13}/> Manage
+                    </button>
+                    <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()}>
+                      👑 Upgrade
+                    </button>
+                  </div>
 
                   <p style={{ fontSize:11, color:"#8f9b90", textAlign:"center", margin:"8px 0 0" }}>
                     $1 = 100 EP · Paid with EP · Cancel anytime
