@@ -13,13 +13,12 @@
 
 import React, { useState, useEffect, startTransition } from "react";
 import {
-  UserCircle, Settings, LayoutDashboard, Shield, Globe,
+  UserCircle, Settings, LayoutDashboard, Globe,
 } from "lucide-react";
 
 import ProfileSection   from "./ProfileSection";
 import SettingsSection  from "./SettingsSection";
 import DashboardSection from "./DashboardSection";
-import SecuritySection  from "./SecuritySection";
 import IdentitySection  from "./IdentitySection";
 import { supabase }          from "../../services/config/supabase";
 import mediaUrlService        from "../../services/shared/mediaUrlService";
@@ -54,65 +53,41 @@ const ACCOUNT_CSS = `
     overflow-x:auto; overflow-y:visible;
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
     flex-shrink:0; position:sticky; top:0; z-index:20;
-    background:#000; border-bottom:1px solid rgba(255,255,255,0.1);
+    background:#000; border-bottom:1px solid #252c27;
     isolation:isolate;
   }
   .account-tabs.account-tabs--light {
     background:#000;
-    border-bottom:1px solid rgba(255,255,255,0.1);
-    color: rgba(51,65,85,0.75);
+    border-bottom:1px solid #252c27;
+    color:#a7b3a5;
   }
   .account-tabs.account-tabs--dark {
     background:#000;
-    border-bottom:1px solid rgba(255,255,255,0.1);
+    border-bottom:1px solid #252c27;
   }
   .account-tabs::-webkit-scrollbar { display:none; }
 
-  /* ── Tab button — Light mode ── */
   .account-tab {
     display:flex; align-items:center; justify-content:center; gap:7px;
     padding:9px 12px; border-radius:11px;
-    border:1px solid transparent; background:transparent;
-    color:rgba(255,255,255,0.68); font-size:calc((12.5px) + 1px); font-weight:600;
+    border:1px solid #252f27; background:#0d120e;
+    color:#b5c1b2; font-size:calc((12.5px) + 1px); font-weight:600;
     cursor:pointer; white-space:nowrap; flex-shrink:1; flex-grow:1;
     transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
     letter-spacing:0.015em; line-height:1; font-family:inherit;
     min-width:0;
   }
-  .account-tabs.account-tabs--light .account-tab:hover {
-    background: rgba(132, 204, 22, 0.08);
-    color: rgba(255, 255, 255, 0.92);
-    border-color: rgba(132, 204, 22, 0.2);
+  .account-tab:hover {
+    background:#172217;
+    color:#edf7e2;
+    border-color:#44583a;
   }
-  .account-tabs.account-tabs--dark .account-tab {
-    color: rgba(255,255,255,0.68);
-  }
-  .account-tabs.account-tabs--dark .account-tab:hover {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.92);
-    border-color: rgba(255,255,255,0.12);
-  }
-  .account-tabs.account-tabs--dark .account-tab-active {
-    background: rgba(132,204,22,0.14) !important;
-    border-color: rgba(132,204,22,0.38) !important;
-    color: #d9f99d !important;
-  }
+  .account-tab:focus-visible { outline:2px solid #a3e635; outline-offset:2px; }
 
   .account-tab svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-  }
-
-  .account-tabs.account-tabs--light .account-tab:hover {
-    background: rgba(132, 204, 22, 0.08);
-    color: rgba(255, 255, 255, 0.92);
-    border-color: rgba(132, 204, 22, 0.2);
-  }
-  .account-tabs.account-tabs--dark .account-tab:hover {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.92);
-    border-color: rgba(255,255,255,0.12);
   }
 
   .account-tab:active {
@@ -122,14 +97,14 @@ const ACCOUNT_CSS = `
 
   /* ── Active state — lime highlight ── */
   .account-tab-active {
-    background: rgba(132, 204, 22, 0.12) !important;
-    border-color: rgba(132, 204, 22, 0.4) !important;
-    color: #65a30d !important;
+    background:#26391b !important;
+    border-color:#7ea64e !important;
+    color:#e4f6c6 !important;
   }
 
   .account-tab-active:hover {
-    background: rgba(132, 204, 22, 0.18) !important;
-    border-color: rgba(132, 204, 22, 0.5) !important;
+    background:#304821 !important;
+    border-color:#a3e635 !important;
   }
 
   /* ═══════════════════════════════
@@ -209,11 +184,16 @@ const AccountView = ({
 }) => {
   const [profileData, setProfileData] = useState(null);
   const [preRendered, setPreRendered] = useState(false);
+  const activeSection = accountSection === "security" ? "settings" : accountSection;
 
   useEffect(() => {
     if (userId) loadBasicProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  useEffect(() => {
+    if (accountSection === "security") setAccountSection("settings");
+  }, [accountSection, setAccountSection]);
 
   // Pre-render all tabs on mount for ultra-instant switching
   useEffect(() => {
@@ -282,7 +262,6 @@ const AccountView = ({
     { id: "profile",   icon: <UserCircle size={16} />,     label: "Profile"   },
     { id: "identity",  icon: <IdentityIcon size={16} />,    label: "Identity"  },
     { id: "dashboard", icon: <LayoutDashboard size={16} />, label: "Dashboard" },
-    { id: "security",  icon: <Shield size={16} />,          label: "Security"  },
     { id: "settings",  icon: <Settings size={16} />,        label: "Settings"  },
   ];
 
@@ -301,9 +280,9 @@ const AccountView = ({
               key={id}
               type="button"
               role="tab"
-              aria-selected={accountSection === id}
+              aria-selected={activeSection === id}
               onClick={() => setAccountSection(id)}
-              className={`account-tab${accountSection === id ? " account-tab-active" : ""}`}
+              className={`account-tab${activeSection === id ? " account-tab-active" : ""}`}
             >
               {icon}
               <span>{label}</span>
@@ -312,8 +291,8 @@ const AccountView = ({
         </div>
 
         {/* ── Section Panels — All pre-rendered for instant switching ── */}
-        {(accountSection === "profile" || preRendered) && (
-          <div style={{ display: accountSection === "profile" ? "block" : "none" }}>
+        {(activeSection === "profile" || preRendered) && (
+          <div style={{ display: activeSection === "profile" ? "block" : "none" }}>
             <ProfileSection
               currentUser={currentUser}
               userId={userId}
@@ -325,14 +304,14 @@ const AccountView = ({
           </div>
         )}
 
-        {(accountSection === "identity" || preRendered) && (
-          <div style={{ display: accountSection === "identity" ? "block" : "none" }}>
+        {(activeSection === "identity" || preRendered) && (
+          <div style={{ display: activeSection === "identity" ? "block" : "none" }}>
             <IdentitySection userId={userId} />
           </div>
         )}
 
-        {(accountSection === "dashboard" || preRendered) && (
-          <div style={{ display: accountSection === "dashboard" ? "block" : "none" }}>
+        {(activeSection === "dashboard" || preRendered) && (
+          <div style={{ display: activeSection === "dashboard" ? "block" : "none" }}>
             <DashboardSection
               currentUser={currentUser}
               profile={profileData}
@@ -343,14 +322,8 @@ const AccountView = ({
           </div>
         )}
 
-        {(accountSection === "security" || preRendered) && (
-          <div style={{ display: accountSection === "security" ? "block" : "none" }}>
-            <SecuritySection userId={userId} />
-          </div>
-        )}
-
-        {(accountSection === "settings" || preRendered) && (
-          <div style={{ display: accountSection === "settings" ? "block" : "none" }}>
+        {(activeSection === "settings" || preRendered) && (
+          <div style={{ display: activeSection === "settings" ? "block" : "none" }}>
             <SettingsSection
               isSubscribed={isSubscribed}
               userId={userId}

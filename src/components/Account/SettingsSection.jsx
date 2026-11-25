@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Bell, Lock, User, Loader, Save, Mail, Phone,
-  AlertTriangle, BadgeCheck, CheckCircle, ChevronDown, Zap,
+  AlertTriangle, BadgeCheck, CheckCircle, ChevronDown, Shield, Zap,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import settingsService from "../../services/account/settingsService";
@@ -15,43 +15,42 @@ import ConfirmModal from "../Modals/ConfirmModal";
 import PhoneVerificationModal from "../Modals/PhoneVerificationModal";
 import EmailVerificationModal from "../Modals/EmailVerificationModal";
 import { pushService } from "../../services/notifications/pushService";
+import SecuritySection from "./SecuritySection";
 
 // Tier display config
 const TIER_CONFIG = {
-  silver:  { label: "Silver Boost",  emoji: "🥈", color: "#C0C0C0", grad: ["#C0C0C0","#808080"] },
-  gold:    { label: "Gold Boost",    emoji: "🥇", color: "#FFD700", grad: ["#FFD700","#B8860B"] },
-  diamond: { label: "Diamond Boost", emoji: "💎", color: "#00BFFF", grad: ["#00BFFF","#1e3a8a"] },
-  none:    { label: "No Boost",      emoji: "👤", color: "#737373", grad: ["#444","#222"] },
+  silver:  { label: "Silver Boost",  emoji: "🥈", color: "#C0C0C0" },
+  gold:    { label: "Gold Boost",    emoji: "🥇", color: "#FFD700" },
+  diamond: { label: "Diamond Boost", emoji: "💎", color: "#00BFFF" },
+  none:    { label: "No Boost",      emoji: "👤", color: "#737373" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 const S = `
 @keyframes ssSpin { to { transform: rotate(360deg); } }
-@keyframes ssShim {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
-@keyframes ssPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.4); }
-  50%     { box-shadow: 0 0 0 5px rgba(34,197,94,.0); }
-}
 @keyframes ssFade { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
-@keyframes ssGlow {
-  0%,100% { box-shadow: 0 0 12px rgba(132,204,22,.2); }
-  50%     { box-shadow: 0 0 24px rgba(132,204,22,.5); }
-}
 
-.sset { padding: 12px 14px 80px; animation: ssFade .3s ease; }
+.sset {
+  --surface-strong: #101710;
+  --surface-border: #2b382d;
+  --surface: #202a22;
+  --panel: #151d16;
+  --text: #edf3eb;
+  --text-secondary: #a7b3a5;
+  --accent: #84cc16;
+  padding: 12px 14px 80px;
+  animation: ssFade .3s ease;
+}
 
 .sset-card {
-  background: var(--surface-strong);
+  background: #101710;
   border: 1px solid var(--surface-border);
   border-radius: 14px; padding: 14px; margin-bottom: 12px;
   position: relative; overflow: hidden;
 }
 .sset-card-accent {
   position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, #84cc16, #65a30d);
+  background: #84cc16;
 }
 
 .sset-ch {
@@ -61,17 +60,30 @@ const S = `
 .sset-ch-left { display: flex; align-items: center; gap: 10px; }
 .sset-icon {
   width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(132,204,22,.15), rgba(132,204,22,.05));
-  border: 1px solid rgba(132,204,22,.2);
-  display: flex; align-items: center; justify-content: center; color: #84cc16;
+  background: #24331b;
+  border: 1px solid #40552d;
+  display: flex; align-items: center; justify-content: center; color: #b7eb67;
 }
 .sset-title { font-size: calc((14px) + 1px); font-weight: 800; color: var(--text); margin: 0; }
 .sset-badge {
-  padding: 2px 8px; background: rgba(132,204,22,.12);
-  border-radius: 6px; color: #84cc16; font-size: calc((10px) + 1px); font-weight: 700;
+  padding: 2px 8px; background: #26371c;
+  border: 1px solid #3e5729; border-radius: 6px; color: #c5f17e;
+  font-size: calc((10px) + 1px); font-weight: 700;
 }
-.sset-caret { color: #333; transition: transform .2s; flex-shrink: 0; }
+.sset-caret { color: #a7b3a5; transition: transform .2s; flex-shrink: 0; }
 .sset-caret.open { transform: rotate(180deg); }
+.sset-accordion-button {
+  width: 100%; padding: 0 0 12px; border: 0; background: #101710;
+  color: inherit; text-align: left; font: inherit; cursor: pointer;
+}
+.sset-ch.sset-accordion-button { margin-bottom: 0; }
+.sset-accordion-button:focus-visible {
+  outline: 2px solid #a3e635; outline-offset: 4px; border-radius: 8px;
+}
+.sset-security-summary { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sset-security-summary small { color: #a7b3a5; font-size: 11px; line-height: 1.4; }
+.sset-security-body { border-top: 1px solid #2b382d; }
+.sset-security-body .ss { padding: 14px 0 2px; animation: none; }
 
 .sset-toggle {
   display: flex; align-items: center; justify-content: space-between;
@@ -92,20 +104,21 @@ const S = `
   padding: 0; appearance: none; font: inherit;
 }
 .sset-sw.on {
-  background: linear-gradient(135deg, var(--accent), #65a30d);
+  background: #5f8e1c;
   border-color: var(--accent);
 }
+.sset-sw:disabled { background: #354036; border-color: #48564a; cursor: wait; }
 .sset-sw-knob {
   position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px; background: var(--panel);
+  width: 16px; height: 16px; background: #e7eee5;
   border-radius: 50%; transition: transform .25s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.15);
 }
 .sset-sw.on .sset-sw-knob { transform: translateX(18px); }
+.sset-sw:focus-visible { outline: 2px solid #a3e635; outline-offset: 3px; }
 
 .sset-contact {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+  padding: 10px 0; border-bottom: 1px solid #2b342d;
 }
 .sset-contact:last-of-type { border-bottom: none; }
 .sset-contact-body { flex: 1; min-width: 0; }
@@ -122,32 +135,24 @@ const S = `
 .sset-vbadge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 20px; font-size: calc((10px) + 1px); font-weight: 800;
-  background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(21,128,61,.12));
-  border: 1px solid rgba(34,197,94,.3); color: #22c55e;
-  position: relative; overflow: hidden; animation: ssPulse 3s ease infinite; flex-shrink: 0;
+  background: #183421;
+  border: 1px solid #316543; color: #8fe0a2; flex-shrink: 0;
 }
-.sset-vbadge::before {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.1) 40%,
-    rgba(255,255,255,.22) 50%, rgba(255,255,255,.1) 60%, transparent 100%);
-  background-size: 200% 100%; animation: ssShim 2.4s ease infinite;
-}
-.sset-vbadge-ico  { position: relative; z-index: 1; flex-shrink: 0; }
-.sset-vbadge-text { position: relative; z-index: 1; }
+.sset-vbadge-ico, .sset-vbadge-text { flex-shrink: 0; }
 
 .sset-ubadge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 20px; font-size: calc((10px) + 1px); font-weight: 700;
-  background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25); color: #fbbf24; flex-shrink: 0;
+  background: #382d16; border: 1px solid #715c2a; color: #f0ca63; flex-shrink: 0;
 }
 
 .sset-cbtn {
   padding: 6px 12px; border-radius: 8px; flex-shrink: 0;
-  background: rgba(132,204,22,.08); border: 1px solid rgba(132,204,22,.25);
-  color: #84cc16; font-size: calc((11.5px) + 1px); font-weight: 700; cursor: pointer;
+  background: #26371c; border: 1px solid #496631;
+  color: #c5f17e; font-size: calc((11.5px) + 1px); font-weight: 700; cursor: pointer;
   display: flex; align-items: center; gap: 5px; transition: all .15s; white-space: nowrap;
 }
-.sset-cbtn:hover { background: rgba(132,204,22,.16); border-color: rgba(132,204,22,.45); transform: translateY(-1px); }
+.sset-cbtn:hover { background: #324a22; border-color: #6b913f; }
 
 /* ── Boost card ── */
 .sset-boost-active {
@@ -161,43 +166,42 @@ const S = `
 /* ── Upgrade button ── */
 .sset-upgrade-btn {
   width: 100%; padding: 14px;
-  background: linear-gradient(135deg, #FFD700, #B8860B);
-  border: none; border-radius: 12px; color: #000;
+  background: #80620d;
+  border: 1px solid #b9972f; border-radius: 12px; color: #fff1b3;
   font-size: calc((14px) + 1px); font-weight: 900; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all .25s; box-shadow: 0 3px 16px rgba(255,215,0,.25);
-  animation: ssGlow 3s ease infinite;
+  transition: background .2s,border-color .2s;
 }
-.sset-upgrade-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(255,215,0,.45); }
+.sset-upgrade-btn:hover { background: #957514; border-color: #d3b04a; }
 
 .sset-manage-btn {
   width: 100%; padding: 12px;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
-  border-radius: 12px; color: #a3a3a3;
+  background: #202820; border: 1px solid #3b473d;
+  border-radius: 12px; color: #e1e9e1;
   font-size: calc((13px) + 1px); font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all .2s;
+  transition: background .2s,border-color .2s;
 }
-.sset-manage-btn:hover { background: rgba(255,255,255,.07); color: #fff; }
+.sset-manage-btn:hover { background: #2c372d; border-color: #58675a; color: #fff; }
 
 .sset-save {
   width: 100%; padding: 14px;
-  background: linear-gradient(135deg, #84cc16, #65a30d);
-  border: none; border-radius: 12px; color: #000;
+  background: #6a9c1b;
+  border: 1px solid #84cc16; border-radius: 12px; color: #081100;
   font-size: calc((14px) + 1px); font-weight: 800; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all .25s; box-shadow: 0 3px 12px rgba(132,204,22,.3); margin-top: 6px;
+  transition: background .2s,border-color .2s; margin-top: 6px;
 }
-.sset-save:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(132,204,22,.5); }
-.sset-save:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.sset-save:hover:not(:disabled) { background: #7bad20; border-color: #a3e635; }
+.sset-save:disabled { background: #34402f; border-color: #46513f; color: #9aa493; cursor: not-allowed; }
 
 .sset-banner {
   border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
   display: flex; align-items: flex-start; gap: 8px; font-size: calc((12px) + 1px); line-height: 1.5;
 }
-.sset-banner.warn  { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.22);  color: #fbbf24; }
-.sset-banner.info  { background: rgba(96,165,250,.08);  border: 1px solid rgba(96,165,250,.2); color: #60a5fa; }
-.sset-banner.succ  { background: rgba(34,197,94,.08);   border: 1px solid rgba(34,197,94,.2);  color: #22c55e; }
+.sset-banner.warn  { background: #382d16; border: 1px solid #715c2a; color: #f0ca63; }
+.sset-banner.info  { background: #172b3b; border: 1px solid #345d79; color: #a6d9fc; }
+.sset-banner.succ  { background: #183421; border: 1px solid #316543; color: #8fe0a2; }
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,7 +222,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
   const [showEmail, setShowEmail] = useState(false);
 
   // Section expand
-  const [openSection, setOpenSection] = useState("notifications");
+  const [openSection, setOpenSection] = useState("security");
 
   // Notifications
   const [notifs, setNotifs] = useState({
@@ -444,6 +448,34 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           </div>
         )}
 
+        {/* ── Security & Access ─────────────────────────────────────────────── */}
+        <div className="sset-card sset-security-card">
+          <div className="sset-card-accent" />
+          <button
+            type="button"
+            className="sset-ch sset-accordion-button"
+            onClick={() => togSection("security")}
+            aria-expanded={openSection === "security"}
+            aria-controls="settings-security-panel"
+          >
+            <span className="sset-ch-left">
+              <span className="sset-icon"><Shield size={16} /></span>
+              <span className="sset-security-summary">
+                <span className="sset-title">Security &amp; Access</span>
+                <small>Sign-in protection, trusted devices, wallet security</small>
+              </span>
+            </span>
+            <ChevronDown size={16} className={`sset-caret ${openSection === "security" ? "open" : ""}`} />
+          </button>
+          <div
+            className="sset-security-body"
+            id="settings-security-panel"
+            hidden={openSection !== "security"}
+          >
+            {openSection === "security" && <SecuritySection userId={userId} />}
+          </div>
+        </div>
+
         {/* ── Notifications ─────────────────────────────────────────────────── */}
         <div className="sset-card">
           <div className="sset-card-accent"/>
@@ -474,7 +506,6 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                   disabled={pushBusy}
                   aria-label={pushEnabled ? "Disable push notifications" : "Enable push notifications"}
                   aria-pressed={pushEnabled}
-                  style={{ opacity: pushBusy ? 0.55 : 1 }}
                 >
                   <span className="sset-sw-knob" />
                 </button>
@@ -594,7 +625,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           <div className="sset-card-accent"/>
           <div className="sset-ch" onClick={() => togSection("preferences")}>
             <div className="sset-ch-left">
-              <div className="sset-icon" style={{ background: "linear-gradient(135deg, rgba(84,204,22,.15), rgba(84,204,22,.05))", borderColor: "rgba(132,204,22,.2)", color: "#84cc16" }}>
+              <div className="sset-icon">
                 <User size={16}/>
               </div>
               <h3 className="sset-title">Preferences</h3>
@@ -623,16 +654,14 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
           {/* Accent bar matches boost tier color */}
           <div style={{
             position:"absolute", top:0, left:0, right:0, height:2,
-            background: hasBoost
-              ? `linear-gradient(90deg, ${tierCfg.grad[0]}, ${tierCfg.grad[1]})`
-              : "linear-gradient(90deg, #84cc16, #65a30d)",
+            background: hasBoost ? tierCfg.color : "#84cc16",
           }}/>
 
           <div className="sset-ch" onClick={() => togSection("boost")}>
             <div className="sset-ch-left">
               <div className="sset-icon" style={{
-                background: hasBoost ? `${tierCfg.color}18` : undefined,
-                border:     hasBoost ? `1px solid ${tierCfg.color}30` : undefined,
+                background: hasBoost ? "#202a22" : undefined,
+                border:     hasBoost ? "1px solid #3b473d" : undefined,
                 color:      hasBoost ? tierCfg.color : "#84cc16",
                 fontSize:   hasBoost ? 19 : undefined,
               }}>
@@ -644,8 +673,8 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
               {hasBoost && (
                 <span style={{
                   padding:"2px 8px", borderRadius:6, fontSize:11, fontWeight:700,
-                  background:`${tierCfg.color}18`, color:tierCfg.color,
-                  border:`1px solid ${tierCfg.color}30`,
+                  background:"#202a22", color:tierCfg.color,
+                  border:"1px solid #3b473d",
                 }}>
                   {tierCfg.label}
                 </span>
@@ -663,14 +692,14 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                   <div style={{
                     display:"flex", alignItems:"center", gap:12, padding:"10px 12px",
                     borderRadius:12, marginBottom:12,
-                    background:`${tierCfg.color}10`, border:`1px solid ${tierCfg.color}25`,
+                    background:"#151d16", border:"1px solid #303d31",
                   }}>
                     <span style={{ fontSize:29 }}>{tierCfg.emoji}</span>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:15, fontWeight:900, color:tierCfg.color }}>
                         {tierCfg.label}
                       </div>
-                      <div style={{ fontSize:12, color:"#737373", marginTop:2 }}>
+                      <div style={{ fontSize:12, color:"#a7b3a5", marginTop:2 }}>
                         {isSystemGrant ? "Complimentary · Admin grant · No EP charged" :
                           boostExpires ? `Expires in ${daysLeft} day${daysLeft!==1?"s":""}` : "Active"}
                       </div>
@@ -678,17 +707,17 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     <div style={{
                       padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:800,
                       background: daysLeft <= 7 && !isSystemGrant
-                        ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.12)",
+                        ? "#3a211c" : "#1c3220",
                       color: daysLeft <= 7 && !isSystemGrant ? "#ef4444" : "#22c55e",
                       border: daysLeft <= 7 && !isSystemGrant
-                        ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(34,197,94,0.25)",
+                        ? "1px solid #9f4b39" : "1px solid #3f7a47",
                     }}>
                       {isSystemGrant ? "✓ Granted" : daysLeft <= 7 ? `⚠ ${daysLeft}d left` : "Active"}
                     </div>
                   </div>
 
                   {/* Perks reminder */}
-                  <div style={{ fontSize:12, color:"#525252", marginBottom:12, lineHeight:1.6 }}>
+                  <div style={{ fontSize:12, color:"#a7b3a5", marginBottom:12, lineHeight:1.6 }}>
                     Your boost includes exclusive profile themes, animated avatar ring,
                     and EP bonus on all earnings.
                   </div>
@@ -703,11 +732,11 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
               ) : (
                 /* ── No boost — upgrade CTA ── */
                 <div className="sset-boost-none">
-                  <p style={{ fontSize:13, color:"#525252", lineHeight:1.6, margin:"0 0 14px" }}>
+                  <p style={{ fontSize:13, color:"#a7b3a5", lineHeight:1.6, margin:"0 0 14px" }}>
                     Unlock a stunning animated profile, exclusive themes, and earn more EP.
-                    Choose from <strong style={{ color:"#C0C0C0" }}>Silver</strong>,{" "}
-                    <strong style={{ color:"#FFD700" }}>Gold</strong>, or{" "}
-                    <strong style={{ color:"#00BFFF" }}>Diamond</strong> boost.
+                    Choose from <strong style={{ color:"#d3d8d2" }}>Silver</strong>,{" "}
+                    <strong style={{ color:"#f0ca63" }}>Gold</strong>, or{" "}
+                    <strong style={{ color:"#9bd5ff" }}>Diamond</strong> boost.
                   </p>
 
                   {/* Tier preview pills */}
@@ -717,7 +746,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                       return (
                         <div key={t} style={{
                           flex:1, padding:"8px 6px", borderRadius:10, textAlign:"center",
-                          background:`${tc.color}10`, border:`1px solid ${tc.color}25`,
+                          background:"#151d16", border:"1px solid #303d31",
                           cursor:"pointer",
                         }} onClick={() => onOpenUpgrade?.()}>
                           <div style={{ fontSize:19, marginBottom:3 }}>{tc.emoji}</div>
@@ -731,9 +760,8 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                   </div>
 
                   <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()} style={{
-                    background:"radial-gradient(circle at top, rgba(251,191,36,0.28), rgba(251,191,36,0.08) 40%, rgba(15,15,15,0.96) 100%)",
-                    border:"1px solid rgba(251,191,36,0.32)",
-                    boxShadow:"0 10px 30px rgba(251,191,36,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
+                    background:"#6b5008",
+                    border:"1px solid #b9972f",
                     color:"#fef3c7",
                     fontWeight:900,
                   }}>
@@ -743,7 +771,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     <Zap size={13}/> Manage Profile Upgrade
                   </button>
 
-                  <p style={{ fontSize:11, color:"#383838", textAlign:"center", margin:"8px 0 0" }}>
+                  <p style={{ fontSize:11, color:"#8f9b90", textAlign:"center", margin:"8px 0 0" }}>
                     $1 = 100 EP · Paid with EP · Cancel anytime
                   </p>
                 </div>
