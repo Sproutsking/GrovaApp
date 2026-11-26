@@ -26,7 +26,7 @@ import AddAccountOverlay, {
   loadAccounts,
   saveAccountsToStorage,
 } from "../Auth/AddAccountOverlay";
-import useTrinitylens from "../../hooks/useTrinitylens";
+import useTrinitylens, { VALID_TRINITY_LENSES } from "../../hooks/useTrinitylens";
 
 const MAX_ACCOUNTS = 3;
 
@@ -110,7 +110,7 @@ const AccountRow = ({ account, isCurrent, onSwitch, onRemove, idx }) => (
 const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
   const { activeTrinityLens, setActiveTrinityLens } = useTrinitylens();
   const isActive = activeTrinityLens === mode;
-  const isLockedMode = mode !== "everyday";
+  const isLockedMode = !VALID_TRINITY_LENSES.includes(mode);
 
   return (
     <button
@@ -341,7 +341,7 @@ const DropdownPortal = ({
           <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
-          <TrinitylensButton mode="streaming" label="Streaming" icon={<Radio size={11}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="streaming" label="Stream" icon={<Radio size={11}/>} onAccount={onAccount}/>
         </div>
         <div style={{ padding: "8px 12px 0", color: "rgba(148,163,184,0.85)", fontSize: "calc((10px) + 1px)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>
           Focus: community-first creator empire
