@@ -17,6 +17,16 @@ import React, { useState, useEffect, useCallback, memo } from "react";
 import { pushService } from "../../services/notifications/pushService";
 import { isPromptDue, setPromptNever } from "../../services/notifications/appPromptManager";
 
+export function getPushEnableErrorMessage(permission, firebaseError = "") {
+  if (permission === "denied") {
+    return "Notifications are blocked in your browser settings.";
+  }
+  if (/registration failed - push service error/i.test(firebaseError)) {
+    return "Your browser's push service rejected registration. Try Chrome, or in Brave enable “Use Google services for push messaging” in brave://settings/privacy, restart Brave, and try again.";
+  }
+  return "Push notifications could not be enabled. Please try again or use Settings.";
+}
+
 const PushPermissionNudge = memo(({ userId }) => {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -66,16 +76,17 @@ const PushPermissionNudge = memo(({ userId }) => {
       if (granted) {
         setVisible(false);
       } else {
-        const permission = pushService.getPermission();
+        const { firebaseLastError } = pushService.getStatus();
         setErrorMessage(
-          permission === "denied"
-            ? "Notifications are blocked in your browser settings."
-            : "Push notifications could not be enabled. Please try again or use Settings.",
+          getPushEnableErrorMessage(pushService.getPermission(), firebaseLastError),
         );
       }
     } catch (error) {
       console.error("[PushPermissionNudge] Could not enable notifications:", error);
-      setErrorMessage("Push notifications could not be enabled. Please try again or use Settings.");
+      const { firebaseLastError } = pushService.getStatus();
+      setErrorMessage(
+        getPushEnableErrorMessage(pushService.getPermission(), firebaseLastError),
+      );
     } finally {
       setRequesting(false);
     }
