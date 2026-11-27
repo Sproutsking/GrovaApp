@@ -2229,7 +2229,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
         .upm-hdr { padding:40px 24px 12px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:24px 24px 0 0; overflow:hidden; }
-        .upm-profile-header { --upm-cover-height:154px; box-sizing:border-box; padding:0 0 16px; text-align:left; background:transparent!important; }
+        .upm-profile-header { --upm-cover-height:154px; --upm-identity-inset:18px; box-sizing:border-box; padding:0 0 16px; text-align:left; background:transparent!important; }
         .upm-profile-cover { width:100%; height:154px; box-sizing:border-box; position:relative; overflow:hidden; border:0; border-radius:0; background-color:#07100a; background-image:linear-gradient(90deg,rgba(4,10,6,.9),rgba(4,10,6,.68) 52%,rgba(4,10,6,.42)),radial-gradient(ellipse at 18% 35%,rgba(132,204,22,.28),transparent 48%),radial-gradient(ellipse at 88% 78%,rgba(16,185,129,.22),transparent 48%),linear-gradient(120deg,#101a10,#07100a 50%,#08110d); background-position:center; background-size:cover; box-shadow:inset 0 0 44px rgba(0,0,0,.34); }
         .upm-profile-cover.tier-silver,.upm-profile-cover.tier-gold,.upm-profile-cover.tier-diamond { background-image:radial-gradient(ellipse at 16% 20%,color-mix(in srgb,var(--cover-accent) 12%,transparent),transparent 46%),radial-gradient(ellipse at 86% 82%,color-mix(in srgb,var(--cover-accent) 8%,transparent),transparent 44%),linear-gradient(120deg,#101211,#050605 52%,#0d0f0e); box-shadow:inset 0 0 44px rgba(0,0,0,.34); }
         .upm-profile-cover.tier-silver .upm-cover-copy strong,.upm-profile-cover.tier-gold .upm-cover-copy strong,.upm-profile-cover.tier-diamond .upm-cover-copy strong { color:#edf0e9; text-shadow:0 0 12px color-mix(in srgb,var(--cover-accent) 18%,transparent); }
@@ -2255,10 +2255,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-profile-action-row .upm-fbtn:focus-visible,.upm-xrd-btn:focus-visible { outline:2px solid #d9f99d; outline-offset:2px; }
         .upm-xrd-btn { min-height:34px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 12px; border:1px solid rgba(163,230,53,.38); border-radius:999px; background:linear-gradient(135deg,#a3e635,#65a30d); color:#0a1400; font-size:calc((10px) + 1px); font-weight:900; cursor:pointer; box-shadow:0 6px 20px rgba(132,204,22,.2); }
         .upm-xrd-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
-        .upm-profile-header .upm-name { justify-content:flex-start; margin:13px 0 2px; text-align:left; }
-        .upm-profile-header .upm-badges { justify-content:flex-start; margin-bottom:1px; }
-        .upm-profile-header .upm-uname { margin:0 0 9px; text-align:left; }
-        .upm-profile-header .upm-bio { max-width:650px; margin:0 0 9px; text-align:left; }
+        .upm-profile-header .upm-name { justify-content:flex-start; margin:13px var(--upm-identity-inset) 2px; text-align:left; }
+        .upm-profile-header .upm-badges { justify-content:flex-start; margin:0 var(--upm-identity-inset) 1px; }
+        .upm-profile-header .upm-uname { margin:0 var(--upm-identity-inset) 9px; text-align:left; }
+        .upm-profile-header .upm-profile-tags { margin:-3px var(--upm-identity-inset) 9px; }
+        .upm-profile-header .upm-bio { max-width:650px; margin:0 var(--upm-identity-inset) 9px; text-align:left; }
+        .upm-profile-header .upm-profile-meta,
+        .upm-profile-header .upm-contact-meta { margin-left:var(--upm-identity-inset); margin-right:var(--upm-identity-inset); }
         .upm-profile-tags { display:flex; flex-wrap:wrap; gap:6px; margin:-3px 0 9px; }
         .upm-profile-tag { display:inline-flex; align-items:center; padding:3px 8px; border:1px solid rgba(163,230,53,.3); border-radius:999px; background:rgba(132,204,22,.09); color:#c5f17e; font-size:calc((9px) + 1px); font-weight:800; line-height:1.2; }
         .upm-profile-meta { display:flex; align-items:center; flex-wrap:wrap; gap:7px; min-height:18px; margin-top:2px; color:#c6d0be; font-size:calc((10px) + 1px); }
