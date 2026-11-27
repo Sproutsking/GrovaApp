@@ -11,6 +11,7 @@
 
 import { supabase }  from "../config/supabase";
 import pushService   from "../notifications/pushService";
+import { DEFAULT_ICE_SERVERS, getCallIceServers } from "./callIceConfig";
 
 const STATE = {
   IDLE:       "idle",
@@ -181,7 +182,6 @@ class CallService extends Emitter {
 
     const call     = this._lastIncoming;
     const targetId = call?.callerId || call?.caller?.id;
-    const callType = call?.callType || call?.type || "audio";
 
     if (targetId) {
       await this._broadcastToUser(targetId, "call_answer", {
@@ -273,7 +273,7 @@ class CallService extends Emitter {
     await Promise.all(targets.map(async (targetId) => {
       if (!error) await this._sendCallCancellation(targetId, callId);
     }));
-    if (this._activeCallId === callId) {
+    if (this._activeCallId === callId || this._lastIncoming?.callId === callId) {
       this._clearRingTimeout();
       this._cleanupPeer();
       this._resetState();
@@ -418,7 +418,13 @@ class CallService extends Emitter {
   async _setupRecvOnlyPeer(callType = "audio") {
     if (this._pc) return this._pc;
 
-    this._pc = new RTCPeerConnection(ICE_SERVERS);
+    let iceServers = DEFAULT_ICE_SERVERS;
+    try {
+      iceServers = await getCallIceServers();
+    } catch (error) {
+      console.warn("[callService] TURN relay unavailable; using STUN:", error?.message || error);
+    }
+    this._pc = new RTCPeerConnection({ iceServers });
     this._pc.addTransceiver("audio", { direction: "recvonly" });
     if (callType.includes("video")) {
       this._pc.addTransceiver("video", { direction: "recvonly" });

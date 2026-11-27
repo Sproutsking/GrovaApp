@@ -451,6 +451,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+[functions.get-call-ice-config]
+enabled = true
+verify_jwt = true
+
 [functions.send-push-fcm]
 enabled = true
 verify_jwt = true

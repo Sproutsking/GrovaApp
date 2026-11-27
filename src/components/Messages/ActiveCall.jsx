@@ -26,6 +26,7 @@ import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import callService from "../../services/messages/callService";
+import { DEFAULT_ICE_SERVERS, getCallIceServers } from "../../services/messages/callIceConfig";
 
 /* ─── helpers ─── */
 const fmt  = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -37,7 +38,7 @@ const aUrl = user => {
 const RING_MAX = 30;
 
 const RTC_CONFIG = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+  iceServers: DEFAULT_ICE_SERVERS,
   iceCandidatePoolSize: 10, bundlePolicy: "max-bundle", rtcpMuxPolicy: "require",
 };
 
@@ -117,7 +118,7 @@ const RingTimer = ({ max = RING_MAX, onTimeout }) => {
 };
 
 /* ═══ END SCREEN ═══ */
-const EndScreen = ({ reason, call, onClose, onCallback }) => {
+const EndScreen = ({ reason, call, onClose, onCallback, failureDetail }) => {
   const cfgs = {
     unavailable: { emoji: "📵", title: "Not Available",     sub: `${call.name} didn't pick up`,        color: "#f59e0b", actions: ["callback", "close"] },
     declined:    { emoji: "🚫", title: "Call Declined",     sub: `${call.name} declined your call`,    color: "#ef4444", actions: ["message", "close"]  },
@@ -137,7 +138,7 @@ const EndScreen = ({ reason, call, onClose, onCallback }) => {
       </div>
       <div className="es-emoji">{c.emoji}</div>
       <div className="es-title" style={{ color: c.color }}>{c.title}</div>
-      <div className="es-sub">{c.sub}</div>
+      <div className="es-sub">{reason === "failed" && failureDetail ? failureDetail : c.sub}</div>
       {reason === "ended" && call.duration > 0 && <div className="es-dur" style={{ color: c.color }}>Duration: {fmt(call.duration)}</div>}
       <div className="es-actions">
         {c.actions.includes("callback") && <button className="es-btn" style={{ background: `${c.color}18`, borderColor: `${c.color}44`, color: c.color }} onClick={() => onCallback?.("callback")}><Ic.Phone/><span>Call again</span></button>}
@@ -308,12 +309,16 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   const [parts,   setParts]   = useState(call.participants || []);
   const [mobile,  setMobile]  = useState(window.innerWidth < 769);
   const [bgIdx,   setBgIdx]   = useState(0);
+  const [connectionNotice, setConnectionNotice] = useState("");
+  const [failureDetail, setFailureDetail] = useState("");
 
   const lvRef = useRef(null); const rvRef = useRef(null); const raRef = useRef(null);
   const pcR   = useRef(null); const sigR  = useRef(null); const lsR   = useRef(null);
   const asR   = useRef(null); const vsR   = useRef(null);
   const tiR   = useRef(null); const nqR   = useRef(null); const mR    = useRef(true);
+  const connectionTimeoutRef = useRef(null);
   const pIce  = useRef([]);   const secsR = useRef(0);
+  const callIdRef = useRef(call.callId || call.id || `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
   const inviteSent = useRef(false);
   const callCancelled = useRef(false);
   const signalingReady = useRef(Promise.resolve(true));
@@ -327,6 +332,8 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   }, []);
 
   const destroyPC = useCallback(() => {
+    clearTimeout(connectionTimeoutRef.current);
+    connectionTimeoutRef.current = null;
     try { pcR.current?.close(); } catch (_) {}
     pcR.current = null;
     lsR.current?.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
@@ -336,8 +343,19 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     if (raRef.current) raRef.current.srcObject = null;
   }, []);
 
+  const finishInvitation = useCallback((status = "ended") => {
+    const recipientIds = isGroup && Array.isArray(call.participants)
+      ? call.participants.map((participant) => participant?.id)
+      : [call.user?.id];
+    callService.finishCallInvitation({
+      callId: callIdRef.current,
+      recipientIds: recipientIds.filter(Boolean),
+      status,
+    }).catch((error) => console.error("[Call] Could not finish call invitation:", error));
+  }, [call, isGroup]);
+
   useEffect(() => {
-    const callId = call.callId || call.id;
+    const callId = callIdRef.current;
     const unsubDeclined = callService.on("call_declined", (event) => {
       if (!mR.current || event?.callId !== callId) return;
       setEndR(event.reason === "timeout" ? "timeout" : "declined");
@@ -365,12 +383,23 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
       lsR.current = s;
       if (mR.current) { setLS(s); if (lvRef.current && isVid) lvRef.current.srcObject = s; }
       return s;
-    } catch (e) { console.warn("[Call] media:", e.message); return null; }
+    } catch (e) {
+      console.warn("[Call] media:", e.message);
+      const reason = e.name === "NotAllowedError"
+        ? "Microphone access was denied. Allow microphone access and try again."
+        : e.name === "NotFoundError"
+          ? "No microphone was found on this device."
+          : e.name === "NotReadableError"
+            ? "The microphone is busy in another app."
+            : `Microphone setup failed: ${e.message}`;
+      setFailureDetail(reason);
+      return null;
+    }
   }, [isVid, qual]);
 
-  const buildPC = useCallback(() => {
+  const buildPC = useCallback((iceServers = DEFAULT_ICE_SERVERS) => {
     if (pcR.current) { try { pcR.current.close(); } catch (_) {} }
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection({ ...RTC_CONFIG, iceServers });
     pcR.current = pc;
     const rs = new MediaStream();
     pc.ontrack = evt => { evt.streams[0]?.getTracks().forEach(t => rs.addTrack(t)); if (mR.current) { setRS(rs); if (rvRef.current) rvRef.current.srcObject = rs; if (raRef.current) raRef.current.srcObject = rs; } };
@@ -378,12 +407,35 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     pc.onconnectionstatechange = () => {
       if (!mR.current) return;
       const s = pc.connectionState;
-      if (s === "connected") setStage("live");
+      if (s === "connected") {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+        setStage("live");
+      }
+      if (s === "connecting" || s === "disconnected") {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = setTimeout(() => {
+          if (pcR.current !== pc || pc.connectionState === "connected") return;
+          setFailureDetail("The audio route could not be established. Check your connection and try again.");
+          setEndR("failed");
+          setStage("ended");
+          finishInvitation();
+          destroyPC();
+        }, 25000);
+      }
       if (s === "disconnected") { try { pc.restartIce(); } catch (_) {} }
-      if (s === "failed") { setEndR("failed"); setStage("ended"); }
+      if (s === "failed") {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+        setFailureDetail("The network could not establish an audio route. Check your connection and try again.");
+        setEndR("failed");
+        setStage("ended");
+        finishInvitation();
+        destroyPC();
+      }
     };
     return pc;
-  }, []);
+  }, [destroyPC, finishInvitation]);
 
   const addTracks = useCallback((pc, stream) => {
     if (!stream || !pc || pc.signalingState === "closed") return;
@@ -418,8 +470,10 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
           ch.send({ type: "broadcast", event: "offer", payload: { sdp: o } });
         } catch (e) {
           console.error("[Call] offer:", e);
+          setFailureDetail(e.message || "Could not start the audio connection.");
           setEndR("failed");
           setStage("ended");
+          finishInvitation();
         }
       })
       .on("broadcast", { event: "call_declined" }, () => {
@@ -466,7 +520,7 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     sigR.current = ch;
     signalingReady.current = ready;
     return ch;
-  }, [isVid, flushIce, destroyPC, secs, getMedia, addTracks]);
+  }, [isVid, flushIce, destroyPC, secs, getMedia, addTracks, finishInvitation]);
 
   const sendInvites = useCallback(async (callId) => {
     if (inviteSent.current || callCancelled.current || !call.outgoing) return;
@@ -500,13 +554,21 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     mR.current = true;
     // [FIX-CALLEE-STAGE] Use the callId passed from the invite so both sides
     // join the SAME signalling channel
-    const callId = call.callId || call.id || `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const callId = callIdRef.current;
     (async () => {
       try {
         if (call.outgoing === true) {
           callCancelled.current = false;
           // Invite immediately; request microphone access only after the callee accepts.
-          buildPC();
+          let iceServers = DEFAULT_ICE_SERVERS;
+          try {
+            iceServers = await getCallIceServers();
+          } catch (error) {
+            console.error("[Call] TURN relay unavailable:", error);
+            setConnectionNotice("Relay unavailable. Trying a direct connection.");
+          }
+          if (!mR.current) return;
+          buildPC(iceServers);
           buildCh(callId);
           const ready = await signalingReady.current;
           if (!ready) throw new Error("The call signaling channel could not be established.");
@@ -557,68 +619,70 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     setStage("conn");
     const signalingIsReady = await signalingReady.current;
     if (!signalingIsReady) {
+      callService.declineCall(callIdRef.current, call.user?.id)
+        .catch((error) => console.error("[Call] Could not decline after signaling failure:", error));
       setEndR("failed");
       setStage("ended");
       return;
     }
+    let iceServers = DEFAULT_ICE_SERVERS;
+    try {
+      iceServers = await getCallIceServers();
+    } catch (error) {
+      console.error("[Call] TURN relay unavailable:", error);
+      setConnectionNotice("Relay unavailable. Trying a direct connection.");
+    }
+    if (!mR.current) return;
     const s  = lsR.current || await getMedia();
     if (!s) {
+      callService.declineCall(callIdRef.current, call.user?.id)
+        .catch((error) => console.error("[Call] Could not decline after microphone failure:", error));
       setEndR("failed");
       setStage("ended");
       return;
     }
-    const pc = buildPC();
+    const pc = buildPC(iceServers);
     addTracks(pc, s);
     try {
-      await callService.answerCall(call.callId || call.id);
+      await callService.answerCall(callIdRef.current);
     } catch (error) {
       console.error("[Call] Could not accept call:", error);
+      setFailureDetail(error.message || "Could not accept this call.");
+      callService.declineCall(callIdRef.current, call.user?.id)
+        .catch((declineError) => console.error("[Call] Could not decline failed call:", declineError));
       setEndR("failed");
       setStage("ended");
       destroyPC();
       return;
     }
     sigR.current?.send({ type: "broadcast", event: "call_accepted", payload: { userId: currentUser?.id } });
-  }, [buildPC, addTracks, getMedia, currentUser?.id, call.callId, call.id, destroyPC]);
+  }, [buildPC, addTracks, getMedia, currentUser?.id, call.user?.id, destroyPC]);
 
   const handleDecline = useCallback(() => {
     sigR.current?.send({ type: "broadcast", event: "call_declined", payload: { userId: currentUser?.id } });
-    callService.declineCall(call.callId || call.id, call.user?.id).catch((error) => console.warn("[Call] decline signal failed:", error?.message || error));
+    callService.declineCall(callIdRef.current, call.user?.id).catch((error) => console.warn("[Call] decline signal failed:", error?.message || error));
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     onEnd();
-  }, [onEnd, currentUser?.id, destroyPC, call.callId, call.id, call.user?.id]);
+  }, [onEnd, currentUser?.id, destroyPC, call.user?.id]);
 
   const handleEnd = useCallback(() => {
     callCancelled.current = true;
     sigR.current?.send({ type: "broadcast", event: "call_ended", payload: {} });
-    const recipientIds = isGroup && Array.isArray(call.participants)
-      ? call.participants.map((participant) => participant?.id)
-      : [call.user?.id];
-    callService.finishCallInvitation({
-      callId: call.callId || call.id,
-      recipientIds: recipientIds.filter(Boolean),
-    }).catch((error) => console.error("[Call] Could not signal call end:", error));
+    finishInvitation();
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     setCallDur(secsR.current); setEndR("ended"); setStage("ended");
-  }, [destroyPC, call, isGroup]);
+  }, [destroyPC, finishInvitation]);
 
   const handleTimeout = useCallback(() => {
     if (!mR.current) return;
     sigR.current?.send({ type: "broadcast", event: "call_declined", payload: { reason: "timeout" } });
-    const recipientIds = isGroup && Array.isArray(call.participants)
-      ? call.participants.map((participant) => participant?.id)
-      : [call.user?.id];
-    callService.finishCallInvitation({
-      callId: call.callId || call.id,
-      recipientIds: recipientIds.filter(Boolean),
-      status: "no_answer",
-    }).catch((error) => console.error("[Call] Could not signal no answer:", error));
+    finishInvitation("no_answer");
     destroyPC();
     if (sigR.current) { supabase.removeChannel(sigR.current); sigR.current = null; }
     setEndR("timeout"); setStage("ended");
-  }, [destroyPC, call, isGroup]);
+  }, [destroyPC, finishInvitation]);
 
   const toggleMute = useCallback(() => { const n = !muted; setMuted(n); lsR.current?.getAudioTracks().forEach(t => { t.enabled = !n; }); sigR.current?.send({ type: "broadcast", event: "participant_state", payload: { userId: currentUser?.id, muted: n, camOff } }); }, [muted, camOff, currentUser?.id]);
   const toggleCam  = useCallback(() => { const n = !camOff; setCamOff(n); lsR.current?.getVideoTracks().forEach(t => { t.enabled = !n; }); sigR.current?.send({ type: "broadcast", event: "participant_state", payload: { userId: currentUser?.id, muted, camOff: n } }); }, [camOff, muted, currentUser?.id]);
@@ -633,7 +697,7 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   if (stage === "ended" && endR) {
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 200, fontFamily: "inherit" }}>
-        <EndScreen reason={endR} call={{ ...call, duration: callDur }} onClose={onEnd} onCallback={() => onEnd()}/>
+        <EndScreen reason={endR} call={{ ...call, duration: callDur }} onClose={onEnd} onCallback={() => onEnd()} failureDetail={failureDetail}/>
         <style>{CSS}</style>
       </div>
     );
@@ -654,6 +718,7 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
               {stage === "in"   && <span className="ac-pulse">Incoming {isVid ? "video" : "voice"} call</span>}
               {stage === "conn" && <span className="ac-pulse">Connecting…</span>}
               {stage === "live" && <span className="ac-lrow"><Ic.Shield/><span style={{ color: "#22c55e", fontSize: 11 }}>E2E</span><span style={{ opacity: .4 }}>·</span>{isVid ? "📹" : "🎙️"} {fmt(secs)}</span>}
+              {connectionNotice && <span role="status" style={{ display: "block", marginTop: 4, color: "#fbbf24", fontSize: 11 }}>{connectionNotice}</span>}
             </div>
           </div>
         </div>
