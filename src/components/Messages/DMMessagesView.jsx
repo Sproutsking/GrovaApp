@@ -17,7 +17,6 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sparkles } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import dmMessageService from "../../services/messages/dmMessageService";
 import groupDMService from "../../services/messages/groupDMService";
@@ -828,16 +827,10 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
 
           {!isDetail && tab === "chats" && (
             <section className="dmh-welcome" aria-label="Welcome to messages">
-              <div className="dmh-welcome-mark" aria-hidden="true">
-                <span className="dmh-welcome-orbit dmh-welcome-orbit-a" />
-                <span className="dmh-welcome-orbit dmh-welcome-orbit-b" />
-                <span className="dmh-welcome-spark"><Sparkles size={14} /></span>
-                <div className="dmh-welcome-icon"><MessageCircle size={33} strokeWidth={1.6} /></div>
+              <div className="dmh-welcome-mark">
+                <img src={`${process.env.PUBLIC_URL || ""}/logo192.png`} alt="" />
               </div>
-              <div className="dmh-welcome-brand">XEEVIA <span>MESSAGES</span></div>
-              <h1>Your conversations,<br />in good company.</h1>
-              <p>Choose a conversation to continue, or start a new one when someone comes to mind.</p>
-              <div className="dmh-welcome-hint"><span className="dmh-welcome-live" /> Private conversations, made simple</div>
+              <div className="dmh-welcome-brand"><span>XEEVIA</span> MESSAGES</div>
             </section>
           )}
         </div>
@@ -982,19 +975,13 @@ const CSS = `
   .dmh-empty-state .dmh-list-wrap{position:relative;flex:0 0 min(360px,38%);width:min(360px,38%);height:100%;border-right:1px solid rgba(255,255,255,.07);background:#060807;}
   .dmh-empty-state .dmh-hdr{height:68px;min-height:68px;padding:0 18px;border-bottom-color:rgba(163,230,53,.12);background:linear-gradient(120deg,rgba(132,204,22,.035),transparent 70%);}
   .dmh-empty-state .dmh-hdr-title{font-size:calc((18px) + 1px);font-weight:800;}
-  .dmh-welcome{position:relative;isolation:isolate;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:36px;text-align:center;background:radial-gradient(ellipse at 50% 40%,rgba(132,204,22,.075),transparent 38%),linear-gradient(145deg,#0a0d0b,#070807 68%);}
-  .dmh-welcome::before{position:absolute;inset:0;z-index:-1;content:"";opacity:.2;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:36px 36px;mask-image:radial-gradient(ellipse at center,#000,transparent 74%);}
-  .dmh-welcome-mark{position:relative;width:110px;height:110px;display:grid;place-items:center;margin-bottom:28px;}
-  .dmh-welcome-icon{width:64px;height:64px;display:grid;place-items:center;border-radius:22px;color:#c6ff00;background:linear-gradient(145deg,rgba(132,204,22,.18),rgba(132,204,22,.055));border:1px solid rgba(198,255,0,.35);box-shadow:0 0 36px rgba(132,204,22,.13),inset 0 1px rgba(255,255,255,.08);}
-  .dmh-welcome-orbit{position:absolute;inset:9px;border:1px solid rgba(132,204,22,.22);border-radius:50%;transform:rotate(-30deg) scaleY(.68);}
-  .dmh-welcome-orbit-b{inset:0 17px;border-color:rgba(212,175,55,.22);transform:rotate(36deg) scaleY(.8);}
-  .dmh-welcome-spark{position:absolute;top:10px;right:7px;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;color:#d4af37;background:#17150d;border:1px solid rgba(212,175,55,.3);}
-  .dmh-welcome-brand{margin-bottom:12px;color:#c6ff00;font-size:calc((10px) + 1px);font-weight:800;}
-  .dmh-welcome-brand span{color:rgba(255,255,255,.38);font-weight:700;}
-  .dmh-welcome h1{margin:0;color:#f6f8f3;font-size:calc((30px) + 1px);line-height:1.14;font-weight:760;}
-  .dmh-welcome p{max-width:380px;margin:14px 0 0;color:rgba(232,237,229,.54);font-size:calc((14px) + 1px);line-height:1.65;}
-  .dmh-welcome-hint{display:flex;align-items:center;gap:8px;margin-top:28px;color:rgba(232,237,229,.45);font-size:calc((11px) + 1px);}
-  .dmh-welcome-live{width:6px;height:6px;border-radius:50%;background:#c6ff00;box-shadow:0 0 10px rgba(198,255,0,.65);}
+  .dmh-welcome{position:relative;isolation:isolate;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;overflow:hidden;padding:36px;text-align:center;background:radial-gradient(ellipse at 50% 46%,rgba(132,204,22,.055),transparent 48%),linear-gradient(145deg,#090b09,#050605 58%,#080a08);}
+  .dmh-welcome::before{position:absolute;inset:0;z-index:-1;content:"";pointer-events:none;background:radial-gradient(ellipse 42% 42% at 50% 46%,rgba(132,204,22,.105),transparent 100%),radial-gradient(circle at 50% 46%,transparent 0 156px,rgba(163,230,53,.045) 157px,transparent 158px),radial-gradient(circle at 50% 46%,transparent 0 246px,rgba(255,255,255,.022) 247px,transparent 248px);}
+  .dmh-welcome-mark{position:relative;width:136px;height:136px;display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(163,230,53,.18);border-radius:38px;background:linear-gradient(145deg,rgba(163,230,53,.08),rgba(255,255,255,.012) 52%,rgba(0,0,0,.28));box-shadow:0 28px 80px rgba(0,0,0,.44),0 0 64px rgba(132,204,22,.075),inset 0 1px rgba(255,255,255,.065);}
+  .dmh-welcome-mark::before{position:absolute;inset:8px;content:"";border:1px solid rgba(255,255,255,.045);border-radius:30px;pointer-events:none;}
+  .dmh-welcome-mark img{display:block;width:94px;height:94px;object-fit:contain;border:1px solid rgba(163,230,53,.13);border-radius:27px;background:#020302;box-shadow:0 10px 32px rgba(0,0,0,.48);}
+  .dmh-welcome-brand{color:rgba(245,248,241,.76);font-size:11px;font-weight:700;letter-spacing:.24em;line-height:1.5;}
+  .dmh-welcome-brand span{color:#c6ff00;font-weight:850;}
   .dmh-split-open{flex-direction:row;}
   .dmh-desktop-list{display:flex;flex-direction:column;}
   .dmh-split-divider{display:block;position:relative;flex:0 0 8px;cursor:col-resize;touch-action:none;background:rgba(255,255,255,.018);border-right:1px solid rgba(255,255,255,.035);border-left:1px solid rgba(0,0,0,.6);z-index:11;}
