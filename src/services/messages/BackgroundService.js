@@ -9,7 +9,7 @@ import bg_security from "../../components/Messages/Assets/security-preview.jpg";
 import bg_minimal  from "../../components/Messages/Assets/minimal-preview.png";
 
 // ── Design reference backgrounds ────────────────────────────────────────
-import bg_classic_weave    from "../../components/Messages/Assets/backgrounds/classic-weave.svg";
+import bg_classic_weave    from "../../components/Messages/Assets/backgrounds/chat-doodle-weave.svg";
 import bg_nova_weave       from "../../components/Messages/Assets/backgrounds/nova-weave.svg";
 
 // ── Newly added ───────────────────────────────────────────────────────────
@@ -251,7 +251,17 @@ class BackgroundService {
     const normalizedSelection = this.normalizeBackgroundSelection(selection);
     const bg = this.backgrounds.find((item) => item.id === normalizedSelection) || this.backgrounds[0];
     if (!bg) return { background: "#000" };
-    if (normalizedSelection === "classic_weave" || normalizedSelection === "nova_weave") {
+    if (normalizedSelection === "classic_weave") {
+      return {
+        backgroundImage: `url(${bg.image})`,
+        backgroundSize: "320px 320px",
+        backgroundPosition: "center center",
+        backgroundRepeat: "repeat",
+        backgroundColor: "#030404",
+        position: "relative",
+      };
+    }
+    if (normalizedSelection === "nova_weave") {
       return {
         background: [
           "radial-gradient(circle at 50% 42%, rgba(38,73,61,.28) 0%, transparent 58%)",

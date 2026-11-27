@@ -104,8 +104,16 @@ describe("MessageList presentation", () => {
     ], "direct");
     const styles = container.querySelector(".msg-list-wrapper style").textContent;
 
-    expect(styles).toContain("--message-tail-fill: #005c4b;");
-    expect(styles).toContain("--message-tail-edge: rgba(130,215,187,.38);");
+    expect(styles).toContain("--message-tail-fill: #144d37;");
+    expect(styles).toContain("--message-tail-edge: rgba(20,77,55,.85);");
+  });
+
+  it("uses the input-panel black for incoming messages", () => {
+    const { container } = renderList([makeMessage()], "direct");
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain("--message-tail-fill: #111111;");
+    expect(styles).toContain("--bubble-border: rgba(255,255,255,.12);");
   });
 
   it("keeps link previews inside the message bubble and labels shared GIFs as content", () => {

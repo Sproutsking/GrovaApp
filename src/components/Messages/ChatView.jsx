@@ -818,8 +818,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.cv-root .msg-bubble.them{--message-tail-fill:#202c33;--message-tail-edge:rgba(220,232,224,.18);background:var(--message-tail-fill);border-color:rgba(220,232,224,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
-.cv-root .msg-bubble.me{--message-tail-fill:#005c4b;--message-tail-edge:rgba(130,215,187,.38);background:var(--message-tail-fill);background-image:none;border-color:rgba(130,215,187,.24);box-shadow:0 4px 14px rgba(0,0,0,.2);}
+.cv-root .msg-bubble.them{--message-tail-fill:#111111;--message-tail-edge:rgba(255,255,255,.14);background:var(--message-tail-fill);border-color:rgba(255,255,255,.12);box-shadow:0 4px 14px rgba(0,0,0,.16);}
+.cv-root .msg-bubble.me{--message-tail-fill:#144d37;--message-tail-edge:rgba(20,77,55,.85);background:var(--message-tail-fill);background-image:none;border-color:rgba(20,77,55,.85);box-shadow:0 4px 14px rgba(0,0,0,.2);}
 .cv-root .msg-list-wrapper.direct-message-list{padding:10px 10px 12px;}
 .cv-root .direct-message-list .msg-item{gap:0;margin-bottom:0;padding:0 2px;}
 .cv-root .direct-message-list .msg-item.clustered{margin-bottom:3px;}
@@ -900,8 +900,8 @@ export const CV_CSS = `
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
 .cv-bubble{max-width:70%;min-width:0;padding:0 2px 4px;border-radius:14px!important;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden;}
-.cv-bthem{background:#202c33;border:1px solid rgba(220,232,224,.12);box-shadow:0 5px 18px rgba(0,0,0,.18);}
-.cv-bme{background:#005c4b;border:1px solid rgba(130,215,187,.24);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
+.cv-bthem{background:#111111;border:1px solid rgba(255,255,255,.12);box-shadow:0 5px 18px rgba(0,0,0,.18);}
+.cv-bme{background:#144d37;border:1px solid rgba(20,77,55,.85);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
 .cv-message-menu-btn{position:absolute;top:8px;width:24px;height:24px;border-radius:8px;border:1px solid rgba(156,255,0,.22);background:rgba(10,12,10,.72);color:#dfffc8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:4;box-shadow:0 8px 18px rgba(0,0,0,.28);transition:transform .15s ease, background .15s ease, border-color .15s ease;}
 .cv-message-menu-btn:hover{transform:translateY(-1px);background:rgba(156,255,0,.10);border-color:rgba(156,255,0,.35);}
 .cv-message-menu-btn:focus-visible{outline:2px solid rgba(156,255,0,.4);outline-offset:2px;}
@@ -910,9 +910,9 @@ export const CV_CSS = `
 .cv-bubble .cv-content{padding-top:2px;}
 .cv-tail-l.cv-bthem{border-top-left-radius:0;}
 .cv-tail-r.cv-bme{border-top-right-radius:0;}
-.cv-tail-l.cv-bthem::before{content:"";position:absolute;top:-1px;left:-6px;width:0;height:0;border-style:solid;border-width:8px 0 0 7px;border-color:#202c33 transparent transparent transparent;}
+.cv-tail-l.cv-bthem::before{content:"";position:absolute;top:-1px;left:-6px;width:0;height:0;border-style:solid;border-width:8px 0 0 7px;border-color:#111111 transparent transparent transparent;}
 .cv-tail-l.cv-bthem::after{content:"";position:absolute;top:-1px;left:-7px;width:0;height:0;border-style:solid;border-width:9px 0 0 8px;border-color:rgba(255,255,255,.08) transparent transparent transparent;z-index:-1;}
-.cv-tail-r.cv-bme::before{content:"";position:absolute;top:0;right:-6px;width:0;height:0;border-style:solid;border-width:8px 7px 0 0;border-color:#005c4b transparent transparent transparent;}
+.cv-tail-r.cv-bme::before{content:"";position:absolute;top:0;right:-6px;width:0;height:0;border-style:solid;border-width:8px 7px 0 0;border-color:#144d37 transparent transparent transparent;}
 .cv-tail-r.cv-bme::after{content:"";position:absolute;top:0;right:-7px;width:0;height:0;border-style:solid;border-width:9px 8px 0 0;border-color:rgba(156,255,0,.26) transparent transparent transparent;z-index:-1;}
 .cv-msg-author{font-size:calc((12px) + 1px);font-weight:800;color:#9cff00;margin:0 0 5px;line-height:1.1;display:flex;align-items:center;justify-content:flex-start;gap:5px;min-width:0;max-width:100%;}
 .cv-bme .cv-msg-author{justify-content:flex-end;padding-right:26px;margin-right:12px;}

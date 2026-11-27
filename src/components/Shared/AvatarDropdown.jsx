@@ -111,6 +111,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
   const { activeTrinityLens, setActiveTrinityLens } = useTrinitylens();
   const isActive = activeTrinityLens === mode;
   const isLockedMode = !VALID_TRINITY_LENSES.includes(mode);
+  const statusLabel = isLockedMode ? "Soon" : isActive ? "Active" : "Switch";
 
   return (
     <button
@@ -119,48 +120,71 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         setActiveTrinityLens(mode);
       }}
       disabled={isLockedMode}
-      title={isLockedMode ? `${label} is temporarily disabled while we focus on the Main experience` : `Switch to ${label} mode`}
+      aria-pressed={isActive}
+      title={isLockedMode ? `${label} mode is coming soon` : isActive ? `${label} is the active mode` : `Switch to ${label} mode`}
       style={{
-        flex: 1,
+        width: "100%",
+        minWidth: 0,
+        minHeight: "44px",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        gap: "5px",
-        minHeight: "32px",
-        padding: "6px 8px",
-        background: isActive ? "var(--primary-surface, rgba(132,204,22,0.15))" : isLockedMode ? "rgba(255,255,255,0.02)" : "var(--surface)",
-        border: isActive ? "1.5px solid var(--primary, #84cc16)" : isLockedMode ? "1px solid rgba(148,163,184,0.18)" : "1px solid var(--surface-border)",
+        gap: "9px",
+        padding: "8px 10px",
+        background: isActive ? "#11190b" : isLockedMode ? "#08090b" : "#101113",
+        border: `1px solid ${isActive ? "#84cc16" : isLockedMode ? "#202226" : "#303238"}`,
         borderRadius: "10px",
         cursor: isLockedMode ? "not-allowed" : "pointer",
-        transition: "background-color 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), opacity 0.06s cubic-bezier(0.34,1.56,0.64,1)",
-        transform: isActive ? "scale(1.01) translateY(-1px)" : "scale(1) translateY(0)",
-        willChange: "transform, opacity",
-        color: isLockedMode ? "rgba(148,163,184,0.8)" : isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
+        transition: "background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease",
+        color: isLockedMode ? "#666a70" : isActive ? "#d9f99d" : "#e4e6e9",
         fontSize: "calc((11px) + 1px)",
         fontWeight: isActive ? 700 : 600,
         fontFamily: "inherit",
         lineHeight: 1,
-        opacity: isLockedMode ? 0.7 : 1,
+        textAlign: "left",
       }}
       onMouseEnter={(e) => {
         if (!isActive && !isLockedMode) {
-          e.currentTarget.style.background = "var(--surface-strong)";
-          e.currentTarget.style.borderColor = "var(--primary, #84cc16)";
-          e.currentTarget.style.color = "var(--primary, #84cc16)";
-          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.background = "#17191c";
+          e.currentTarget.style.borderColor = "#555b62";
         }
       }}
       onMouseLeave={(e) => {
         if (!isActive && !isLockedMode) {
-          e.currentTarget.style.background = "var(--surface)";
-          e.currentTarget.style.borderColor = "var(--surface-border)";
-          e.currentTarget.style.color = "var(--text-secondary)";
-          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.background = "#101113";
+          e.currentTarget.style.borderColor = "#303238";
         }
       }}
     >
-      <span style={{ fontSize: "calc((14px) + 1px)", lineHeight: 1 }}>{icon}</span>
-      {label}
+      <span
+        style={{
+          width: "25px",
+          height: "25px",
+          display: "grid",
+          placeItems: "center",
+          flexShrink: 0,
+          borderRadius: "7px",
+          background: isActive ? "#263916" : isLockedMode ? "#111214" : "#1d1f22",
+          color: isLockedMode ? "#666a70" : isActive ? "#a3e635" : "#c2c6cb",
+        }}
+      >
+        {icon}
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>{label}</span>
+      <span
+        style={{
+          flexShrink: 0,
+          padding: "3px 5px",
+          borderRadius: "5px",
+          background: isActive ? "#263916" : "transparent",
+          color: isActive ? "#b8ef66" : isLockedMode ? "#666a70" : "#858a91",
+          fontSize: "9px",
+          fontWeight: 800,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}
+      >
+        {statusLabel}
+      </span>
     </button>
   );
 };
@@ -333,18 +357,18 @@ const DropdownPortal = ({
       <div className="ad-div-shimmer"/>
 
       {/* ── Trinity Mode Selector ── */}
-      <div style={{ padding: "8px 0 12px", borderBottom: "1px solid var(--surface-border)" }}>
-        <p style={{ fontSize: "calc((11px) + 1px)", fontWeight: 700, color: "var(--text-tertiary)", padding: "0 12px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+      <div style={{ padding: "12px 10px 14px", borderBottom: "1px solid #222428", background: "#08090b" }}>
+        <p style={{ fontSize: "10px", fontWeight: 800, color: "#b7bcc3", padding: "0 2px 3px", textTransform: "uppercase", letterSpacing: "0.12em", margin: 0 }}>
           Experience Mode
         </p>
-        <div style={{ display: "flex", gap: "4px", padding: "0 8px" }}>
+        <p style={{ fontSize: "11px", color: "#737880", padding: "0 2px 10px", margin: 0 }}>
+          Active mode is marked. Choose an available mode to switch.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "7px" }}>
           <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={11}/>} onAccount={onAccount}/>
-          <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
           <TrinitylensButton mode="streaming" label="Stream" icon={<Radio size={11}/>} onAccount={onAccount}/>
-        </div>
-        <div style={{ padding: "8px 12px 0", color: "rgba(148,163,184,0.85)", fontSize: "calc((10px) + 1px)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>
-          Focus: community-first creator empire
         </div>
       </div>
 
