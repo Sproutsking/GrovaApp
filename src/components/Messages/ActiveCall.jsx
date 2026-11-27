@@ -607,7 +607,6 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
   const handleTimeout = useCallback(() => {
     if (!mR.current) return;
     sigR.current?.send({ type: "broadcast", event: "call_declined", payload: { reason: "timeout" } });
-    callService.emit("missed_call", { callId: call.callId || call.id });
     const recipientIds = isGroup && Array.isArray(call.participants)
       ? call.participants.map((participant) => participant?.id)
       : [call.user?.id];

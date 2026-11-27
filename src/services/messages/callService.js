@@ -403,6 +403,9 @@ class CallService extends Emitter {
   _onCallEnd(payload) {
     if (this._activeCallId && payload?.callId !== this._activeCallId) return;
     this._clearRingTimeout();
+    if (payload?.status === "no_answer" && payload?.endedBy && payload.endedBy !== this._userId) {
+      this.emit("missed_call", { callId: payload.callId });
+    }
     this.emit("call_ended", payload);
     try { window.dispatchEvent(new CustomEvent("nova:call_ended", { detail: payload })); } catch {}
     this._cleanupPeer();
