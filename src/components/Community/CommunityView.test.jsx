@@ -40,7 +40,15 @@ jest.mock("./tabs/ChannelsView", () => ({ onSelectChannel }) => (
     name: "general",
   })}>Select channel</button>
 ));
-jest.mock("./tabs/ChatTab", () => () => <div data-testid="community-chat" />);
+jest.mock("./tabs/ChatTab", () => ({ setSelectedChannel, selectedChannel }) => (
+  <div data-testid="community-chat">
+    <button type="button" data-testid="select-chat-channel" onClick={() => setSelectedChannel({
+      id: "chat-channel-1",
+      name: "chat channel",
+    })}>Select chat channel</button>
+    <span data-testid="selected-chat-channel">{selectedChannel?.id || ""}</span>
+  </div>
+));
 jest.mock("./modals/CreateCommunityModal", () => () => null);
 jest.mock("./modals/InviteModal", () => () => null);
 jest.mock("./components/InviteHandler", () => () => null);
@@ -142,5 +150,26 @@ describe("CommunityView", () => {
     await waitFor(() => {
       expect(document.body.classList.contains("community-fullscreen")).toBe(true);
     });
+  });
+
+  it("remembers channels selected directly from the community chat", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    window.history.replaceState({
+      type: "app-route",
+      route: { tab: "community" },
+      __xv_history_index: 0,
+    }, "", window.location.href);
+
+    render(<CommunityView userId="user-1" currentUser={{ id: "user-1" }} activeTab="community" />);
+
+    fireEvent.click(screen.getByTestId("select-community"));
+    fireEvent.click(await screen.findByTestId("select-chat-channel"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-chat-channel").textContent).toBe("chat-channel-1");
+    });
+    expect(window.history.state.__communityNavigation.channel.id).toBe("chat-channel-1");
+    const savedLocation = JSON.parse(localStorage.getItem("xeevia:last-community-location:user-1"));
+    expect(savedLocation.locations["community-1"].channelId).toBe("chat-channel-1");
   });
 });

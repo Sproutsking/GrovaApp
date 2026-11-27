@@ -23,7 +23,6 @@ import channelService from "../../../services/community/channelService";
 import communityMessageService from "../../../services/community/communityMessageService";
 import communityState from "../../../services/community/CommunityStateManager";
 import backgroundService from "../../../services/community/CommunityBackgroundService";
-import dmBackgroundService from "../../../services/messages/BackgroundService";
 import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
@@ -198,7 +197,7 @@ const ChatTab = ({
   const [postNavigationTarget, setPostNavigationTarget] = useState(null);
   const [contextReactionBurst, setContextReactionBurst] = useState(null);
 
-  const communityBackgroundStyle = dmBackgroundService.getBgStyle(backgroundId === "classic_weave" ? "classic_weave" : backgroundId);
+  const communityBackgroundStyle = backgroundService.getTheme(backgroundId).style;
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const unsubscribeChannel = useRef(null);
@@ -1095,7 +1094,7 @@ const ChatTab = ({
                     active={selectedChannel?.id === channel.id}
                     buttonStyle={buttonStyle}
                     dividerStyle={dividerStyle}
-                    onClick={() => { setChannelUnreadCounts((current) => ({ ...current, [channel.id]: 0 })); setSelectedChannel(channel); const key = `xeevia:last-community-location:${userId}`; const stored = JSON.parse(localStorage.getItem(key) || "{}"); const locations = stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {}); locations[community.id] = { communityId: community.id, ...locations[community.id], channelId: channel.id, view: "chat", lastVisited: Date.now() }; localStorage.setItem(key, JSON.stringify({ locations })); }}
+                    onClick={() => { setChannelUnreadCounts((current) => ({ ...current, [channel.id]: 0 })); setSelectedChannel(channel); }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

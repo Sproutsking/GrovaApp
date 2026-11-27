@@ -381,6 +381,27 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
     if (selectedCommunity?.id && channel?.id) saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
   };
 
+  const rememberChatChannel = (channel) => {
+    setSelectedChannel(channel);
+    if (!selectedCommunity?.id || !channel?.id) return;
+
+    saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {};
+    const previousEntry = currentState[COMMUNITY_HISTORY_KEY] || {};
+    window.history.replaceState({
+      ...currentState,
+      [COMMUNITY_HISTORY_KEY]: {
+        ...previousEntry,
+        view: "chat",
+        community: selectedCommunity,
+        channel,
+        depth: Number(previousEntry.depth) || 1,
+      },
+    }, "", window.location.href);
+  };
+
   const handleCreateCommunity = async (communityData) => {
     const newCommunity = await communityService.createCommunity(communityData, userId);
     await loadCommunities();
@@ -647,7 +668,7 @@ const CommunityView = ({ userId, currentUser, onNavigate, activeTab }) => {
               userId={userId}
               currentUser={fullUserProfile || currentUser || { id: userId }}
               selectedChannel={selectedChannel}
-              setSelectedChannel={setSelectedChannel}
+              setSelectedChannel={rememberChatChannel}
               onLeaveCommunity={() => openConfirm("Leave community?", "You can always rejoin later.", () => handleLeaveCommunity(selectedCommunity.id))}
               onCommunityUpdate={handleCommunityUpdate}
               onOpenInvite={handleOpenInvite}

@@ -116,6 +116,17 @@ describe("MessageList presentation", () => {
     expect(styles).toContain("--bubble-border: rgba(255,255,255,.12);");
   });
 
+  it("uses the same incoming and outgoing colors for community messages", () => {
+    const { container } = renderList([
+      makeMessage(),
+      makeMessage({ id: "message-2", user_id: "me", user: { id: "me", full_name: "Me" } }),
+    ]);
+    const styles = container.querySelector(".msg-list-wrapper style").textContent;
+
+    expect(styles).toContain("--message-tail-fill: #111111;");
+    expect(styles).toContain("--message-tail-fill: #144d37;");
+  });
+
   it("keeps link previews inside the message bubble and labels shared GIFs as content", () => {
     const { container } = renderList([
       makeMessage({ content: "Check this https://media.giphy.com/media/example/giphy.gif" }),

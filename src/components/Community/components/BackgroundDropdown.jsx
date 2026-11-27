@@ -1,7 +1,7 @@
 // components/Community/components/BackgroundDropdown.jsx - FIXED PREVIEWS
 import React, { useRef, useEffect } from "react";
 import { Palette, Check } from "lucide-react";
-import communityBgClassicWeave from "../../Messages/Assets/backgrounds/classic-weave.svg";
+import communityBgClassicWeave from "../../Messages/Assets/backgrounds/chat-doodle-weave.svg";
 import communityBgNovaWeave from "../../Messages/Assets/backgrounds/nova-weave.svg";
 import communityBgHexaGlow from "../../Messages/Assets/backgrounds/download (49).jpg";
 import communityBgHexaWave from "../../Messages/Assets/backgrounds/download (48).jpg";

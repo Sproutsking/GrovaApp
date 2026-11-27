@@ -33,6 +33,7 @@ import ActiveCall from "./ActiveCall";
 import GroupChatView from "./GroupChatView";
 import IncomingCallPopup from "./IncomingCallPopup";
 import { shouldRenderIncomingCallPopup } from "./callUiState";
+import { getLastOpenedChat, saveLastOpenedChat } from "../../services/messages/lastOpenedChat";
 
 /* ─── Icons ─── */
 const IChat = ({ a }) => (
@@ -222,7 +223,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
   const activeGroupRef = useRef(null);
   const activeConvRef  = useRef(null);
   const activeCallRef  = useRef(null);
+  const groupLoadRef   = useRef(Promise.resolve([]));
+  const initialOtherUserIdRef = useRef(initialOtherUserId);
+  const initialTabRef = useRef(initialTab);
 
+  initialOtherUserIdRef.current = initialOtherUserId;
+  initialTabRef.current = initialTab;
   useEffect(() => { tabRef.current  = tab;  }, [tab]);
   useEffect(() => { viewRef.current = view; }, [view]);
   useEffect(() => { activeGroupRef.current = activeGroup; }, [activeGroup]);
@@ -372,7 +378,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
   useEffect(() => {
     if (!uid) return;
     groupDMService.init(uid);
-    groupDMService.loadGroups();
+    groupLoadRef.current = groupDMService.loadGroups();
 
     const nc = supabase
       .channel(`gc_notify:${uid}`, { config: { broadcast: { self: false } } })
@@ -418,13 +424,50 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate, 
     onlineStatusService.start?.(uid);
     // Paint the DM shell immediately; conversation data hydrates in the background.
     setLoading(false);
-    dmMessageService.init(uid).catch(() => {});
+    let active = true;
+    Promise.all([dmMessageService.init(uid), groupLoadRef.current])
+      .then(([conversations, groups]) => {
+        if (!active || initialOtherUserIdRef.current || initialTabRef.current !== "chats") return;
+        const lastOpenedChat = getLastOpenedChat(uid);
+        if (!lastOpenedChat) return;
+
+        if (lastOpenedChat.type === "direct") {
+          const conversation = conversations.find((item) => item.id === lastOpenedChat.id);
+          const otherUser = conversation?.otherUser
+            || (conversation?.user1_id === uid ? conversation.user2 : conversation?.user1);
+          if (!conversation || !otherUser?.id) return;
+          setSelectedConv({ ...conversation, otherUser });
+          setTab("chats");
+          setView("chat");
+          return;
+        }
+
+        const group = groups.find((item) => item.id === lastOpenedChat.id);
+        if (!group) return;
+        setActiveGroup(group);
+        setTab("chats");
+        setView("group");
+      })
+      .catch((error) => console.error("[DM] Failed to restore last chat:", error));
     unsubList.current = dmMessageService.subscribeToConversationList?.();
 
     syncChatsBadge();
     const unsub = conversationState.subscribe?.(() => syncChatsBadge());
-    return () => { unsubList.current?.(); dmMessageService.cleanup?.(); unsub?.(); };
+    return () => {
+      active = false;
+      unsubList.current?.();
+      dmMessageService.cleanup?.();
+      unsub?.();
+    };
   }, [uid, syncChatsBadge]);
+
+  useEffect(() => {
+    if (view === "chat" && selectedConv?.id) {
+      saveLastOpenedChat(uid, { type: "direct", id: selectedConv.id });
+    } else if (view === "group" && activeGroup?.id) {
+      saveLastOpenedChat(uid, { type: "group", id: activeGroup.id });
+    }
+  }, [uid, view, selectedConv?.id, activeGroup?.id]);
 
   // Re-sync chats badge on view change
   useEffect(() => {
@@ -918,7 +961,7 @@ const CSS = `
 @media(min-width:769px){
   .dmh-panel{
     position:fixed;
-    inset:clamp(14px,3.2vw,46px);
+    inset:0 clamp(14px,3.2vw,46px);
     width:auto;
     height:auto;
     transform:none;
