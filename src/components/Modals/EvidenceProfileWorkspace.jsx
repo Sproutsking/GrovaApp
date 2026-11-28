@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import {
   Activity, ArrowLeft, BadgeCheck, BookOpen, Briefcase,
   ChevronRight, Clock, Database, ExternalLink, FileCheck2, FileText, Fingerprint,
-  GitBranch, GraduationCap, Images, Layers3, LockKeyhole, MessageSquareQuote, MoreHorizontal, Network, Search, Send, X,
+  Eye, EyeOff, GitBranch, GraduationCap, Images, Layers3, LockKeyhole, MessageSquareQuote, MoreHorizontal, Network, Search, Send, X,
   Link2, Shield, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
@@ -305,7 +305,12 @@ export function XrdEvidenceGraph({ items, edges, profile, connections = [], bind
   const dragStart = useRef(null);
   const didDrag = useRef(false);
   const suppressClick = useRef(false);
+  const graphScrollRef = useRef(null);
   const cx = 480, cy = 300;
+  useEffect(() => {
+    const graphScroll = graphScrollRef.current;
+    if (graphScroll) graphScroll.scrollLeft = Math.max(0, (graphScroll.scrollWidth - graphScroll.clientWidth) / 2);
+  }, []);
   const visibleItems = [...items].sort((left, right) => (
     Number(right.id === focusEvidenceId) - Number(left.id === focusEvidenceId)
   )).slice(0, 32);
@@ -528,7 +533,7 @@ export function XrdEvidenceGraph({ items, edges, profile, connections = [], bind
       : relationNote || `This ${String(selectedEdge.relation || "related_to").replaceAll("_", " ")} relationship is stored in the evidence graph. A saved relationship does not independently verify either endpoint.`;
 
   return <section className="xrd-graph-tool">
-    <style>{`.xrd-graph-edge{cursor:pointer}.xrd-graph-edge:focus-visible{outline:none}.xrd-graph-edge:focus-visible .xrd-graph-edge-hit,.xrd-graph-edge.is-selected .xrd-graph-edge-hit{stroke:rgba(163,230,53,.28);stroke-width:13}.xrd-graph-edge.is-selected .xrd-graph-edge-visible{stroke:#a3e635;stroke-width:3}.xrd-graph-edge-hit{fill:none;stroke:transparent;stroke-width:18;pointer-events:stroke}.xrd-graph-edge-visible{fill:none;stroke:#fbbf24;stroke-width:2;stroke-dasharray:3 10;stroke-linecap:round}.xrd-graph-source-node,.xrd-graph-person{cursor:pointer}.xrd-graph-source-node.is-selected circle{stroke:#a3e635;stroke-width:2}.xrd-graph-person:focus-visible{outline:none}.xrd-graph-person:focus-visible circle:first-child,.xrd-graph-person.is-selected circle:first-child{stroke:#a3e635;stroke-width:2}.xrd-graph-inspector{margin-top:12px;padding:14px;border:1px solid rgba(163,230,53,.32);border-radius:13px;background:linear-gradient(180deg,#0a0c0a,#000)}.xrd-graph-inspector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.xrd-graph-inspector h3{margin:4px 0;color:#e7eee2;font-size:calc((14px) + 1px);overflow-wrap:anywhere}.xrd-graph-inspector p{margin:8px 0 0;color:#9da797;font-size:calc((11px) + 1px);line-height:1.55}.xrd-graph-inspector-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-inspector-actions button{display:flex;align-items:center;gap:6px;max-width:100%;padding:7px 9px;border:1px solid #2a2d2a;border-radius:8px;background:#000;color:#cfd8c9;font-size:calc((10px) + 1px);text-align:left;overflow-wrap:anywhere}.xrd-graph-inspector-actions button:hover{border-color:rgba(163,230,53,.5);color:#a3e635}@media(max-width:650px){.xrd-graph-inspector-head{flex-direction:column}.xrd-graph-inspector-actions{flex-direction:column}.xrd-graph-inspector-actions button{width:100%}}`}</style>
+    <style>{`.xrd-graph-canvas .xrd-graph-scroll{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(163,230,53,.3) #030503}.xrd-graph-canvas .xrd-graph-scroll::-webkit-scrollbar{height:5px}.xrd-graph-canvas .xrd-graph-scroll::-webkit-scrollbar-thumb{background:rgba(163,230,53,.3);border-radius:99px}.xrd-graph-canvas .xrd-graph-legend{position:static;flex-wrap:wrap;background:rgba(3,5,3,.94);border-top:1px solid #1d241b}.xrd-graph-canvas .xrd-graph-reset{bottom:72px}.xrd-graph-edge{cursor:pointer}.xrd-graph-edge:focus-visible{outline:none}.xrd-graph-edge:focus-visible .xrd-graph-edge-hit,.xrd-graph-edge.is-selected .xrd-graph-edge-hit{stroke:rgba(163,230,53,.28);stroke-width:13}.xrd-graph-edge.is-selected .xrd-graph-edge-visible{stroke:#a3e635;stroke-width:3}.xrd-graph-edge-hit{fill:none;stroke:transparent;stroke-width:18;pointer-events:stroke}.xrd-graph-edge-visible{fill:none;stroke:#fbbf24;stroke-width:2;stroke-dasharray:3 10;stroke-linecap:round}.xrd-graph-source-node,.xrd-graph-person{cursor:pointer}.xrd-graph-source-node.is-selected circle{stroke:#a3e635;stroke-width:2}.xrd-graph-person:focus-visible{outline:none}.xrd-graph-person:focus-visible circle:first-child,.xrd-graph-person.is-selected circle:first-child{stroke:#a3e635;stroke-width:2}.xrd-graph-inspector{margin-top:12px;padding:14px;border:1px solid rgba(163,230,53,.32);border-radius:13px;background:linear-gradient(180deg,#0a0c0a,#000)}.xrd-graph-inspector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.xrd-graph-inspector h3{margin:4px 0;color:#e7eee2;font-size:calc((14px) + 1px);overflow-wrap:anywhere}.xrd-graph-inspector p{margin:8px 0 0;color:#9da797;font-size:calc((11px) + 1px);line-height:1.55}.xrd-graph-inspector-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-inspector-actions button{display:flex;align-items:center;gap:6px;max-width:100%;padding:7px 9px;border:1px solid #2a2d2a;border-radius:8px;background:#000;color:#cfd8c9;font-size:calc((10px) + 1px);text-align:left;overflow-wrap:anywhere}.xrd-graph-inspector-actions button:hover{border-color:rgba(163,230,53,.5);color:#a3e635}@media(max-width:650px){.xrd-graph-inspector-head{flex-direction:column}.xrd-graph-inspector-actions{flex-direction:column}.xrd-graph-inspector-actions button{width:100%}}`}</style>
     <style>{`.xrd-graph-account-link{fill:none;stroke:#60a5fa;stroke-width:1.6;stroke-opacity:.75}.xrd-graph-account-link.is-profile-url{stroke-dasharray:4 6;stroke:#fbbf24}.xrd-graph-record-link{fill:none;stroke:#a3e635;stroke-width:1.7;stroke-opacity:.72}.xrd-graph-record-evidence-link{fill:none;stroke:#d4d8d2;stroke-width:1.3;stroke-dasharray:2 6;stroke-opacity:.65}.xrd-graph-record-node{cursor:pointer}.xrd-graph-record-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-record-node.is-selected circle{fill:rgba(163,230,53,.18);stroke-width:3}.xrd-graph-record-node:focus-visible{outline:none}.xrd-graph-record-node:focus-visible circle{stroke-width:3}.xrd-graph-meaning{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.xrd-graph-meaning span{padding:9px 10px;border:1px solid #252b23;border-radius:9px;background:#050705;color:#99a393;font-size:calc((10px) + 1px);line-height:1.45}.xrd-graph-meaning b{color:#dce5d7}.xrd-graph-record-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-record-actions button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #343b30;border-radius:8px;background:#000;color:#dce5d7;font-size:calc((10px) + 1px)}.xrd-graph-record-actions button:hover{border-color:var(--xrd-ac);color:var(--xrd-ac)}@media(max-width:650px){.xrd-graph-meaning{grid-template-columns:minmax(0,1fr)}.xrd-graph-record-actions{flex-direction:column}.xrd-graph-record-actions button{width:100%}}`}</style>
     <style>{`.xrd-graph-account-link{fill:none;stroke:#60a5fa;stroke-width:1.6;stroke-opacity:.75}.xrd-graph-account-link.is-profile-url{stroke-dasharray:4 6;stroke:#fbbf24}.xrd-graph-record-link{fill:none;stroke:#a3e635;stroke-width:1.7;stroke-opacity:.72}.xrd-graph-record-evidence-link{fill:none;stroke:#d4d8d2;stroke-width:1.3;stroke-dasharray:2 6;stroke-opacity:.65}.xrd-graph-record-node{cursor:pointer}.xrd-graph-record-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-record-node.is-selected circle{fill:rgba(163,230,53,.18);stroke-width:3}.xrd-graph-record-node:focus-visible{outline:none}.xrd-graph-record-node:focus-visible circle{stroke-width:3}.xrd-graph-record-status{fill:#a3e635;font-size:calc((7px) + 1px);letter-spacing:.5px}.xrd-graph-meaning{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.xrd-graph-meaning span{padding:9px 10px;border:1px solid #252b23;border-radius:9px;background:#050705;color:#99a393;font-size:calc((10px) + 1px);line-height:1.45}.xrd-graph-meaning b{color:#dce5d7}.xrd-graph-record-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.xrd-graph-record-actions button{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #343b30;border-radius:8px;background:#000;color:#dce5d7;font-size:calc((10px) + 1px)}.xrd-graph-record-actions button:hover{border-color:var(--xrd-ac);color:var(--xrd-ac)}.xrd-graph-legend .record{border-top:1px solid #a3e635}.xrd-graph-legend .account{border-top:1px solid #60a5fa}@media(max-width:650px){.xrd-graph-meaning{grid-template-columns:minmax(0,1fr)}.xrd-graph-record-actions{flex-direction:column}.xrd-graph-record-actions button{width:100%}}`}</style>
     <style>{`.xrd-graph-claim-link{fill:none;stroke-width:1.8;stroke-opacity:.8}.xrd-graph-claim-link.is-support{stroke:#a3e635}.xrd-graph-claim-link.is-contradiction{stroke:#fbbf24;stroke-dasharray:4 4}.xrd-graph-claim-audit-link{fill:none;stroke:#d4d8d2;stroke-width:1.4;stroke-dasharray:2 6;stroke-opacity:.75}.xrd-graph-binding-link{fill:none;stroke:#60a5fa;stroke-width:1.5;stroke-dasharray:3 5;stroke-opacity:.85}.xrd-graph-binding-evidence-link{fill:none;stroke:#60a5fa;stroke-width:1.2;stroke-dasharray:1 6;stroke-opacity:.7}.xrd-graph-claim-node,.xrd-graph-binding-node{cursor:pointer}.xrd-graph-claim-node circle{fill:#030503;stroke:#a3e635;stroke-width:1.5}.xrd-graph-binding-node circle{fill:#030503;stroke:#60a5fa;stroke-width:1.5}.xrd-graph-claim-node>text,.xrd-graph-binding-node>text{fill:#dce5d7;font-size:9px;font-weight:700;paint-order:stroke;stroke:#030503;stroke-width:3px;stroke-linejoin:round}.xrd-graph-claim-node.is-selected circle,.xrd-graph-binding-node.is-selected circle,.xrd-graph-claim-node:focus-visible circle,.xrd-graph-binding-node:focus-visible circle{stroke-width:3}.xrd-graph-claim-node:focus-visible,.xrd-graph-binding-node:focus-visible{outline:none}.xrd-graph-legend{flex-wrap:wrap}.xrd-graph-legend i.claim-support{height:2px;background:#a3e635}.xrd-graph-legend i.claim-contradiction{height:2px;background:#fbbf24}.xrd-graph-legend i.binding{height:1px;background:#60a5fa}`}</style>
@@ -538,6 +543,7 @@ export function XrdEvidenceGraph({ items, edges, profile, connections = [], bind
     </div>
     <div className={`xrd-graph-canvas${dragging ? " is-dragging" : ""}`} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClickCapture={(event) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); } }}>
       <div className="xrd-graph-hud"><span><i />XRC EVIDENCE MAP</span><span>DRAG TO PAN</span></div>
+      <div className="xrd-graph-scroll" ref={graphScrollRef}>
       <svg viewBox="0 0 960 600" role="group" aria-label="Interactive provenance graph of profile, connected sources, XRC records, and evidence">
         <defs>
           <radialGradient id="xrd-graph-core"><stop offset="0" stopColor="#a3e635" stopOpacity=".18" /><stop offset="1" stopColor="#10b981" stopOpacity="0" /></radialGradient>
@@ -587,6 +593,7 @@ export function XrdEvidenceGraph({ items, edges, profile, connections = [], bind
           </g>)}
         </g>
       </svg>
+      </div>
       {(pan[0] || pan[1]) && <button type="button" className="xrd-graph-reset" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPan([0, 0])}>Recenter graph</button>}
       <div className="xrd-graph-legend"><span><i className="source" />Provider grouping</span><span><i className="claim-support" />Owner link · supports</span><span><i className="claim-contradiction" />Owner link · contradicts</span><span><i className="binding" />Identity binding</span><span><i className="record" />XRC reference / hash link</span></div>
     </div>
@@ -650,6 +657,8 @@ const ProfileEvidenceWorkspace = ({
   const [visibilityError, setVisibilityError] = useState("");
   const [recordsLoading, setRecordsLoading] = useState(own || mode === "xrc");
   const [recordsError, setRecordsError] = useState("");
+  const [recordVisibilityBusyId, setRecordVisibilityBusyId] = useState(null);
+  const [recordVisibilityError, setRecordVisibilityError] = useState("");
   const [filter, setFilter] = useState("");
   const [xrcStreamFilter, setXrcStreamFilter] = useState("");
   const [auditResult, setAuditResult] = useState({});
@@ -788,7 +797,7 @@ const ProfileEvidenceWorkspace = ({
     [own, publicPreview, sourceConnections],
   );
   const displayedRecords = isXrcView
-    ? records || []
+    ? canManage ? records || [] : (records || []).filter((record) => record.is_public)
     : publicPreview ? [] : own ? records || [] : [];
   const displayedIdentityDetails = canManage ? identityDetails : publicProjection.identityDetails;
   const publicProfileLinks = isPublicAudience
@@ -837,7 +846,7 @@ const ProfileEvidenceWorkspace = ({
   }, [own, targetId]);
 
   const loadRecords = useCallback(async () => {
-    if (!targetId || (!own && !isXrcView)) return;
+    if (!targetId || (!canManage && !isXrcView)) return;
     setRecordsLoading(true);
     setRecordsError("");
     try {
@@ -850,7 +859,7 @@ const ProfileEvidenceWorkspace = ({
           .eq("payload->>entity_type", "xrd_record")
           .eq("payload->>entity_id", xrdRecordId);
       }
-      const { data, error } = own
+      const { data, error } = canManage
         ? await ownerRecordsQuery
           .order("timestamp", { ascending: false })
           .limit(100)
@@ -866,7 +875,7 @@ const ProfileEvidenceWorkspace = ({
     } finally {
       setRecordsLoading(false);
     }
-  }, [isXrcView, own, targetId, xrdRecordId]);
+  }, [canManage, isXrcView, targetId, xrdRecordId]);
 
   useEffect(() => {
     loadRecords();
@@ -1769,6 +1778,29 @@ const ProfileEvidenceWorkspace = ({
     }
   };
 
+  const setRecordVisibility = async (record) => {
+    if (!canManage || !isXrcView || !record?.record_id || recordVisibilityBusyId) return;
+    const isPublic = !record.is_public;
+    setRecordVisibilityBusyId(record.record_id);
+    setRecordVisibilityError("");
+    try {
+      const { data, error } = await supabase.rpc("set_xrc_record_visibility", {
+        p_record_id: record.record_id,
+        p_is_public: isPublic,
+      });
+      if (error) throw error;
+      if (data !== true) throw new Error("The XRC record visibility was not updated.");
+      setRecords((current) => current.map((item) => item.record_id === record.record_id
+        ? { ...item, is_public: isPublic }
+        : item));
+    } catch (error) {
+      console.error("[XRC] Could not update record visibility:", error);
+      setRecordVisibilityError(error?.message || "Could not update this record's visibility.");
+    } finally {
+      setRecordVisibilityBusyId(null);
+    }
+  };
+
   const traceRecord = async (recordId) => {
     setTraceResult((previous) => ({ ...previous, [recordId]: { loading: true } }));
     try {
@@ -1912,36 +1944,87 @@ const ProfileEvidenceWorkspace = ({
     );
   };
 
-  const renderXrcRecordCards = (items) => items.length
-    ? <div className="xrd-record-list">{items.map((record) => {
-      const eventName = String(record.payload?.event || record.stream_type || "XRC event").replaceAll("_", " ");
-      const integrity = auditResult[record.record_id];
-      const trace = traceResult[record.record_id];
-      const payloadDetails = Object.entries(record.payload || {})
-        .filter(([key]) => !["event", "entity_type", "entity_id"].includes(key))
-        .slice(0, 4);
-      return (
-        <article className="xrd-record" key={record.record_id}>
-          <div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div>
-          <div className="xrd-record-body">
-            <div className="xrd-record-top">
-              <span className="xrd-record-title">{eventName}</span>
-              <span className="xrd-status">{record.stream_type}</span>
-            </div>
-            <div className="xrd-record-meta">{dateLabel(record.timestamp)} <i /> {record.payload?.entity_type || "chain event"} <i /> sequence {record.stream_sequence ?? "legacy"}</div>
-            <div className="xrd-hash">HASH · {record.record_hash || "Unavailable"}</div>
-            {payloadDetails.length > 0 && <div className="xrd-record-meta">{payloadDetails.map(([key, value]) => `${key.replaceAll("_", " ")}: ${typeof value === "string" ? value : JSON.stringify(value)}`).join(" · ")}</div>}
-            {(integrity?.result || integrity?.error) && <div className="xrd-integrity"><span>Hash integrity: <b>{integrity.error || integrity.result?.status || "not checked"}</b></span></div>}
-            {trace?.result && <div className="xrd-integrity"><span>Trace: <b>{trace.result.depth || 0} linked record{trace.result.depth === 1 ? "" : "s"}</b>{trace.result.reachedGenesis ? " · chain start reached" : trace.result.parentUnavailable ? " · parent outside this view" : trace.result.brokenLink ? " · broken parent link" : ""}</span></div>}
-            <div className="xrd-integrity-actions">
-              <button type="button" disabled={integrity?.loading} onClick={() => checkRecord(record.record_id)}>{integrity?.loading ? "Checking…" : "Check integrity"}</button>
-              <button type="button" disabled={trace?.loading} onClick={() => traceRecord(record.record_id)}>{trace?.loading ? "Tracing…" : "Trace chain"}</button>
-            </div>
-          </div>
-        </article>
-      );
-    })}</div>
-    : <EmptyState text="No XRC event records are available in this view." />;
+  const renderXrcRecordCards = (items, { showVisibilityControls = false } = {}) => {
+    if (!items.length) return <EmptyState text="No XRC event records are available in this view." />;
+    const streamGroups = new Map();
+    items.forEach((record) => {
+      const stream = record.stream_type || "XRC";
+      if (!streamGroups.has(stream)) streamGroups.set(stream, []);
+      streamGroups.get(stream).push(record);
+    });
+    const orderedGroups = [...streamGroups.entries()]
+      .sort(([, a], [, b]) => Number(b[0]?.timestamp || 0) - Number(a[0]?.timestamp || 0));
+    return <>
+      <style>{`.xrd-record-tracks{display:flex;flex-direction:column;gap:14px}.xrd-record-track{padding:10px;border:1px solid #20271e;border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(0,0,0,.4))}.xrd-record-track-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 6px;color:#a3e635;font:9px ui-monospace,monospace;letter-spacing:.1em}.xrd-record-track-heading span:last-child{color:#717b6d;letter-spacing:0}.xrd-record-chain{display:flex;flex-direction:column}.xrd-record-compact{gap:9px;padding:10px 11px;border-color:#242b22;border-radius:11px;background:radial-gradient(ellipse at 0 0,rgba(96,165,250,.05),transparent 50%),rgba(0,0,0,.72)}.xrd-record-compact .xrd-record-mark{width:28px;height:28px;border-radius:8px}.xrd-record-compact .xrd-record-title{font-size:11px}.xrd-record-compact .xrd-record-meta{margin-top:3px}.xrd-record-summary{margin:5px 0 0;color:#aeb8a7;font-size:10px;line-height:1.4;overflow-wrap:anywhere}.xrd-record-compact-hash{display:flex;align-items:center;gap:7px;min-width:0;margin-top:7px;color:#7e8a77;font-size:9px}.xrd-record-compact-hash code{min-width:0;overflow:hidden;color:#a8b8a0;font:9px ui-monospace,monospace;text-overflow:ellipsis;white-space:nowrap}.xrd-record-details{margin-top:7px;border-top:1px solid rgba(255,255,255,.06);color:#9ba594}.xrd-record-details summary{width:fit-content;padding:6px 0;color:#a3e635;font-size:9px;font-weight:800;cursor:pointer}.xrd-record-hash{margin-top:5px;padding:7px 8px;border:1px solid #202a1e;border-radius:8px;background:rgba(163,230,53,.035)}.xrd-record-hash>span{display:block;margin-bottom:4px;color:#7f8a77;font:8px ui-monospace,monospace;letter-spacing:.11em}.xrd-record-hash code{display:block;color:#aab9a4;font:9px ui-monospace,monospace;line-height:1.5;overflow-wrap:anywhere;user-select:text}.xrd-record-payload{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:6px;margin:7px 0 0}.xrd-record-payload>div{min-width:0;padding:7px 8px;border:1px solid #1d241b;border-radius:7px;background:#050705}.xrd-record-payload dt{margin-bottom:3px;color:#7b8675;font-size:8px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.xrd-record-payload dd{margin:0;color:#c7d0c0;font-size:9px;line-height:1.4;overflow-wrap:anywhere}.xrd-record-visibility{display:inline-flex;align-items:center;gap:5px;flex:none;padding:5px 8px;border:1px solid #343a31;border-radius:999px;background:#090c08;color:#aab3a5;font-size:9px;font-weight:800;cursor:pointer}.xrd-record-visibility.is-public{border-color:rgba(163,230,53,.42);background:rgba(163,230,53,.09);color:#c7f28d}.xrd-record-visibility:disabled{opacity:.55;cursor:wait}.xrd-record-link{position:relative;display:flex;align-items:center;min-height:24px;padding-left:31px;color:#687364;font:7px ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase}.xrd-record-link:before{position:absolute;top:0;bottom:0;left:13px;border-left:1px dashed #475044;content:""}.xrd-record-link:after{position:absolute;top:50%;left:10px;width:7px;height:7px;transform:translateY(-50%) rotate(45deg);border:1px solid #59634f;background:#080b07;content:""}.xrd-record-link.is-linked{color:#a3e635}.xrd-record-link.is-linked:before{border-left:1px solid rgba(163,230,53,.78);box-shadow:0 0 8px rgba(163,230,53,.35)}.xrd-record-link.is-linked:after{border-color:#a3e635;box-shadow:0 0 8px rgba(163,230,53,.45)}.xrd-root .xrd-action-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:29px;padding:5px 8px;border:1px solid #333b2e;border-radius:8px;background:linear-gradient(180deg,#10140e,#080a08);color:#cbd5c3;font-size:9px;font-weight:800;line-height:1.2;cursor:pointer;transition:border-color .15s,background .15s,color .15s,transform .15s}.xrd-root .xrd-action-button:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(163,230,53,.5);background:rgba(163,230,53,.08);color:#dff4ca}.xrd-root .xrd-action-button.is-primary{border-color:rgba(163,230,53,.38);background:linear-gradient(135deg,rgba(163,230,53,.2),rgba(163,230,53,.07));color:#b9ee79}.xrd-root .xrd-action-button:disabled{opacity:.5;cursor:wait}.xrd-integrity-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.xrd-integrity-actions .xrd-action-button{flex:1 1 120px}@media(max-width:500px){.xrd-record-track{padding:7px}.xrd-record-compact{gap:7px;padding:9px}.xrd-record-link{padding-left:27px}.xrd-record-link:before{left:11px}.xrd-record-link:after{left:8px}.xrd-integrity-actions{display:grid;grid-template-columns:minmax(0,1fr)}.xrd-integrity-actions .xrd-action-button{width:100%}}`}</style>
+      <div className="xrd-record-tracks">{orderedGroups.map(([stream, streamRecords]) => {
+        const orderedRecords = [...streamRecords].sort((a, b) => (
+          Number(b.stream_sequence ?? Number.MAX_SAFE_INTEGER) - Number(a.stream_sequence ?? Number.MAX_SAFE_INTEGER)
+          || Number(b.timestamp || 0) - Number(a.timestamp || 0)
+        ));
+        return <section className="xrd-record-track" key={stream} aria-label={`${stream} records`}>
+          <div className="xrd-record-track-heading"><span>{stream} · HASH CHAIN</span><span>{orderedRecords.length} event{orderedRecords.length === 1 ? "" : "s"}</span></div>
+          <div className="xrd-record-chain">{orderedRecords.map((record, index) => {
+            const eventName = String(record.payload?.event || stream || "XRC event").replaceAll("_", " ");
+            const integrity = auditResult[record.record_id];
+            const trace = traceResult[record.record_id];
+            const payloadDetails = Object.entries(record.payload || {});
+            const parent = orderedRecords[index + 1];
+            const linked = Boolean(parent?.record_hash && record.previous_hash
+              && graphHashKey(parent.record_hash) === graphHashKey(record.previous_hash));
+            const hasPreviousHash = Boolean(record.previous_hash);
+            return <React.Fragment key={record.record_id}>
+              <article className="xrd-record xrd-record-compact">
+                <div className="xrd-record-mark xrd-chain-mark"><GitBranch size={14} /></div>
+                <div className="xrd-record-body">
+                  <div className="xrd-record-top">
+                    <span className="xrd-record-title">{eventName}</span>
+                    {showVisibilityControls
+                      ? <button
+                        type="button"
+                        role="switch"
+                        aria-checked={Boolean(record.is_public)}
+                        aria-label={`${record.is_public ? "Make private" : "Make public"}: ${eventName}`}
+                        className={`xrd-record-visibility${record.is_public ? " is-public" : ""}`}
+                        disabled={recordVisibilityBusyId !== null}
+                        onClick={() => setRecordVisibility(record)}
+                      >
+                        {recordVisibilityBusyId === record.record_id
+                          ? "Saving…"
+                          : <>{record.is_public ? <Eye size={12} /> : <EyeOff size={12} />}{record.is_public ? "Shared" : "Private"}</>}
+                      </button>
+                      : <span className="xrd-status">{record.is_public ? "Shared" : stream}</span>}
+                  </div>
+                  <div className="xrd-record-meta">{dateLabel(record.timestamp)} <i /> sequence {record.stream_sequence ?? "legacy"}</div>
+                  <p className="xrd-record-summary">{getXrcRecordSummary(record.payload) || "Recorded event in the Xeevia record chain."}</p>
+                  <div className="xrd-record-compact-hash"><GitBranch size={12} /><span>HASH</span><code>{record.record_hash || "Unavailable"}</code></div>
+                  <details className="xrd-record-details">
+                    <summary>Inspect full record data</summary>
+                    <div className="xrd-record-hash"><span>RECORD HASH</span><code>{record.record_hash || "Unavailable"}</code></div>
+                    <div className="xrd-record-hash"><span>PREVIOUS HASH</span><code>{record.previous_hash || "Chain start / unavailable"}</code></div>
+                    {payloadDetails.length > 0 && <dl className="xrd-record-payload">
+                      {payloadDetails.map(([key, value]) => {
+                        const renderedValue = typeof value === "string" ? value : JSON.stringify(value) ?? String(value);
+                        return <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd>{renderedValue}</dd></div>;
+                      })}
+                    </dl>}
+                  </details>
+                  {(integrity?.result || integrity?.error) && <div className="xrd-integrity"><span>Hash integrity: <b>{integrity.error || integrity.result?.status || "not checked"}</b></span></div>}
+                  {trace?.result && <div className="xrd-integrity"><span>Trace: <b>{trace.result.depth || 0} linked record{trace.result.depth === 1 ? "" : "s"}</b>{trace.result.reachedGenesis ? " · chain start reached" : trace.result.parentUnavailable ? " · parent outside this view" : trace.result.brokenLink ? " · broken parent link" : ""}</span></div>}
+                  <div className="xrd-integrity-actions">
+                    <button type="button" className="xrd-action-button is-primary" disabled={integrity?.loading} onClick={() => checkRecord(record.record_id)}><ShieldCheck size={13} />{integrity?.loading ? "Checking…" : "Check integrity"}</button>
+                    <button type="button" className="xrd-action-button" disabled={trace?.loading} onClick={() => traceRecord(record.record_id)}><GitBranch size={13} />{trace?.loading ? "Tracing…" : "Trace chain"}</button>
+                  </div>
+                </div>
+              </article>
+              {parent && <div className={`xrd-record-link${linked ? " is-linked" : ""}`} aria-label={linked ? "Previous-hash link matches the visible parent record" : "Previous record is not visible in this list"}>
+                {linked ? "previous hash link" : hasPreviousHash ? "parent not in this view" : "chain start"}
+              </div>}
+            </React.Fragment>;
+          })}</div>
+        </section>;
+      })}</div>
+    </>;
+  };
 
   const renderPublicLinkCards = (links) => (
     <div className="xrd-public-link-grid">
@@ -2075,10 +2158,12 @@ const ProfileEvidenceWorkspace = ({
         <>
           <SectionHeading kicker="XEEVIA RECORD CHAIN" title="XRC records" subtitle="Each event is an immutable record with a content hash and a previous-record link. Hash integrity does not prove that the event's claim is true." />
           {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
+          {recordVisibilityError && <div className="xrd-error" role="alert">{recordVisibilityError}</div>}
           {recordsLoading ? <div className="xrd-loading"><span />Loading XRC records…</div> : <>
             <div className="xrd-graph-tools"><button type="button" className={!xrcStreamFilter ? "active" : ""} onClick={() => setXrcStreamFilter("")}>All streams</button>{Object.values(STREAM_TYPES).filter((stream) => displayedRecords.some((record) => record.stream_type === stream)).map((stream) => <button type="button" key={stream} className={xrcStreamFilter === stream ? "active" : ""} onClick={() => setXrcStreamFilter(stream)}>{stream}</button>)}</div>
             <SearchBox value={filter} onChange={setFilter} placeholder="Filter XRC events, stream, or record ID" />
-            {visibleRecords.length ? renderXrcRecordCards(visibleRecords) : <EmptyState text="No XRC records match this filter." />}
+            {canManage && <div className="xrd-notice"><Eye size={16} /><span>Records are private by default. Sharing a record reveals its full event payload and hash inputs to signed-in XRC viewers. You can turn sharing off at any time.</span></div>}
+            {visibleRecords.length ? renderXrcRecordCards(visibleRecords, { showVisibilityControls: canManage }) : <EmptyState text="No XRC records match this filter." />}
           </>}
         </>
       );
@@ -2092,11 +2177,64 @@ const ProfileEvidenceWorkspace = ({
       })).filter(({ records: streamRecords }) => streamRecords.length);
       return (
         <>
+          <style>{`.xrd-root .xrd-action-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 10px;border:1px solid #333b2e;border-radius:9px;background:linear-gradient(180deg,#10140e,#080a08);color:#cbd5c3;font-size:10px;font-weight:800;line-height:1.25;cursor:pointer;transition:border-color .15s,background .15s,color .15s,transform .15s}.xrd-root .xrd-action-button:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(163,230,53,.5);background:rgba(163,230,53,.08);color:#dff4ca}.xrd-root .xrd-action-button.is-primary{border-color:rgba(163,230,53,.38);background:linear-gradient(135deg,rgba(163,230,53,.2),rgba(163,230,53,.07));color:#b9ee79}.xrd-root .xrd-action-button:disabled{opacity:.5;cursor:wait}.xrd-stream-card{background:radial-gradient(ellipse at 0 0,rgba(96,165,250,.06),transparent 52%),linear-gradient(125deg,rgba(255,255,255,.035),rgba(255,255,255,.012))}.xrd-stream-card>.xrd-record-mark{width:38px;height:38px;border-color:rgba(96,165,250,.28);background:linear-gradient(145deg,rgba(96,165,250,.13),rgba(96,165,250,.035));box-shadow:0 0 18px rgba(96,165,250,.08)}.xrd-chain-path{display:flex;flex-direction:column;gap:0;margin-top:12px;padding:10px;border:1px solid #20271e;border-radius:12px;background:rgba(0,0,0,.4)}.xrd-chain-event{display:grid;grid-template-columns:28px minmax(0,1fr) 16px;align-items:center;gap:9px;width:100%;padding:9px;border:1px solid transparent;border-radius:9px;background:transparent;color:#aeb8a8;text-align:left;cursor:pointer;transition:background .15s,border-color .15s}.xrd-chain-event:hover,.xrd-chain-event:focus-visible{border-color:rgba(163,230,53,.28);background:rgba(163,230,53,.055);outline:none}.xrd-chain-event-dot{display:grid;width:27px;height:27px;place-items:center;border:1px solid rgba(163,230,53,.28);border-radius:9px;background:#080b07;color:#a3e635}.xrd-chain-event-copy{display:flex;min-width:0;flex-direction:column;gap:3px}.xrd-chain-event-copy strong{overflow-wrap:anywhere;color:#e3eadf;font-size:10px;font-weight:800;text-transform:capitalize}.xrd-chain-event-copy small{color:#7d8778;font-size:9px}.xrd-chain-event-copy code{color:#91a5b8;font:8px ui-monospace,monospace;line-height:1.45;overflow-wrap:anywhere}.xrd-chain-event>svg:last-child{color:#7b8675}.xrd-chain-wire{position:relative;display:flex;min-height:26px;align-items:center;padding-left:44px;color:#7a8275;font:7px ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase}.xrd-chain-wire:before{position:absolute;top:0;bottom:0;left:22px;border-left:1px dashed #3c4437;content:""}.xrd-chain-wire.is-linked{color:#9fcf62}.xrd-chain-wire.is-linked:before{border-left:1px solid rgba(163,230,53,.72);box-shadow:0 0 7px rgba(163,230,53,.25)}.xrd-stream-card .xrd-integrity-actions{margin-top:11px}@media(max-width:500px){.xrd-stream-card{gap:9px;padding:11px}.xrd-chain-path{padding:7px}.xrd-chain-wire{padding-left:38px}.xrd-chain-wire:before{left:18px}}`}</style>
           <SectionHeading kicker="XEEVIA RECORD CHAIN" title="Chain topology" subtitle="XRC partitions events into purpose-specific streams. A profile view only includes records permitted for this viewer." />
           {recordsError && <div className="xrd-error" role="alert">{recordsError}<button type="button" onClick={loadRecords}>Retry</button></div>}
           {recordsLoading ? <div className="xrd-loading"><span />Loading chain topology…</div> : streams.length ? <div className="xrd-record-list">{streams.map(({ stream, info, records: streamRecords }) => {
-            const latest = [...streamRecords].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))[0];
-            return <article className="xrd-record" key={stream}><div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div><div className="xrd-record-body"><div className="xrd-record-top"><span className="xrd-record-title">{info?.label || stream}</span><span className="xrd-status">{stream}</span></div><p>{info?.description || "XRC event stream"}</p><div className="xrd-record-meta">{streamRecords.length} visible event{streamRecords.length === 1 ? "" : "s"} <i /> latest {dateLabel(latest?.timestamp)}</div><div className="xrd-hash">HEAD · {latest?.record_hash || "Unavailable"}</div><div className="xrd-integrity-actions"><button type="button" onClick={() => { setXrcStreamFilter(stream); navigateSection("Records"); }}>Inspect stream</button></div></div></article>;
+            const orderedRecords = [...streamRecords].sort((a, b) => (
+              Number(a.stream_sequence ?? Number.MAX_SAFE_INTEGER) - Number(b.stream_sequence ?? Number.MAX_SAFE_INTEGER)
+              || new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
+            ));
+            const latest = [...streamRecords].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())[0];
+            const recentRecords = orderedRecords.slice(-4);
+            return (
+              <article className="xrd-record xrd-stream-card" key={stream}>
+                <div className="xrd-record-mark xrd-chain-mark"><GitBranch size={16} /></div>
+                <div className="xrd-record-body">
+                  <div className="xrd-record-top"><span className="xrd-record-title">{info?.label || stream}</span><span className="xrd-status">{stream}</span></div>
+                  <p>{info?.description || "XRC event stream"}</p>
+                  <div className="xrd-record-meta">{streamRecords.length} visible event{streamRecords.length === 1 ? "" : "s"} <i /> latest {dateLabel(latest?.timestamp)}</div>
+                  <div className="xrd-record-hash"><span>STREAM HEAD</span><code>{latest?.record_hash || "Unavailable"}</code></div>
+                  {recentRecords.length > 0 && (
+                    <div className="xrd-chain-path" aria-label={`Recent linked events in ${stream}`}>
+                      {recentRecords.map((record, index) => {
+                        const previous = recentRecords[index - 1];
+                        const linked = Boolean(previous?.record_hash && record.previous_hash
+                          && graphHashKey(previous.record_hash) === graphHashKey(record.previous_hash));
+                        const eventName = String(record.payload?.event || stream).replaceAll("_", " ");
+                        const hasParent = Boolean(record.previous_hash);
+                        return (
+                          <React.Fragment key={record.record_id}>
+                            {index > 0 && (
+                              <div className={`xrd-chain-wire${linked ? " is-linked" : ""}`}>
+                                <span>{linked ? "previous hash link found in this view" : "parent not in this view"}</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              className="xrd-chain-event"
+                              onClick={() => { setXrcStreamFilter(stream); navigateSection("Records"); }}
+                              aria-label={`Inspect ${eventName}, sequence ${record.stream_sequence ?? "legacy"}`}
+                            >
+                              <span className="xrd-chain-event-dot"><GitBranch size={13} /></span>
+                              <span className="xrd-chain-event-copy">
+                                <strong>{eventName}</strong>
+                                <small>{dateLabel(record.timestamp)} · sequence {record.stream_sequence ?? "legacy"}</small>
+                                <code>{record.record_hash || "Hash unavailable"}{hasParent && !linked ? " · parent not shown" : ""}</code>
+                              </span>
+                              <ChevronRight size={15} />
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="xrd-integrity-actions">
+                    <button type="button" className="xrd-action-button is-primary" onClick={() => { setXrcStreamFilter(stream); navigateSection("Records"); }}><FileText size={14} />Inspect stream</button>
+                  </div>
+                </div>
+              </article>
+            );
           })}</div> : <EmptyState text="No chain streams are available for this profile yet." />}
         </>
       );

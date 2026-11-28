@@ -15,7 +15,7 @@ import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 
 import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Heart, Star, LayoutDashboard, Link2,
+  Bookmark, Users, UserPlus, Hash, Heart, Star, LayoutDashboard, Link2, MapPin,
   Sparkles, GitBranch, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
@@ -206,7 +206,7 @@ const FourStatRow = ({ stats }) => {
       transition:"grid-template-columns .3s",
     }}>
       {stats.map((s) => (
-        <div key={s.label} style={{ textAlign:"center", padding:"10px 4px" }}>
+        <div key={s.label} style={{ textAlign:"center", padding:"8px 4px" }}>
           <p style={{
             fontSize:fontSz, fontWeight:900,
             background:"linear-gradient(135deg,#84cc16 0%,#65a30d 100%)",
@@ -375,7 +375,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, social_links, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
+        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, social_links, location_city, location_country, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
         .eq("id", userId)
         .maybeSingle();
 
@@ -416,6 +416,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           gravity: "auto",
         })
         : null;
+      const profileLocation = [profileData?.location_city, profileData?.location_country]
+        .filter((part) => typeof part === "string" && part.trim())
+        .join(", ");
 
       if (profileData) {
         setProfile({
@@ -428,6 +431,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           bannerImageUrl,
           bannerImageId: profileData.banner_image_id || null,
           bio: profileData.bio,
+          location: profileLocation || null,
           profileTags: normalizeProfileTags(profileData.profile_tags),
           socialLinks: profileData.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
             ? profileData.social_links
@@ -513,6 +517,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         bannerImageUrl,
         bannerImageId:    profileData?.banner_image_id || null,
         bio:              profileData?.bio,
+        location:         profileLocation || null,
         profileTags:      normalizeProfileTags(profileData?.profile_tags),
         socialLinks:      profileData?.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
           ? profileData.social_links
@@ -533,7 +538,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       };
 
       if (!profileData) {
-        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, profileTags:[], socialLinks:{}, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
+        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, location:null, profileTags:[], socialLinks:{}, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
         setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, xevTokens:0, engagementPoints:0 });
         return;
       }
@@ -810,49 +815,54 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes nameGradientShift { from{background-position:0% 50%} to{background-position:220% 50%} }
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
-        .profile-section { padding: 20px; width:100%; min-width:0; box-sizing:border-box; }
-        .profile-content-region { width:calc(100% + 40px); margin-left:-20px; }
-        .profile-content-divider { height:1px; margin:18px 0 0; border:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16) 12%,rgba(255,255,255,.16) 88%,transparent); }
-        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:8px 8px 12px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:transparent; }
-        .profile-identity-overlay { position:relative;z-index:1;width:100%;box-sizing:border-box;margin:0;padding:16px 18px 12px;border:1px solid rgba(255,255,255,.12);border-radius:20px;background:linear-gradient(180deg,rgba(5,8,6,.9),rgba(4,6,5,.96));box-shadow:0 18px 42px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06); }
-        .profile-name { font-size:calc((26px) + 1px);font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
+        .profile-section { padding: 6px; width:100%; min-width:0; box-sizing:border-box; }
+        .profile-content-region { width:calc(100% + 12px); margin-left:-6px; }
+        .profile-content-divider { height:1px; margin:8px 0 0; border:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16) 12%,rgba(255,255,255,.16) 88%,transparent); }
+        .profile-header-content { position:relative; z-index:1; isolation:isolate; text-align:center; padding:4px 2px 6px; width:100%; box-sizing:border-box; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; background:transparent; }
+        .profile-identity-overlay { position:relative;z-index:1;align-self:center;width:fit-content;max-width:100%;box-sizing:border-box;margin:4px auto 6px;padding:6px 8px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:linear-gradient(180deg,rgba(5,8,6,.92),rgba(4,6,5,.98));box-shadow:0 12px 30px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.06); }
+        .profile-name { font-size:calc((26px) + 1px);font-weight:900;color:#fff;margin:0 0 2px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;overflow-wrap:anywhere;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:calc((12px) + 1px);font-weight:900;line-height:1; }
-        .profile-username { font-size:calc((15px) + 1px);color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
-        .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 10px; }
+        .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
+        .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#fbbf24; }
+        .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:calc((11px) + 1px);font-weight:800;color:#84cc16; }
+        .profile-username { font-size:calc((15px) + 1px);color:#d9f99d;margin:2px 0 5px 0;font-weight:700;text-shadow:0 1px 8px rgba(0,0,0,0.8);overflow-wrap:anywhere; }
+        .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 6px; }
         .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:calc((9px) + 1px);font-weight:800;line-height:1.2; }
-        .profile-bio { color:#d1d1d1;font-size:calc((13px) + 1px);margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
-        .profile-social-links { display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:-6px 0 16px; }
-        .profile-social-link { display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(0,0,0,.4);color:#d9f99d;text-decoration:none;font-size:11px;font-weight:700;text-transform:capitalize; }
+        .profile-bio { color:#fff;font-size:calc((13px) + 1px);font-weight:600;margin:0 auto 6px;line-height:1.5;max-width:min(64ch,100%);overflow-wrap:anywhere;text-shadow:0 1px 8px rgba(0,0,0,0.9); }
+        .profile-location { display:inline-flex;align-items:center;justify-content:center;gap:5px;margin:0 0 6px;color:#c5f17e;font-size:12px;font-weight:700; }
+        .profile-location svg { flex:none; }
+        .profile-social-links { display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:0 0 6px; }
+        .profile-social-link { display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(0,0,0,.4);color:#d9f99d;text-decoration:none;font-size:11px;font-weight:700;text-transform:capitalize;overflow-wrap:anywhere; }
         .profile-social-link:hover { border-color:rgba(163,230,53,.55);background:rgba(132,204,22,.1); }
 
-        .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
-        .profile-boost-tristat { margin-bottom:12px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(8,8,8,.95) 58%);border-color:rgba(255,255,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.24); }
+        .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:8px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
+        .profile-boost-tristat { margin-bottom:6px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(8,8,8,.95) 58%);border-color:rgba(255,255,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.24); }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
         .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0;width:100%; }
         .tri-stat-pill { box-sizing:border-box;flex:1 1 0;width:0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s;overflow:hidden; }
         .tri-stat-pill:hover { background:rgba(255,255,255,0.04);transform:translateY(-1px); }
-        .tri-stat-inner { display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:12px 8px;min-width:0; }
+        .tri-stat-inner { display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:8px 6px;min-width:0; }
         .tri-stat-icon-wrap { display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);flex:0 0 30px; }
         .tri-stat-icon-wrap svg { width:14px!important;height:14px!important; }
         .tri-stat-text { display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1 1 auto; }
         .tri-stat-value { font-size:calc((18px) + 1px);font-weight:900;color:var(--accent);line-height:1.15;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
         .tri-stat-label { font-size:calc((10px) + 1px);color:#525252;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
         .tristat-divider { width:1px;margin:10px 0;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.08) 50%,transparent 100%);flex-shrink:0;align-self:stretch; }
-        .profile-overview-stats { background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(12,12,12,.92) 68%);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:14px 8px;gap:4px;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.045),0 16px 36px rgba(0,0,0,.2);backdrop-filter:blur(12px); }
+        .profile-overview-stats { background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(12,12,12,.92) 68%);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:6px;gap:4px;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.045),0 16px 36px rgba(0,0,0,.2);backdrop-filter:blur(12px); }
 
-        .actions-card { background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:10px; }
-        .actions-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
-        .action-btn { position:relative;display:flex;flex-direction:row;align-items:flex-start;gap:10px;padding:16px;border-radius:16px;border:1px solid;cursor:pointer;transition:all 0.25s;overflow:hidden;text-align:left; }
+        .actions-card { background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:6px; }
+        .actions-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+        .action-btn { position:relative;display:flex;flex-direction:row;align-items:flex-start;gap:8px;padding:8px;border-radius:16px;border:1px solid;cursor:pointer;transition:all 0.25s;overflow:hidden;text-align:left; }
         .action-btn:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4); }
         .action-btn-icon { width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
         .action-btn-text { flex:1;min-width:0; }
         .action-btn-label { font-size:calc((13px) + 1px);font-weight:800;margin:0 0 2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .action-btn-sub { font-size:calc((11px) + 1px);font-weight:500;margin:0;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
-        .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:calc((13px) + 1px);color:#84cc16; }
+        .contact-row { display:flex;flex-direction:column;gap:4px;margin-bottom:6px;padding:0; }
+        .contact-chip { display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;padding:6px 8px;overflow-wrap:anywhere;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:calc((13px) + 1px);color:#84cc16; }
 
-        .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
-        .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid rgba(190,242,100,.5);border-radius:14px;background:linear-gradient(135deg,#263f0e 0%,#142d1d 58%,#0c1713 100%);box-shadow:inset 0 1px rgba(217,249,157,.12),0 8px 18px rgba(0,0,0,.24);color:#f7fee7;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
+        .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 8px 8px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
+        .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px;border:1px solid rgba(190,242,100,.5);border-radius:14px;background:linear-gradient(135deg,#263f0e 0%,#142d1d 58%,#0c1713 100%);box-shadow:inset 0 1px rgba(217,249,157,.12),0 8px 18px rgba(0,0,0,.24);color:#f7fee7;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
         .boost-manager-trigger:hover { background:linear-gradient(135deg,#304e11 0%,#183824 58%,#102019 100%);border-color:rgba(190,242,100,.78);box-shadow:inset 0 1px rgba(217,249,157,.18),0 10px 22px rgba(0,0,0,.3); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#d9f99d;background:#35551a;border:1px solid rgba(190,242,100,.46);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
@@ -861,26 +871,26 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .boost-manager-trigger-chevron { color:#d9f99d;font-size:calc((22px) + 1px);font-weight:300;line-height:1; }
         .boost-manager-panel { display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease,opacity .25s ease;opacity:0; }
         .boost-manager-extension.is-open .boost-manager-panel { grid-template-rows:1fr;opacity:1; }
-        .boost-manager-panel-inner { min-height:0;overflow:hidden;padding:0 16px; }
-        .boost-manager-extension.is-open .boost-manager-panel-inner { padding:14px 16px 18px; }
+        .boost-manager-panel-inner { min-height:0;overflow:hidden;padding:0 8px; }
+        .boost-manager-extension.is-open .boost-manager-panel-inner { padding:8px; }
 
         .action-btn-ambassador { animation: ambPulse 2.5s ease infinite; }
         /* Mobile adjustments */
         @media (max-width: 480px) {
-          .profile-section { padding: 12px; }
-          .profile-content-region { width:calc(100% + 24px); margin-left:-12px; }
-          .profile-header-content { padding: 4px 4px 8px; }
-          .profile-identity-overlay { padding:12px 8px 10px;border-radius:16px; }
+          .profile-section { padding: 6px; }
+          .profile-content-region { width:calc(100% + 12px); margin-left:-6px; }
+          .profile-header-content { padding:2px 0 4px; }
+          .profile-identity-overlay { width:fit-content;max-width:100%;padding:6px 8px;border-radius:14px; }
           .profile-name { font-size:calc((20px) + 1px); }
-          .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
-          .tri-stat-inner { gap:6px;padding:10px 6px; }
+          .profile-bio { max-width:100%; }
+          .tri-stat-inner { gap:6px;padding:8px 4px; }
           .tri-stat-icon-wrap { width:26px;height:26px;flex-basis:26px; }
           .tri-stat-icon-wrap svg { width:12px!important;height:12px!important; }
           .tri-stat-value { font-size:calc((15px) + 1px); }
           .tri-stat-label { font-size:calc((8px) + 1px); }
-          .actions-grid { grid-template-columns: 1fr; gap:10px; }
-          .action-btn { padding:12px; }
-          .boost-manager-trigger { padding:10px 10px; }
+          .actions-grid { grid-template-columns: 1fr; gap:8px; }
+          .action-btn { padding:8px; }
+          .boost-manager-trigger { padding:8px; }
         }
       `}</style>
 
@@ -892,13 +902,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           themeId={activeThemeId}
           backgroundColorId={activeBackgroundColorId}
           embedded
-          style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
+          style={{ borderRadius:24, marginBottom:8, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
         >
           <div className="profile-header-content">
-            <div className="profile-identity-overlay">
-
             {/* [B2] Avatar — BoostAvatarRing with tier-animated ring */}
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:6 }}>
               <BoostAvatarRing
                 userId={userId}
                 tier={hasBoostedTier ? profile.subscriptionTier : null}
@@ -915,7 +923,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 borderRadius="rounded"
               />
             </div>
-
+            <div className="profile-identity-overlay">
             <h2
               className="profile-name"
               style={(() => {
@@ -954,6 +962,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             )}
 
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+            {profile.location && (
+              <div className="profile-location"><MapPin size={13} />{profile.location}</div>
+            )}
             {profileSocialLinks.length > 0 && (
               <div className="profile-social-links">
                 {profileSocialLinks.map(([provider, url]) => (
@@ -988,6 +999,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               </div>
             )}
 
+            </div>
             <FourStatRow stats={statItems} />
 
             <div className="tristat-card profile-boost-tristat">
@@ -1002,7 +1014,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:5,paddingBottom:8 }}>
                 <LiveDot />
                 <span style={{ fontSize:10,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
-              </div>
             </div>
 
             </div>

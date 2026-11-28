@@ -33,6 +33,7 @@ import statusUpdateService, { isVideoStatus } from "../../services/messages/stat
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import dmMessageService from "../../services/messages/dmMessageService";
 import { SoundGalleryProvider, useSoundGallery } from "../Shared/SoundGallery";
+import { FaFacebookF, FaInstagram, FaWhatsapp } from "react-icons/fa";
 
 // ── Badge registration ────────────────────────────────────────────────────────
 let _badgeSetter = null;
@@ -68,6 +69,12 @@ const DURATIONS = [
   { h: 12, label: "12h", sub: "Half a day"      },
   { h: 18, label: "18h", sub: "Most of the day" },
   { h: 24, label: "24h", sub: "Full day"         },
+];
+
+const EXTERNAL_STATUS_PLATFORMS = [
+  { id: "whatsapp", label: "WhatsApp", url: "https://web.whatsapp.com/", Icon: FaWhatsapp, color: "#25d366" },
+  { id: "facebook", label: "Facebook", url: "https://www.facebook.com/stories/", Icon: FaFacebookF, color: "#1877f2" },
+  { id: "instagram", label: "Instagram", url: "https://www.instagram.com/", Icon: FaInstagram, color: "#e1306c" },
 ];
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -225,7 +232,7 @@ const UAv = memo(({ user, size = 50, ring = false, nearExp = false }) => {
 UAv.displayName = "UAv";
 
 // ── Status thumbnail ──────────────────────────────────────────────────────────
-const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=false }) => {
+const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, onAdd, canAdd=true, hasNew=false }) => {
   const [err, setErr] = useState(false);
   const count = sts.length;
   const first = sts[0];
@@ -237,10 +244,23 @@ const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=f
   const circum  = 2*Math.PI*R;
   const segLen  = (segDeg/360)*circum;
   const nearE   = count>0 && first && isNearExp(first.expires_at);
-  const ringCol = isMe?"#60a5fa":nearE?"#f59e0b":"#84cc16";
+  const ringCol = isMe?"#84cc16":nearE?"#f59e0b":"#84cc16";
 
   return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",flexShrink:0,position:"relative"}} onClick={onClick}>
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={isMe ? `My Xeevia status, ${count ? `${count} active statuses` : "create a status"}` : `${profile?.full_name || "User"} status`}
+      style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",flexShrink:0,position:"relative"}}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
+    >
       {hasNew && <div style={{position:"absolute",top:-2,right:-2,width:10,height:10,borderRadius:"50%",background:"#ef4444",border:"2px solid #000",zIndex:5,animation:"uvNewDot 1.5s ease-in-out infinite"}}/>}
       <div style={{position:"relative",width:SIZE,height:SIZE}}>
         <svg width={SIZE} height={SIZE} style={{position:"absolute",inset:0,transform:"rotate(-90deg)"}}>
@@ -254,9 +274,20 @@ const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=f
            mu && isVid         ? <div style={{width:"100%",height:"100%",background:"#111",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:19}}>▶</span></div> :
            first?.bg           ? <div style={{width:"100%",height:"100%",background:first.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,color:first.text_color||"#84cc16",textAlign:"center",padding:"2px 4px",wordBreak:"break-word"}}>{first.text?.slice(0,14)}</span></div> :
                                   <UAv user={profile} size={SIZE-(STROKE+3)*2}/>}
-          {isMe && count===0 && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#84cc16"}}><Ic.Plus/></div>}
         </div>
-        {count>1 && <div style={{position:"absolute",bottom:0,right:0,width:17,height:17,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
+        {isMe && (
+          <button
+            type="button"
+            aria-label={canAdd ? "Add Xeevia status" : "Status limit reached"}
+            title={canAdd ? "Add status" : "Status limit reached"}
+            disabled={!canAdd}
+            onClick={(event) => { event.stopPropagation(); if (canAdd) onAdd?.(); }}
+            style={{position:"absolute",right:-2,bottom:-2,width:23,height:23,display:"grid",placeItems:"center",border:"2px solid #000",borderRadius:"50%",background:canAdd?"#84cc16":"#4b5563",color:"#071004",padding:0,cursor:canAdd?"pointer":"not-allowed",zIndex:3}}
+          >
+            <Ic.Plus/>
+          </button>
+        )}
+        {count>1 && <div style={{position:"absolute",top:0,right:0,width:17,height:17,borderRadius:"50%",background:ringCol,border:"1.5px solid #000",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"#000",zIndex:2}}>{count}</div>}
       </div>
       <span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.5)",maxWidth:64,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
         {isMe ? "My status" : (profile?.full_name||"?").split(" ")[0]}
@@ -742,7 +773,11 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
   const [tcol,   setTcol]   = useState("#ffffff");
   const [dur,    setDur]    = useState(24);
   const [media,  setMedia]  = useState(null);
+  const [mediaFile, setMediaFile] = useState(null);
   const [sound,  setSound]  = useState(null);
+  const [shareTargets, setShareTargets] = useState([]);
+  const [shareResults, setShareResults] = useState({});
+  const [shareError, setShareError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pct,    setPct]    = useState(0);
   const [err,    setErr]    = useState(null);
@@ -779,10 +814,59 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
     if (f.size > maxMb*1024*1024) { setErr(`Too large — max ${maxMb}MB.`); return; }
     setSaving(true); setPct(0);
     statusUpdateService.uploadMedia(f, (p) => setPct(p))
-      .then((res) => { setMedia(res); setStep("compose"); })
+      .then((res) => { setMedia(res); setMediaFile(f); setStep("compose"); })
       .catch((e)  => setErr(`Upload failed: ${e.message}`))
       .finally(()  => setSaving(false));
   }, []);
+
+  const finishCreate = () => {
+    onAdded?.();
+    if (shareTargets.length) {
+      setStep("distribution");
+    } else {
+      onClose();
+    }
+  };
+
+  const shareStatusWithPlatform = async (platform) => {
+    setShareError("");
+    if (typeof navigator.share !== "function") {
+      setShareResults((results) => ({ ...results, [platform]: "unsupported" }));
+      return;
+    }
+    try {
+      const payload = {
+        title: "Share your Xeevia status",
+        text: text.trim() || "My status on Xeevia",
+      };
+      if (mediaFile && typeof navigator.canShare === "function" && navigator.canShare({ files: [mediaFile] })) {
+        payload.files = [mediaFile];
+      } else if (media?.url) {
+        payload.url = media.url;
+      }
+      await navigator.share(payload);
+      setShareResults((results) => ({ ...results, [platform]: "dismissed" }));
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        setShareResults((results) => ({ ...results, [platform]: "cancelled" }));
+        return;
+      }
+      setShareError(error?.message || `Could not open the share sheet for ${platform}.`);
+    }
+  };
+
+  const copyStatusText = async () => {
+    if (!text.trim()) return;
+    if (!navigator.clipboard?.writeText) {
+      setShareError("Clipboard access is unavailable in this browser.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text.trim());
+    } catch (error) {
+      setShareError(error?.message || "Could not copy the status text.");
+    }
+  };
 
   // [FIX-2] handleShare uses service which now handles missing music column
   const handleShare = async () => {
@@ -799,8 +883,7 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
         media,
         sound,
       });
-      onAdded?.();
-      onClose();
+      finishCreate();
     } catch (e) {
       // [FIX-3] Fallback direct insert — strips music/media_type if column missing
       try {
@@ -829,8 +912,7 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
 
         const { error: insertErr } = await supabase.from("status_updates").insert(row);
         if (insertErr) throw insertErr;
-        onAdded?.();
-        onClose();
+        finishCreate();
       } catch (e2) {
         setErr(`Could not share: ${e2.message}`);
       }
@@ -916,7 +998,7 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
         {step === "compose" && (
           <>
             <div className="as-hdr">
-              <button className="as-back" onClick={()=>{setMedia(null);setStep("pick");}}>← Back</button>
+              <button className="as-back" onClick={()=>{setMedia(null);setMediaFile(null);setStep("pick");}}>← Back</button>
               <span className="as-title as-title-c">{media?"Add Caption":"Write Status"}</span>
               <button className="as-close" onClick={onClose}><Ic.Close/></button>
             </div>
@@ -1016,10 +1098,76 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
               <Ic.Clock/>
               <span>Expires {expAt.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}, {expAt.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</span>
             </div>
+            <div className="as-share-destinations">
+              <p className="as-section-lbl">Also share manually to</p>
+              <p className="as-share-hint">Choose destinations now. Xeevia saves your status first, then offers a share action for each app you selected.</p>
+              <div className="as-share-platforms">
+                {EXTERNAL_STATUS_PLATFORMS.map(({ id, label, Icon, color }) => {
+                  const selected = shareTargets.includes(id);
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      className={`as-share-platform${selected ? " is-selected" : ""}`}
+                      aria-pressed={selected}
+                      onClick={() => setShareTargets((targets) => selected ? targets.filter((target) => target !== id) : [...targets, id])}
+                    >
+                      <span className="as-share-platform-icon" style={{ color }}><Icon size={16} /></span>
+                      <span>{label}</span>
+                      <span className="as-share-platform-check">{selected ? <Ic.Check /> : ""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="as-share-hint">Only the caption and shareable media are handed off; Xeevia styling, music, and expiry may not transfer. External stories stay in their apps and are never imported or verified by Xeevia.</p>
+            </div>
             {err && <div className="as-err">{err}</div>}
             <button className={`as-share-btn${saving?" as-saving":""}`} onClick={handleShare} disabled={saving||!canNext} style={{marginBottom:"max(env(safe-area-inset-bottom,0px),16px)"}}>
               {saving ? <span className="as-spinner"/> : <><Ic.Send/><span>Share Status</span></>}
             </button>
+          </>
+        )}
+
+        {step === "distribution" && (
+          <>
+            <div className="as-hdr">
+              <span className="as-title">Status saved to Xeevia</span>
+              <button className="as-close" onClick={onClose}><Ic.Close/></button>
+            </div>
+            <div className="as-distribution-summary">
+              <span className="as-distribution-check"><Ic.Check /></span>
+              <div>
+                <strong>Your Xeevia status is live.</strong>
+                <p>Choose each selected app in your device share sheet and finish publishing there. Xeevia cannot detect or verify external posts; platform-specific styling, music, and expiry may not transfer.</p>
+              </div>
+            </div>
+            {shareError && <div className="as-err" role="alert">{shareError}</div>}
+            <div className="as-distribution-list">
+              {EXTERNAL_STATUS_PLATFORMS.filter(({ id }) => shareTargets.includes(id)).map(({ id, label, url, Icon, color }) => {
+                const result = shareResults[id];
+                return (
+                  <article className="as-distribution-card" key={id}>
+                    <span className="as-share-platform-icon" style={{ color }}><Icon size={18} /></span>
+                    <div className="as-distribution-copy">
+                      <strong>{label}</strong>
+                      {result === "dismissed" && <small>Share sheet closed. Finish the status in {label} if it is not already posted.</small>}
+                      {result === "cancelled" && <small>Share canceled. You can try again.</small>}
+                      {result === "unsupported" && <small>This browser has no native share sheet. Copy your text or open the app to continue manually.</small>}
+                      {result === "done" && <small>Marked as posted by you. Xeevia cannot verify this externally.</small>}
+                      {!result && <small>Open the share sheet and choose {label} to continue.</small>}
+                    </div>
+                    <button type="button" className="as-distribution-share" onClick={() => shareStatusWithPlatform(id)}>
+                      {result === "dismissed" || result === "cancelled" ? "Share again" : "Share"}
+                    </button>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="as-distribution-open">Open app</a>
+                    {text.trim() && <button type="button" className="as-distribution-copy-button" onClick={copyStatusText}>Copy text</button>}
+                    {media?.url && <a href={media.url} target="_blank" rel="noopener noreferrer" className="as-distribution-open">Open media</a>}
+                    {result !== "done" && <button type="button" className="as-distribution-done" onClick={() => setShareResults((results) => ({ ...results, [id]: "done" }))}>I finished posting</button>}
+                  </article>
+                );
+              })}
+            </div>
+            <button type="button" className="as-share-btn" onClick={onClose}>Done</button>
           </>
         )}
       </div>
@@ -1334,34 +1482,56 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
 
   return (
     <div className="upd-root">
-      {/* Ring tray */}
-      <div className="upd-tray">
-        {[
-          { group:myGroup, isMe:true, onClick:()=>myStatuses.length>0?openViewer(0):setShowAdd(true) },
-          ...feedGroups.map((g,i) => ({ group:g, isMe:false, onClick:()=>openViewer(i+1) })),
-        ].map(({group,isMe,onClick},i) => (
-          <StatusThumb key={i} statuses={group.statuses} profile={group.user} isMe={isMe} onClick={onClick} hasNew={!isMe&&group.hasUnseen&&liveNewDot}/>
-        ))}
-        {loading && [0,1,2,3].map((i) => (
-          <div key={i} style={{width:64,height:64,borderRadius:"50%",background:"rgba(255,255,255,.04)",animation:`uvPulse 1.4s ${i*.15}s ease-in-out infinite`,flexShrink:0}}/>
-        ))}
-      </div>
-
-      {/* My status row */}
-      <div className="upd-my-row">
-        <div className="upd-my-left" onClick={()=>myStatuses.length>0?openViewer(0):setShowAdd(true)}>
-          <div className="upd-my-av-wrap">
-            <UAv user={myUser} size={50} ring={myStatuses.length>0}/>
-            <button className="upd-my-add" onClick={(e)=>{e.stopPropagation();if(!atLimit)setShowAdd(true);}} style={{opacity:atLimit?.4:1,cursor:atLimit?"not-allowed":"pointer"}}>
-              <Ic.Plus/>
-            </button>
+      <div className="upd-platform-list">
+        <section className="upd-platform-row upd-xeevia-row" aria-label="Xeevia statuses">
+          <div className="upd-platform-brand">
+            <span className="upd-platform-logo upd-xeevia-logo" aria-hidden="true">X</span>
+            <span className="upd-platform-brand-copy"><strong>Xeevia</strong><small>Statuses from your community</small></span>
           </div>
-          <div className="upd-my-info">
-            <div className="upd-my-name">My Status</div>
-            <div className="upd-my-sub">{atLimit?`Limit reached (${myStatuses.length}/${tierInfo.limit})`:myStatuses.length>0?`${myStatuses.length}/${tierInfo.limit} · tap to view`:"Tap + to share a status"}</div>
+          <div className="upd-platform-feed">
+            {!loading && (
+              <>
+                <StatusThumb
+                  statuses={myGroup.statuses}
+                  profile={myGroup.user}
+                  isMe
+                  canAdd={!atLimit}
+                  onClick={() => myStatuses.length > 0 ? openViewer(0) : setShowAdd(true)}
+                  onAdd={() => setShowAdd(true)}
+                />
+                {feedGroups.map((group, index) => (
+                  <StatusThumb
+                    key={group.user?.id || index}
+                    statuses={group.statuses}
+                    profile={group.user}
+                    onClick={() => openViewer(index + 1)}
+                    hasNew={group.hasUnseen && liveNewDot}
+                  />
+                ))}
+              </>
+            )}
+            {loading && [0, 1, 2, 3].map((i) => (
+              <div key={i} className="upd-status-skeleton" style={{ animationDelay: `${i * 0.15}s` }} />
+            ))}
+            {!loading && feedGroups.length === 0 && (
+              <span className="upd-platform-empty">No recent community statuses</span>
+            )}
           </div>
-          {myStatuses.length>0&&<span className="upd-my-badge">{myStatuses.length}</span>}
-        </div>
+        </section>
+        {EXTERNAL_STATUS_PLATFORMS.map(({ id, label, url, Icon, color }) => (
+          <section className="upd-platform-row" key={id} aria-label={`${label} statuses`}>
+            <div className="upd-platform-brand">
+              <span className="upd-platform-logo" style={{ color, borderColor: `${color}55`, background: `${color}14` }} aria-hidden="true">
+                <Icon size={20} />
+              </span>
+              <span className="upd-platform-brand-copy"><strong>{label}</strong><small>Your status stays in {label}</small></span>
+            </div>
+            <div className="upd-platform-external">
+              <span>View and manage your stories in {label}. They are not imported into Xeevia.</span>
+              <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${label} to view statuses`}>Open app <span aria-hidden="true">↗</span></a>
+            </div>
+          </section>
+        ))}
       </div>
 
       {/* My status cards */}
@@ -1418,15 +1588,6 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
               onClick={()=>{const idx=allGroups.indexOf(g);openViewer(idx<0?1:idx);}}/>
           ))}
         </>
-      )}
-
-      {/* Empty */}
-      {!loading && feedGroups.length===0 && (
-        <div className="upd-empty">
-          <button onClick={()=>!atLimit&&setShowAdd(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:16,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.3)",color:"#84cc16",fontSize:15,fontWeight:700,cursor:atLimit?"not-allowed":"pointer",marginTop:8,opacity:atLimit?.4:1}}>
-            <Ic.Plus/> {myStatuses.length ? "Create Status" : "Create Your First Status"}
-          </button>
-        </div>
       )}
 
       {/* Loading skeletons */}
@@ -1508,19 +1669,24 @@ const ROOT_CSS = `
   .upd-root::-webkit-scrollbar { width:3px; }
   .upd-root::-webkit-scrollbar-thumb { background:rgba(132,204,22,.18); border-radius:2px; }
 
-  .upd-tray { display:flex; gap:10px; padding:12px 14px; overflow-x:auto; -webkit-overflow-scrolling:touch; border-bottom:1px solid rgba(255,255,255,.04); background:rgba(4,4,4,.6); flex-shrink:0; scrollbar-width:none; }
-  .upd-tray::-webkit-scrollbar { display:none; }
-
-  .upd-my-row   { display:flex; align-items:center; padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.04); flex-shrink:0; }
-  .upd-my-left  { display:flex; align-items:center; gap:12px; cursor:pointer; flex:1; min-width:0; }
-  .upd-my-av-wrap { position:relative; flex-shrink:0; }
-  .upd-my-add   { position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; border-radius:50%; background:#84cc16; border:2px solid #000; display:flex; align-items:center; justify-content:center; color:#000; transition:transform .15s; }
-  .upd-my-add:hover { transform:scale(1.15); }
-  .upd-my-add svg { width:11px; height:11px; }
-  .upd-my-info  { flex:1; min-width:0; }
-  .upd-my-name  { font-size:calc((14px) + 1px); font-weight:700; color:#fff; }
-  .upd-my-sub   { font-size:calc((11px) + 1px); color:#555; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .upd-my-badge { min-width:22px; height:22px; border-radius:11px; padding:0 6px; background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.3); color:#84cc16; font-size:calc((11px) + 1px); font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .upd-platform-list { display:flex; flex-direction:column; background:rgba(4,4,4,.6); border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0; }
+  .upd-platform-row { display:flex; align-items:center; gap:14px; min-height:84px; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.055); }
+  .upd-platform-row:last-child { border-bottom:0; }
+  .upd-platform-brand { display:flex; align-items:center; gap:11px; width:180px; min-width:145px; flex-shrink:0; }
+  .upd-platform-logo { width:40px; height:40px; display:grid; place-items:center; flex-shrink:0; border:1px solid rgba(255,255,255,.1); border-radius:13px; background:rgba(255,255,255,.035); }
+  .upd-xeevia-logo { color:#a3e635; border-color:rgba(163,230,53,.28); background:linear-gradient(145deg,rgba(163,230,53,.15),rgba(163,230,53,.035)); font-size:19px; font-weight:900; }
+  .upd-platform-brand-copy { display:flex; flex-direction:column; min-width:0; gap:3px; }
+  .upd-platform-brand-copy strong { color:#f2f6ec; font-size:14px; font-weight:800; }
+  .upd-platform-brand-copy small { color:#687064; font-size:10px; line-height:1.35; }
+  .upd-platform-feed { display:flex; align-items:center; gap:12px; min-width:0; flex:1; overflow-x:auto; padding:3px 4px; scrollbar-width:thin; scrollbar-color:rgba(163,230,53,.25) transparent; }
+  .upd-platform-feed>[role="button"] { outline:none; }
+  .upd-platform-feed>[role="button"]:focus-visible { border-radius:14px; outline:2px solid #a3e635; outline-offset:3px; }
+  .upd-platform-external { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; flex:1; }
+  .upd-platform-external>span { color:#8d9589; font-size:12px; line-height:1.5; }
+  .upd-platform-external>a { display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:none; padding:8px 12px; border:1px solid rgba(163,230,53,.3); border-radius:11px; background:rgba(163,230,53,.08); color:#b5ed72; font-size:11px; font-weight:800; text-decoration:none; transition:background .15s,border-color .15s; }
+  .upd-platform-external>a:hover { border-color:#a3e635; background:rgba(163,230,53,.15); }
+  .upd-status-skeleton { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.04); animation:uvPulse 1.4s ease-in-out infinite; flex:none; }
+  .upd-platform-empty { color:#555e53; font-size:11px; white-space:nowrap; }
 
   .upd-cards-scroll { display:flex; gap:10px; padding:10px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-shrink:0; scrollbar-width:none; }
   .upd-cards-scroll::-webkit-scrollbar { height:0; }
@@ -1614,6 +1780,29 @@ const MODAL_CSS = `
   .as-share-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(132,204,22,.35); }
   .as-share-btn.as-saving,.as-share-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
   .as-spinner { width:16px; height:16px; border:2px solid rgba(0,0,0,.2); border-top-color:#000; border-radius:50%; animation:uvSpin .7s linear infinite; display:inline-block; }
+  .as-share-destinations { margin:4px 18px 8px; padding:12px; border:1px solid rgba(255,255,255,.08); border-radius:15px; background:rgba(255,255,255,.025); }
+  .as-share-destinations .as-section-lbl { padding:0 0 7px; margin:0; color:#a3e635; }
+  .as-share-hint { margin:0 0 9px; color:#777; font-size:11px; line-height:1.5; }
+  .as-share-platforms { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-bottom:9px; }
+  .as-share-platform { display:flex; align-items:center; gap:6px; min-width:0; padding:8px; border:1px solid rgba(255,255,255,.08); border-radius:11px; background:#090909; color:#aeb5a8; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .as-share-platform:hover,.as-share-platform.is-selected { border-color:rgba(163,230,53,.45); background:rgba(163,230,53,.07); color:#e7f4d8; }
+  .as-share-platform-icon { display:grid; width:28px; height:28px; flex:none; place-items:center; border:1px solid rgba(255,255,255,.08); border-radius:9px; background:#050505; }
+  .as-share-platform-check { display:grid; width:17px; height:17px; flex:none; place-items:center; margin-left:auto; border:1px solid rgba(255,255,255,.15); border-radius:50%; color:#a3e635; }
+  .as-share-platform-check svg { width:12px; height:12px; }
+  .as-distribution-summary { display:flex; align-items:flex-start; gap:12px; margin:8px 18px 14px; padding:13px; border:1px solid rgba(163,230,53,.24); border-radius:14px; background:rgba(163,230,53,.06); }
+  .as-distribution-check { display:grid; width:30px; height:30px; flex:none; place-items:center; border-radius:10px; background:#84cc16; color:#071004; }
+  .as-distribution-summary strong { color:#e8f4dc; font-size:13px; }
+  .as-distribution-summary p { margin:3px 0 0; color:#8d9589; font-size:11px; line-height:1.5; }
+  .as-distribution-list { display:flex; flex-direction:column; gap:9px; padding:0 18px 8px; }
+  .as-distribution-card { display:grid; grid-template-columns:32px minmax(0,1fr) auto; align-items:center; gap:9px; padding:11px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:#090909; }
+  .as-distribution-copy { display:flex; min-width:0; flex-direction:column; gap:3px; }
+  .as-distribution-copy strong { color:#f2f6ec; font-size:12px; }
+  .as-distribution-copy small { color:#777; font-size:10px; line-height:1.4; }
+  .as-distribution-share,.as-distribution-done,.as-distribution-open,.as-distribution-copy-button { display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:7px 9px; border:1px solid rgba(163,230,53,.28); border-radius:9px; background:rgba(163,230,53,.08); color:#b5ed72; font-size:10px; font-weight:800; text-decoration:none; cursor:pointer; font-family:inherit; }
+  .as-distribution-open,.as-distribution-copy-button,.as-distribution-done { grid-column:auto; }
+  .as-distribution-done { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:#a7afa1; }
+  .as-distribution-share:hover,.as-distribution-open:hover,.as-distribution-copy-button:hover { background:rgba(163,230,53,.16); }
+  .as-distribution-done:hover { border-color:rgba(163,230,53,.28); color:#b5ed72; }
 
   @media (min-width:769px) {
     .as-ov { align-items:center; justify-content:center; padding:24px; }
@@ -1622,6 +1811,19 @@ const MODAL_CSS = `
   }
 
   @media (max-width:480px) {
+    .upd-platform-row { align-items:flex-start; gap:9px; padding:10px 12px; }
+    .upd-platform-brand { width:116px; min-width:116px; gap:8px; }
+    .upd-platform-logo { width:34px; height:34px; border-radius:11px; }
+    .upd-platform-brand-copy strong { font-size:12px; }
+    .upd-platform-brand-copy small { font-size:9px; }
+    .upd-platform-feed { gap:9px; }
+    .upd-platform-external { align-items:flex-start; flex-direction:column; gap:7px; }
+    .upd-platform-external>span { font-size:10px; }
+    .upd-platform-external>a { padding:6px 9px; }
+    .as-share-platforms { grid-template-columns:minmax(0,1fr); }
+    .as-share-platform { padding:6px 8px; }
+    .as-distribution-card { grid-template-columns:32px minmax(0,1fr); }
+    .as-distribution-share,.as-distribution-open,.as-distribution-copy-button,.as-distribution-done { grid-column:2; justify-self:start; }
     .as-sheet { max-height:calc(100dvh - env(safe-area-inset-top,0px)); border-radius:18px 18px 0 0; }
     .as-pick-grid,.as-inp-wrap { padding-left:14px; padding-right:14px; }
   }

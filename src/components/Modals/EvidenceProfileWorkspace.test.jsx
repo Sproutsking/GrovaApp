@@ -5,10 +5,14 @@ import { buildXrdIdentityDetailRows, getXrdIdentityBindings, getXrdIdentityDetai
 import ProfileEvidenceWorkspace from "./EvidenceProfileWorkspace";
 import XRCProfileDashboard from "./XRCProfileDashboard";
 import xrdRecordService from "../../services/evidence/xrdRecordService";
+import { supabase } from "../../services/config/supabase";
+
+const mockXrcRows = [];
+const mockPublicXrcRows = [];
 
 jest.mock("../../services/config/supabase", () => {
-  const createQuery = () => {
-    const result = { data: [], error: null };
+  const createQuery = (table) => {
+    const result = { data: table === "xrc_records" ? mockXrcRows : [], error: null };
     const query = {
       select: () => query,
       eq: () => query,
@@ -28,7 +32,11 @@ jest.mock("../../services/config/supabase", () => {
   return {
     supabase: {
       auth: { getUser: () => Promise.resolve({ data: { user: { id: "owner-1", user_metadata: {} } }, error: null }) },
-      from: () => createQuery(),
+      from: (table) => createQuery(table),
+      rpc: jest.fn((name) => Promise.resolve({
+        data: name === "get_xrd_public_xrc_events" ? mockPublicXrcRows : true,
+        error: null,
+      })),
     },
   };
 });
@@ -76,6 +84,16 @@ jest.mock("../../services/shared/mediaUrlService", () => ({
     },
   },
 }));
+
+afterEach(() => {
+  mockXrcRows.splice(0);
+  mockPublicXrcRows.splice(0);
+  supabase.rpc.mockReset();
+  supabase.rpc.mockImplementation((name) => Promise.resolve({
+    data: name === "get_xrd_public_xrc_events" ? mockPublicXrcRows : true,
+    error: null,
+  }));
+});
 
 describe("getXrdProfileAvatarCandidates", () => {
   it("keeps the Xeevia profile image and its fallbacks in priority order", () => {
@@ -244,6 +262,77 @@ it("renders XRC with its network overview and full desktop/mobile navigation", a
   expect(screen.getAllByRole("button", { name: "Records" }).length).toBeGreaterThan(0);
   expect(screen.getAllByRole("button", { name: "Chains" }).length).toBeGreaterThan(0);
   expect(screen.queryByRole("button", { name: "History" })).toBeNull();
+});
+
+it("lets the owner make an individual XRC record public", async () => {
+  mockXrcRows.splice(0, mockXrcRows.length, {
+    record_id: "record-1",
+    stream_type: "XERC",
+    previous_hash: "parent-hash",
+    record_hash: "record-hash",
+    actor_id: "owner-1",
+    payload: { event: "reel_view_count_changed", outcome: "committed" },
+    timestamp: Date.now(),
+    stream_sequence: 4,
+    is_public: false,
+  });
+  mockPublicXrcRows.splice(0);
+  supabase.rpc.mockResolvedValue({ data: true, error: null });
+
+  render(
+    <XRCProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "owner-1" }}
+      targetId="owner-1"
+      initialSection="Records"
+      onClose={jest.fn()}
+    />,
+  );
+
+  const visibilitySwitch = await screen.findByRole("switch", { name: "Make public: reel view count changed" });
+  fireEvent.click(visibilitySwitch);
+
+  await waitFor(() => {
+    expect(supabase.rpc).toHaveBeenCalledWith("set_xrc_record_visibility", {
+      p_record_id: "record-1",
+      p_is_public: true,
+    });
+    expect(screen.getByRole("switch", { name: "Make private: reel view count changed" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+it("loads another profile's explicitly shared XRC records without exposing owner controls", async () => {
+  mockXrcRows.splice(0);
+  mockPublicXrcRows.splice(0, mockPublicXrcRows.length, {
+    record_id: "shared-record",
+    stream_type: "XCRC",
+    previous_hash: "parent-hash",
+    record_hash: "shared-hash",
+    actor_id: "owner-1",
+    payload: { event: "post_created", outcome: "committed" },
+    timestamp: Date.now(),
+    stream_sequence: 2,
+    is_public: true,
+  });
+  supabase.rpc.mockClear();
+  supabase.rpc.mockImplementation(() => Promise.resolve({ data: mockPublicXrcRows, error: null }));
+
+  render(
+    <XRCProfileDashboard
+      profile={{ id: "owner-1", fullName: "Ada Lovelace", username: "ada" }}
+      currentUser={{ id: "viewer-1" }}
+      targetId="owner-1"
+      initialSection="Records"
+      onClose={jest.fn()}
+    />,
+  );
+
+  expect(await screen.findByText("post created")).toBeInTheDocument();
+  expect(supabase.rpc).toHaveBeenCalledWith("get_xrd_public_xrc_events", {
+    p_profile_id: "owner-1",
+    p_xrd_record_id: null,
+  });
+  expect(screen.queryByRole("switch")).not.toBeInTheDocument();
 });
 
 it("renders the evidence workspace in its default record-evidence mode", async () => {
