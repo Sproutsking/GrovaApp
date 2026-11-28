@@ -5,6 +5,7 @@
   "description": "Own your content. Build your network. Engage to Earn.",
   "start_url": "/",
   "scope": "/",
+  "display_override": ["standalone"],
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",

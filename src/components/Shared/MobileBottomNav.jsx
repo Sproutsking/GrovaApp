@@ -119,11 +119,13 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
         .mbn {
           position: fixed;
           bottom: 0; left: 0; right: 0;
+          width: 100%;
+          box-sizing: border-box;
           z-index: 100;
           background: #000;
           backdrop-filter: none;
           -webkit-backdrop-filter: none;
-          padding: 6px 8px calc(8px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+          padding: 6px max(4px, env(safe-area-inset-left, 0px)) calc(8px + var(--app-safe-bottom, env(safe-area-inset-bottom, 0px))) max(4px, env(safe-area-inset-right, 0px));
           border: 0;
           box-shadow: none;
           /* Controlled by DOM: display:none or display:flex */
@@ -150,11 +152,14 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
         .mbn-row {
           display: flex;
           align-items: center;
-          justify-content: space-around;
+          justify-content: space-between;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
           max-width: 600px;
           margin: 0 auto;
           padding: 0;
-          gap: 4px;
+          gap: clamp(0px, 1vw, 4px);
         }
 
         /* ── Button shell ── */
@@ -178,8 +183,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: center;
           gap: 3px;
-          padding: 6px 16px 5px;
+          box-sizing: border-box;
+          min-width: 0;
+          padding: 6px clamp(2px, 1.5vw, 8px) 5px;
           border-radius: 12px;
           border: 1px solid transparent;
           width: 100%;
@@ -276,8 +284,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: center;
           gap: 3px;
-          padding: 6px 16px 5px;
+          box-sizing: border-box;
+          min-width: 0;
+          padding: 6px clamp(2px, 1.5vw, 8px) 5px;
           border-radius: 12px;
           border: 1px solid transparent;
           width: 100%;
@@ -372,10 +383,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           50%      { opacity: 0;   transform: scale(1.35); }
         }
 
-        /* ── Tiny screens ── */
-        @media (max-width: 340px) {
-          .mbn-lbl, .mbn-menu-lbl { display: none; }
-          .mbn-pill, .mbn-menu-pill { padding: 9px 10px 7px; }
+        /* ── Compact screens ── */
+        @media (max-width: 380px) {
+          .mbn-row { gap: 0; }
+          .mbn-pill, .mbn-menu-pill { padding: 6px 2px 5px; }
+          .mbn-lbl, .mbn-menu-lbl { font-size: 8px; letter-spacing: 0; }
         }
       `}</style>
 
