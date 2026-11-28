@@ -957,7 +957,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     try {
       const { data: p } = await supabase
         .from("profiles")
-        .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,social_links,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone,location_city,location_country")
+        .select("id,full_name,username,avatar_id,avatar_metadata,banner_image_id,bio,profile_tags,social_links,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone")
         .eq("id", targetId)
         .maybeSingle();
       if (!mounted.current || profileLoadSequence.current !== requestId) return;
@@ -1009,7 +1009,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           bannerImageId: raw.banner_image_id || null,
           bio:           raw.bio       || null,
           profileTags:   normalizeProfileTags(raw.profile_tags),
-          location:      [raw.location_city, raw.location_country].filter((part) => typeof part === "string" && part.trim()).join(", ") || user?.location || null,
+          location:      user?.location || null,
           verified:      raw.verified  || user?.verified  || false,
           isPro:         raw.is_pro    || false,
           joinDate:      raw.created_at

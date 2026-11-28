@@ -15,7 +15,7 @@ import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 
 import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Heart, Star, LayoutDashboard, Link2, MapPin,
+  Bookmark, Users, UserPlus, Hash, Heart, Star, LayoutDashboard, Link2,
   Sparkles, GitBranch, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
@@ -375,7 +375,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, social_links, location_city, location_country, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
+        .select("id, full_name, username, avatar_id, avatar_metadata, banner_image_id, bio, profile_tags, social_links, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone, payment_status, subscription_tier, account_activated, engagement_points, boost_selections")
         .eq("id", userId)
         .maybeSingle();
 
@@ -416,10 +416,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           gravity: "auto",
         })
         : null;
-      const profileLocation = [profileData?.location_city, profileData?.location_country]
-        .filter((part) => typeof part === "string" && part.trim())
-        .join(", ");
-
       if (profileData) {
         setProfile({
           id: profileData.id,
@@ -431,7 +427,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           bannerImageUrl,
           bannerImageId: profileData.banner_image_id || null,
           bio: profileData.bio,
-          location: profileLocation || null,
           profileTags: normalizeProfileTags(profileData.profile_tags),
           socialLinks: profileData.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
             ? profileData.social_links
@@ -517,7 +512,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         bannerImageUrl,
         bannerImageId:    profileData?.banner_image_id || null,
         bio:              profileData?.bio,
-        location:         profileLocation || null,
         profileTags:      normalizeProfileTags(profileData?.profile_tags),
         socialLinks:      profileData?.social_links && typeof profileData.social_links === "object" && !Array.isArray(profileData.social_links)
           ? profileData.social_links
@@ -538,7 +532,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       };
 
       if (!profileData) {
-        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, location:null, profileTags:[], socialLinks:{}, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
+        setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, profileTags:[], socialLinks:{}, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
         setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, xevTokens:0, engagementPoints:0 });
         return;
       }
@@ -829,8 +823,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-self-tags { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 auto 6px; }
         .profile-self-tag { padding:3px 8px;border:1px solid rgba(163,230,53,.3);border-radius:999px;background:rgba(132,204,22,.09);color:#c5f17e;font-size:calc((9px) + 1px);font-weight:800;line-height:1.2; }
         .profile-bio { color:#fff;font-size:calc((13px) + 1px);font-weight:600;margin:0 auto 6px;line-height:1.5;max-width:min(64ch,100%);overflow-wrap:anywhere;text-shadow:0 1px 8px rgba(0,0,0,0.9); }
-        .profile-location { display:inline-flex;align-items:center;justify-content:center;gap:5px;margin:0 0 6px;color:#c5f17e;font-size:12px;font-weight:700; }
-        .profile-location svg { flex:none; }
         .profile-social-links { display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:0 0 6px; }
         .profile-social-link { display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(0,0,0,.4);color:#d9f99d;text-decoration:none;font-size:11px;font-weight:700;text-transform:capitalize;overflow-wrap:anywhere; }
         .profile-social-link:hover { border-color:rgba(163,230,53,.55);background:rgba(132,204,22,.1); }
@@ -962,9 +954,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             )}
 
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
-            {profile.location && (
-              <div className="profile-location"><MapPin size={13} />{profile.location}</div>
-            )}
             {profileSocialLinks.length > 0 && (
               <div className="profile-social-links">
                 {profileSocialLinks.map(([provider, url]) => (
