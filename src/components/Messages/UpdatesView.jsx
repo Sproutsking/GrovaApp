@@ -1483,53 +1483,46 @@ const UpdatesView = ({ currentUser, userId, onOpenDM, initialStatusId, openCreat
   return (
     <div className="upd-root">
       <div className="upd-platform-list">
-        <section className="upd-platform-row upd-xeevia-row" aria-label="Xeevia statuses">
-          <div className="upd-platform-brand">
-            <span className="upd-platform-logo upd-xeevia-logo" aria-hidden="true">X</span>
-            <span className="upd-platform-brand-copy"><strong>Xeevia</strong><small>Statuses from your community</small></span>
-          </div>
-          <div className="upd-platform-feed">
-            {!loading && (
-              <>
+        <section className="upd-tray upd-xeevia-tray" aria-label="Xeevia statuses">
+          {!loading && (
+            <>
+              <StatusThumb
+                statuses={myGroup.statuses}
+                profile={myGroup.user}
+                isMe
+                canAdd={!atLimit}
+                onClick={() => myStatuses.length > 0 ? openViewer(0) : setShowAdd(true)}
+                onAdd={() => setShowAdd(true)}
+              />
+              {feedGroups.map((group, index) => (
                 <StatusThumb
-                  statuses={myGroup.statuses}
-                  profile={myGroup.user}
-                  isMe
-                  canAdd={!atLimit}
-                  onClick={() => myStatuses.length > 0 ? openViewer(0) : setShowAdd(true)}
-                  onAdd={() => setShowAdd(true)}
+                  key={group.user?.id || index}
+                  statuses={group.statuses}
+                  profile={group.user}
+                  onClick={() => openViewer(index + 1)}
+                  hasNew={group.hasUnseen && liveNewDot}
                 />
-                {feedGroups.map((group, index) => (
-                  <StatusThumb
-                    key={group.user?.id || index}
-                    statuses={group.statuses}
-                    profile={group.user}
-                    onClick={() => openViewer(index + 1)}
-                    hasNew={group.hasUnseen && liveNewDot}
-                  />
-                ))}
-              </>
-            )}
-            {loading && [0, 1, 2, 3].map((i) => (
-              <div key={i} className="upd-status-skeleton" style={{ animationDelay: `${i * 0.15}s` }} />
-            ))}
-            {!loading && feedGroups.length === 0 && (
-              <span className="upd-platform-empty">No recent community statuses</span>
-            )}
-          </div>
+              ))}
+            </>
+          )}
+          {loading && [0, 1, 2, 3].map((i) => (
+            <div key={i} className="upd-status-skeleton" style={{ animationDelay: `${i * 0.15}s` }} />
+          ))}
         </section>
         {EXTERNAL_STATUS_PLATFORMS.map(({ id, label, url, Icon, color }) => (
-          <section className="upd-platform-row" key={id} aria-label={`${label} statuses`}>
-            <div className="upd-platform-brand">
-              <span className="upd-platform-logo" style={{ color, borderColor: `${color}55`, background: `${color}14` }} aria-hidden="true">
-                <Icon size={20} />
+          <section className="upd-tray upd-external-tray" key={id} aria-label={`${label} statuses`}>
+            <a
+              className="upd-platform-shortcut"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${label} statuses`}
+            >
+              <span className="upd-platform-shortcut-icon" style={{ color, borderColor: `${color}80`, background: `${color}18` }} aria-hidden="true">
+                <Icon size={26} />
               </span>
-              <span className="upd-platform-brand-copy"><strong>{label}</strong><small>Your status stays in {label}</small></span>
-            </div>
-            <div className="upd-platform-external">
-              <span>View and manage your stories in {label}. They are not imported into Xeevia.</span>
-              <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${label} to view statuses`}>Open app <span aria-hidden="true">↗</span></a>
-            </div>
+              <span className="upd-platform-shortcut-label">{label}</span>
+            </a>
           </section>
         ))}
       </div>
@@ -1670,23 +1663,14 @@ const ROOT_CSS = `
   .upd-root::-webkit-scrollbar-thumb { background:rgba(132,204,22,.18); border-radius:2px; }
 
   .upd-platform-list { display:flex; flex-direction:column; background:rgba(4,4,4,.6); border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0; }
-  .upd-platform-row { display:flex; align-items:center; gap:14px; min-height:84px; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.055); }
-  .upd-platform-row:last-child { border-bottom:0; }
-  .upd-platform-brand { display:flex; align-items:center; gap:11px; width:180px; min-width:145px; flex-shrink:0; }
-  .upd-platform-logo { width:40px; height:40px; display:grid; place-items:center; flex-shrink:0; border:1px solid rgba(255,255,255,.1); border-radius:13px; background:rgba(255,255,255,.035); }
-  .upd-xeevia-logo { color:#a3e635; border-color:rgba(163,230,53,.28); background:linear-gradient(145deg,rgba(163,230,53,.15),rgba(163,230,53,.035)); font-size:19px; font-weight:900; }
-  .upd-platform-brand-copy { display:flex; flex-direction:column; min-width:0; gap:3px; }
-  .upd-platform-brand-copy strong { color:#f2f6ec; font-size:14px; font-weight:800; }
-  .upd-platform-brand-copy small { color:#687064; font-size:10px; line-height:1.35; }
-  .upd-platform-feed { display:flex; align-items:center; gap:12px; min-width:0; flex:1; overflow-x:auto; padding:3px 4px; scrollbar-width:thin; scrollbar-color:rgba(163,230,53,.25) transparent; }
-  .upd-platform-feed>[role="button"] { outline:none; }
-  .upd-platform-feed>[role="button"]:focus-visible { border-radius:14px; outline:2px solid #a3e635; outline-offset:3px; }
-  .upd-platform-external { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; flex:1; }
-  .upd-platform-external>span { color:#8d9589; font-size:12px; line-height:1.5; }
-  .upd-platform-external>a { display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:none; padding:8px 12px; border:1px solid rgba(163,230,53,.3); border-radius:11px; background:rgba(163,230,53,.08); color:#b5ed72; font-size:11px; font-weight:800; text-decoration:none; transition:background .15s,border-color .15s; }
-  .upd-platform-external>a:hover { border-color:#a3e635; background:rgba(163,230,53,.15); }
+  .upd-tray { display:flex; gap:10px; padding:12px 14px; overflow-x:auto; -webkit-overflow-scrolling:touch; border-bottom:1px solid rgba(255,255,255,.04); background:rgba(4,4,4,.6); flex-shrink:0; scrollbar-width:none; }
+  .upd-tray::-webkit-scrollbar { display:none; }
+  .upd-xeevia-tray>[role="button"]:focus-visible { border-radius:14px; outline:2px solid #a3e635; outline-offset:3px; }
+  .upd-platform-shortcut { display:flex; flex:0 0 64px; flex-direction:column; align-items:center; gap:5px; color:inherit; text-decoration:none; outline:none; }
+  .upd-platform-shortcut-icon { width:64px; height:64px; display:grid; place-items:center; border:3px solid; border-radius:50%; }
+  .upd-platform-shortcut-label { max-width:64px; overflow:hidden; color:rgba(255,255,255,.5); font-size:11px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+  .upd-platform-shortcut:focus-visible .upd-platform-shortcut-icon { outline:2px solid #a3e635; outline-offset:3px; }
   .upd-status-skeleton { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.04); animation:uvPulse 1.4s ease-in-out infinite; flex:none; }
-  .upd-platform-empty { color:#555e53; font-size:11px; white-space:nowrap; }
 
   .upd-cards-scroll { display:flex; gap:10px; padding:10px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-shrink:0; scrollbar-width:none; }
   .upd-cards-scroll::-webkit-scrollbar { height:0; }
@@ -1811,15 +1795,11 @@ const MODAL_CSS = `
   }
 
   @media (max-width:480px) {
-    .upd-platform-row { align-items:flex-start; gap:9px; padding:10px 12px; }
-    .upd-platform-brand { width:116px; min-width:116px; gap:8px; }
-    .upd-platform-logo { width:34px; height:34px; border-radius:11px; }
-    .upd-platform-brand-copy strong { font-size:12px; }
-    .upd-platform-brand-copy small { font-size:9px; }
-    .upd-platform-feed { gap:9px; }
-    .upd-platform-external { align-items:flex-start; flex-direction:column; gap:7px; }
-    .upd-platform-external>span { font-size:10px; }
-    .upd-platform-external>a { padding:6px 9px; }
+    .upd-platform-shortcut,
+    .upd-platform-shortcut-icon { width:60px; }
+    .upd-platform-shortcut { flex-basis:60px; }
+    .upd-platform-shortcut-icon { height:60px; }
+    .upd-platform-shortcut-label { max-width:60px; }
     .as-share-platforms { grid-template-columns:minmax(0,1fr); }
     .as-share-platform { padding:6px 8px; }
     .as-distribution-card { grid-template-columns:32px minmax(0,1fr); }
